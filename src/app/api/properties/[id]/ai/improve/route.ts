@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateExposeContent } from "@/lib/ai";
-import { getProperty, saveExpose } from "@/lib/store";
+import { getProperty, saveExpose, saveLocationIntelligence } from "@/lib/store";
+import { resolveLocation } from "@/lib/location-service";
 
 export async function POST(
   request: Request,
@@ -10,7 +11,7 @@ export async function POST(
   console.info("[api:ai-improve] POST /api/properties/:id/ai/improve request", {
     id,
   });
-  const property = await getProperty(id);
+  let property = await getProperty(id);
   if (!property) {
     console.warn("[api:ai-improve] property not found", { id });
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -22,6 +23,11 @@ export async function POST(
     actionLength: action.length,
   });
   try {
+    const location = await resolveLocation(property);
+    if (location.intelligence) {
+      await saveLocationIntelligence(id, location.intelligence);
+      property = (await getProperty(id)) || property;
+    }
     const content = await generateExposeContent(property, action);
     await saveExpose(id, content);
     console.info("[api:ai-improve] expose content generated and saved", {

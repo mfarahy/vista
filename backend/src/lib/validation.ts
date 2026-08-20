@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { propertyExposeDataSchema } from "./expose-data.js";
 
 const nullableNumber = z.number().finite().nullable().optional();
 
@@ -46,6 +47,7 @@ export const propertySchema = z.object({
       }),
     )
     .max(50),
+  exposeData: propertyExposeDataSchema.optional(),
 });
 
 export const exposeContentSchema = z.object({

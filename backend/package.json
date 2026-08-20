@@ -7,9 +7,11 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc --project tsconfig.json",
     "start": "node dist/index.js",
-    "lint": "tsc --noEmit --project tsconfig.json"
+    "lint": "tsc --noEmit --project tsconfig.json",
+    "test": "node --import tsx --test src/**/*.test.ts"
   },
   "dependencies": {
+    "@mastra/core": "^1.60.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
     "express": "^4.21.2",

@@ -1,6 +1,6 @@
 # Raumwerk Exposé Generator
 
-Phase 1 MVP für hochwertige Immobilien-Exposés auf Deutsch. Der lokale Demo-Modus funktioniert ohne externe Dienste: Eigenschaften werden in `data/properties.json` gespeichert, Uploads liegen unter `public/uploads/`, und die KI liefert ohne `OPENAI_API_KEY` einen transparenten Demo-Entwurf. Für Produktion ist PostgreSQL/Prisma als Zielmodell enthalten.
+Phase 1 MVP für hochwertige Immobilien-Exposés auf Deutsch. Der lokale Demo-Modus funktioniert ohne externe Dienste: Eigenschaften werden in `data/properties.json` gespeichert, Uploads liegen unter `public/uploads/`, und die KI liefert ohne `OPENAI_API_KEY` einen transparenten Demo-Entwurf. Der kanonische Vertrag liegt in `src/lib/expose-data.ts`; der getrennte Backend-Dienst enthält die Mastra-Grundlage. Für Produktion ist PostgreSQL/Prisma als Zielmodell enthalten.
 
 ## Starten
 
@@ -19,6 +19,10 @@ Danach `http://localhost:3000` öffnen und **Neues Exposé** wählen.
 - `OPENAI_BASE_URL`: optionaler kompatibler Endpoint
 - `OPENAI_MODEL`: Modellname, Standard `gpt-4o-mini`
 - `NEXT_PUBLIC_APP_URL`: öffentliche App-URL
+- `GEOCODING_PROVIDER`: optional `nominatim`; bleibt leer, wenn kein Geocoder aktiviert ist
+- `GEOCODING_API_KEY`: reserviert für austauschbare Provider, niemals hard-coden
+- `PLACES_PROVIDER`: optional `overpass` für strukturierte POI-Suche
+- `LOCATION_SEARCH_RADIUS_METERS`: Suchradius, Standard `1000`
 
 ## PostgreSQL
 

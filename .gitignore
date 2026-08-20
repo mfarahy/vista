@@ -5,3 +5,5 @@ node_modules
 data/properties.json
 public/uploads/*
 !public/uploads/.gitkeep
+backend/dist
+*.tsbuildinfo

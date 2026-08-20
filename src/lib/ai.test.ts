@@ -3,8 +3,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { afterEach, describe, it } from "node:test";
 
-import { generateExposeContent } from "./ai.ts";
+import { generateExposeContent } from "./ai";
 import { exposeHTML } from "./expose-template";
+import type { StructuredExposeContent } from "./types";
+import { locationIntelligenceSchema } from "./expose-data";
 
 describe("generateExposeContent", () => {
   const originalFetch = global.fetch;
@@ -109,5 +111,67 @@ describe("generateExposeContent", () => {
     assert.ok(html.includes("data:image/png;base64,"));
     assert.ok(!html.includes("Screenshot_1.png"));
     assert.ok(!html.includes("/uploads/Screenshot_1.png"));
+  });
+
+  it("renders structured Phase 3 content with two gallery images per page", async () => {
+    const uploadsDir = path.join(process.cwd(), "public", "uploads");
+    await fs.mkdir(uploadsDir, { recursive: true });
+    const tinyPng = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAF" +
+      "A1yA7AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8" +
+      "YQUAAAAJcEhZcwAAFiUAABYlAauJXgAAAAd0SU1F" +
+      "B+gAAAAeAAAAHQAAB0lPAAAAAElFTkSuQmCC",
+      "base64",
+    );
+    const images = await Promise.all(Array.from({ length: 4 }, async (_, index) => {
+      const fileName = `gallery-${index}.png`;
+      await fs.writeFile(path.join(uploadsDir, fileName), tinyPng);
+      return {
+        id: `image-${index}`,
+        assetId: `asset-${index}`,
+        url: `/uploads/${fileName}`,
+        fileName,
+        mimeType: "image/png",
+        size: tinyPng.length,
+        sequence: index,
+        isCover: index === 0,
+        category: "interior" as const,
+        subcategory: index === 0 ? "Wohnzimmer" : "Raum",
+        isHeroCandidate: index === 0,
+      };
+    }));
+    const content: StructuredExposeContent = {
+      version: 2,
+      cover: { title: "Helle Wohnung", location: "Berlin", heroImage: { assetId: "asset-0", caption: "Wohnzimmer" }, purchasePrice: "499.000 €", livingArea: "ca. 130 m²", rooms: "3" },
+      overview: { facts: [{ label: "Wohnfläche", value: "ca. 130 m²" }, { label: "Zimmer", value: "3" }], energy: { facts: [{ label: "Energieeffizienzklasse", value: "H" }, { label: "Endenergiebedarf", value: "250,20 kWh/(m²·a)" }] } },
+      propertyDescription: { paragraphs: [{ heading: "Einleitung", text: "Eine helle Immobilie.\n\nMit klarer Aufteilung." }] },
+      imageSections: [{ category: "interior", label: "Innenansichten", images: images.map(({ assetId, subcategory }) => ({ assetId, caption: subcategory })) }],
+      vistaSection: { heading: "5 Schritte zur Wunschimmobilie", subtitle: "Vista", description: "Wir begleiten Sie.", steps: ["Exposé", "Interesse", "Finanzierung", "Besichtigung", "Kaufabschluss"] },
+    };
+    const property = { id: "property-3", propertyType: "apartment", transactionType: "sale", city: "Berlin", images, roomsData: [], selectedFeatures: [], surroundings: {}, tone: "professional", language: "de" } as any;
+    const html = await exposeHTML(property, content);
+
+    assert.equal((html.match(/class="page gallery-page"/g) || []).length, 2);
+    assert.equal((html.match(/class="photo"/g) || []).length, 4);
+    assert.match(html, /499\.000 €/);
+    assert.match(html, /130 m²/);
+    assert.match(html, /Energieangaben/);
+    assert.match(html, /Effizienzklasse H/);
+    assert.doesNotMatch(html, /gallery-\d+\.png/);
+  });
+});
+
+describe("location PDF section", () => {
+  it("renders a dedicated location page when intelligence exists", async () => {
+    const property = { id: "location-pdf", propertyType: "apartment", transactionType: "sale", city: "Berlin", images: [], roomsData: [], selectedFeatures: [], surroundings: {}, tone: "professional", language: "de", exposeData: { location: { intelligence: locationIntelligenceSchema.parse({ address: { city: "Berlin", country: "Deutschland" }, coordinates: { latitude: 52.52, longitude: 13.405 }, source: "manual", verificationRequired: false, facilities: { shopping: [{ id: "market", name: "Markt", category: "supermarket", latitude: 52.521, longitude: 13.405, distanceMeters: 120, distanceType: "straight_line", source: "test" }], education: [], transport: [], healthcare: [], recreation: [], dailyLife: [] }, radiusMeters: 1000, summary: "Die Immobilie befindet sich in Berlin.", generatedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 1000).toISOString() }) } } } as any;
+    const html = await exposeHTML(property, { version: 2, cover: { title: "Test" }, overview: { facts: [{ label: "Objektart", value: "Wohnung" }] }, location: { description: "Berlin", intelligence: property.exposeData.location.intelligence }, vistaSection: { heading: "Vista", subtitle: "Vista", description: "Vista", steps: ["Exposé"] } } as StructuredExposeContent);
+    assert.match(html, /LAGE &amp; UMGEBUNG/);
+    assert.match(html, /Umgebung auf einen Blick/);
+    assert.match(html, /120 m/);
+  });
+
+  it("omits the location page when intelligence is unavailable", async () => {
+    const html = await exposeHTML({ id: "no-location", propertyType: "apartment", transactionType: "sale", images: [], roomsData: [], selectedFeatures: [], surroundings: {}, tone: "professional", language: "de" } as any, { version: 2, cover: { title: "Test" }, overview: { facts: [{ label: "Objektart", value: "Wohnung" }] }, vistaSection: { heading: "Vista", subtitle: "Vista", description: "Vista", steps: ["Exposé"] } } as StructuredExposeContent);
+    assert.doesNotMatch(html, /LAGE &amp; UMGEBUNG/);
   });
 });

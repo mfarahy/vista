@@ -18,6 +18,10 @@ export async function POST(
   const files = form
     .getAll("files")
     .filter((file): file is File => file instanceof File);
+  const category = form.get("category");
+  const subcategory = form.get("subcategory");
+  const caption = form.get("caption");
+  const categoryValue = typeof category === "string" ? category : "";
   console.info("[api:images] files received", { id, fileCount: files.length });
   if (!files.length)
     return NextResponse.json(
@@ -26,6 +30,9 @@ export async function POST(
     );
   const images = [];
   await fs.mkdir(uploadPath, { recursive: true });
+  if (!["exterior", "interior", "floor_plan", "document"].includes(categoryValue)) {
+    return NextResponse.json({ error: "Eine semantische Bildkategorie ist erforderlich" }, { status: 400 });
+  }
   for (const file of files) {
     if (!allowed.has(file.type)) {
       console.warn("[api:images] unsupported mime type", {
@@ -61,6 +68,12 @@ export async function POST(
       size: file.size,
       sequence: 0,
       isCover: false,
+      assetId: randomUUID(),
+      category: categoryValue as "exterior" | "interior" | "floor_plan" | "document",
+      subcategory: typeof subcategory === "string" ? subcategory : null,
+      caption: typeof caption === "string" ? caption : null,
+      description: null,
+      isHeroCandidate: categoryValue === "exterior",
     });
     if (image) images.push(image);
     console.info("[api:images] saved uploaded image", {

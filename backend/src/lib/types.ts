@@ -31,6 +31,8 @@ export const FEATURE_OPTIONS = [
 export type PropertyType = (typeof PROPERTY_TYPES)[number][0];
 export type TransactionType = "sale" | "rent";
 export type Tone = "professional" | "premium" | "modern" | "warm" | "neutral";
+export type { PropertyExposeData, EnergyData, ExposeImage } from "./expose-data.js";
+import type { PropertyExposeData } from "./expose-data.js";
 
 export interface PropertyImage {
   id: string;
@@ -41,6 +43,12 @@ export interface PropertyImage {
   sequence: number;
   isCover: boolean;
   room?: string | null;
+  assetId?: string;
+  category?: "exterior" | "interior" | "floor_plan" | "document" | null;
+  subcategory?: string | null;
+  caption?: string | null;
+  description?: string | null;
+  isHeroCandidate?: boolean;
 }
 
 export interface PropertyRoom {
@@ -103,6 +111,7 @@ export interface Property {
   expose?: Expose | null;
   createdAt?: string;
   updatedAt?: string;
+  exposeData?: PropertyExposeData;
 }
 
 export interface ExposeContent {

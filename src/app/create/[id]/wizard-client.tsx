@@ -12,6 +12,7 @@ import {
   GripVertical,
   ImagePlus,
   LoaderCircle,
+  MapPin,
   Plus,
   Sparkles,
   Trash2,
@@ -132,12 +133,15 @@ export default function WizardClient({
   );
   const [images, setImages] = useState(initialProperty.images);
   const [content, setContent] = useState<ExposeContent | null>(
-    initialProperty.expose?.content ?? null,
+    initialProperty.expose?.content && "title" in initialProperty.expose.content
+      ? initialProperty.expose.content
+      : null,
   );
   const [step, setStep] = useState(content ? 8 : 0);
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState("");
+  const [locationLoading, setLocationLoading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   function set<K extends keyof PropertyPayload>(
     key: K,
@@ -159,6 +163,52 @@ export default function WizardClient({
   async function next() {
     await save();
     setStep((current) => Math.min(current + 1, 8));
+  }
+  async function resolvePropertyLocation() {
+    setLocationLoading(true);
+    setError("");
+    const response = await fetch(`/api/properties/${initialProperty.id}/location`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const result = await response.json();
+    if (!response.ok) setError(result.error || "Location could not be resolved.");
+    else {
+      setProperty((current) => ({
+        ...current,
+        exposeData: {
+          ...(current.exposeData || initialProperty.exposeData!),
+          location: {
+            ...(current.exposeData?.location || initialProperty.exposeData?.location),
+            address: result.address,
+            latitude: result.coordinates.latitude,
+            longitude: result.coordinates.longitude,
+            intelligence: result,
+            description: result.summary,
+          },
+        },
+      }));
+    }
+    setLocationLoading(false);
+  }
+  async function manuallyAdjustLocation(latitude: number, longitude: number) {
+    setLocationLoading(true);
+    const response = await fetch(`/api/properties/${initialProperty.id}/location`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ latitude, longitude }),
+    });
+    const result = await response.json();
+    if (!response.ok) setError(result.error || "The location could not be updated.");
+    else setProperty((current) => ({
+      ...current,
+      exposeData: {
+        ...(current.exposeData || initialProperty.exposeData!),
+        location: { ...(current.exposeData?.location || initialProperty.exposeData?.location), address: result.address, latitude, longitude, intelligence: result, description: result.summary },
+      },
+    }));
+    setLocationLoading(false);
   }
   async function generate(action = "") {
     await save();
@@ -349,7 +399,7 @@ export default function WizardClient({
                   roomRemove={roomRemove}
                 />
               )}
-              {step === 5 && <StepLocation property={property} set={set} />}
+               {step === 5 && <StepLocation property={property} set={set} onResolve={resolvePropertyLocation} onAdjust={manuallyAdjustLocation} loading={locationLoading} />}
               {step === 6 && (
                 <StepPhotos
                   images={images}
@@ -913,13 +963,21 @@ function StepRooms({
 function StepLocation({
   property,
   set,
+  onResolve,
+  onAdjust,
+  loading,
 }: {
   property: PropertyPayload;
   set: <K extends keyof PropertyPayload>(
     key: K,
     value: PropertyPayload[K],
   ) => void;
+  onResolve: () => void;
+  onAdjust: (latitude: number, longitude: number) => void;
+  loading: boolean;
 }) {
+  const [latitude, setLatitude] = useState<number | null>(property.exposeData?.location.latitude ?? null);
+  const [longitude, setLongitude] = useState<number | null>(property.exposeData?.location.longitude ?? null);
   const fields: [keyof PropertyPayload["surroundings"], string, string][] = [
     ["transport", "Public transport", "e.g. subway, bus, train"],
     ["schools", "Schools", "Schools and education"],
@@ -961,6 +1019,34 @@ function StepLocation({
           onChange={(value) => set("locationNote", value)}
           placeholder="Your personal notes about the neighborhood …"
         />
+      </div>
+      <div className="mt-8 rounded-2xl border border-[#dce5dd] bg-[#f7faf7] p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <span className="label">Standort prüfen</span>
+            <p className="mt-1 text-sm text-[#66716a]">Die Adresse wird serverseitig geprüft. Der Standort kann danach bestätigt oder angepasst werden.</p>
+          </div>
+          <button onClick={onResolve} disabled={loading} className="btn btn-secondary flex items-center gap-2">
+            {loading ? <LoaderCircle size={15} className="animate-spin" /> : <MapPin size={15} />} Standort ermitteln
+          </button>
+        </div>
+        {property.exposeData?.location.intelligence && (
+          <div className="mt-5 overflow-hidden rounded-xl border border-[#dce5dd] bg-white">
+            {property.exposeData.location.intelligence.mapAsset?.url && <img src={property.exposeData.location.intelligence.mapAsset.url} alt="Standortkarte" className="h-56 w-full object-cover" />}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+              <div className="text-sm">
+                <b className="block text-[#45614d]">✓ Standort gefunden</b>
+                <span className="mt-1 block text-xs text-[#78847c]">{property.exposeData.location.intelligence.formattedAddress || property.city}</span>
+              </div>
+              <div className="flex items-end gap-2">
+                <label className="w-28"><span className="label">Breitengrad</span><input className="field" type="number" step="any" value={latitude ?? ""} onChange={(event) => setLatitude(event.target.value ? Number(event.target.value) : null)} /></label>
+                <label className="w-28"><span className="label">Längengrad</span><input className="field" type="number" step="any" value={longitude ?? ""} onChange={(event) => setLongitude(event.target.value ? Number(event.target.value) : null)} /></label>
+                <button onClick={() => latitude != null && longitude != null && onAdjust(latitude, longitude)} disabled={loading || latitude == null || longitude == null} className="text-xs font-bold text-[#607b68]">Standort anpassen</button>
+              </div>
+            </div>
+            {property.exposeData.location.intelligence.source === "manual" && <p className="px-4 pb-4 text-xs text-[#607b68]">Manuell angepasster Standort</p>}
+          </div>
+        )}
       </div>
     </Section>
   );

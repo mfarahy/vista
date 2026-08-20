@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getProperty, saveExpose } from "@/lib/store";
-import { exposeContentSchema } from "@/lib/validation";
+import { exposeContentInputSchema } from "@/lib/validation";
 
 export async function GET(
   _: Request,
@@ -24,7 +24,7 @@ export async function PUT(
   const id = (await params).id;
   console.info("[api:expose] PUT /api/properties/:id/expose request", { id });
   try {
-    const content = exposeContentSchema.parse(await request.json());
+     const content = exposeContentInputSchema.parse(await request.json());
     const expose = await saveExpose(id, content);
     if (!expose) {
       console.warn("[api:expose] property not found for save", { id });

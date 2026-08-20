@@ -19,7 +19,7 @@ export async function POST(
   }
   const browser = await chromium.launch({ headless: true });
   try {
-    console.info("[api:pdf] generating PDF", { id, title: property.expose.content.title });
+     console.info("[api:pdf] generating PDF", { id, title: "version" in property.expose.content ? property.expose.content.cover.title : property.expose.content.title });
     const page = await browser.newPage({
       viewport: { width: 794, height: 1123 },
       deviceScaleFactor: 1,
@@ -37,7 +37,7 @@ export async function POST(
     return new NextResponse(pdf as unknown as BodyInit, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="raumwerk-expose-${property.id}.pdf"`,
+         "Content-Disposition": `attachment; filename="vista-expose-${property.id}.pdf"`,
       },
     });
   } finally {

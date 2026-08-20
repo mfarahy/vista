@@ -25,7 +25,7 @@ export default function PreviewClient({
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `raumwerk-expose-${id}.pdf`;
+     anchor.download = `vista-expose-${id}.pdf`;
     anchor.click();
     URL.revokeObjectURL(url);
     setLoading(false);

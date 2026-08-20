@@ -20,7 +20,7 @@ const allowed = new Set(["image/jpeg", "image/png", "image/webp"]);
 const getParamValue = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value ?? "";
 
 app.use(cors({ origin: process.env.CORS_ORIGIN || true, credentials: true }));
-app.use(express.json({ limit: "20mb" }));
+app.use(express.json({ limit: "20mb", type: ["application/json", "application/*+json"] }));
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "vista-backend" });
@@ -104,6 +104,12 @@ app.post("/api/properties/:id/images", upload.array("files"), async (req, res) =
   if (!property) return res.status(404).json({ error: "Not found" });
 
   const files = Array.isArray(req.files) ? req.files : [];
+  const category = typeof req.body?.category === "string" ? req.body.category : "";
+  const subcategory = typeof req.body?.subcategory === "string" ? req.body.subcategory : null;
+  const caption = typeof req.body?.caption === "string" ? req.body.caption : null;
+  if (!["exterior", "interior", "floor_plan", "document"].includes(category)) {
+    return res.status(400).json({ error: "A semantic image category is required" });
+  }
   if (!files.length) return res.status(400).json({ error: "No images found" });
 
   const images: Array<Record<string, unknown>> = [];
@@ -128,6 +134,12 @@ app.post("/api/properties/:id/images", upload.array("files"), async (req, res) =
       size: file.size,
       sequence: 0,
       isCover: false,
+      assetId: randomUUID(),
+      category: category as "exterior" | "interior" | "floor_plan" | "document",
+      subcategory,
+      caption,
+      description: null,
+      isHeroCandidate: category === "exterior" && !property.images.some((image) => image.isCover),
     });
     if (image) images.push(image);
   }

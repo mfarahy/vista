@@ -1,3 +1,8 @@
+import type { PropertyExposeData, ExposeImage, EnergyData, AgentData, SystemBranding, LocationIntelligence } from "./expose-data";
+
+export { emptyExposeData, propertyExposeDataSchema } from "./expose-data";
+export type { PropertyExposeData, ExposeImage, EnergyData, AgentData, SystemBranding, LocationIntelligence } from "./expose-data";
+
 export const PROPERTY_TYPES = [
   ["apartment", "Apartment"],
   ["house", "House"],
@@ -41,6 +46,12 @@ export interface PropertyImage {
   sequence: number;
   isCover: boolean;
   room?: string | null;
+  assetId?: string;
+  category?: "exterior" | "interior" | "floor_plan" | "document" | null;
+  subcategory?: string | null;
+  caption?: string | null;
+  description?: string | null;
+  isHeroCandidate?: boolean;
 }
 export interface PropertyRoom {
   id: string;
@@ -100,6 +111,7 @@ export interface Property {
   expose?: Expose | null;
   createdAt?: string;
   updatedAt?: string;
+  exposeData?: PropertyExposeData;
 }
 export interface ExposeContent {
   title: string;
@@ -112,11 +124,65 @@ export interface ExposeContent {
   targetAudience: string;
   factualSnapshot: string[];
 }
+
+export interface StructuredExposeFact {
+  label: string;
+  value: string;
+}
+
+export interface StructuredExposeImageReference {
+  assetId: string;
+  caption: string;
+}
+
+export interface StructuredExposeContent {
+  version: 2;
+  cover: {
+    title: string;
+    location?: string;
+    heroImage?: StructuredExposeImageReference;
+    purchasePrice?: string;
+    livingArea?: string;
+    rooms?: string;
+  };
+  overview: {
+    facts: StructuredExposeFact[];
+    energy?: { facts: StructuredExposeFact[] };
+  };
+  objectInformation?: { address: import("./expose-data").PropertyExposeData["basicInformation"]["address"] };
+  propertyDescription?: {
+    paragraphs: { heading: string; text: string }[];
+  };
+  roomProgram?: { roomId: string; name: string; area?: string; description: string }[];
+  equipment?: { facts: StructuredExposeFact[]; description?: string };
+  location?: { description: string; district?: string; neighborhood?: string; intelligence?: LocationIntelligence };
+  otherInformation?: { items: StructuredExposeFact[] };
+  additionalInformation?: { items: StructuredExposeFact[] };
+  imageSections?: {
+    category: ExposeImage["category"];
+    label: string;
+    images: StructuredExposeImageReference[];
+  }[];
+  planSections?: { title: string; images: StructuredExposeImageReference[] }[];
+  mapSections?: { title: string; images: StructuredExposeImageReference[] }[];
+  agentSection?: AgentData;
+  vistaSection: {
+    heading: string;
+    subtitle: string;
+    description: string;
+    steps: string[];
+    logo?: string;
+    website?: string;
+    email?: string;
+    phone?: string;
+  };
+}
+export type StoredExposeContent = ExposeContent | StructuredExposeContent;
 export interface Expose {
   id: string;
   propertyId: string;
   template: "modern";
-  content: ExposeContent | null;
+  content: StoredExposeContent | null;
   pdfUrl?: string | null;
   generatedAt?: string | null;
 }
@@ -125,6 +191,7 @@ export interface PropertyPayload extends Omit<
   "id" | "images" | "expose" | "roomsData" | "createdAt" | "updatedAt"
 > {
   roomsData: Omit<PropertyRoom, "id">[];
+  exposeData?: PropertyExposeData;
 }
 
 export const emptyProperty = (): PropertyPayload => ({

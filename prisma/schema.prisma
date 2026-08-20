@@ -16,6 +16,15 @@ model Property {
   zipCode             String?
   city                String?
   district             String?
+  neighborhood         String?
+  latitude             Float?
+  longitude            Float?
+  formattedAddress     String?
+  geocodingProvider    String?
+  geocodedAt           DateTime?
+  geocodingConfidence  Float?
+  geocodingMatchType   String?
+  locationSource       String?
   livingArea          Float?
   plotArea            Float?
   rooms               Float?
@@ -44,7 +53,25 @@ model Property {
   updatedAt           DateTime         @updatedAt
   images              PropertyImage[]
   roomsData           PropertyRoom[]
+  exposeData          Json?
+  energy              PropertyEnergy?
+  agent               PropertyAgent?
   expose              Expose?
+  locationCaches      LocationCache[]
+}
+
+model LocationCache {
+  id             String   @id @default(cuid())
+  propertyId     String
+  latitude       Float
+  longitude      Float
+  searchRadius   Int
+  provider       String
+  results        Json
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
+  property       Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  @@index([propertyId, searchRadius])
 }
 
 model PropertyImage {
@@ -58,10 +85,41 @@ model PropertyImage {
   isCover     Boolean  @default(false)
   room        String?
   category    String?
+  assetId     String?
+  subcategory String?
+  caption     String?
+  description String?
+  isHeroCandidate Boolean @default(false)
   confidence  Float?
   aiDescription String?
   createdAt   DateTime @default(now())
   property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model PropertyEnergy {
+  id                    String   @id @default(cuid())
+  propertyId            String   @unique
+  certificateType       String?
+  yearOfConstruction    Int?
+  primaryEnergySource   String?
+  finalEnergyDemand     Float?
+  finalEnergyConsumption Float?
+  efficiencyClass       String?
+  property              Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model PropertyAgent {
+  id         String   @id @default(cuid())
+  propertyId String   @unique
+  name       String?
+  company    String?
+  address    Json?
+  phone      String?
+  email      String?
+  website    String?
+  photo      String?
+  logo       String?
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 }
 
 model PropertyRoom {

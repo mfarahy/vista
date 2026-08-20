@@ -81,6 +81,32 @@ type Property = {
   expose?: { id: string; propertyId: string; template: "modern"; content: ExposeContent | null; pdfUrl?: string | null; generatedAt?: string | null } | null;
   createdAt?: string;
   updatedAt?: string;
+  exposeData?: ExposeData;
+};
+
+type EnergyData = {
+  certificateType?: "needs_based" | "consumption_based" | "not_available" | "unknown" | null;
+  yearOfConstruction?: number | null;
+  primaryEnergySource?: "gas" | "oil" | "district_heating" | "heat_pump" | "electricity" | "wood" | "pellets" | "other" | null;
+  finalEnergyDemand?: number | null;
+  finalEnergyConsumption?: number | null;
+  efficiencyClass?: "A+" | "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | null;
+};
+type ExposeData = {
+  basicInformation: { propertyType: string; propertySubtype?: string | null; title?: string | null; address: { street?: string | null; houseNumber?: string | null; postalCode?: string | null; city?: string | null; district?: string | null; country?: string } };
+  pricing: { purchasePrice?: number | null; rentPrice?: number | null; additionalCosts?: number | null; buyerCommission?: string | null; sellerCommission?: string | null };
+  propertyDetails: { livingArea?: number | null; plotArea?: number | null; rooms?: number | null; bathrooms?: number | null; yearBuilt?: number | null; completionYear?: number | null; floor?: string | null; numberOfFloors?: number | null; garageCount?: number | null; parkingSpaceCount?: number | null };
+  energy?: EnergyData | null;
+  rooms: Array<{ id?: string; type: string; name: string; area?: number | null; description?: string | null; features: string[]; floor?: string | null; order?: number }>;
+  equipment: Array<{ category: string; name: string; description?: string | null }>;
+  outdoorAreas: Array<{ type: string; area?: number | null; orientation?: string | null; description?: string | null }>;
+  location: { address: ExposeData["basicInformation"]["address"]; latitude?: number | null; longitude?: number | null; district?: string | null; neighborhood?: string | null; description?: string | null };
+  images: Array<Record<string, unknown>>;
+  floorPlans: Array<Record<string, unknown>>;
+  maps: Array<Record<string, unknown>>;
+  additionalInformation: Record<string, string | null | undefined>;
+  agent?: { name?: string | null; company?: string | null; address?: ExposeData["basicInformation"]["address"]; phone?: string | null; email?: string | null; website?: string | null; photo?: string | null; logo?: string | null };
+  systemBranding: { companyName: string; logo?: string | null; website?: string | null; email?: string | null; phone?: string | null; description?: string | null; processSteps: string[] };
 };
 
 type ExposeContent = {
@@ -99,7 +125,14 @@ type PropertyPayload = Omit<Property, "id" | "images" | "expose" | "roomsData" |
   roomsData: Array<Omit<NonNullable<Property["roomsData"]>[number], "id">>;
 };
 
-const steps = ["Property", "Details", "Finances", "Features", "Rooms", "Location", "Photos", "Review"];
+const steps = ["Objekt", "Preis & Eckdaten", "Ausstattung", "Räume", "Energie", "Lage / Adresse", "Bilder", "Pläne & Dokumente", "Makler / Kontakt", "Vorschau"];
+
+const emptyExposeData = (property: Property): ExposeData => ({
+  basicInformation: { propertyType: property.propertyType, propertySubtype: null, title: null, address: { street: property.address, houseNumber: null, postalCode: property.zipCode, city: property.city, district: property.district, country: "Deutschland" } },
+  pricing: { purchasePrice: property.transactionType === "sale" ? property.askingPrice : null, rentPrice: property.transactionType === "rent" ? property.coldRent ?? property.askingPrice : null, additionalCosts: property.additionalCosts, buyerCommission: property.commission, sellerCommission: null },
+  propertyDetails: { livingArea: property.livingArea, plotArea: property.plotArea, rooms: property.rooms, bathrooms: property.bathrooms, yearBuilt: property.constructionYear, completionYear: null, floor: property.floor, numberOfFloors: property.totalFloors, garageCount: null, parkingSpaceCount: null },
+  energy: null, rooms: [], equipment: [], outdoorAreas: [], location: { address: { street: property.address, houseNumber: null, postalCode: property.zipCode, city: property.city, district: property.district, country: "Deutschland" }, district: property.district, latitude: null, longitude: null, neighborhood: null, description: property.locationNote }, images: [], floorPlans: [], maps: [], additionalInformation: { additionalInformation: null, legalNotes: null, sellerNotes: property.specialNotes, commissionNotes: null, availability: property.availableFrom }, systemBranding: { companyName: "Vista", processSteps: [] }, agent: undefined,
+});
 
 const demoDefaults: Partial<PropertyPayload> = {
   constructionYear: 2018,
@@ -133,6 +166,7 @@ const initialPayload = (property: Property): PropertyPayload => {
     ...(freshDraft ? demoDefaults : {}),
     ...payload,
     roomsData: freshDraft ? (demoDefaults.roomsData ?? []) : property.roomsData.map(({ id: _roomId, ...room }) => room),
+    exposeData: property.exposeData ?? emptyExposeData(property),
   };
 };
 
@@ -144,14 +178,34 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
   const [property, setProperty] = useState<PropertyPayload>(initialPayload(initialProperty));
   const [images, setImages] = useState(initialProperty.images);
   const [content, setContent] = useState<ExposeContent | null>(initialProperty.expose?.content ?? null);
-  const [step, setStep] = useState(content ? 8 : 0);
+  const [step, setStep] = useState(content ? 10 : 0);
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
+  const [uploadCategory, setUploadCategory] = useState<"exterior" | "interior" | "floor_plan" | "document">("exterior");
+  const [uploadSubcategory, setUploadSubcategory] = useState("");
+  const [uploadCaption, setUploadCaption] = useState("");
 
   function set<K extends keyof PropertyPayload>(key: K, value: PropertyPayload[K]) {
-    setProperty((current) => ({ ...current, [key]: value }));
+    setProperty((current) => {
+      const next = { ...current, [key]: value } as PropertyPayload;
+      const data = next.exposeData ?? emptyExposeData(initialProperty);
+      if (key === "address" || key === "zipCode" || key === "city" || key === "district") {
+        data.basicInformation = { ...data.basicInformation, address: { ...data.basicInformation.address, street: key === "address" ? String(value ?? "") : next.address, postalCode: key === "zipCode" ? String(value ?? "") : next.zipCode, city: key === "city" ? String(value ?? "") : next.city, district: key === "district" ? String(value ?? "") : next.district } };
+        data.location = { ...data.location, address: data.basicInformation.address, district: data.basicInformation.address.district };
+      }
+      if (["livingArea", "plotArea", "rooms", "bathrooms", "constructionYear", "floor", "totalFloors"].includes(String(key))) {
+        data.propertyDetails = { ...data.propertyDetails, livingArea: key === "livingArea" ? value as number | null : next.livingArea, plotArea: key === "plotArea" ? value as number | null : next.plotArea, rooms: key === "rooms" ? value as number | null : next.rooms, bathrooms: key === "bathrooms" ? value as number | null : next.bathrooms, yearBuilt: key === "constructionYear" ? value as number | null : next.constructionYear, floor: key === "floor" ? value as string : next.floor, numberOfFloors: key === "totalFloors" ? value as number | null : next.totalFloors };
+      }
+      if (["askingPrice", "coldRent", "additionalCosts", "commission"].includes(String(key))) {
+        data.pricing = { ...data.pricing, purchasePrice: next.transactionType === "sale" ? (key === "askingPrice" ? value as number | null : next.askingPrice) : data.pricing.purchasePrice, rentPrice: next.transactionType === "rent" ? (key === "coldRent" ? value as number | null : next.coldRent ?? next.askingPrice) : data.pricing.rentPrice, additionalCosts: key === "additionalCosts" ? value as number | null : next.additionalCosts, buyerCommission: key === "commission" ? value as string : next.commission };
+      }
+      return { ...next, exposeData: data };
+    });
+  }
+  function updateExposeData(patch: Partial<ExposeData>) {
+    setProperty((current) => ({ ...current, exposeData: { ...current.exposeData!, ...patch } }));
   }
 
   async function save() {
@@ -168,7 +222,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
 
   async function next() {
     await save();
-    setStep((current) => Math.min(current + 1, 8));
+    setStep((current) => Math.min(current + 1, 9));
   }
 
   async function generate(action = "") {
@@ -184,7 +238,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     if (!response.ok) setError(result.error || "The AI could not create the text.");
     else {
       setContent(result);
-      setStep(8);
+      setStep(10);
     }
     setAiLoading(false);
   }
@@ -202,11 +256,14 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     setSaving(false);
   }
 
-  async function upload(files: FileList | null) {
+  async function upload(files: FileList | null, categoryOverride = uploadCategory) {
     if (!files?.length) return;
     setError("");
     const body = new FormData();
     [...files].forEach((file) => body.append("files", file));
+    body.append("category", categoryOverride);
+    if (uploadSubcategory) body.append("subcategory", uploadSubcategory);
+    if (uploadCaption) body.append("caption", uploadCaption);
     const response = await apiFetch(`/api/properties/${initialProperty.id}/images`, { method: "POST", body });
     const result = await response.json();
     if (!response.ok) setError(result.error);
@@ -240,9 +297,11 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     });
   }
 
-  const roomAdd = () => set("roomsData", [...property.roomsData, { name: "", type: "", size: null, floor: "", description: "", sequence: property.roomsData.length }]);
-  const roomUpdate = (index: number, patch: Partial<Omit<Property["roomsData"][number], "id">>) => set("roomsData", property.roomsData.map((room, roomIndex) => roomIndex === index ? { ...room, ...patch } : room));
-  const roomRemove = (index: number) => set("roomsData", property.roomsData.filter((_, roomIndex) => roomIndex !== index).map((room, sequence) => ({ ...room, sequence })));
+  const canonicalRoomType = (type: string) => ({ Living: "living_room", Wohnen: "living_room", Kitchen: "kitchen", Kochen: "kitchen", Bedroom: "bedroom", Schlafen: "bedroom", Bathroom: "bathroom", Bad: "bathroom", Office: "office", Arbeiten: "office" } as Record<string, string>)[type] ?? "other";
+  const syncRooms = (rooms: Property["roomsData"]) => updateExposeData({ rooms: rooms.map((room, order) => ({ id: room.id, type: canonicalRoomType(room.type), name: room.name || "Raum", area: room.size, description: room.description, features: [], floor: room.floor, order })) });
+  const roomAdd = () => { const rooms = [...property.roomsData, { name: "Raum", type: "other", size: null, floor: "", description: "", sequence: property.roomsData.length }]; set("roomsData", rooms); syncRooms(rooms); };
+  const roomUpdate = (index: number, patch: Partial<Omit<Property["roomsData"][number], "id">>) => { const rooms = property.roomsData.map((room, roomIndex) => roomIndex === index ? { ...room, ...patch } : room); set("roomsData", rooms); syncRooms(rooms); };
+  const roomRemove = (index: number) => { const rooms = property.roomsData.filter((_, roomIndex) => roomIndex !== index).map((room, sequence) => ({ ...room, sequence })); set("roomsData", rooms); syncRooms(rooms); };
 
   return (
     <main className="min-h-screen bg-[#f4f6f3]">
@@ -262,7 +321,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
             <p className="text-xs font-bold tracking-[.18em] text-[#607b68]">NEW EXPOSÉ</p>
             <h1 className="serif mt-2 text-3xl sm:text-4xl">Your property, in focus.</h1>
           </div>
-          <span className="text-sm text-[#7c887f]">{Math.min(step + 1, 8)} / 8</span>
+          <span className="text-sm text-[#7c887f]">{Math.min(step + 1, 10)} / 10</span>
         </div>
         <div className="mb-10 overflow-x-auto pb-2">
           <div className="flex min-w-[670px] items-center">
@@ -281,16 +340,18 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         </div>
         {error && <div className="mb-6 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}<button onClick={() => setError("")}><X size={16} /></button></div>}
         <div className="mx-auto max-w-4xl">
-          {step < 8 ? (
+          {step < 10 ? (
             <div className="step-enter">
-              {step === 0 && <StepProperty property={property} set={set} />}
+              {step === 0 && <StepProperty property={property} set={set} exposeData={property.exposeData!} updateExposeData={updateExposeData} />}
               {step === 1 && <StepDetails property={property} set={set} />}
-              {step === 2 && <StepFinance property={property} set={set} />}
-              {step === 3 && <StepFeatures property={property} set={set} />}
-              {step === 4 && <StepRooms rooms={property.roomsData} roomAdd={roomAdd} roomUpdate={roomUpdate} roomRemove={roomRemove} />}
-              {step === 5 && <StepLocation property={property} set={set} />}
-              {step === 6 && <StepPhotos images={images} fileInput={fileInput} upload={upload} removeImage={removeImage} cover={cover} moveImage={moveImage} />}
-              {step === 7 && <Review property={property} images={images} onEdit={setStep} />}
+              {step === 2 && <StepFeatures property={property} set={set} exposeData={property.exposeData!} updateExposeData={updateExposeData} />}
+              {step === 3 && <StepRooms rooms={property.roomsData} roomAdd={roomAdd} roomUpdate={roomUpdate} roomRemove={roomRemove} />}
+              {step === 4 && <StepEnergy data={property.exposeData!.energy} update={(energy) => updateExposeData({ energy })} />}
+              {step === 5 && <StepLocation property={property} set={set} exposeData={property.exposeData!} updateExposeData={updateExposeData} />}
+              {step === 6 && <StepPhotos images={images} fileInput={fileInput} upload={upload} removeImage={removeImage} cover={cover} moveImage={moveImage} category={uploadCategory} subcategory={uploadSubcategory} caption={uploadCaption} setCategory={setUploadCategory} setSubcategory={setUploadSubcategory} setCaption={setUploadCaption} />}
+              {step === 7 && <StepPhotos images={images} fileInput={fileInput} upload={(files) => upload(files, "floor_plan")} removeImage={removeImage} cover={cover} moveImage={moveImage} category="floor_plan" subcategory={uploadSubcategory} caption={uploadCaption} setCategory={() => setUploadCategory("floor_plan")} setSubcategory={setUploadSubcategory} setCaption={setUploadCaption} />}
+              {step === 8 && <StepAgent data={property.exposeData!.agent} update={(agent) => updateExposeData({ agent })} />}
+              {step === 9 && <Review property={property} images={images} onEdit={setStep} />}
             </div>
           ) : (
             <ContentEditor content={content} setContent={setContent} onGenerate={generate} onPreview={saveContent} loading={aiLoading} saving={saving} />
@@ -298,9 +359,9 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         </div>
         <div className="mx-auto mt-10 flex max-w-4xl justify-between border-t border-[#e0e5e0] pt-5">
           <button className="btn btn-ghost flex items-center gap-2" disabled={step === 0} onClick={() => setStep((current) => current - 1)}><ArrowLeft size={15} /> Back</button>
-          {step < 7 ? (
+          {step < 9 ? (
             <button className="btn btn-primary flex items-center gap-2" onClick={next}>{saving ? "Saving…" : "Next"} <ArrowRight size={15} /></button>
-          ) : step === 7 ? (
+          ) : step === 9 ? (
             <button className="btn btn-primary flex items-center gap-2" onClick={() => generate()} disabled={aiLoading}>{aiLoading ? <LoaderCircle size={15} className="animate-spin" /> : <Sparkles size={15} />} Improve with AI</button>
           ) : (
             <button className="btn btn-primary flex items-center gap-2" onClick={saveContent} disabled={saving}><FileText size={15} /> Open preview <ArrowRight size={15} /></button>
@@ -327,8 +388,8 @@ function Textarea({ label, value, onChange, placeholder }: { label: string; valu
   return <label><span className="label">{label}</span><textarea className="field min-h-28 resize-y" value={value ?? ""} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 
-function StepProperty({ property, set }: { property: PropertyPayload; set: <K extends keyof PropertyPayload>(key: K, value: PropertyPayload[K]) => void }) {
-  return <Section title="What would you like to offer?" description="Start with the most important details about your property."><div className="grid gap-6"><div><span className="label">Property type</span><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{PROPERTY_TYPES.map(([key, name]) => <button key={key} onClick={() => set("propertyType", key)} className={`rounded-xl border px-3 py-3 text-left text-xs font-bold transition ${property.propertyType === key ? "border-[#6e8b76] bg-[#eaf0ea] text-[#45614d]" : "border-[#e0e5e0] bg-white text-[#66716a] hover:border-[#9caf9e]"}`}>{name}</button>)}</div></div><div><span className="label">What are you planning?</span><div className="grid grid-cols-2 gap-2"><button onClick={() => set("transactionType", "sale")} className={`rounded-xl border px-4 py-4 text-left text-sm font-bold ${property.transactionType === "sale" ? "border-[#6e8b76] bg-[#eaf0ea] text-[#45614d]" : "border-[#e0e5e0]"}`}>Sell<span className="mt-1 block text-xs font-normal text-[#78847c]">List the property for sale</span></button><button onClick={() => set("transactionType", "rent")} className={`rounded-xl border px-4 py-4 text-left text-sm font-bold ${property.transactionType === "rent" ? "border-[#6e8b76] bg-[#eaf0ea] text-[#45614d]" : "border-[#e0e5e0]"}`}>Rent<span className="mt-1 block text-xs font-normal text-[#78847c]">Find new tenants</span></button></div></div><div className="max-w-xs"><Input label="Year built (optional)" value={property.constructionYear} type="number" onChange={(value) => set("constructionYear", value ? Number(value) : null)} placeholder="e.g. 2018" /></div></div></Section>;
+function StepProperty({ property, set, exposeData, updateExposeData }: { property: PropertyPayload; set: <K extends keyof PropertyPayload>(key: K, value: PropertyPayload[K]) => void; exposeData: ExposeData; updateExposeData: (patch: Partial<ExposeData>) => void }) {
+  return <Section title="Objekt" description="Grundinformationen und eine optionale Überschrift für das Exposé."><div className="grid gap-6"><div><span className="label">Property type</span><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{PROPERTY_TYPES.map(([key, name]) => <button key={key} onClick={() => { set("propertyType", key); updateExposeData({ basicInformation: { ...exposeData.basicInformation, propertyType: key } }); }} className={`rounded-xl border px-3 py-3 text-left text-xs font-bold transition ${property.propertyType === key ? "border-[#6e8b76] bg-[#eaf0ea] text-[#45614d]" : "border-[#e0e5e0] bg-white text-[#66716a] hover:border-[#9caf9e]"}`}>{name}</button>)}</div></div><div className="grid gap-5 sm:grid-cols-2"><Input label="Objekttitel" value={exposeData.basicInformation.title} onChange={(value) => updateExposeData({ basicInformation: { ...exposeData.basicInformation, title: value } })} placeholder="Helle 3-Zimmer-Wohnung" /><Input label="Unterart" value={exposeData.basicInformation.propertySubtype} onChange={(value) => updateExposeData({ basicInformation: { ...exposeData.basicInformation, propertySubtype: value } })} placeholder="z. B. Altbauwohnung" /></div><div><span className="label">What are you planning?</span><div className="grid grid-cols-2 gap-2"><button onClick={() => set("transactionType", "sale")} className={`rounded-xl border px-4 py-4 text-left text-sm font-bold ${property.transactionType === "sale" ? "border-[#6e8b76] bg-[#eaf0ea] text-[#45614d]" : "border-[#e0e5e0]"}`}>Sell</button><button onClick={() => set("transactionType", "rent")} className={`rounded-xl border px-4 py-4 text-left text-sm font-bold ${property.transactionType === "rent" ? "border-[#6e8b76] bg-[#eaf0ea] text-[#45614d]" : "border-[#e0e5e0]"}`}>Rent</button></div></div><div className="max-w-xs"><Input label="Year built (optional)" value={property.constructionYear} type="number" onChange={(value) => set("constructionYear", value ? Number(value) : null)} placeholder="e.g. 2018" /></div></div></Section>;
 }
 
 function StepDetails({ property, set }: { property: PropertyPayload; set: <K extends keyof PropertyPayload>(key: K, value: PropertyPayload[K]) => void }) {
@@ -340,21 +401,38 @@ function StepFinance({ property, set }: { property: PropertyPayload; set: <K ext
   return <Section title="The financial details." description="Optional details can be added later."><div className="grid gap-5 sm:grid-cols-2">{sale ? <><Input label="Asking price" value={property.askingPrice} type="number" onChange={(value) => set("askingPrice", value ? Number(value) : null)} placeholder="449000" /><Input label="Purchase costs" value={property.additionalCosts} type="number" onChange={(value) => set("additionalCosts", value ? Number(value) : null)} placeholder="Optional" /><Input label="Commission" value={property.commission} onChange={(value) => set("commission", value)} placeholder="e.g. 3.57% incl. VAT" /><Input label="Service charge / month" value={property.hausgeld} type="number" onChange={(value) => set("hausgeld", value ? Number(value) : null)} placeholder="Optional" /></> : <><Input label="Cold rent / month" value={property.coldRent} type="number" onChange={(value) => set("coldRent", value ? Number(value) : null)} placeholder="1800" /><Input label="Additional costs / month" value={property.additionalCosts} type="number" onChange={(value) => set("additionalCosts", value ? Number(value) : null)} placeholder="350" /><Input label="Total rent / month" value={property.askingPrice} type="number" onChange={(value) => set("askingPrice", value ? Number(value) : null)} placeholder="2150" /><Input label="Deposit" value={property.deposit} type="number" onChange={(value) => set("deposit", value ? Number(value) : null)} placeholder="5400" /></>}</div></Section>;
 }
 
-function StepFeatures({ property, set }: { property: PropertyPayload; set: <K extends keyof PropertyPayload>(key: K, value: PropertyPayload[K]) => void }) {
+function StepFeatures({ property, set, exposeData, updateExposeData }: { property: PropertyPayload; set: <K extends keyof PropertyPayload>(key: K, value: PropertyPayload[K]) => void; exposeData: ExposeData; updateExposeData: (patch: Partial<ExposeData>) => void }) {
   const toggle = (key: string) => set("selectedFeatures", property.selectedFeatures.includes(key) ? property.selectedFeatures.filter((value) => value !== key) : [...property.selectedFeatures, key]);
-  return <Section title="What makes the property special?" description="Select the features that best describe the home."><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{FEATURE_OPTIONS.map(([key, name]) => <button key={key} type="button" onClick={() => toggle(key)} className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold ${property.selectedFeatures.includes(key) ? "border-[#6e8b76] bg-[#eaf0ea] text-[#45614d]" : "border-[#e0e5e0] bg-white text-[#66716a]"}`}>{name}</button>)}</div><div className="mt-6"><Textarea label="Additional features" value={property.additionalFeatures} onChange={(value) => set("additionalFeatures", value)} placeholder="e.g. Oak flooring and splendid garden view" /></div></Section>;
+  const addEquipment = () => updateExposeData({ equipment: [...exposeData.equipment, { category: "interior", name: "", description: null }] });
+  const updateEquipment = (index: number, patch: Partial<ExposeData["equipment"][number]>) => updateExposeData({ equipment: exposeData.equipment.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) });
+  const removeEquipment = (index: number) => updateExposeData({ equipment: exposeData.equipment.filter((_, itemIndex) => itemIndex !== index) });
+  return <Section title="Ausstattung" description="Fakten und Ausstattungsmerkmale strukturiert erfassen."><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{FEATURE_OPTIONS.map(([key, name]) => <button key={key} type="button" onClick={() => toggle(key)} className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold ${property.selectedFeatures.includes(key) ? "border-[#6e8b76] bg-[#eaf0ea] text-[#45614d]" : "border-[#e0e5e0] bg-white text-[#66716a]"}`}>{name}</button>)}</div><div className="mt-6"><Textarea label="Additional features" value={property.additionalFeatures} onChange={(value) => set("additionalFeatures", value)} placeholder="e.g. Einbauküche, Parkett, Dreifachverglasung" /></div><div className="mt-8 space-y-3"><div className="flex items-center justify-between"><span className="label mb-0">Strukturierte Ausstattung</span><button type="button" onClick={addEquipment} className="btn btn-secondary px-3 py-2 text-xs">Ausstattung hinzufügen</button></div>{exposeData.equipment.map((item, index) => <div key={index} className="grid gap-3 rounded-xl border border-[#e0e5e0] p-3 sm:grid-cols-[1fr_1.5fr_auto]"><Select label="Kategorie" value={item.category} onChange={(value) => updateEquipment(index, { category: value })} options={[["interior", "Innenbereich"], ["kitchen", "Küche"], ["bathroom", "Bad"], ["flooring", "Boden"], ["windows", "Fenster"], ["heating", "Heizung"], ["technology", "Technik"], ["outdoor", "Außenbereich"], ["parking", "Parken"], ["storage", "Stauraum"], ["other", "Sonstiges"]]} /><Input label="Name" value={item.name} onChange={(value) => updateEquipment(index, { name: value })} placeholder="z. B. Einbauküche" /><button type="button" onClick={() => removeEquipment(index)} className="btn-ghost self-end">Entfernen</button></div>)}</div></Section>;
 }
 
 function StepRooms({ rooms, roomAdd, roomUpdate, roomRemove }: { rooms: Array<{ name: string; type: string; size?: number | null; floor?: string | null; description?: string | null; sequence: number }>; roomAdd: () => void; roomUpdate: (index: number, patch: Partial<{ name: string; type: string; size?: number | null; floor?: string | null; description?: string | null; sequence: number }>) => void; roomRemove: (index: number) => void }) {
   return <Section title="Room plan" description="Add the rooms and their most relevant details."><div className="space-y-4">{rooms.map((room, index) => <div key={`${room.name || "room"}-${index}`} className="rounded-2xl border border-[#e5e9e5] bg-[#fafcfb] p-4"><div className="mb-4 flex items-center justify-between"><h3 className="font-bold text-[#415743]">Room {index + 1}</h3><button onClick={() => roomRemove(index)} className="text-sm text-[#6d7b6f]">Remove</button></div><div className="grid gap-4 sm:grid-cols-2"><Input label="Name" value={room.name} onChange={(value) => roomUpdate(index, { name: value })} placeholder="Living room" /><Input label="Type" value={room.type} onChange={(value) => roomUpdate(index, { type: value })} placeholder="Living" /><Input label="Size (m²)" value={room.size} type="number" onChange={(value) => roomUpdate(index, { size: value ? Number(value) : null })} placeholder="25" /><Input label="Floor" value={room.floor} onChange={(value) => roomUpdate(index, { floor: value })} placeholder="Ground floor" /><div className="sm:col-span-2"><Textarea label="Description" value={room.description} onChange={(value) => roomUpdate(index, { description: value })} placeholder="Brief description of the room" /></div></div></div>)}<button type="button" onClick={roomAdd} className="btn btn-secondary">Add room</button></div></Section>;
 }
 
-function StepLocation({ property, set }: { property: PropertyPayload; set: <K extends keyof PropertyPayload>(key: K, value: PropertyPayload[K]) => void }) {
-  return <Section title="Location and surroundings" description="Useful neighborhood context helps the AI write the property story."><div className="grid gap-5 sm:grid-cols-2"><Textarea label="Location note" value={property.locationNote} onChange={(value) => set("locationNote", value)} placeholder="Describe the area or neighborhood." /><Textarea label="Seller description" value={property.sellerDescription} onChange={(value) => set("sellerDescription", value)} placeholder="What stands out most about the home?" /><Textarea label="Special notes" value={property.specialNotes} onChange={(value) => set("specialNotes", value)} placeholder="Anything else to mention?" /><Textarea label="Target audience" value={property.targetAudience} onChange={(value) => set("targetAudience", value)} placeholder="Who is the ideal buyer or tenant?" /></div></Section>;
+function StepEnergy({ data, update }: { data?: EnergyData | null; update: (data: EnergyData | null) => void }) {
+  const energy = data ?? {};
+  const number = (value: string) => value === "" ? null : Number(value);
+  return <Section title="Energie" description="Nur die Werte eintragen, die im Energieausweis vorhanden sind."><div className="grid gap-5 sm:grid-cols-2"><Select label="Energieausweis" value={energy.certificateType} onChange={(value) => update({ ...energy, certificateType: (value || null) as EnergyData["certificateType"] })} options={[["", "Bitte auswählen"], ["needs_based", "Bedarfsorientiert"], ["consumption_based", "Verbrauchsorientiert"], ["not_available", "Nicht vorhanden"], ["unknown", "Unbekannt"]]} /><Input label="Baujahr laut Energieausweis" value={energy.yearOfConstruction} type="number" onChange={(value) => update({ ...energy, yearOfConstruction: number(value) })} placeholder="1969" /><Select label="Hauptenergieträger" value={energy.primaryEnergySource} onChange={(value) => update({ ...energy, primaryEnergySource: (value || null) as EnergyData["primaryEnergySource"] })} options={[["", "Bitte auswählen"], ["gas", "Gas"], ["oil", "Öl"], ["district_heating", "Fernwärme"], ["heat_pump", "Wärmepumpe"], ["electricity", "Strom"], ["wood", "Holz"], ["pellets", "Pellets"], ["other", "Sonstige"]]} /><Input label="Endenergiebedarf (kWh/(m²·a))" value={energy.finalEnergyDemand} type="number" onChange={(value) => update({ ...energy, finalEnergyDemand: number(value) })} placeholder="250,20" /><Input label="Endenergieverbrauch (kWh/(m²·a))" value={energy.finalEnergyConsumption} type="number" onChange={(value) => update({ ...energy, finalEnergyConsumption: number(value) })} placeholder="Optional" /><Select label="Energieeffizienzklasse" value={energy.efficiencyClass} onChange={(value) => update({ ...energy, efficiencyClass: (value || null) as EnergyData["efficiencyClass"] })} options={[["", "Bitte auswählen"], ...["A+", "A", "B", "C", "D", "E", "F", "G", "H"].map((item) => [item, item] as const)]} /></div></Section>;
 }
 
-function StepPhotos({ images, fileInput, upload, removeImage, cover, moveImage }: { images: Array<{ id: string; url: string; fileName: string; mimeType: string; size: number; sequence: number; isCover: boolean }>; fileInput: React.RefObject<HTMLInputElement | null>; upload: (files: FileList | null) => Promise<void>; removeImage: (id: string) => Promise<void>; cover: (id: string) => Promise<void>; moveImage: (index: number, direction: -1 | 1) => Promise<void> }) {
-  return <Section title="Photos" description="Upload the best images for the exposé and preview."><div className="space-y-4"><input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={(event) => { upload(event.target.files); event.target.value = "" }} /><button type="button" onClick={() => fileInput.current?.click()} className="btn btn-primary">Upload photos</button><div className="grid gap-3 sm:grid-cols-2">{images.map((image, index) => <div key={image.id} className="rounded-2xl border border-[#e2e8e2] bg-white p-3"><img src={image.url.startsWith("http") ? image.url : image.url} alt={image.fileName} className="h-36 w-full rounded-xl object-cover" /><div className="mt-3 flex items-center justify-between"><span className="text-xs text-[#6e796f]">{image.fileName}</span>{image.isCover ? <span className="rounded-full bg-[#eaf0ea] px-2 py-1 text-[10px] font-bold text-[#45614d]">Cover</span> : null}</div><div className="mt-3 flex gap-2"><button type="button" onClick={() => cover(image.id)} className="btn btn-secondary px-2 py-2 text-[11px]">Set cover</button><button type="button" onClick={() => removeImage(image.id)} className="btn btn-secondary px-2 py-2 text-[11px]">Delete</button></div><div className="mt-3 flex gap-2"><button type="button" aria-label="Move image left" onClick={() => moveImage(index, -1)} className="btn btn-secondary px-2 py-2 text-[11px]">←</button><button type="button" aria-label="Move image right" onClick={() => moveImage(index, 1)} className="btn btn-secondary px-2 py-2 text-[11px]">→</button></div></div>)}</div></div></Section>;
+function StepLocation({ property, set, exposeData, updateExposeData }: { property: PropertyPayload; set: <K extends keyof PropertyPayload>(key: K, value: PropertyPayload[K]) => void; exposeData: ExposeData; updateExposeData: (patch: Partial<ExposeData>) => void }) {
+  const address = exposeData.location.address;
+  const updateAddress = (key: keyof ExposeData["basicInformation"]["address"], value: string) => updateExposeData({ location: { ...exposeData.location, address: { ...address, [key]: value }, district: key === "district" ? value : exposeData.location.district } });
+  return <Section title="Lage / Adresse" description="Die Adresse wird strukturiert gespeichert. Geocoding folgt in einer späteren Phase."><div className="grid gap-5 sm:grid-cols-2"><Input label="Straße" value={address.street} onChange={(value) => updateAddress("street", value)} /><Input label="Hausnummer" value={address.houseNumber} onChange={(value) => updateAddress("houseNumber", value)} /><Input label="Postleitzahl" value={address.postalCode} onChange={(value) => updateAddress("postalCode", value)} /><Input label="Ort" value={address.city} onChange={(value) => updateAddress("city", value)} /><Input label="Stadtteil" value={address.district} onChange={(value) => updateAddress("district", value)} /><Input label="Land" value={address.country} onChange={(value) => updateAddress("country", value)} /><Textarea label="Lagebeschreibung" value={exposeData.location.description} onChange={(value) => updateExposeData({ location: { ...exposeData.location, description: value } })} placeholder="Nur eigene, gesicherte Angaben." /><Textarea label="Verkäuferbeschreibung" value={property.sellerDescription} onChange={(value) => set("sellerDescription", value)} placeholder="Was zeichnet das Objekt aus?" /></div></Section>;
+}
+
+function StepPhotos({ images, fileInput, upload, removeImage, cover, moveImage, category, subcategory, caption, setCategory, setSubcategory, setCaption }: { images: Array<{ id: string; url: string; fileName: string; mimeType: string; size: number; sequence: number; isCover: boolean; category?: string | null; subcategory?: string | null; caption?: string | null }>; fileInput: React.RefObject<HTMLInputElement | null>; upload: (files: FileList | null) => Promise<void>; removeImage: (id: string) => Promise<void>; cover: (id: string) => Promise<void>; moveImage: (index: number, direction: -1 | 1) => Promise<void>; category: "exterior" | "interior" | "floor_plan" | "document"; subcategory: string; caption: string; setCategory: (value: "exterior" | "interior" | "floor_plan" | "document") => void; setSubcategory: (value: string) => void; setCaption: (value: string) => void }) {
+  const options: readonly (readonly [string, string])[] = category === "exterior" ? [["front", "Hausansicht"], ["garden", "Garten"], ["terrace", "Terrasse"], ["balcony", "Balkon"], ["driveway", "Zufahrt"], ["entrance", "Eingang"], ["garage", "Garage"], ["parking", "Stellplatz"], ["other", "Sonstiges Außen"]] : category === "interior" ? [["living_room", "Wohnzimmer"], ["bedroom", "Schlafzimmer"], ["child_room", "Kinderzimmer"], ["office", "Arbeitszimmer"], ["kitchen", "Küche"], ["dining_room", "Esszimmer"], ["bathroom", "Badezimmer"], ["guest_wc", "Gäste-WC"], ["hallway", "Flur"], ["hobby_room", "Hobbyraum"], ["utility_room", "Hauswirtschaftsraum"], ["basement", "Keller"], ["attic", "Dachboden"], ["other", "Sonstiger Innenraum"]] : category === "floor_plan" ? [["ground_floor", "Grundriss"], ["furnished", "Grundriss möbliert"], ["site_plan", "Lageplan"], ["macro_location", "Makrolage"]] : [["energy_certificate", "Energieausweis"], ["other", "Sonstiges Dokument"]];
+  return <Section title={category === "floor_plan" ? "Pläne & Dokumente" : "Bilder"} description="Jedes Bild erhält eine semantische Kategorie und kann später automatisch beschriftet werden."><div className="grid gap-5 sm:grid-cols-2"><Select label="Bildgruppe" value={category} onChange={(value) => setCategory(value as typeof category)} options={[["exterior", "Außenbereich"], ["interior", "Innenbereich"], ["floor_plan", "Pläne & Grundrisse"], ["document", "Energie / Dokumente"]]} /><Select label="Konkrete Zuordnung" value={subcategory} onChange={setSubcategory} options={[["", "Bitte auswählen"], ...options]} /><Input label="Optionale Bildunterschrift" value={caption} onChange={setCaption} placeholder="z. B. Küche" /></div><input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={(event) => { upload(event.target.files); event.target.value = "" }} /><button type="button" onClick={() => fileInput.current?.click()} className="btn btn-primary mt-6">Bilder hinzufügen</button><div className="mt-6 grid gap-3 sm:grid-cols-2">{images.map((image, index) => <div key={image.id} className="rounded-2xl border border-[#e2e8e2] bg-white p-3"><img src={image.url} alt={image.caption || image.subcategory || "Immobilienbild"} className="h-36 w-full rounded-xl object-cover" /><div className="mt-3 text-xs text-[#6e796f]">{image.caption || image.subcategory || image.category || "Nicht kategorisiert"}</div><div className="mt-3 flex gap-2"><button type="button" onClick={() => cover(image.id)} className="btn btn-secondary px-2 py-2 text-[11px]">Als Titelbild</button><button type="button" onClick={() => removeImage(image.id)} className="btn btn-secondary px-2 py-2 text-[11px]">Löschen</button><button type="button" onClick={() => moveImage(index, -1)} className="btn btn-secondary px-2 py-2 text-[11px]">↑</button><button type="button" onClick={() => moveImage(index, 1)} className="btn btn-secondary px-2 py-2 text-[11px]">↓</button></div></div>)}</div></Section>;
+}
+
+function StepAgent({ data, update }: { data: ExposeData["agent"]; update: (data: ExposeData["agent"]) => void }) {
+  const agent = data ?? {};
+  return <Section title="Makler / Kontakt" description="Maklerdaten bleiben getrennt von Vista-Systeminformationen."><div className="grid gap-5 sm:grid-cols-2"><Input label="Name" value={agent.name} onChange={(value) => update({ ...agent, name: value })} /><Input label="Unternehmen" value={agent.company} onChange={(value) => update({ ...agent, company: value })} /><Input label="Telefon" value={agent.phone} onChange={(value) => update({ ...agent, phone: value })} /><Input label="E-Mail" value={agent.email} onChange={(value) => update({ ...agent, email: value })} /><Input label="Website" value={agent.website} onChange={(value) => update({ ...agent, website: value })} /><Input label="Straße und Hausnummer" value={agent.address?.street} onChange={(value) => update({ ...agent, address: { ...(agent.address ?? { country: "Deutschland" }), street: value } })} /></div></Section>;
 }
 
 function Review({ property, images, onEdit }: { property: PropertyPayload; images: Array<{ id: string; url: string; fileName: string; mimeType: string; size: number; sequence: number; isCover: boolean }>; onEdit: (step: number) => void }) {
@@ -375,4 +453,3 @@ function ContentEditor({ content, setContent, onGenerate, onPreview, loading, sa
   };
   return <Section title="AI content editor" description="Review or adjust the generated exposé content."><div className="space-y-5"><Textarea label="Title" value={draft.title} onChange={(value) => setContent({ ...draft, title: value })} /><Textarea label="Portal title" value={draft.portalTitle} onChange={(value) => setContent({ ...draft, portalTitle: value })} /><Textarea label="Short description" value={draft.shortDescription} onChange={(value) => setContent({ ...draft, shortDescription: value })} /><Textarea label="Main description" value={draft.mainDescription} onChange={(value) => setContent({ ...draft, mainDescription: value })} /><Textarea label="Location description" value={draft.locationDescription} onChange={(value) => setContent({ ...draft, locationDescription: value })} /><Textarea label="Target audience" value={draft.targetAudience} onChange={(value) => setContent({ ...draft, targetAudience: value })} /><button type="button" onClick={() => onGenerate("Make the copy more premium and concise.")} className="btn btn-secondary" disabled={loading || saving}>{loading ? "Generating…" : "Regenerate with AI"}</button></div></Section>;
 }
-

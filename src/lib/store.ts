@@ -4,19 +4,49 @@ import { randomUUID } from "node:crypto";
 import type {
   Expose,
   ExposeContent,
+  StoredExposeContent,
   Property,
   PropertyImage,
   PropertyPayload,
   PropertyRoom,
 } from "./types";
+import { emptyExposeData } from "./expose-data";
+import { addressFromLegacy, addressKey } from "./location";
+import type { LocationIntelligence } from "./expose-data";
 
 const dataPath = path.join(process.cwd(), "data", "properties.json");
 const uploadPath = path.join(process.cwd(), "public", "uploads");
 type DB = { properties: Property[] };
 
+function normalizeProperty(property: Property): Property {
+  if (property.exposeData) return property;
+  const data = emptyExposeData();
+  data.basicInformation.address = { street: property.address ?? null, houseNumber: null, postalCode: property.zipCode ?? null, city: property.city ?? null, district: property.district ?? null, country: "Deutschland" };
+  data.basicInformation.propertyType = property.propertyType;
+  data.pricing = { purchasePrice: property.transactionType === "sale" ? property.askingPrice : null, rentPrice: property.transactionType === "rent" ? property.coldRent ?? property.askingPrice : null, additionalCosts: property.additionalCosts, buyerCommission: property.commission, sellerCommission: null };
+  data.propertyDetails = { ...data.propertyDetails, livingArea: property.livingArea, plotArea: property.plotArea, rooms: property.rooms, bathrooms: property.bathrooms, yearBuilt: property.constructionYear, floor: property.floor, numberOfFloors: property.totalFloors };
+  data.location = { address: data.basicInformation.address, district: property.district, latitude: null, longitude: null, neighborhood: null, description: property.locationNote };
+  data.rooms = property.roomsData.map((room, order) => ({ id: room.id, type: "other", name: room.name, area: room.size, description: room.description, features: [], floor: room.floor, order }));
+  data.images = property.images.map((image, order) => ({ ...image, id: image.id, assetId: image.id, category: image.category ?? "document", subcategory: image.subcategory, caption: image.caption, description: image.description, order, isHeroCandidate: image.isHeroCandidate ?? image.isCover }));
+  return { ...property, exposeData: data };
+}
+
+function syncExposeImages(property: Property) {
+  if (!property.exposeData) return;
+  property.exposeData.images = property.images.map((item, order) => ({
+    ...item,
+    id: item.id,
+    assetId: item.assetId ?? item.id,
+    category: item.category ?? "document",
+    order,
+    isHeroCandidate: item.isHeroCandidate ?? item.isCover,
+  }));
+}
+
 async function readDB(): Promise<DB> {
   try {
-    return JSON.parse(await fs.readFile(dataPath, "utf8")) as DB;
+    const db = JSON.parse(await fs.readFile(dataPath, "utf8")) as DB;
+    return { properties: db.properties.map(normalizeProperty) };
   } catch {
     return { properties: [] };
   }
@@ -35,9 +65,10 @@ export async function createProperty(): Promise<Property> {
     selectedFeatures: [],
     surroundings: {},
     tone: "professional",
-    language: "en",
+    language: "de",
     images: [],
     roomsData: [],
+    exposeData: emptyExposeData(),
     expose: null,
     createdAt: now,
     updatedAt: now,
@@ -76,9 +107,21 @@ export async function updateProperty(
   const updated = {
     ...old,
     ...payload,
+    exposeData: payload.exposeData ?? old.exposeData,
     roomsData,
     updatedAt: new Date().toISOString(),
   };
+
+  const oldAddress = old.exposeData?.basicInformation.address || addressFromLegacy(old.address, old.zipCode, old.city, old.district);
+  const newAddress = payload.exposeData?.basicInformation.address || addressFromLegacy(updated.address, updated.zipCode, updated.city, updated.district);
+  if (!updated.exposeData) updated.exposeData = emptyExposeData();
+  updated.exposeData.basicInformation.address = newAddress;
+  updated.exposeData.location.address = newAddress;
+  if (addressKey(oldAddress) !== addressKey(newAddress)) {
+    updated.exposeData.location.latitude = null;
+    updated.exposeData.location.longitude = null;
+    updated.exposeData.location.intelligence = undefined;
+  }
   db.properties[index] = updated;
   await writeDB(db);
   console.info("[store] updated property", {
@@ -100,9 +143,12 @@ export async function addImage(id: string, image: Omit<PropertyImage, "id">) {
     id: randomUUID(),
     sequence: property.images.length,
     isCover: property.images.length === 0,
+    assetId: image.assetId ?? randomUUID(),
   };
   property.images.push(record);
+  syncExposeImages(property);
   property.updatedAt = new Date().toISOString();
+  syncExposeImages(property);
   await writeDB(db);
   console.info("[store] added image", { id, imageId: record.id, fileName: record.fileName });
   return record;
@@ -129,6 +175,7 @@ export async function removeImage(id: string, imageId: string) {
           : item.isCover,
     }));
   property.updatedAt = new Date().toISOString();
+  syncExposeImages(property);
   await writeDB(db);
   console.info("[store] removed image", { id, imageId, fileName: image?.fileName ?? "unknown" });
   return image ?? null;
@@ -164,11 +211,12 @@ export async function setCover(id: string, imageId: string) {
     ...image,
     isCover: image.id === imageId,
   }));
+  syncExposeImages(property);
   await writeDB(db);
   console.info("[store] set cover image", { id, imageId });
   return property;
 }
-export async function saveExpose(id: string, content: ExposeContent) {
+export async function saveExpose(id: string, content: StoredExposeContent) {
   const db = await readDB();
   const property = db.properties.find((item) => item.id === id);
   if (!property) {
@@ -188,8 +236,27 @@ export async function saveExpose(id: string, content: ExposeContent) {
   console.info("[store] saved expose content", {
     id,
     exposeId: expose.id,
-    title: content.title,
+    title: "version" in content ? content.cover.title : content.title,
   });
   return expose;
+}
+
+export async function saveLocationIntelligence(id: string, intelligence: LocationIntelligence | null) {
+  const db = await readDB();
+  const property = db.properties.find((item) => item.id === id);
+  if (!property) return null;
+  const exposeData = property.exposeData || emptyExposeData();
+  exposeData.location = {
+    ...exposeData.location,
+    address: intelligence?.address || exposeData.location.address,
+    latitude: intelligence?.coordinates.latitude ?? null,
+    longitude: intelligence?.coordinates.longitude ?? null,
+    district: intelligence?.address.district ?? exposeData.location.district ?? null,
+    intelligence: intelligence || undefined,
+  };
+  property.exposeData = exposeData;
+  property.updatedAt = new Date().toISOString();
+  await writeDB(db);
+  return property;
 }
 export { uploadPath };

@@ -13,7 +13,7 @@ export default async function PreviewPage({
   return (
     <PreviewClient
       id={property.id}
-      title={property.expose.content.title}
+       title={"version" in property.expose.content ? property.expose.content.cover.title : property.expose.content.title}
       html={await exposeHTML(property, property.expose.content)}
     />
   );
