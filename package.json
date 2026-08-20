@@ -8,7 +8,7 @@
     "start": "npm --prefix frontend run start",
     "lint": "npm --prefix frontend run lint && npm --prefix expose-service run lint",
     "test:unit": "npm --prefix expose-service test",
-    "test:integration": "node --import tsx --test expose-service/src/location.integration.test.ts"
+    "test:integration": "node --import ./expose-service/node_modules/tsx/dist/loader.mjs --test expose-service/src/location.integration.test.ts"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

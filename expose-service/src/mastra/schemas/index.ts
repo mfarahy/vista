@@ -10,3 +10,5 @@ export type PrepareExposeDataOutput = z.infer<typeof prepareExposeDataOutputSche
 export type GenerateExposeContentOutput = z.infer<typeof generateExposeContentOutputSchema>;
 export { exposeContentSchema, validateExposeContent, validateExposeContentReferences } from "./expose-content.js";
 export type { ExposeContent } from "./expose-content.js";
+export { locationResearchInputSchema, locationResearchSchema, researchClaimSchema, researchSourceSchema } from "./location-research.js";
+export type { LocationResearch, LocationResearchInput, ResearchClaim, ResearchSource } from "./location-research.js";

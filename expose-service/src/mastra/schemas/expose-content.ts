@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { addressSchema, agentDataSchema, exposeImageSchema, locationIntelligenceSchema } from "../../lib/expose-data.js";
+import { locationResearchSchema } from "./location-research.js";
 
 const text = z.string().trim().min(1);
 const factSchema = z.object({ label: text.max(120), value: text.max(300) });
@@ -45,6 +46,7 @@ export const exposeContentSchema = z.object({
     district: text.max(100).optional(),
     neighborhood: text.max(100).optional(),
     intelligence: locationIntelligenceSchema.optional(),
+    research: locationResearchSchema.optional(),
   }).optional(),
   otherInformation: z.object({ items: z.array(factSchema).min(1) }).optional(),
   additionalInformation: z.object({ items: z.array(factSchema).min(1) }).optional(),

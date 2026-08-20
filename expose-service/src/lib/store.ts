@@ -13,6 +13,7 @@ import type {
 import { emptyExposeData } from "./expose-data.js";
 import { addressFromLegacy, addressKey } from "../external-services/location.js";
 import type { LocationIntelligence } from "./expose-data.js";
+import type { LocationResearch } from "../mastra/schemas/location-research.js";
 
 const dataPath = path.join(process.cwd(), "data", "properties.json");
 const uploadPath = path.join(process.cwd(), "public", "uploads");
@@ -254,6 +255,18 @@ export async function saveLocationIntelligence(id: string, intelligence: Locatio
     district: intelligence?.address.district ?? exposeData.location.district ?? null,
     intelligence: intelligence || undefined,
   };
+  property.exposeData = exposeData;
+  property.updatedAt = new Date().toISOString();
+  await writeDB(db);
+  return property;
+}
+
+export async function saveLocationResearch(id: string, research: LocationResearch | null) {
+  const db = await readDB();
+  const property = db.properties.find((item) => item.id === id);
+  if (!property) return null;
+  const exposeData = property.exposeData || emptyExposeData();
+  exposeData.location = { ...exposeData.location, research: research || undefined };
   property.exposeData = exposeData;
   property.updatedAt = new Date().toISOString();
   await writeDB(db);

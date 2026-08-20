@@ -7,12 +7,14 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { chromium } from "playwright";
 
-import { createProperty, listProperties, getProperty, updateProperty, addImage, removeImage, reorderImages, setCover, saveExpose, saveLocationIntelligence, uploadPath } from "./lib/store.js";
+import { createProperty, listProperties, getProperty, updateProperty, addImage, removeImage, reorderImages, setCover, saveExpose, saveLocationIntelligence, saveLocationResearch, uploadPath } from "./lib/store.js";
 import { propertySchema, exposeContentSchema } from "./lib/validation.js";
 import { generateExposeContent } from "./external-services/ai.js";
 import { createManualLocation, resolveLocation } from "./lib/location-service.js";
 import { exposeHTML } from "./lib/expose-template.js";
 import type { PropertyPayload } from "./lib/types.js";
+import { researchLocation } from "./mastra/agents/location-research-agent.js";
+import { locationResearchInputSchema } from "./mastra/schemas/location-research.js";
 
 dotenv.config();
 
@@ -36,6 +38,38 @@ app.get("/api/properties/:id/location", async (req, res) => {
   const property = await getProperty(getParamValue(req.params.id));
   if (!property) return res.status(404).json({ error: "Not found" });
   res.json(property.exposeData?.location.intelligence || null);
+});
+
+app.get("/api/properties/:id/location/research", async (req, res) => {
+  const property = await getProperty(getParamValue(req.params.id));
+  if (!property) return res.status(404).json({ error: "Not found" });
+  res.json(property.exposeData?.location.research || null);
+});
+
+app.post("/api/properties/:id/location/research", async (req, res) => {
+  const propertyId = getParamValue(req.params.id);
+  const property = await getProperty(propertyId);
+  if (!property) return res.status(404).json({ error: "Not found" });
+  const address = property.exposeData?.location.address;
+  if (!address?.city || !address.postalCode) return res.status(422).json({ error: "A city and postal code are required for location research." });
+  try {
+    const input = locationResearchInputSchema.parse({
+      propertyId,
+      address: [address.street, address.houseNumber, address.postalCode, address.city].filter(Boolean).join(" "),
+      city: address.city,
+      district: property.exposeData?.location.district || address.district || undefined,
+      neighborhood: property.exposeData?.location.neighborhood || undefined,
+      postalCode: address.postalCode,
+      country: address.country,
+      latitude: property.exposeData?.location.latitude ?? undefined,
+      longitude: property.exposeData?.location.longitude ?? undefined,
+    });
+    const research = await researchLocation(input, { refresh: req.body?.refresh === true });
+    const saved = await saveLocationResearch(propertyId, research);
+    res.json(saved?.exposeData?.location.research || research);
+  } catch (error) {
+    res.status(502).json({ error: error instanceof Error ? error.message : "Location research could not be completed." });
+  }
 });
 
 app.post("/api/properties/:id/location", async (req, res) => {
