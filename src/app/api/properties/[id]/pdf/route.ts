@@ -24,7 +24,8 @@ export async function POST(
       viewport: { width: 794, height: 1123 },
       deviceScaleFactor: 1,
     });
-    await page.setContent(exposeHTML(property, property.expose.content), {
+    const html = await exposeHTML(property, property.expose.content);
+    await page.setContent(html, {
       waitUntil: "networkidle",
     });
     const pdf = await page.pdf({

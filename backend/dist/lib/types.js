@@ -1,0 +1,28 @@
+export const PROPERTY_TYPES = [
+    ["apartment", "Apartment"],
+    ["house", "House"],
+    ["villa", "Villa"],
+    ["penthouse", "Penthouse"],
+    ["semi-detached", "Semi-detached house"],
+    ["terraced", "Terraced house"],
+    ["other", "Other"],
+];
+export const FEATURE_OPTIONS = [
+    ["balcony", "Balcony"],
+    ["terrace", "Terrace"],
+    ["garden", "Garden"],
+    ["garage", "Garage"],
+    ["parking", "Parking space"],
+    ["elevator", "Elevator"],
+    ["basement", "Basement"],
+    ["attic", "Attic"],
+    ["fitted-kitchen", "Fitted kitchen"],
+    ["underfloor-heating", "Underfloor heating"],
+    ["air-conditioning", "Air conditioning"],
+    ["guest-toilet", "Guest toilet"],
+    ["accessible", "Accessible"],
+    ["storage", "Storage room"],
+    ["wardrobes", "Built-in wardrobes"],
+    ["smart-home", "Smart home"],
+    ["energy-efficient", "Energy efficient"],
+];

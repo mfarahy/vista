@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { ExposeContent, Property, PropertyImage } from "./types";
 import { FEATURE_OPTIONS, PROPERTY_TYPES } from "./types";
 
@@ -19,19 +21,53 @@ const money = (value?: number | null) =>
         maximumFractionDigits: 0,
       }).format(value)
     : "On request";
-const imageSrc = (image: PropertyImage) => image.url;
 
-function gallery(images: PropertyImage[]) {
+async function resolveImageDataUrl(image: PropertyImage): Promise<string> {
+  if (!image?.url) return "";
+  if (image.url.startsWith("data:")) return image.url;
+  if (/^https?:\/\//i.test(image.url)) return image.url;
+
+  const relative = image.url.startsWith("/")
+    ? image.url.replace(/^\/+/, "")
+    : image.url;
+  const localPath = path.join(process.cwd(), "public", relative);
+
+  try {
+    const buffer = await fs.readFile(localPath);
+    const mimeType = image.mimeType || "image/png";
+    return `data:${mimeType};base64,${buffer.toString("base64")}`;
+  } catch {
+    return image.url;
+  }
+}
+
+function imageCaption(image: PropertyImage) {
+  if (image.room && image.room.trim()) return image.room.trim();
+  const rawStem = image.fileName.replace(/\.[^.]+$/, "").trim();
+  if (!rawStem) return "Property image";
+  const generic = /^(screenshot|image|img|photo|picture|scan|capture|unknown)/i.test(rawStem);
+  return generic ? "Property image" : rawStem.replace(/[_-]+/g, " ");
+}
+
+async function gallery(images: PropertyImage[]) {
   const sorted = [...images].sort((a, b) => a.sequence - b.sequence);
   if (!sorted.length)
     return `<div class="gallery-empty">Images will appear here after upload.</div>`;
   const countClass = `gallery-${Math.min(sorted.length, 6)}`;
-  return `<div class="gallery ${countClass}">${sorted.map((image, index) => `<figure class="gallery-item item-${index + 1}"><img src="${esc(imageSrc(image))}" alt="${esc(image.fileName)}" /></figure>`).join("")}</div>`;
+  const items = await Promise.all(
+    sorted.map(async (image, index) => {
+      const src = await resolveImageDataUrl(image);
+      const caption = imageCaption(image);
+      return `<figure class="gallery-item item-${index + 1}"><img src="${esc(src)}" alt="${esc(caption)}" /><figcaption>${esc(caption)}</figcaption></figure>`;
+    }),
+  );
+  return `<div class="gallery ${countClass}">${items.join("")}</div>`;
 }
 
-export function exposeHTML(property: Property, content: ExposeContent) {
+export async function exposeHTML(property: Property, content: ExposeContent) {
   const images = [...property.images].sort((a, b) => a.sequence - b.sequence);
   const cover = images.find((image) => image.isCover) || images[0];
+  const coverImage = cover ? await resolveImageDataUrl(cover) : "";
   const facts = content.factualSnapshot.length
     ? content.factualSnapshot
     : ([
@@ -44,9 +80,10 @@ export function exposeHTML(property: Property, content: ExposeContent) {
     ...property.selectedFeatures,
     ...(property.additionalFeatures ? [property.additionalFeatures] : []),
   ];
+  const resolvedGallery = await gallery(images);
   return `<!doctype html><html lang="de"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${esc(content.title)}</title><style>${printCSS()}</style></head><body>
   <main class="expose">
-    <section class="cover page"><div class="cover-image" style="${cover ? `background-image:url('${esc(imageSrc(cover))}')` : ""}"><div class="cover-fallback">RAUMWERK</div></div><div class="cover-copy"><div class="eyebrow">IMMOBILIEN-EXPOSÉ · ${esc(property.transactionType === "sale" ? "ZUM KAUF" : "ZUR MIETE")}</div><h1>${esc(content.title)}</h1><p class="cover-location">${esc(property.city || "")}${property.district ? ` · ${esc(property.district)}` : ""}</p><div class="cover-price">${esc(money(property.transactionType === "sale" ? property.askingPrice : property.coldRent))}<small>${property.transactionType === "sale" ? "Kaufpreis" : "Kaltmiete"}</small></div></div></section>
+    <section class="cover page"><div class="cover-image" style="${cover ? `background-image:url('${esc(coverImage)}')` : ""}"><div class="cover-fallback">RAUMWERK</div></div><div class="cover-copy"><div class="eyebrow">IMMOBILIEN-EXPOSÉ · ${esc(property.transactionType === "sale" ? "ZUM KAUF" : "ZUR MIETE")}</div><h1>${esc(content.title)}</h1><p class="cover-location">${esc(property.city || "")}${property.district ? ` · ${esc(property.district)}` : ""}</p><div class="cover-price">${esc(money(property.transactionType === "sale" ? property.askingPrice : property.coldRent))}<small>${property.transactionType === "sale" ? "Kaufpreis" : "Kaltmiete"}</small></div></div></section>
     <section class="page overview"><div class="section-kicker">01 · AUF EINEN BLICK</div><div class="overview-head"><div><h2>Ein Zuhause mit<br/><em>Persönlichkeit.</em></h2></div><p>${esc(content.shortDescription)}</p></div><div class="facts">${facts.map((fact) => `<div class="fact"><strong>${esc(fact.split(" ")[0])}</strong><span>${esc(fact.split(" ").slice(1).join(" "))}</span></div>`).join("")}</div><div class="split"><div><div class="section-kicker">HIGHLIGHTS</div><ul class="highlights">${content.highlights.map((item) => `<li>${esc(item)}</li>`).join("")}</ul></div><div class="intro-copy"><p>${esc(content.shortDescription)}</p></div></div></section>
     <section class="page text-page"><div class="section-kicker">02 · BESCHREIBUNG</div><h2>Räume, die<br/><em>Geschichten erzählen.</em></h2><div class="body-copy">${content.mainDescription
       .split("\n")
@@ -68,7 +105,7 @@ export function exposeHTML(property: Property, content: ExposeContent) {
           `<div class="location-line"><span>${esc(key)}</span><b>${esc(value)}</b></div>`,
       )
       .join("")}</div></div></section>
-    <section class="page photo-page"><div class="section-kicker">04 · IMPRESSIONEN</div><h2>Einblicke in<br/><em>Ihr neues Zuhause.</em></h2>${gallery(images)}</section>
+    <section class="page photo-page"><div class="section-kicker">04 · IMPRESSIONEN</div><h2>Einblicke in<br/><em>Ihr neues Zuhause.</em></h2>${resolvedGallery}</section>
     <section class="closing"><div class="closing-mark">R</div><div><div class="eyebrow">RAUMWERK · EXPOSÉ</div><h2>Bereit für den<br/><em>nächsten Schritt?</em></h2><p>${esc(content.targetAudience)}</p></div><div class="closing-foot">Fakten und Angaben basieren auf den bereitgestellten Informationen.</div></section>
   </main></body></html>`;
 }

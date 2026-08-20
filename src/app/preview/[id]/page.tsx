@@ -14,7 +14,7 @@ export default async function PreviewPage({
     <PreviewClient
       id={property.id}
       title={property.expose.content.title}
-      html={exposeHTML(property, property.expose.content)}
+      html={await exposeHTML(property, property.expose.content)}
     />
   );
 }
