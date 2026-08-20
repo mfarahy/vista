@@ -1,6 +1,6 @@
 # Raumwerk Exposé Generator
 
-Phase 1 MVP für hochwertige Immobilien-Exposés auf Deutsch. Der lokale Demo-Modus funktioniert ohne externe Dienste: Eigenschaften werden in `data/properties.json` gespeichert, Uploads liegen unter `public/uploads/`, und die KI liefert ohne `OPENAI_API_KEY` einen transparenten Demo-Entwurf. Der kanonische Vertrag liegt in `lib/expose-data.ts`. Der integrierte MVP liegt in `app/` und `lib/`; die getrennte Bereitstellung liegt in `web/` und `backend/`. Für Produktion ist PostgreSQL/Prisma als Zielmodell enthalten.
+Phase 1 MVP für hochwertige Immobilien-Exposés auf Deutsch. Der lokale Demo-Modus funktioniert ohne externe Dienste: Eigenschaften werden in `data/properties.json` gespeichert, Uploads liegen unter `public/uploads/`, und die KI liefert ohne `OPENAI_API_KEY` einen transparenten Demo-Entwurf. Der kanonische Vertrag liegt in `lib/expose-data.ts`. Der integrierte MVP liegt in `app/` und `lib/`; die getrennte Bereitstellung liegt in `frontend/` und `expose-service/`. Für Produktion ist PostgreSQL/Prisma als Zielmodell enthalten.
 
 ## Starten
 
@@ -15,10 +15,10 @@ Danach `http://localhost:3000` öffnen und **Neues Exposé** wählen.
 ## Projektstruktur
 
 - `app/` und `lib/`: integrierter Next.js-MVP mit UI, API, Persistenz, AI, Location und PDF-Rendering
-- `web/`: separat deploybarer Next.js-Webclient für `backend/`
-- `backend/`: separat deploybarer Express/Mastra-Dienst
+- `frontend/`: separat deploybarer Next.js-Webclient für `expose-service/`
+- `expose-service/`: separat deploybarer Express/Mastra-Dienst
 - `prisma/`: PostgreSQL-Schema und Seed für die Produktionspersistenz
-- `deploy/web/` und `deploy/backend/`: Kubernetes-Manifeste
+- `deploy/frontend/` und `deploy/expose-service/`: Kubernetes-Manifeste
 
 ## Umgebungsvariablen
 

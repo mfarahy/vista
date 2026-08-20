@@ -1,0 +1,17 @@
+replicaCount: 3
+image:
+  repository: ghcr.io/example/vista-expose-service
+  tag: "1.0.0"
+config:
+  CORS_ORIGIN: "https://vista.example.com"
+  OPENAI_BASE_URL: "https://api.openai.com/v1"
+  OPENAI_MODEL: "gpt-4o-mini"
+secrets:
+  OPENAI_API_KEY: "replace-me"
+  DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/vista"
+
+ingress:
+  enabled: true
+  host: api.vista.example.com
+  tls:
+    - secretName: vista-expose-service-tls

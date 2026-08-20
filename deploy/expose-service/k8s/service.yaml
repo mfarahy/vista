@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vista-expose-service
+  labels:
+    app: vista-expose-service
+spec:
+  selector:
+    app: vista-expose-service
+  ports:
+    - name: http
+      port: 80
+      targetPort: 4000
+  type: ClusterIP
