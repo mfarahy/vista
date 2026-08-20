@@ -126,9 +126,12 @@ class NominatimGeocodingProvider implements GeocodingProvider {
       headers: { Accept: "application/json", "User-Agent": process.env.GEOCODING_USER_AGENT || "Vista/1.0 location resolver" },
     });
     if (!response.ok) throw new Error(`Geocoding provider returned ${response.status}`);
-    const results = (await response.json()) as Array<{ lat?: string; lon?: string; display_name?: string; type?: string; importance?: number }>;
+    const results = (await response.json()) as Array<{ lat?: string; lon?: string; display_name?: string; type?: string; importance?: number; address?: { house_number?: string; road?: string; postcode?: string; city?: string } }>;
     const first = results.find((item) => Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon)));
     if (!first) throw new Error("Location could not be resolved");
+    const normalized = normalizeStructuredAddress(address);
+    const resultRoad = first.address?.road;
+    const exactHouseMatch = first.address?.house_number === normalized.houseNumber && resultRoad != null && resultRoad.toLocaleLowerCase("de-DE") === normalized.street?.toLocaleLowerCase("de-DE");
     return {
       latitude: Number(first.lat),
       longitude: Number(first.lon),
@@ -136,7 +139,8 @@ class NominatimGeocodingProvider implements GeocodingProvider {
       provider: "nominatim",
       confidence: first.importance,
       matchType: first.type,
-      ambiguous: results.length > 1,
+      // Nominatim may return businesses at the exact property address as well as the house itself.
+      ambiguous: results.length > 1 && !exactHouseMatch,
     };
   }
 }
@@ -175,7 +179,7 @@ class OverpassPlacesProvider implements PlacesProvider {
     if (!fragment) return [];
     const query = `[out:json][timeout:15];(${fragment.replaceAll("{radius}", String(radiusMeters)).replaceAll("{lat}", String(latitude)).replaceAll("{lon}", String(longitude))});out center tags;`;
     const endpoint = process.env.PLACES_BASE_URL || "https://overpass-api.de/api/interpreter";
-    const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "text/plain" }, body: query });
+    const response = await fetch(endpoint, { method: "POST", headers: { Accept: "application/json", "Content-Type": "text/plain", "User-Agent": process.env.PLACES_USER_AGENT || "Vista/1.0 location resolver" }, body: query });
     if (!response.ok) throw new Error(`Places provider returned ${response.status}`);
     const body = (await response.json()) as { elements?: Array<{ id?: number; lat?: number; lon?: number; center?: { lat?: number; lon?: number }; tags?: Record<string, string> }> };
     return (body.elements || []).flatMap((element): Place[] => {
@@ -252,9 +256,11 @@ function emptyFacilities(): LocationIntelligence["facilities"] {
 
 export async function searchNearbyFacilities(center: Coordinates, radiusMeters: number, provider = getPlacesProvider()) {
   const facilities = emptyFacilities();
-  const results = await Promise.all(selectedCategories().map(async (category) => {
-    try { return await provider.searchNearby(center.latitude, center.longitude, category, radiusMeters); } catch { return []; }
-  }));
+  // Overpass instances enforce request-rate limits; keep the provider calls serialized.
+  const results: Place[][] = [];
+  for (const category of selectedCategories()) {
+    results.push(await provider.searchNearby(center.latitude, center.longitude, category, radiusMeters));
+  }
   results.flat().forEach((place) => {
     place.distanceMeters = distanceMetersBetween(center.latitude, center.longitude, place.latitude, place.longitude);
     facilities[categoryGroup(place.category)].push(place);

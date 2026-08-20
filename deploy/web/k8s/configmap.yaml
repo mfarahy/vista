@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: vista-frontend-config
+  name: vista-web-config
   labels:
-    app: vista-frontend
+    app: vista-web
 data:
   NEXT_PUBLIC_API_BASE_URL: "http://vista-backend.default.svc.cluster.local"
   NEXT_PUBLIC_APP_URL: "https://vista.example.com"

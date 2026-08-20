@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test:unit": "node --import tsx --test lib/*.test.ts",
+    "test:integration": "node --import tsx --test integration/*.integration.test.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts"

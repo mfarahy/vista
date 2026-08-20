@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { addressFromLegacy, distanceMetersBetween, formatDistance } from "./location";
+import { addressFromLegacy, distanceMetersBetween, formatDistance, getMapProvider } from "./location";
 import { createManualLocation, resolveLocation } from "./location-service";
 
 describe("location services", () => {
@@ -40,5 +40,42 @@ describe("location services", () => {
     const result = await createManualLocation(property, { latitude: 52.52, longitude: 13.405 }, { places: { searchNearby: async () => [] } });
     assert.equal(result.source, "manual");
     assert.deepEqual(result.coordinates, { latitude: 52.52, longitude: 13.405 });
+  });
+
+  it("passes corrected coordinates and markers to the map provider", async () => {
+    let mapCenter: { latitude: number; longitude: number } | undefined;
+    let mapMarkers: Array<{ latitude: number; longitude: number; label: string }> = [];
+    const property = { address: "Main Street 1", zipCode: "10115", city: "Berlin", district: null, exposeData: { basicInformation: { address: { street: "Main Street", houseNumber: "1", postalCode: "10115", city: "Berlin", district: null, country: "Deutschland" } } } } as any;
+    const corrected = { latitude: 52.521, longitude: 13.406 };
+    const result = await createManualLocation(property, corrected, {
+      places: {
+        searchNearby: async (latitude, longitude, category) => [{ id: category, name: "Real test place", category, latitude: latitude + 0.001, longitude, distanceMeters: 0, distanceType: "straight_line" as const, source: "test" }],
+      },
+      mapProvider: {
+        createStaticMap: async (center, markers) => {
+          mapCenter = center;
+          mapMarkers = markers;
+          return { assetId: "test-map", url: "data:image/svg+xml;base64,PHN2Zy8+", mimeType: "image/svg+xml" as const, caption: "Test map" };
+        },
+      },
+    });
+    assert.deepEqual(mapCenter, corrected);
+    assert.equal(mapMarkers[0].label, "Immobilie");
+    assert.equal(mapMarkers[0].latitude, corrected.latitude);
+    assert.equal(mapMarkers[0].longitude, corrected.longitude);
+    assert.ok(mapMarkers.some((marker) => marker.latitude !== corrected.latitude));
+    assert.equal(result.facilities.shopping[0].distanceMeters, distanceMetersBetween(corrected.latitude, corrected.longitude, corrected.latitude + 0.001, corrected.longitude));
+  });
+
+  it("renders coordinate-aware markers in the local fallback map", async () => {
+    const provider = getMapProvider();
+    const first = await provider.createStaticMap({ latitude: 52.52, longitude: 13.405 }, [{ latitude: 52.52, longitude: 13.405, label: "Immobilie", category: "property" }]);
+    const second = await provider.createStaticMap({ latitude: 52.52, longitude: 13.405 }, [{ latitude: 52.521, longitude: 13.405, label: "Schule", category: "school" }]);
+    const decode = (url: string) => Buffer.from(url.split(",", 2)[1], "base64").toString("utf8");
+    const firstSvg = decode(first.url);
+    const secondSvg = decode(second.url);
+    assert.match(firstSvg, /Immobilie/);
+    assert.match(secondSvg, /Schule/);
+    assert.notEqual(firstSvg, secondSvg);
   });
 });

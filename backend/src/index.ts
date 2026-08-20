@@ -183,7 +183,7 @@ app.post("/api/properties/:id/pdf", async (req, res) => {
   const propertyId = getParamValue(req.params.id);
   const property = await getProperty(propertyId);
   if (!property?.expose?.content) return res.status(400).json({ error: "Please generate content first" });
-  res.status(501).json({ error: "PDF generation is handled by the frontend service in this architecture." });
+  res.status(501).json({ error: "PDF generation is handled by the web application in this architecture." });
 });
 
 app.listen(port, host, () => {

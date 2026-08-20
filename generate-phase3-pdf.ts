@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import { chromium } from "playwright";
-import { exposeHTML } from "./src/lib/expose-template";
-import type { Property, StructuredExposeContent } from "./src/lib/types";
-import { emptyExposeData } from "./src/lib/expose-data";
+import { exposeHTML } from "./lib/expose-template";
+import type { Property, StructuredExposeContent } from "./lib/types";
+import { emptyExposeData } from "./lib/expose-data";
 
 const image = (id: string, url: string, category: "exterior" | "interior" | "floor_plan" | "document", caption: string, isCover = false) => ({
   id,

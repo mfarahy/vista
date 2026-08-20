@@ -17,5 +17,5 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   const property = await getProperty(id);
   if (!property?.expose?.content) notFound();
 
-  return <PreviewClient id={property.id} title={property.expose.content.title || "Exposé preview"} html={"<html><body><div style='padding: 40px; font-family: sans-serif;'>Preview rendered by the frontend service.</div></body></html>"} />;
+  return <PreviewClient id={property.id} title={property.expose.content.title || "Exposé preview"} html={"<html><body><div style='padding: 40px; font-family: sans-serif;'>Preview rendered by the web application.</div></body></html>"} />;
 }

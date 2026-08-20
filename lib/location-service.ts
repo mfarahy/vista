@@ -77,7 +77,7 @@ export async function resolveLocation(
   } catch (error) {
     return { intelligence: null, error: error instanceof Error ? error.message : "Location could not be resolved." };
   }
-  if (geocoding.ambiguous || (geocoding.confidence != null && geocoding.confidence < 0.25)) {
+  if (geocoding.ambiguous || (geocoding.confidence != null && geocoding.confidence < 0.25 && geocoding.matchType !== "house")) {
     return { intelligence: null, error: "Address could not be confidently resolved. Please verify the property location." };
   }
   const center = { latitude: geocoding.latitude, longitude: geocoding.longitude };

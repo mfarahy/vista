@@ -1,6 +1,6 @@
 import { chromium } from "playwright";
-import { exposeHTML } from "./src/lib/expose-template";
-import type { Property, StructuredExposeContent } from "./src/lib/types";
+import { exposeHTML } from "./lib/expose-template";
+import type { Property, StructuredExposeContent } from "./lib/types";
 
 const property: Property = {
   id: "conditions",

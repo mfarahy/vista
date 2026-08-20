@@ -1,14 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: vista-frontend
+  name: {{ .Release.Name }}
   labels:
-    app: vista-frontend
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  replicas: 2
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: vista-frontend
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -17,25 +19,20 @@ spec:
   template:
     metadata:
       labels:
-        app: vista-frontend
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
       containers:
-        - name: frontend
-          image: ghcr.io/example/vista-frontend:1.0.0
-          imagePullPolicy: IfNotPresent
+        - name: web
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - containerPort: 3000
           env:
             - name: NEXT_PUBLIC_API_BASE_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: vista-frontend-config
-                  key: NEXT_PUBLIC_API_BASE_URL
+              value: {{ .Values.config.NEXT_PUBLIC_API_BASE_URL | quote }}
             - name: NEXT_PUBLIC_APP_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: vista-frontend-config
-                  key: NEXT_PUBLIC_APP_URL
+              value: {{ .Values.config.NEXT_PUBLIC_APP_URL | quote }}
           readinessProbe:
             httpGet:
               path: /
@@ -49,9 +46,4 @@ spec:
             initialDelaySeconds: 20
             periodSeconds: 20
           resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
+            {{- toYaml .Values.resources | nindent 12 }}

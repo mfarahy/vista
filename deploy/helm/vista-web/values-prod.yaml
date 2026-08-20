@@ -1,6 +1,6 @@
 replicaCount: 3
 image:
-  repository: ghcr.io/example/vista-frontend
+  repository: ghcr.io/example/vista-web
   tag: "1.0.0"
 config:
   NEXT_PUBLIC_API_BASE_URL: "https://api.vista.example.com"
@@ -10,4 +10,4 @@ ingress:
   enabled: true
   host: vista.example.com
   tls:
-    - secretName: vista-frontend-tls
+    - secretName: vista-web-tls
