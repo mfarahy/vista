@@ -1,0 +1,63 @@
+- main [ref=e2]:
+  - navigation [ref=e3]:
+    - link "RRAUMWERK" [ref=e4] [cursor=pointer]:
+      - /url: /
+    - text: REAL ESTATE EXPOSÉS · PHASE 01
+    - link "New exposé" [ref=e5] [cursor=pointer]:
+      - /url: /create
+  - generic [ref=e9]:
+    - generic [ref=e10]:
+      - generic [ref=e11]: EDITORIAL PROPERTY TOOL
+      - paragraph [ref=e12]: Your property. Deine Immobilie.
+      - heading [level=1] [ref=e13]:
+        - emphasis [ref=e14]: Better told.
+        - emphasis [ref=e15]: Besser erzählt.
+      - paragraph [ref=e16]: Create a polished exposé in a few steps, with clear facts and a compelling story for your home. Erstelle in wenigen Schritten ein hochwertiges Exposé, das Fakten klar strukturiert und dein Zuhause in Szene setzt.
+      - generic [ref=e17]:
+        - link "Create exposé" [ref=e18] [cursor=pointer]:
+          - /url: /create
+        - link "View demo" [ref=e22] [cursor=pointer]:
+          - /url: /demo
+        - link "How it works" [ref=e23] [cursor=pointer]:
+          - /url: "#workflow"
+      - generic [ref=e24]: No design skills requiredEnglish and German copy
+    - generic [ref=e26]:
+      - generic [ref=e27]: VORSCHAU · MODERN01 / 04
+      - generic [ref=e28]:
+        - generic [ref=e29]: RAUMWERKEXPOSÉ
+        - generic [ref=e30]:
+          - paragraph [ref=e31]:
+            - text: Spaces that
+            - emphasis [ref=e32]: tell stories
+            - text: beautifully.
+          - paragraph [ref=e33]: BERLIN · FRIEDRICHSHAIN
+      - generic [ref=e34]:
+        - generic [ref=e35]: 92m2
+        - generic [ref=e36]: 3rooms
+        - generic [ref=e37]: 449kEUR
+  - generic [ref=e39]:
+    - generic [ref=e40]:
+      - text: "01"
+      - generic [ref=e41]:
+        - text: Daten eingeben
+        - paragraph [ref=e42]: Your details. Your facts.
+    - generic [ref=e43]:
+      - text: "02"
+      - generic [ref=e44]:
+        - text: KI verfeinert
+        - paragraph [ref=e45]: Professional copy at the click of a button.
+    - generic [ref=e46]:
+      - text: "03"
+      - generic [ref=e47]:
+        - text: PDF exportieren
+        - paragraph [ref=e48]: Ready for portals and prospective buyers.
+  - generic [ref=e49]:
+    - generic [ref=e50]:
+      - generic [ref=e51]:
+        - paragraph [ref=e52]: DEINE ENTWÜRFE · YOUR DRAFTS
+        - heading "Zuletzt bearbeitet" [level=2] [ref=e53]
+      - link "View all drafts →" [ref=e54] [cursor=pointer]:
+        - /url: /create
+    - generic [ref=e55]:
+      - paragraph [ref=e61]: No exposé created yet
+      - paragraph [ref=e62]: Start with your property details.

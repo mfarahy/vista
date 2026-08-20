@@ -1,8 +1,8 @@
-# Raumwerk Exposé Generator
+# Raumwerk Property Exposé Generator
 
-Phase 1 MVP für hochwertige Immobilien-Exposés auf Deutsch. Der lokale Demo-Modus funktioniert ohne externe Dienste: Eigenschaften werden in `expose-service/data/properties.json` gespeichert, Uploads liegen unter `expose-service/public/uploads/`, und die KI liefert ohne `OPENAI_API_KEY` einen transparenten Demo-Entwurf. Die getrennte Bereitstellung liegt in `frontend/` und `expose-service/`. Für Produktion ist PostgreSQL/Prisma als Zielmodell enthalten.
+Phase 1 MVP for high-quality real estate exposés in German. The local demo mode works without external services: properties are stored in `expose-service/data/properties.json`, uploads are stored under `expose-service/public/uploads/`, and the AI returns a transparent demo draft without `OPENAI_API_KEY`. The frontend and service can be deployed separately from `frontend/` and `expose-service/`. PostgreSQL/Prisma is included as the target production data model.
 
-## Starten
+## Getting Started
 
 ```bash
 npm install
@@ -10,49 +10,49 @@ cp .env.example .env
 npm run dev
 ```
 
-Danach `http://localhost:3000` öffnen und **Neues Exposé** wählen.
+Then open `http://localhost:3000` and select **New Exposé**.
 
-## Projektstruktur
+## Project Structure
 
-- `frontend/`: separat deploybarer Next.js-Webclient für `expose-service/`
-- `expose-service/`: separat deploybarer Express/Mastra-Dienst
-- `expose-service/prisma/`: PostgreSQL-Schema, Migrationen und Seed für die Produktionspersistenz
-- `deploy/frontend/` und `deploy/expose-service/`: Kubernetes-Manifeste
+- `frontend/`: separately deployable Next.js web client for `expose-service/`
+- `expose-service/`: separately deployable Express/Mastra service
+- `expose-service/prisma/`: PostgreSQL schema, migrations, and seed for production persistence
+- `deploy/frontend/` and `deploy/expose-service/`: Kubernetes manifests
 
-## Umgebungsvariablen
+## Environment Variables
 
-- `DATABASE_URL`: PostgreSQL-Verbindung für Prisma
-- `OPENAI_API_KEY`: optionaler OpenAI-kompatibler API-Key; ohne Key läuft der Demo-Generator
-- `OPENAI_BASE_URL`: optionaler kompatibler Endpoint
-- `OPENAI_MODEL`: Modellname, Standard `gpt-4o-mini`
-- `NEXT_PUBLIC_APP_URL`: öffentliche App-URL
-- `GEOCODING_PROVIDER`: optional `nominatim`; bleibt leer, wenn kein Geocoder aktiviert ist
-- `GEOCODING_BASE_URL`: optionaler Nominatim-Endpunkt
-- `GEOCODING_USER_AGENT`: User-Agent für Nominatim
-- `PLACES_PROVIDER`: optional `overpass` für strukturierte POI-Suche
-- `PLACES_BASE_URL`: optionaler Overpass-Endpunkt
-- `PLACES_USER_AGENT`: User-Agent für Overpass
-- `LOCATION_SEARCH_RADIUS_METERS`: Suchradius, Standard `1000`
-- `LOCATION_FACILITY_CATEGORIES`: durch Komma getrennte POI-Kategorien
-- `MAP_ATTRIBUTION`: Attribution für den lokalen Kartenfallback
+- `DATABASE_URL`: PostgreSQL connection for Prisma
+- `OPENAI_API_KEY`: optional OpenAI-compatible API key; the demo generator runs without a key
+- `OPENAI_BASE_URL`: optional compatible endpoint
+- `OPENAI_MODEL`: model name, default `gpt-4o-mini`
+- `NEXT_PUBLIC_APP_URL`: public app URL
+- `GEOCODING_PROVIDER`: optional `nominatim`; leave empty when no geocoder is enabled
+- `GEOCODING_BASE_URL`: optional Nominatim endpoint
+- `GEOCODING_USER_AGENT`: user agent for Nominatim
+- `PLACES_PROVIDER`: optional `overpass` for structured POI searches
+- `PLACES_BASE_URL`: optional Overpass endpoint
+- `PLACES_USER_AGENT`: user agent for Overpass
+- `LOCATION_SEARCH_RADIUS_METERS`: search radius, default `1000`
+- `LOCATION_FACILITY_CATEGORIES`: comma-separated POI categories
+- `MAP_ATTRIBUTION`: attribution for the local map fallback
 
-Die OpenStreetMap-Adapter verwenden Nominatim für Geocoding und Overpass für Supermärkte, Kindergärten, Schulen, ÖPNV, Apotheken, Parks sowie Restaurants/Cafés. Sie sind nur aktiv, wenn die Provider explizit gesetzt sind. Es gibt aktuell keinen externen Static-Map-Provider: Der lokale, koordinatenabhängige SVG-Fallback ist für Entwicklung und Tests sichtbar als Fallback und darf nicht als echte Kartendienstintegration bewertet werden.
+The OpenStreetMap adapters use Nominatim for geocoding and Overpass for supermarkets, kindergartens, schools, public transit, pharmacies, parks, and restaurants/cafés. They are active only when the providers are explicitly configured. There is currently no external static map provider: the local, coordinate-aware SVG fallback is exposed for development and testing and must not be considered a real map-service integration.
 
 ## Tests
 
-Unit-Tests sind deterministisch und benötigen keine Infrastruktur:
+Unit tests are deterministic and require no infrastructure:
 
 ```bash
 npm run test:unit
 ```
 
-Der reale Location-Integrationstest ist getrennt und benötigt Netzwerkzugriff sowie aktivierte Provider. Er nutzt die Adresse aus dem Prisma-Test-Seed und schreibt die PDF-Ausgabe nur nach `/tmp`:
+The live location integration test is separate and requires network access and enabled providers. It uses the address from the Prisma test seed and writes the PDF output only to `/tmp`:
 
 ```bash
 RUN_LOCATION_INTEGRATION=1 GEOCODING_PROVIDER=nominatim PLACES_PROVIDER=overpass npm run test:integration
 ```
 
-Ohne diese Variablen werden Integrationstests übersprungen. Keine API-Schlüssel werden geloggt oder committed.
+Without these variables, integration tests are skipped. No API keys are logged or committed.
 
 ## PostgreSQL
 
@@ -62,16 +62,16 @@ npm run db:push
 npm run db:seed
 ```
 
-Der Express-Dienst ist die zentrale Laufzeit für Persistenz, AI, Standortauflösung, Uploads und PDF-Rendering. `expose-service/src/lib/store.ts` ist die austauschbare Persistenzgrenze; Prisma-Schema und Seed sind für den Wechsel auf PostgreSQL vorbereitet.
+The Express service is the central runtime for persistence, AI, location resolution, uploads, and PDF rendering. `expose-service/src/lib/store.ts` is the replaceable persistence boundary; the Prisma schema and seed are prepared for the migration to PostgreSQL.
 
 ## PDF
 
-PDFs werden aus dem gleichen HTML/CSS-Template wie die Vorschau über Playwright/Chromium gerendert. Beim ersten PDF-Aufruf muss die Chromium-Binary verfügbar sein. Falls sie nicht installiert ist:
+PDFs are rendered through Playwright/Chromium from the same HTML/CSS template as the preview. The Chromium binary must be available when a PDF is generated for the first time. If it is not installed:
 
 ```bash
 npx playwright install chromium
 ```
 
-## Architektur
+## Architecture
 
-Die Entscheidungsgrundlage sowie die API-, Routen-, Daten- und AI-Verträge stehen in [`docs/architecture.md`](docs/architecture.md). AI erhält ausschließlich den Whitelist-Payload aus `buildAIInput()`, und die Ausgabe wird vor dem Speichern mit Zod validiert.
+The rationale and the API, route, data, and AI contracts are documented in [`docs/architecture.md`](docs/architecture.md). AI receives only the whitelist payload from `buildAIInput()`, and the output is validated with Zod before it is saved.

@@ -1,0 +1,314 @@
+{
+  "properties": [
+    {
+      "id": "f6da84a2-cc4d-43f1-9521-7a1af356467a",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [
+        "elevator",
+        "parking",
+        "attic",
+        "basement",
+        "garage"
+      ],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [
+        {
+          "name": "Living room",
+          "type": "Living",
+          "size": 31,
+          "floor": "3. OG",
+          "description": "Bright living area with balcony access and large windows.",
+          "sequence": 0,
+          "id": "cf37255d-f5c0-48bd-bc13-677f781de680"
+        },
+        {
+          "name": "Kitchen",
+          "type": "Kitchen",
+          "size": 11,
+          "floor": "3. OG",
+          "description": "Open-plan fitted kitchen with generous work surfaces.",
+          "sequence": 1,
+          "id": "d394a1dc-d51d-4f60-a369-e0bdd62c38a5"
+        }
+      ],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": null,
+          "title": null,
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null
+        },
+        "propertyDetails": {
+          "livingArea": null,
+          "plotArea": null,
+          "rooms": null,
+          "bathrooms": null,
+          "yearBuilt": null,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null
+        },
+        "energy": {
+          "certificateType": "unknown",
+          "efficiencyClass": "G"
+        },
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null
+        },
+        "agent": {
+          "name": "Moritz"
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": {
+        "id": "1b47b222-9f46-4292-acd7-e6432766bce0",
+        "propertyId": "f6da84a2-cc4d-43f1-9521-7a1af356467a",
+        "template": "modern",
+        "content": {
+          "title": "Apartment mit 3-Zimmern und Elevator in Berlin",
+          "portalTitle": "Apartment in Berlin | 86 m²",
+          "shortDescription": "Apartment in Berlin with approx. 86 m² of living space. A home with clear qualities and room for your personal touch.",
+          "mainDescription": "Apartment in Berlin in Prenzlauer Berg is a versatile property for people who value a good balance between everyday life and home. The rooms offer a welcoming foundation for individual living ideas and can adapt to different lifestyles.\n\nHighlights include Elevator, Parking, Attic, Basement, Garage. All statements in this text are based on the information provided by the seller.",
+          "highlights": [
+            "Elevator",
+            "Parking",
+            "Attic",
+            "Basement",
+            "Garage"
+          ],
+          "roomDescriptions": [
+            {
+              "roomId": "cf37255d-f5c0-48bd-bc13-677f781de680",
+              "name": "Living room",
+              "description": "Bright living area with balcony access and large windows."
+            },
+            {
+              "roomId": "d394a1dc-d51d-4f60-a369-e0bdd62c38a5",
+              "name": "Kitchen",
+              "description": "Open-plan fitted kitchen with generous work surfaces."
+            }
+          ],
+          "locationDescription": "The location in Berlin, Prenzlauer Berg combines everyday convenience with a pleasant residential atmosphere. The information is based on the details provided.",
+          "targetAudience": "Couples, families, and discerning owner-occupiers looking for a well-structured home in Berlin.",
+          "factualSnapshot": [
+            "86 m² living area",
+            "3 rooms",
+            "1 bathrooms",
+            "Built in 2018"
+          ]
+        },
+        "generatedAt": "2026-08-20T21:05:21.464Z"
+      },
+      "createdAt": "2026-08-20T21:01:55.808Z",
+      "updatedAt": "2026-08-20T21:06:23.638Z",
+      "constructionYear": 2018,
+      "address": "Lychener Straße 18",
+      "zipCode": "10437",
+      "city": "Berlin",
+      "district": "Prenzlauer Berg",
+      "livingArea": 86,
+      "rooms": 3,
+      "bathrooms": 1,
+      "floor": "3. OG",
+      "totalFloors": 5,
+      "availableFrom": "01.10.2026",
+      "condition": "good",
+      "askingPrice": 645000,
+      "additionalCosts": 19350,
+      "hausgeld": 385,
+      "additionalFeatures": "Oak flooring and triple-glazed windows"
+    },
+    {
+      "id": "e0ec3da9-f72e-444e-8c7b-6e2d445debe3",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": null,
+          "title": null,
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null
+        },
+        "propertyDetails": {
+          "livingArea": null,
+          "plotArea": null,
+          "rooms": null,
+          "bathrooms": null,
+          "yearBuilt": null,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null
+        },
+        "energy": null,
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-20T21:01:55.794Z",
+      "updatedAt": "2026-08-20T21:01:55.794Z"
+    },
+    {
+      "id": "ef95a7c4-38ed-43f2-9330-ecdb98a0c191",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": null,
+          "title": null,
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null
+        },
+        "propertyDetails": {
+          "livingArea": null,
+          "plotArea": null,
+          "rooms": null,
+          "bathrooms": null,
+          "yearBuilt": null,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null
+        },
+        "energy": null,
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-20T21:01:20.510Z",
+      "updatedAt": "2026-08-20T21:01:20.510Z"
+    }
+  ]
+}

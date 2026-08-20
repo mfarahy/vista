@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "../app";
+@source inline("{,sm:,lg:}{block,flex,grid,hidden,items-center,items-end,justify-between,justify-center,place-items-center,shrink-0,flex-col,flex-wrap,relative,absolute,mx-auto,w-full,max-w-7xl,max-w-2xl,max-w-xl,max-w-md,min-h-screen,gap-2,gap-3,gap-4,gap-7,gap-12,px-6,py-6,py-10,py-16,pb-20,pt-14,mt-2,mt-3,mt-4,mt-5,mt-6,mt-10,mt-14,mb-4,mb-5,mb-7,mb-8,p-5,p-6,text-center,overflow-hidden,rounded-full,rounded-xl,rounded-2xl,shadow-2xl,aspect-\[4/5\],grid-cols-3,sm:grid-cols-2,sm:grid-cols-3,lg:grid-cols-3,lg:grid-cols-\[1.05fr_.95fr\]}");
 
 :root { --ink: #202522; --muted: #738078; --line: #e2e5df; --paper: #f7f8f5; --green: #607b68; --pale: #eaf0ea; }
 * { box-sizing: border-box; }
