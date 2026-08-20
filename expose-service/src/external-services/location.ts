@@ -126,10 +126,22 @@ class NominatimGeocodingProvider implements GeocodingProvider {
       headers: { Accept: "application/json", "User-Agent": process.env.GEOCODING_USER_AGENT || "Vista/1.0 location resolver" },
     });
     if (!response.ok) throw new Error(`Geocoding provider returned ${response.status}`);
-    const results = (await response.json()) as Array<{ lat?: string; lon?: string; display_name?: string; type?: string; importance?: number; address?: { house_number?: string; road?: string; postcode?: string; city?: string } }>;
-    const first = results.find((item) => Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon)));
-    if (!first) throw new Error("Location could not be resolved");
+    const results = (await response.json()) as Array<{ lat?: string; lon?: string; display_name?: string; type?: string; importance?: number; address?: { house_number?: string; road?: string; postcode?: string; city?: string; town?: string; municipality?: string } }>;
     const normalized = normalizeStructuredAddress(address);
+    const normalizedStreet = normalized.street?.toLocaleLowerCase("de-DE");
+    const normalizedCity = normalized.city?.toLocaleLowerCase("de-DE");
+    const exactAddressMatch = (item: NonNullable<typeof results[number]>) => {
+      const resultAddress = item.address;
+      if (!resultAddress) return false;
+      const resultCity = (resultAddress?.city || resultAddress?.town || resultAddress?.municipality)?.toLocaleLowerCase("de-DE");
+      return resultAddress?.house_number === normalized.houseNumber &&
+        resultAddress.road?.toLocaleLowerCase("de-DE") === normalizedStreet &&
+        resultAddress.postcode === normalized.postalCode &&
+        resultCity === normalizedCity;
+    };
+    const first = results.find((item) => Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon)) && exactAddressMatch(item))
+      || results.find((item) => Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon)));
+    if (!first) throw new Error("Location could not be resolved");
     const resultRoad = first.address?.road;
     const exactHouseMatch = first.address?.house_number === normalized.houseNumber && resultRoad != null && resultRoad.toLocaleLowerCase("de-DE") === normalized.street?.toLocaleLowerCase("de-DE");
     return {
@@ -140,7 +152,7 @@ class NominatimGeocodingProvider implements GeocodingProvider {
       confidence: first.importance,
       matchType: first.type,
       // Nominatim may return businesses at the exact property address as well as the house itself.
-      ambiguous: results.length > 1 && !exactHouseMatch,
+      ambiguous: results.length > 1 && !exactAddressMatch(first) && !exactHouseMatch,
     };
   }
 }

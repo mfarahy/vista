@@ -16,7 +16,7 @@ Danach `http://localhost:3000` öffnen und **Neues Exposé** wählen.
 
 - `frontend/`: separat deploybarer Next.js-Webclient für `expose-service/`
 - `expose-service/`: separat deploybarer Express/Mastra-Dienst
-- `prisma/`: PostgreSQL-Schema und Seed für die Produktionspersistenz
+- `expose-service/prisma/`: PostgreSQL-Schema, Migrationen und Seed für die Produktionspersistenz
 - `deploy/frontend/` und `deploy/expose-service/`: Kubernetes-Manifeste
 
 ## Umgebungsvariablen

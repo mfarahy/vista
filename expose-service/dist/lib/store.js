@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { emptyExposeData } from "./expose-data.js";
 import { addressFromLegacy, addressKey } from "../external-services/location.js";
 const dataPath = path.join(process.cwd(), "data", "properties.json");
+const jobsPath = path.join(process.cwd(), "data", "expose-jobs.json");
 const uploadPath = path.join(process.cwd(), "public", "uploads");
 function normalizeProperty(property) {
     if (property.exposeData)
@@ -42,6 +43,41 @@ async function readDB() {
 async function writeDB(db) {
     await fs.mkdir(path.dirname(dataPath), { recursive: true });
     await fs.writeFile(dataPath, JSON.stringify(db, null, 2));
+}
+async function readJobs() {
+    try {
+        return JSON.parse(await fs.readFile(jobsPath, "utf8"));
+    }
+    catch {
+        return { jobs: [] };
+    }
+}
+async function writeJobs(db) {
+    await fs.mkdir(path.dirname(jobsPath), { recursive: true });
+    await fs.writeFile(jobsPath, JSON.stringify(db, null, 2));
+}
+export async function getExposeJob(id) {
+    return (await readJobs()).jobs.find((job) => job.id === id) || null;
+}
+export async function listExposeJobs() {
+    return (await readJobs()).jobs;
+}
+export async function findExposeJob(idempotencyKey) {
+    return (await readJobs()).jobs.find((job) => job.idempotencyKey === idempotencyKey) || null;
+}
+export async function findExposeArtifact(propertyId, type, inputHash) {
+    const jobs = (await readJobs()).jobs;
+    return jobs.flatMap((job) => job.artifacts).find((artifact) => artifact.propertyId === propertyId && artifact.type === type && artifact.inputHash === inputHash) || null;
+}
+export async function saveExposeJob(job) {
+    const db = await readJobs();
+    const index = db.jobs.findIndex((item) => item.id === job.id);
+    if (index < 0)
+        db.jobs.unshift(job);
+    else
+        db.jobs[index] = job;
+    await writeJobs(db);
+    return job;
 }
 export async function createProperty() {
     const db = await readDB();
@@ -236,6 +272,18 @@ export async function saveLocationIntelligence(id, intelligence) {
         district: intelligence?.address.district ?? exposeData.location.district ?? null,
         intelligence: intelligence || undefined,
     };
+    property.exposeData = exposeData;
+    property.updatedAt = new Date().toISOString();
+    await writeDB(db);
+    return property;
+}
+export async function saveLocationResearch(id, research) {
+    const db = await readDB();
+    const property = db.properties.find((item) => item.id === id);
+    if (!property)
+        return null;
+    const exposeData = property.exposeData || emptyExposeData();
+    exposeData.location = { ...exposeData.location, research: research || undefined };
     property.exposeData = exposeData;
     property.updatedAt = new Date().toISOString();
     await writeDB(db);

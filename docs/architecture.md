@@ -4,7 +4,7 @@
 
 The `frontend/` package is the only Next.js application. The `expose-service/` Express/Mastra service owns the REST API, persistence boundary, AI services, location services, uploads, and PDF renderer. The frontend calls that service through `frontend/lib/api.ts`.
 
-`expose-service/src/lib/types.ts` contains the legacy and canonical wire contracts. `expose-service/src/lib/expose-data.ts` is the typed Phase 1 source-of-truth model, including energy, structured address/location, rooms, equipment, image semantics, agent data, and separate Vista branding. `expose-service/src/lib/store.ts` is a local-file repository for immediate demo mode; `prisma/schema.prisma` is the PostgreSQL source of truth for production persistence. Images use a local filesystem asset store while their semantic metadata is persisted with the property.
+`expose-service/src/lib/types.ts` contains the legacy and canonical wire contracts. `expose-service/src/lib/expose-data.ts` is the typed Phase 1 source-of-truth model, including energy, structured address/location, rooms, equipment, image semantics, agent data, and separate Vista branding. `expose-service/src/lib/store.ts` is a local-file repository for immediate demo mode; `expose-service/prisma/schema.prisma` is the PostgreSQL source of truth for production persistence. Images use a local filesystem asset store while their semantic metadata is persisted with the property.
 
 ## Routes
 
@@ -44,4 +44,4 @@ Image uploads require `category` (`exterior`, `interior`, `floor_plan`, or `docu
 
 The default application has no active external location provider. Set `GEOCODING_PROVIDER=nominatim` and `PLACES_PROVIDER=overpass` explicitly to enable the opt-in OpenStreetMap integrations; otherwise location resolution reports that the provider is not configured. Provider errors are not converted into empty facility lists. The current map provider is a coordinate-aware local SVG fallback, not a real external static-map service; it receives the property coordinate and generated facility markers, but its roads/background are synthetic. `ResolveLocation` is a deterministic Mastra workflow boundary prepared for Phase 5, with no Tavily or web research.
 
-The root `.env` is the Prisma CLI environment and is intentionally ignored by Git. Copy `.env.example` to `.env` for the local PostgreSQL service from `docker-compose.yml`; CI must provide `DATABASE_URL` as a secret environment variable. The separate `expose-service/.env` is not read by the root Prisma CLI.
+The `expose-service/.env` file is the Prisma CLI environment and is intentionally ignored by Git. Copy `.env.example` to `expose-service/.env` for the local PostgreSQL service from `docker-compose.yml`; CI must provide `DATABASE_URL` as a secret environment variable.

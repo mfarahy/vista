@@ -6,11 +6,15 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { chromium } from "playwright";
-import { createProperty, listProperties, getProperty, updateProperty, addImage, removeImage, reorderImages, setCover, saveExpose, saveLocationIntelligence, uploadPath } from "./lib/store.js";
+import { createProperty, listProperties, getProperty, updateProperty, addImage, removeImage, reorderImages, setCover, saveExpose, saveLocationIntelligence, saveLocationResearch, uploadPath } from "./lib/store.js";
 import { propertySchema, exposeContentSchema } from "./lib/validation.js";
 import { generateExposeContent } from "./external-services/ai.js";
 import { createManualLocation, resolveLocation } from "./lib/location-service.js";
 import { exposeHTML } from "./lib/expose-template.js";
+import { researchLocation } from "./mastra/agents/location-research-agent.js";
+import { locationResearchInputSchema } from "./mastra/schemas/location-research.js";
+import { createExposeJob, retryExposeJob, resumeExposeJobs } from "./lib/expose-workflow.js";
+import { getExposeJob } from "./lib/store.js";
 dotenv.config();
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -31,9 +35,43 @@ app.get("/api/properties/:id/location", async (req, res) => {
         return res.status(404).json({ error: "Not found" });
     res.json(property.exposeData?.location.intelligence || null);
 });
+app.get("/api/properties/:id/location/research", async (req, res) => {
+    const property = await getProperty(getParamValue(req.params.id));
+    if (!property)
+        return res.status(404).json({ error: "Not found" });
+    res.json(property.exposeData?.location.research || null);
+});
+app.post("/api/properties/:id/location/research", async (req, res) => {
+    const propertyId = getParamValue(req.params.id);
+    const property = await getProperty(propertyId);
+    if (!property)
+        return res.status(404).json({ error: "Not found" });
+    const address = property.exposeData?.location.address;
+    if (!address?.city || !address.postalCode)
+        return res.status(422).json({ error: "A city and postal code are required for location research." });
+    try {
+        const input = locationResearchInputSchema.parse({
+            propertyId,
+            address: [address.street, address.houseNumber, address.postalCode, address.city].filter(Boolean).join(" "),
+            city: address.city,
+            district: property.exposeData?.location.district || address.district || undefined,
+            neighborhood: property.exposeData?.location.neighborhood || undefined,
+            postalCode: address.postalCode,
+            country: address.country,
+            latitude: property.exposeData?.location.latitude ?? undefined,
+            longitude: property.exposeData?.location.longitude ?? undefined,
+        });
+        const research = await researchLocation(input, { refresh: req.body?.refresh === true });
+        const saved = await saveLocationResearch(propertyId, research);
+        res.json(saved?.exposeData?.location.research || research);
+    }
+    catch (error) {
+        res.status(502).json({ error: error instanceof Error ? error.message : "Location research could not be completed." });
+    }
+});
 app.post("/api/properties/:id/location", async (req, res) => {
     const propertyId = getParamValue(req.params.id);
-    let property = await getProperty(propertyId);
+    const property = await getProperty(propertyId);
     if (!property)
         return res.status(404).json({ error: "Not found" });
     const body = (req.body || {});
@@ -125,6 +163,39 @@ app.post("/api/properties/:id/ai/improve", async (req, res) => {
     catch (error) {
         res.status(502).json({ error: error instanceof Error ? error.message : "AI could not respond" });
     }
+});
+app.post("/api/exposes/generate", async (req, res) => {
+    const propertyId = typeof req.body?.propertyId === "string" ? req.body.propertyId : "";
+    if (!propertyId)
+        return res.status(400).json({ error: "propertyId is required" });
+    try {
+        const job = await createExposeJob(propertyId, { idempotencyKey: typeof req.body?.idempotencyKey === "string" ? req.body.idempotencyKey : undefined });
+        res.status(202).json({ jobId: job.id, status: job.status, currentStage: job.currentStage });
+    }
+    catch (error) {
+        res.status(error instanceof Error && error.message === "Property not found" ? 404 : 400).json({ error: error instanceof Error ? error.message : "Expose generation could not be started" });
+    }
+});
+app.post("/api/properties/:id/expose/generate", async (req, res) => {
+    try {
+        const job = await createExposeJob(getParamValue(req.params.id), { idempotencyKey: typeof req.body?.idempotencyKey === "string" ? req.body.idempotencyKey : undefined });
+        res.status(202).json({ jobId: job.id, status: job.status, currentStage: job.currentStage });
+    }
+    catch (error) {
+        res.status(error instanceof Error && error.message === "Property not found" ? 404 : 400).json({ error: error instanceof Error ? error.message : "Expose generation could not be started" });
+    }
+});
+app.get("/api/exposes/jobs/:jobId", async (req, res) => {
+    const job = await getExposeJob(getParamValue(req.params.jobId));
+    if (!job)
+        return res.status(404).json({ error: "Expose job not found" });
+    res.json({ ...job, stages: Object.fromEntries(job.stages.map((stage) => [stage.stage.toLowerCase(), stage])) });
+});
+app.post("/api/exposes/jobs/:jobId/retry", async (req, res) => {
+    const job = await retryExposeJob(getParamValue(req.params.jobId));
+    if (!job)
+        return res.status(404).json({ error: "Expose job not found" });
+    res.status(202).json({ jobId: job.id, status: job.status, currentStage: job.currentStage });
 });
 app.get("/api/properties/:id/expose", async (req, res) => {
     const propertyId = getParamValue(req.params.id);
@@ -254,4 +325,5 @@ app.post("/api/demo", async (_req, res) => {
 });
 app.listen(port, host, () => {
     console.log(`Vista expose service listening on http://${host}:${port}`);
+    void resumeExposeJobs();
 });
