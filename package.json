@@ -8,13 +8,9 @@
     "start": "npm --prefix frontend run start",
     "lint": "npm --prefix frontend run lint && npm --prefix expose-service run lint",
     "test:unit": "npm --prefix expose-service test",
-    "test:integration": "node --import tsx --test expose-service/src/location.integration.test.ts",
-    "db:generate": "prisma generate",
-    "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts"
+    "test:integration": "node --import tsx --test expose-service/src/location.integration.test.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.14.0",
     "lucide-react": "^0.468.0",
     "next": "^15.5.7",
     "playwright": "^1.55.0",
@@ -29,7 +25,6 @@
     "@types/react-dom": "^19.1.7",
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.1",
-    "prisma": "^6.14.0",
     "tailwindcss": "^4.1.12",
     "tsx": "^4.20.3",
     "typescript": "^5.9.2"

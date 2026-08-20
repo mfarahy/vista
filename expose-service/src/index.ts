@@ -40,7 +40,7 @@ app.get("/api/properties/:id/location", async (req, res) => {
 
 app.post("/api/properties/:id/location", async (req, res) => {
   const propertyId = getParamValue(req.params.id);
-  let property = await getProperty(propertyId);
+  const property = await getProperty(propertyId);
   if (!property) return res.status(404).json({ error: "Not found" });
   const body = (req.body || {}) as { refresh?: boolean; latitude?: number; longitude?: number; radiusMeters?: number };
   try {

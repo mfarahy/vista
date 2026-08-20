@@ -7,10 +7,14 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc --project tsconfig.json",
     "start": "node dist/index.js",
-    "lint": "tsc --noEmit --project tsconfig.json",
+    "lint": "eslint .",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
     "test": "node --import tsx --test src/**/*.test.ts"
   },
   "dependencies": {
+    "@prisma/client": "^6.14.0",
     "@mastra/core": "^1.60.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
@@ -24,7 +28,10 @@
     "@types/express": "^5.0.0",
     "@types/multer": "^1.4.5",
     "@types/node": "^22.15.3",
+    "eslint": "^9.39.5",
+    "prisma": "^6.14.0",
     "tsx": "^4.20.3",
+    "typescript-eslint": "^8.44.0",
     "typescript": "^5.9.2"
   }
 }

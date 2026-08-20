@@ -16,6 +16,6 @@
     "plugins": [{ "name": "next" }],
     "paths": { "@/*": ["./*"] }
   },
-  "include": ["prisma/**/*.ts"],
+  "include": [],
   "exclude": ["node_modules"]
 }

@@ -1,17 +1,90 @@
-version: "3.9"
+# ─── Full Stack Orchestration ────────────────────────────────────────────────────
+# Spins up PostgreSQL, backend API, frontend app, and marketing website.
+# Override any variable via .env file (docker compose --env-file .env up).
+
+networks:
+  monitor-net:
+    driver: bridge
+
 services:
-  db:
-    image: postgres:16-alpine
-    container_name: vista-db
+  # ── Database ──────────────────────────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: vista
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-mailmind}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
+    stop_grace_period: 60s
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-mailmind}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── Cache (Redis) ──────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Message Queue (NATS) ─────────────────────────────────────────────────────
+  nats:
+    image: nats:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "${NATS_PORT:-4222}:4222"
+      - "${NATS_MONITOR_PORT:-8222}:8222"
+    command: ["-js", "-m", "8222"]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://localhost:8222/ || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - monitor-net
+
+  # ── Object Storage (MinIO — S3-compatible, optional for local dev) ────────────
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command: server /data --console-address ":9001"
+    volumes:
+      - miniodata:/data
+    profiles:
+      - storage
 
 volumes:
-  postgres_data:
+  pgdata:
+  prometheus_data:
+  redisdata:
+  miniodata:

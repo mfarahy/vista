@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+
 async function main() {
   const existing = await prisma.property.findFirst({ where: { specialNotes: { contains: "DEMO" } } });
   if (existing) return;
@@ -20,4 +21,5 @@ async function main() {
     ] },
   } });
 }
+
 main().finally(() => prisma.$disconnect());
