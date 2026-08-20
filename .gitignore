@@ -1,0 +1,7 @@
+node_modules
+.next
+*.log
+.env
+data/properties.json
+public/uploads/*
+!public/uploads/.gitkeep
