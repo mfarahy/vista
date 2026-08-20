@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,6 +11,9 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import { MapContainer, TileLayer, ImageOverlay, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { apiAssetUrl, apiFetch } from "@/lib/api";
 
 const PROPERTY_TYPES = [
@@ -92,8 +95,20 @@ type EnergyData = {
   finalEnergyConsumption?: number | null;
   efficiencyClass?: "A+" | "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | null;
 };
+type StructuredAddress = {
+  street?: string | null;
+  houseNumber?: string | null;
+  postalCode?: string | null;
+  city?: string | null;
+  district?: string | null;
+  state?: string | null;
+  country?: string;
+  formattedAddress?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+};
 type ExposeData = {
-  basicInformation: { propertyType: string; propertySubtype?: string | null; title?: string | null; address: { street?: string | null; houseNumber?: string | null; postalCode?: string | null; city?: string | null; district?: string | null; country?: string } };
+  basicInformation: { propertyType: string; propertySubtype?: string | null; title?: string | null; address: StructuredAddress };
   pricing: { purchasePrice?: number | null; rentPrice?: number | null; additionalCosts?: number | null; buyerCommission?: string | null; sellerCommission?: string | null };
   propertyDetails: { livingArea?: number | null; plotArea?: number | null; rooms?: number | null; bathrooms?: number | null; yearBuilt?: number | null; completionYear?: number | null; floor?: string | null; numberOfFloors?: number | null; garageCount?: number | null; parkingSpaceCount?: number | null };
   energy?: EnergyData | null;
@@ -125,7 +140,7 @@ type PropertyPayload = Omit<Property, "id" | "images" | "expose" | "roomsData" |
   roomsData: Array<Omit<NonNullable<Property["roomsData"]>[number], "id">>;
 };
 
-const steps = ["Objekt", "Preis & Eckdaten", "Ausstattung", "Räume", "Energie", "Lage / Adresse", "Bilder", "Pläne & Dokumente", "Makler / Kontakt", "Vorschau"];
+const steps = ["Property Address", "Objekt", "Preis & Eckdaten", "Ausstattung", "Räume", "Energie", "Bilder", "Pläne & Dokumente", "Makler / Kontakt", "Vorschau"];
 
 const emptyExposeData = (property: Property): ExposeData => ({
   basicInformation: { propertyType: property.propertyType, propertySubtype: null, title: null, address: { street: property.address, houseNumber: null, postalCode: property.zipCode, city: property.city, district: property.district, country: "Deutschland" } },
@@ -189,6 +204,49 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
   const [uploadCategory, setUploadCategory] = useState<"exterior" | "interior" | "floor_plan" | "document">("exterior");
   const [uploadSubcategory, setUploadSubcategory] = useState("");
   const [uploadCaption, setUploadCaption] = useState("");
+  const initialAddress = property.exposeData?.basicInformation.address ?? {};
+  const [addressQuery, setAddressQuery] = useState(initialAddress.formattedAddress || [initialAddress.street, initialAddress.houseNumber, initialAddress.postalCode, initialAddress.city].filter(Boolean).join(", "));
+  const [addressSuggestions, setAddressSuggestions] = useState<StructuredAddress[]>([]);
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [addressError, setAddressError] = useState("");
+  const [addressSelected, setAddressSelected] = useState(Boolean(initialAddress.houseNumber && initialAddress.postalCode && initialAddress.city));
+
+  useEffect(() => {
+    if (addressSelected || addressQuery.trim().length < 3) {
+      setAddressSuggestions([]);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setAddressLoading(true);
+      setAddressError("");
+      try {
+        const response = await apiFetch(`/api/address/suggestions?q=${encodeURIComponent(addressQuery.trim())}`, { signal: controller.signal });
+        if (!response.ok) throw new Error("Address lookup is currently unavailable.");
+        setAddressSuggestions(await response.json());
+      } catch (lookupError) {
+        if (!controller.signal.aborted) setAddressError(lookupError instanceof Error ? lookupError.message : "Address lookup failed.");
+      } finally {
+        if (!controller.signal.aborted) setAddressLoading(false);
+      }
+    }, 300);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [addressQuery, addressSelected]);
+
+  function selectAddress(address: StructuredAddress) {
+    const nextAddress = { ...address, country: address.country || "Deutschland" };
+    setAddressQuery([ [address.street, address.houseNumber].filter(Boolean).join(" "), [address.postalCode, address.city].filter(Boolean).join(" ") ].filter(Boolean).join(", "));
+    setAddressSuggestions([]);
+    setAddressSelected(true);
+    setProperty((current) => ({
+      ...current,
+      address: [address.street, address.houseNumber].filter(Boolean).join(" "),
+      zipCode: address.postalCode,
+      city: address.city,
+      district: address.district,
+      exposeData: { ...current.exposeData!, basicInformation: { ...current.exposeData!.basicInformation, address: nextAddress }, location: { ...current.exposeData!.location, address: nextAddress, district: address.district, latitude: address.latitude, longitude: address.longitude } },
+    }));
+  }
 
   function set<K extends keyof PropertyPayload>(key: K, value: PropertyPayload[K]) {
     setProperty((current) => {
@@ -224,6 +282,10 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
   }
 
   async function next() {
+    if (step === 0 && !addressSelected) {
+      setError("Please select an exact address from the suggestions before continuing.");
+      return;
+    }
     await save();
     setStep((current) => Math.min(current + 1, 9));
   }
@@ -348,41 +410,37 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
           </div>
           <span className="text-sm text-[#7c887f]">{Math.min(step + 1, 10)} / 10</span>
         </div>
-        <div className="mb-10 overflow-x-auto pb-2">
-          <div className="flex min-w-[670px] items-center">
+        <div className="mb-10 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10">
+          <nav className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-5 lg:mb-0 lg:block lg:space-y-2" aria-label="Wizard steps">
             {steps.map((name, index) => (
-              <div key={name} className="flex flex-1 items-center">
-                <button onClick={() => index <= step && setStep(index)} className={`flex items-center gap-2 text-left text-xs font-bold ${index <= step ? "text-[#48624f]" : "text-[#aab4ac]"}`}>
-                  <span className={`grid h-8 w-8 place-items-center rounded-full border text-[11px] ${index < step ? "border-[#78917d] bg-[#78917d] text-white" : index === step ? "border-[#202522] bg-[#202522] text-white" : "border-[#d7ded8] bg-white"}`}>
+              <button key={name} onClick={() => index <= step && setStep(index)} disabled={index > step} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left text-xs font-bold transition ${index === step ? "border-[#202522] bg-[#202522] text-white" : index < step ? "border-[#c5d3c7] bg-[#edf3ee] text-[#48624f]" : "border-[#e0e5e0] bg-white text-[#aab4ac]"}`}>
+                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border text-[11px] ${index < step ? "border-[#78917d] bg-[#78917d] text-white" : index === step ? "border-white/30 bg-white/10 text-white" : "border-[#d7ded8] bg-white"}`}>
                     {index < step ? <Check size={14} /> : `0${index + 1}`}
                   </span>
-                  <span>{name}</span>
-                </button>
-                {index < steps.length - 1 && <span className={`mx-3 h-px flex-1 ${index < step ? "bg-[#94aa98]" : "bg-[#dfe5df]"}`} />}
-              </div>
+                  <span className="min-w-0 leading-4">{name}</span>
+              </button>
             ))}
+          </nav>
+          <div className="min-w-0">
+            {error && <div className="mb-6 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}<button onClick={() => setError("")}><X size={16} /></button></div>}
+            {step < 10 ? (
+              <div className="step-enter">
+                {step === 0 && <StepAddress query={addressQuery} suggestions={addressSuggestions} loading={addressLoading} lookupError={addressError} selected={addressSelected} onQueryChange={(value) => { setAddressQuery(value); setAddressSelected(false); }} onSelect={selectAddress} address={property.exposeData!.basicInformation.address} />}
+                {step === 0 && addressSelected && <AddressDebugPanel propertyId={initialProperty.id} property={property} address={property.exposeData!.basicInformation.address} />}
+                {step === 1 && <StepProperty property={property} set={set} exposeData={property.exposeData!} updateExposeData={updateExposeData} />}
+                {step === 2 && <StepDetails property={property} set={set} />}
+                {step === 3 && <StepFeatures property={property} set={set} exposeData={property.exposeData!} updateExposeData={updateExposeData} />}
+                {step === 4 && <StepRooms rooms={property.roomsData} roomAdd={roomAdd} roomUpdate={roomUpdate} roomRemove={roomRemove} />}
+                {step === 5 && <StepEnergy data={property.exposeData!.energy} update={(energy) => updateExposeData({ energy })} />}
+                {step === 6 && <StepPhotos images={images} fileInput={fileInput} upload={upload} removeImage={removeImage} cover={cover} moveImage={moveImage} category={uploadCategory} subcategory={uploadSubcategory} caption={uploadCaption} setCategory={setUploadCategory} setSubcategory={setUploadSubcategory} setCaption={setUploadCaption} />}
+                {step === 7 && <StepPhotos images={images} fileInput={fileInput} upload={(files) => upload(files, "floor_plan")} removeImage={removeImage} cover={cover} moveImage={moveImage} category="floor_plan" subcategory={uploadSubcategory} caption={uploadCaption} setCategory={() => setUploadCategory("floor_plan")} setSubcategory={setUploadSubcategory} setCaption={setUploadCaption} />}
+                {step === 8 && <StepAgent data={property.exposeData!.agent} update={(agent) => updateExposeData({ agent })} />}
+                {step === 9 && <Review property={property} images={images} onEdit={setStep} />}
+              </div>
+            ) : <ContentEditor content={content} setContent={setContent} onGenerate={generate} onPreview={saveContent} loading={aiLoading} saving={saving} />}
           </div>
         </div>
-        {error && <div className="mb-6 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}<button onClick={() => setError("")}><X size={16} /></button></div>}
-        <div className="mx-auto max-w-4xl">
-          {step < 10 ? (
-            <div className="step-enter">
-              {step === 0 && <StepProperty property={property} set={set} exposeData={property.exposeData!} updateExposeData={updateExposeData} />}
-              {step === 1 && <StepDetails property={property} set={set} />}
-              {step === 2 && <StepFeatures property={property} set={set} exposeData={property.exposeData!} updateExposeData={updateExposeData} />}
-              {step === 3 && <StepRooms rooms={property.roomsData} roomAdd={roomAdd} roomUpdate={roomUpdate} roomRemove={roomRemove} />}
-              {step === 4 && <StepEnergy data={property.exposeData!.energy} update={(energy) => updateExposeData({ energy })} />}
-              {step === 5 && <StepLocation property={property} set={set} exposeData={property.exposeData!} updateExposeData={updateExposeData} locationIntelligence={locationIntelligence} locationLoading={locationLoading} locationError={locationError} onFetchLocation={fetchLocationIntelligence} />}
-              {step === 6 && <StepPhotos images={images} fileInput={fileInput} upload={upload} removeImage={removeImage} cover={cover} moveImage={moveImage} category={uploadCategory} subcategory={uploadSubcategory} caption={uploadCaption} setCategory={setUploadCategory} setSubcategory={setUploadSubcategory} setCaption={setUploadCaption} />}
-              {step === 7 && <StepPhotos images={images} fileInput={fileInput} upload={(files) => upload(files, "floor_plan")} removeImage={removeImage} cover={cover} moveImage={moveImage} category="floor_plan" subcategory={uploadSubcategory} caption={uploadCaption} setCategory={() => setUploadCategory("floor_plan")} setSubcategory={setUploadSubcategory} setCaption={setUploadCaption} />}
-              {step === 8 && <StepAgent data={property.exposeData!.agent} update={(agent) => updateExposeData({ agent })} />}
-              {step === 9 && <Review property={property} images={images} onEdit={setStep} />}
-            </div>
-          ) : (
-            <ContentEditor content={content} setContent={setContent} onGenerate={generate} onPreview={saveContent} loading={aiLoading} saving={saving} />
-          )}
-        </div>
-        <div className="mx-auto mt-10 flex max-w-4xl justify-between border-t border-[#e0e5e0] pt-5">
+        <div className="mt-10 flex border-t border-[#e0e5e0] pt-5 lg:ml-[250px]">
           <button className="btn btn-ghost flex items-center gap-2" disabled={step === 0} onClick={() => setStep((current) => current - 1)}><ArrowLeft size={15} /> Back</button>
           {step < 9 ? (
             <button className="btn btn-primary flex items-center gap-2" onClick={next}>{saving ? "Saving…" : "Next"} <ArrowRight size={15} /></button>
@@ -413,12 +471,103 @@ function Textarea({ label, value, onChange, placeholder }: { label: string; valu
   return <label><span className="label">{label}</span><textarea className="field min-h-28 resize-y" value={value ?? ""} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 
+function StepAddress({ query, suggestions, loading, lookupError, selected, onQueryChange, onSelect, address }: { query: string; suggestions: StructuredAddress[]; loading: boolean; lookupError: string; selected: boolean; onQueryChange: (value: string) => void; onSelect: (address: StructuredAddress) => void; address: StructuredAddress }) {
+  return <Section title="Property Address" description="Start with the exact property address. Vista can use it as the foundation for location and property data."><div className="relative"><label><span className="label">Search address</span><input autoFocus className="field" value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Start typing a street, house number or city" aria-autocomplete="list" aria-expanded={suggestions.length > 0} /></label>{loading && <div className="mt-3 flex items-center gap-2 text-sm text-[#718078]"><LoaderCircle size={15} className="animate-spin" /> Searching addresses…</div>}{lookupError && <p className="mt-3 text-sm text-red-700">{lookupError}</p>}{!loading && query.trim().length >= 3 && !suggestions.length && !selected && !lookupError && <p className="mt-3 text-sm text-[#718078]">No matching addresses found.</p>}{suggestions.length > 0 && <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border border-[#dce4dc] bg-white shadow-xl" role="listbox">{suggestions.map((suggestion, index) => <button type="button" role="option" key={`${suggestion.formattedAddress}-${index}`} onClick={() => onSelect(suggestion)} className="block w-full border-b border-[#edf1ed] px-4 py-3 text-left last:border-0 hover:bg-[#f1f6f1]"><span className="block text-sm font-bold text-[#33463a]">{[suggestion.street, suggestion.houseNumber].filter(Boolean).join(" ") || suggestion.formattedAddress}</span><span className="mt-1 block text-xs text-[#718078]">{[suggestion.postalCode, suggestion.city, suggestion.state, suggestion.country].filter(Boolean).join(", ")}</span></button>)}</div>}</div>{selected && <div className="mt-6 rounded-xl border border-[#c8d9cb] bg-[#f0f6f0] p-4"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#607b68]">Selected address</p><p className="mt-2 font-bold text-[#304636]">{[ [address.street, address.houseNumber].filter(Boolean).join(" "), [address.postalCode, address.city].filter(Boolean).join(" ") ].filter(Boolean).join(", ")}</p><p className="mt-1 text-sm text-[#65736a]">{[address.street, address.houseNumber].filter(Boolean).join(" ")} · {[address.postalCode, address.city, address.state, address.country].filter(Boolean).join(", ")}</p><p className="mt-3 text-xs text-[#607b68]">Structured address saved. You can continue without entering it again.</p></div>}</Section>;
+}
+
+function AddressDebugPanel({ propertyId, property, address }: { propertyId: string; property: PropertyPayload; address: StructuredAddress }) {
+  const [data, setData] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      setLoading(true);
+      setError("");
+      const results: Record<string, unknown> = {};
+      try {
+        const saveRes = await apiFetch(`/api/properties/${propertyId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(property) });
+        results.saved = saveRes.ok ? { ok: true } : { ok: false, status: saveRes.status };
+      } catch (saveError) {
+        results.saved = { error: saveError instanceof Error ? saveError.message : "Save failed" };
+      }
+      for (const [key, path] of [["geocoding", "/location"], ["research", "/location/research"]] as const) {
+        try {
+          const res = await apiFetch(`/api/properties/${propertyId}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refresh: true }) });
+          results[key] = res.ok ? await res.json() : { error: `HTTP ${res.status}`, body: await res.text() };
+        } catch (queryError) {
+          results[key] = { error: queryError instanceof Error ? queryError.message : "Query failed" };
+        }
+      }
+      if (!cancelled) { setData(results); setLoading(false); }
+    }
+    run();
+    return () => { cancelled = true; };
+  }, [propertyId, address]);
+
+  return (
+    <div className="mt-6 rounded-xl border border-dashed border-[#d0a35a] bg-[#fdf9f0] p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-bold uppercase tracking-[.14em] text-[#9a7a2f]">Debug · External services (remove later)</p>
+        <button type="button" onClick={() => setData(null)} className="text-xs text-[#8a6d2a] underline">Clear</button>
+      </div>
+      {loading && <p className="mt-3 text-sm text-[#8a7a4a]">Querying external services…</p>}
+      {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
+      {(() => {
+        const geocoding = data?.geocoding as { coordinates?: { latitude: number; longitude: number }; mapAsset?: { url?: string; caption?: string }; facilities?: Record<string, Array<{ id?: string; name?: string; latitude?: number; longitude?: number; category?: string; distanceMeters?: number }>>; radiusMeters?: number } | undefined;
+        const coordinates = geocoding?.coordinates;
+        if (!coordinates) return null;
+        return (
+          <div className="mt-3">
+            <DebugMap intelligence={{ coordinates, mapAsset: geocoding?.mapAsset, facilities: geocoding?.facilities, radiusMeters: geocoding?.radiusMeters }} />
+            <p className="mt-1 text-[11px] text-[#8a7a4a]">OSM map centered on coordinates · SVG mapAsset overlaid on the real map</p>
+          </div>
+        );
+      })()}
+      {data && <pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-[#1f1f1f] p-3 text-[11px] leading-5 text-[#d6d6d6]">{JSON.stringify(data, null, 2)}</pre>}
+    </div>
+  );
+}
+
+const propertyPin = L.divIcon({ className: "", html: '<div style="width:15px;height:15px;border-radius:50%;background:#26352b;border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45)"></div>', iconSize: [15, 15], iconAnchor: [7.5, 7.5] });
+const placePin = L.divIcon({ className: "", html: '<div style="width:10px;height:10px;border-radius:50%;background:#718b78;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45)"></div>', iconSize: [10, 10], iconAnchor: [5, 5] });
+
+function DebugMap({ intelligence }: { intelligence: { coordinates: { latitude: number; longitude: number }; radiusMeters?: number; mapAsset?: { url?: string; caption?: string }; facilities?: Record<string, Array<{ id?: string; name?: string; latitude?: number; longitude?: number; category?: string; distanceMeters?: number }>> } }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { latitude, longitude } = intelligence.coordinates;
+  const radiusMeters = intelligence.radiusMeters ?? 1000;
+  const latScale = 111320;
+  const lonScale = Math.max(111320 * Math.cos((latitude * Math.PI) / 180), 1);
+  const halfLat = radiusMeters / (0.72 * latScale);
+  const halfLon = radiusMeters / (0.72 * lonScale);
+  const bounds: [[number, number], [number, number]] = [
+    [latitude - halfLat, longitude - halfLon],
+    [latitude + halfLat, longitude + halfLon],
+  ];
+  const places = Object.values(intelligence.facilities ?? {}).flat().filter((place) => place.latitude != null && place.longitude != null);
+  if (!mounted) return <div className="h-80 w-full rounded-lg border border-[#e4d9b8] bg-[#eef1ec]" />;
+  return (
+    <MapContainer center={[latitude, longitude]} zoom={15} scrollWheelZoom={false} className="h-80 w-full rounded-lg border border-[#e4d9b8]">
+      <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      {intelligence.mapAsset?.url && <ImageOverlay url={intelligence.mapAsset.url} bounds={bounds} opacity={0.7} />}
+      <Marker position={[latitude, longitude]} icon={propertyPin}><Popup>Property · {latitude.toFixed(5)}, {longitude.toFixed(5)}</Popup></Marker>
+      {places.map((place) => (
+        <Marker key={place.id ?? `${place.name}-${place.latitude}-${place.longitude}`} position={[place.latitude as number, place.longitude as number]} icon={placePin}>
+          <Popup>{place.name} · {place.category} · {place.distanceMeters}m</Popup>
+        </Marker>
+      ))}
+    </MapContainer>
+  );
+}
+
 function StepProperty({ property, set, exposeData, updateExposeData }: { property: PropertyPayload; set: <K extends keyof PropertyPayload>(key: K, value: PropertyPayload[K]) => void; exposeData: ExposeData; updateExposeData: (patch: Partial<ExposeData>) => void }) {
   return <Section title="Objekt" description="Grundinformationen und eine optionale Überschrift für das Exposé."><div className="grid gap-6"><div><span className="label">Property type</span><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{PROPERTY_TYPES.map(([key, name]) => <button key={key} onClick={() => { set("propertyType", key); updateExposeData({ basicInformation: { ...exposeData.basicInformation, propertyType: key } }); }} className={`rounded-xl border px-3 py-3 text-left text-xs font-bold transition ${property.propertyType === key ? "border-[#6e8b76] bg-[#eaf0ea] text-[#45614d]" : "border-[#e0e5e0] bg-white text-[#66716a] hover:border-[#9caf9e]"}`}>{name}</button>)}</div></div><div className="grid gap-5 sm:grid-cols-2"><Input label="Objekttitel" value={exposeData.basicInformation.title} onChange={(value) => updateExposeData({ basicInformation: { ...exposeData.basicInformation, title: value } })} placeholder="Helle 3-Zimmer-Wohnung" /><Input label="Unterart" value={exposeData.basicInformation.propertySubtype} onChange={(value) => updateExposeData({ basicInformation: { ...exposeData.basicInformation, propertySubtype: value } })} placeholder="z. B. Altbauwohnung" /></div><div><span className="label">What are you planning?</span><div className="grid grid-cols-2 gap-2"><button onClick={() => set("transactionType", "sale")} className={`rounded-xl border px-4 py-4 text-left text-sm font-bold ${property.transactionType === "sale" ? "border-[#6e8b76] bg-[#eaf0ea] text-[#45614d]" : "border-[#e0e5e0]"}`}>Sell</button><button onClick={() => set("transactionType", "rent")} className={`rounded-xl border px-4 py-4 text-left text-sm font-bold ${property.transactionType === "rent" ? "border-[#6e8b76] bg-[#eaf0ea] text-[#45614d]" : "border-[#e0e5e0]"}`}>Rent</button></div></div><div className="max-w-xs"><Input label="Year built (optional)" value={property.constructionYear} type="number" onChange={(value) => set("constructionYear", value ? Number(value) : null)} placeholder="e.g. 2018" /></div></div></Section>;
 }
 
 function StepDetails({ property, set }: { property: PropertyPayload; set: <K extends keyof PropertyPayload>(key: K, value: PropertyPayload[K]) => void }) {
-  return <Section title="The key details." description="The more precise the details, the better the AI can write."><div className="grid gap-5 sm:grid-cols-2"><Input label="Street and house number" value={property.address} onChange={(value) => set("address", value)} placeholder="e.g. 42 Bergmannstraße" /><Input label="Postal code" value={property.zipCode} onChange={(value) => set("zipCode", value)} placeholder="10961" /><Input label="City" value={property.city} onChange={(value) => set("city", value)} placeholder="Berlin" /><Input label="District / neighborhood" value={property.district} onChange={(value) => set("district", value)} placeholder="Kreuzberg" /><Input label="Living area (m²)" value={property.livingArea} type="number" onChange={(value) => set("livingArea", value ? Number(value) : null)} placeholder="92" /><Input label="Plot size (m²)" value={property.plotArea} type="number" onChange={(value) => set("plotArea", value ? Number(value) : null)} placeholder="Optional" /><Input label="Zimmer" value={property.rooms} type="number" onChange={(value) => set("rooms", value ? Number(value) : null)} placeholder="3" /><Input label="Bedrooms" value={property.bedrooms} type="number" onChange={(value) => set("bedrooms", value ? Number(value) : null)} placeholder="2" /><Input label="Bathrooms" value={property.bathrooms} type="number" onChange={(value) => set("bathrooms", value ? Number(value) : null)} placeholder="1" /><Input label="Floor" value={property.floor} onChange={(value) => set("floor", value)} placeholder="2. OG" /><Input label="Total floors" value={property.totalFloors} type="number" onChange={(value) => set("totalFloors", value ? Number(value) : null)} placeholder="5" /><Input label="Available from" value={property.availableFrom} onChange={(value) => set("availableFrom", value)} placeholder="immediately / 10/01/2026" /><Select label="Condition" value={property.condition} onChange={(value) => set("condition", value)} options={[ ["", "Select an option"], ["new", "Like new"], ["renovated", "Renovated"], ["good", "Well maintained"], ["needs-renovation", "Needs renovation"] ]} /></div></Section>;
+  return <Section title="The key details." description="The more precise the details, the better the AI can write."><div className="grid gap-5 sm:grid-cols-2"><Input label="Living area (m²)" value={property.livingArea} type="number" onChange={(value) => set("livingArea", value ? Number(value) : null)} placeholder="92" /><Input label="Plot size (m²)" value={property.plotArea} type="number" onChange={(value) => set("plotArea", value ? Number(value) : null)} placeholder="Optional" /><Input label="Zimmer" value={property.rooms} type="number" onChange={(value) => set("rooms", value ? Number(value) : null)} placeholder="3" /><Input label="Bedrooms" value={property.bedrooms} type="number" onChange={(value) => set("bedrooms", value ? Number(value) : null)} placeholder="2" /><Input label="Bathrooms" value={property.bathrooms} type="number" onChange={(value) => set("bathrooms", value ? Number(value) : null)} placeholder="1" /><Input label="Floor" value={property.floor} onChange={(value) => set("floor", value)} placeholder="2. OG" /><Input label="Total floors" value={property.totalFloors} type="number" onChange={(value) => set("totalFloors", value ? Number(value) : null)} placeholder="5" /><Input label="Available from" value={property.availableFrom} onChange={(value) => set("availableFrom", value)} placeholder="immediately / 10/01/2026" /><Select label="Condition" value={property.condition} onChange={(value) => set("condition", value)} options={[["", "Select an option"], ["new", "Like new"], ["renovated", "Renovated"], ["good", "Well maintained"], ["needs-renovation", "Needs renovation"]]} /></div></Section>;
 }
 
 function StepFinance({ property, set }: { property: PropertyPayload; set: <K extends keyof PropertyPayload>(key: K, value: PropertyPayload[K]) => void }) {
@@ -443,8 +592,6 @@ function StepEnergy({ data, update }: { data?: EnergyData | null; update: (data:
   const number = (value: string) => value === "" ? null : Number(value);
   return <Section title="Energie" description="Nur die Werte eintragen, die im Energieausweis vorhanden sind."><div className="grid gap-5 sm:grid-cols-2"><Select label="Energieausweis" value={energy.certificateType} onChange={(value) => update({ ...energy, certificateType: (value || null) as EnergyData["certificateType"] })} options={[["", "Bitte auswählen"], ["needs_based", "Bedarfsorientiert"], ["consumption_based", "Verbrauchsorientiert"], ["not_available", "Nicht vorhanden"], ["unknown", "Unbekannt"]]} /><Input label="Baujahr laut Energieausweis" value={energy.yearOfConstruction} type="number" onChange={(value) => update({ ...energy, yearOfConstruction: number(value) })} placeholder="1969" /><Select label="Hauptenergieträger" value={energy.primaryEnergySource} onChange={(value) => update({ ...energy, primaryEnergySource: (value || null) as EnergyData["primaryEnergySource"] })} options={[["", "Bitte auswählen"], ["gas", "Gas"], ["oil", "Öl"], ["district_heating", "Fernwärme"], ["heat_pump", "Wärmepumpe"], ["electricity", "Strom"], ["wood", "Holz"], ["pellets", "Pellets"], ["other", "Sonstige"]]} /><Input label="Endenergiebedarf (kWh/(m²·a))" value={energy.finalEnergyDemand} type="number" onChange={(value) => update({ ...energy, finalEnergyDemand: number(value) })} placeholder="250,20" /><Input label="Endenergieverbrauch (kWh/(m²·a))" value={energy.finalEnergyConsumption} type="number" onChange={(value) => update({ ...energy, finalEnergyConsumption: number(value) })} placeholder="Optional" /><Select label="Energieeffizienzklasse" value={energy.efficiencyClass} onChange={(value) => update({ ...energy, efficiencyClass: (value || null) as EnergyData["efficiencyClass"] })} options={[["", "Bitte auswählen"], ...["A+", "A", "B", "C", "D", "E", "F", "G", "H"].map((item) => [item, item] as const)]} /></div></Section>;
 }
-
-// StepLocation component moved to ./step-location.tsx
 
 function StepPhotos({ images, fileInput, upload, removeImage, cover, moveImage, category, subcategory, caption, setCategory, setSubcategory, setCaption }: { images: Array<{ id: string; url: string; fileName: string; mimeType: string; size: number; sequence: number; isCover: boolean; category?: string | null; subcategory?: string | null; caption?: string | null }>; fileInput: React.RefObject<HTMLInputElement | null>; upload: (files: FileList | null) => Promise<void>; removeImage: (id: string) => Promise<void>; cover: (id: string) => Promise<void>; moveImage: (index: number, direction: -1 | 1) => Promise<void>; category: "exterior" | "interior" | "floor_plan" | "document"; subcategory: string; caption: string; setCategory: (value: "exterior" | "interior" | "floor_plan" | "document") => void; setSubcategory: (value: string) => void; setCaption: (value: string) => void }) {
   const options: readonly (readonly [string, string])[] = category === "exterior" ? [["front", "Hausansicht"], ["garden", "Garten"], ["terrace", "Terrasse"], ["balcony", "Balkon"], ["driveway", "Zufahrt"], ["entrance", "Eingang"], ["garage", "Garage"], ["parking", "Stellplatz"], ["other", "Sonstiges Außen"]] : category === "interior" ? [["living_room", "Wohnzimmer"], ["bedroom", "Schlafzimmer"], ["child_room", "Kinderzimmer"], ["office", "Arbeitszimmer"], ["kitchen", "Küche"], ["dining_room", "Esszimmer"], ["bathroom", "Badezimmer"], ["guest_wc", "Gäste-WC"], ["hallway", "Flur"], ["hobby_room", "Hobbyraum"], ["utility_room", "Hauswirtschaftsraum"], ["basement", "Keller"], ["attic", "Dachboden"], ["other", "Sonstiger Innenraum"]] : category === "floor_plan" ? [["ground_floor", "Grundriss"], ["furnished", "Grundriss möbliert"], ["site_plan", "Lageplan"], ["macro_location", "Makrolage"]] : [["energy_certificate", "Energieausweis"], ["other", "Sonstiges Dokument"]];

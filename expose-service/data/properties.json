@@ -92,8 +92,8 @@
             "latitude": 52.3883659,
             "longitude": 13.5004693
           },
-          "latitude": null,
-          "longitude": null,
+          "latitude": 52.3883659,
+          "longitude": 13.5004693,
           "district": null
         },
         "images": [],
@@ -113,7 +113,7 @@
       },
       "expose": null,
       "createdAt": "2026-08-20T22:06:45.677Z",
-      "updatedAt": "2026-08-20T22:07:45.105Z",
+      "updatedAt": "2026-08-20T22:51:50.667Z",
       "constructionYear": 2018,
       "address": "Aldebaranstraße 6",
       "zipCode": "12529",
