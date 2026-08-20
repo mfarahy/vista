@@ -2,9 +2,9 @@
 
 ## Shape
 
-The root Next.js application is the integrated MVP: it contains the web UI, initial REST host, persistence boundary, AI services, location services, and PDF renderer. Route handlers are deliberately thin: they validate input, call a repository/service, and return DTOs. The separately deployable `frontend/` client and `expose-service/` service are the split deployment path.
+The `frontend/` package is the only Next.js application. The `expose-service/` Express/Mastra service owns the REST API, persistence boundary, AI services, location services, uploads, and PDF renderer. The frontend calls that service through `frontend/lib/api.ts`.
 
-`lib/types.ts` contains the legacy and canonical wire contracts. `lib/expose-data.ts` is the typed Phase 1 source-of-truth model, including energy, structured address/location, rooms, equipment, image semantics, agent data, and separate Vista branding. `lib/store.ts` is a local-file repository for immediate demo mode; `prisma/schema.prisma` is the PostgreSQL source of truth for production persistence. Images use a local filesystem asset store while their semantic metadata is persisted with the property.
+`expose-service/src/lib/types.ts` contains the legacy and canonical wire contracts. `expose-service/src/lib/expose-data.ts` is the typed Phase 1 source-of-truth model, including energy, structured address/location, rooms, equipment, image semantics, agent data, and separate Vista branding. `expose-service/src/lib/store.ts` is a local-file repository for immediate demo mode; `prisma/schema.prisma` is the PostgreSQL source of truth for production persistence. Images use a local filesystem asset store while their semantic metadata is persisted with the property.
 
 ## Routes
 
@@ -32,7 +32,7 @@ Image uploads require `category` (`exterior`, `interior`, `floor_plan`, or `docu
 
 ## Template boundary
 
-`lib/expose-template.ts` is the printable HTML template. The preview iframe/document and Playwright PDF both consume it. Gallery layout is selected from the image count, with no empty placeholder cells.
+`expose-service/src/lib/expose-template.ts` is the printable HTML template. The Playwright PDF endpoint consumes it. Gallery layout is selected from the image count, with no empty placeholder cells.
 
 ## Mastra boundary
 
@@ -40,7 +40,7 @@ Image uploads require `category` (`exterior`, `interior`, `floor_plan`, or `docu
 
 ## Phase 4 location boundary
 
-`lib/location.ts` contains replaceable geocoding, places, and static-map provider contracts. `lib/location-service.ts` owns address normalization, provider orchestration, Haversine distances, category selection, deterministic summaries, and the cached `LocationIntelligence` payload. No provider receives property descriptions, owner data, contact details, or financial data.
+`expose-service/src/external-services/location.ts` contains replaceable geocoding, places, and static-map provider contracts. `expose-service/src/lib/location-service.ts` owns address normalization, provider orchestration, Haversine distances, category selection, deterministic summaries, and the cached `LocationIntelligence` payload. No provider receives property descriptions, owner data, contact details, or financial data.
 
 The default application has no active external location provider. Set `GEOCODING_PROVIDER=nominatim` and `PLACES_PROVIDER=overpass` explicitly to enable the opt-in OpenStreetMap integrations; otherwise location resolution reports that the provider is not configured. Provider errors are not converted into empty facility lists. The current map provider is a coordinate-aware local SVG fallback, not a real external static-map service; it receives the property coordinate and generated facility markers, but its roads/background are synthetic. `ResolveLocation` is a deterministic Mastra workflow boundary prepared for Phase 5, with no Tavily or web research.
 

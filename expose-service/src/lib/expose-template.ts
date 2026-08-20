@@ -8,9 +8,9 @@ import type {
   StructuredExposeContent,
   StructuredExposeFact,
   StructuredExposeImageReference,
-} from "./types";
-import type { PropertyExposeData } from "./expose-data";
-import { structuredExposeContentSchema } from "./validation";
+} from "./types.js";
+import type { PropertyExposeData } from "./expose-data.js";
+import { structuredExposeContentSchema } from "./validation.js";
 
 type RenderContent = ExposeContent | StructuredExposeContent;
 type Asset = PropertyImage | ExposeImage;

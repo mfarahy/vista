@@ -7,3 +7,7 @@ export function apiFetch(path: string, init: RequestInit = {}) {
   const url = path.startsWith("http") ? path : `${baseUrl}${path}`;
   return fetch(url, init);
 }
+
+export function apiAssetUrl(path: string) {
+  return path.startsWith("http") || path.startsWith("data:") ? path : `${getApiBaseUrl()}${path}`;
+}

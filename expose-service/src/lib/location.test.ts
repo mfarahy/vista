@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { addressFromLegacy, distanceMetersBetween, formatDistance, getMapProvider } from "./location";
-import { createManualLocation, resolveLocation } from "./location-service";
+import { addressFromLegacy, distanceMetersBetween, formatDistance, getMapProvider } from "../external-services/location.js";
+import { createManualLocation, resolveLocation } from "./location-service.js";
 
 describe("location services", () => {
   it("normalizes a legacy address into structured fields", () => {
