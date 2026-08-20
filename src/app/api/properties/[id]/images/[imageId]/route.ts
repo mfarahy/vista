@@ -7,12 +7,18 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; imageId: string }> },
 ) {
   const { id, imageId } = await params;
+  console.info("[api:image] DELETE request", { id, imageId });
   const property = await getProperty(id);
   const image = property?.images.find((item) => item.id === imageId);
-  if (!image) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!image) {
+    console.warn("[api:image] image not found", { id, imageId });
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   await removeImage(id, imageId);
-  if (image.url.startsWith("/uploads/"))
+  if (image.url.startsWith("/uploads/")) {
     await fs.rm(path.join(process.cwd(), "public", image.url), { force: true });
+    console.info("[api:image] uploaded file removed", { id, imageId, url: image.url });
+  }
   return NextResponse.json({ ok: true });
 }
 export async function PUT(
@@ -20,11 +26,17 @@ export async function PUT(
   { params }: { params: Promise<{ id: string; imageId: string }> },
 ) {
   const { id, imageId } = await params;
+  console.info("[api:image] PUT request", { id, imageId });
   const body = await request.json().catch(() => ({}));
-  if (!body.cover)
+  if (!body.cover) {
+    console.warn("[api:image] invalid cover action", { id, imageId, body });
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+  }
   const property = await setCover(id, imageId);
-  return property
-    ? NextResponse.json(property.images)
-    : NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!property) {
+    console.warn("[api:image] property not found for cover update", { id });
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  console.info("[api:image] cover updated", { id, imageId, count: property.images.length });
+  return NextResponse.json(property.images);
 }

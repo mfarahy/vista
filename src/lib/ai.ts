@@ -137,36 +137,69 @@ export async function generateExposeContent(
   property: Property,
   instruction = "",
 ) {
+  console.info("[ai] generating expose content", {
+    propertyId: property.id,
+    city: property.city,
+    instructionLength: instruction.length,
+  });
   const input = buildAIInput(property);
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return demoContent(property);
+  if (!apiKey) {
+    console.info("[ai] no API key configured, using demo content", {
+      propertyId: property.id,
+    });
+    return demoContent(property);
+  }
+
   const base = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
   const prompt = `You are a careful English real estate copywriter. Return only valid JSON matching the required schema. Use only facts from the input. Do not invent distances, features, energy, construction, or location details. Write persuasive but transparent copy. Location information may be improved stylistically but must not be expanded. ${instruction}\nInput: ${JSON.stringify(input)}`;
-  const response = await fetch(`${base}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-      temperature: 0.5,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            "Respond in English. The JSON must contain title, portalTitle, shortDescription, mainDescription, highlights, roomDescriptions, locationDescription, targetAudience, and factualSnapshot.",
-        },
-        { role: "user", content: prompt },
-      ],
-    }),
-  });
-  if (!response.ok) throw new Error("AI provider returned an error");
-  const result = (await response.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  return exposeContentSchema.parse(
-    JSON.parse(result.choices?.[0]?.message?.content || "{}"),
-  );
+
+  try {
+    const response = await fetch(`${base}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        temperature: 0.5,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "Respond in English. The JSON must contain title, portalTitle, shortDescription, mainDescription, highlights, roomDescriptions, locationDescription, targetAudience, and factualSnapshot.",
+          },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn("[ai] AI provider rejected the request, using demo content", {
+        propertyId: property.id,
+        status: response.status,
+        statusText: response.statusText,
+      });
+      return demoContent(property);
+    }
+
+    const result = (await response.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    const content = JSON.parse(result.choices?.[0]?.message?.content || "{}");
+    const parsed = exposeContentSchema.parse(content);
+    console.info("[ai] expose content generated successfully", {
+      propertyId: property.id,
+      title: parsed.title,
+    });
+    return parsed;
+  } catch (error) {
+    console.warn("[ai] AI request failed, using demo content", {
+      propertyId: property.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return demoContent(property);
+  }
 }

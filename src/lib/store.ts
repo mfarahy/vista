@@ -44,13 +44,18 @@ export async function createProperty(): Promise<Property> {
   };
   db.properties.unshift(property);
   await writeDB(db);
+  console.info("[store] created property", { propertyId: property.id });
   return property;
 }
 export async function listProperties() {
-  return (await readDB()).properties;
+  const properties = (await readDB()).properties;
+  console.info("[store] listed properties", { count: properties.length });
+  return properties;
 }
 export async function getProperty(id: string) {
-  return (await readDB()).properties.find((item) => item.id === id) ?? null;
+  const property = (await readDB()).properties.find((item) => item.id === id) ?? null;
+  console.info("[store] getProperty", { id, found: Boolean(property) });
+  return property;
 }
 export async function updateProperty(
   id: string,
@@ -58,7 +63,10 @@ export async function updateProperty(
 ): Promise<Property | null> {
   const db = await readDB();
   const index = db.properties.findIndex((item) => item.id === id);
-  if (index < 0) return null;
+  if (index < 0) {
+    console.warn("[store] updateProperty not found", { id });
+    return null;
+  }
   const old = db.properties[index];
   const roomsData: PropertyRoom[] = payload.roomsData.map((room, sequence) => ({
     ...room,
@@ -73,12 +81,20 @@ export async function updateProperty(
   };
   db.properties[index] = updated;
   await writeDB(db);
+  console.info("[store] updated property", {
+    id,
+    roomCount: roomsData.length,
+    updatedAt: updated.updatedAt,
+  });
   return updated;
 }
 export async function addImage(id: string, image: Omit<PropertyImage, "id">) {
   const db = await readDB();
   const property = db.properties.find((item) => item.id === id);
-  if (!property) return null;
+  if (!property) {
+    console.warn("[store] addImage property not found", { id });
+    return null;
+  }
   const record = {
     ...image,
     id: randomUUID(),
@@ -88,12 +104,16 @@ export async function addImage(id: string, image: Omit<PropertyImage, "id">) {
   property.images.push(record);
   property.updatedAt = new Date().toISOString();
   await writeDB(db);
+  console.info("[store] added image", { id, imageId: record.id, fileName: record.fileName });
   return record;
 }
 export async function removeImage(id: string, imageId: string) {
   const db = await readDB();
   const property = db.properties.find((item) => item.id === id);
-  if (!property) return null;
+  if (!property) {
+    console.warn("[store] removeImage property not found", { id });
+    return null;
+  }
   const image = property.images.find((item) => item.id === imageId);
   property.images = property.images
     .filter((item) => item.id !== imageId)
@@ -110,12 +130,16 @@ export async function removeImage(id: string, imageId: string) {
     }));
   property.updatedAt = new Date().toISOString();
   await writeDB(db);
+  console.info("[store] removed image", { id, imageId, fileName: image?.fileName ?? "unknown" });
   return image ?? null;
 }
 export async function reorderImages(id: string, imageIds: string[]) {
   const db = await readDB();
   const property = db.properties.find((item) => item.id === id);
-  if (!property) return null;
+  if (!property) {
+    console.warn("[store] reorderImages property not found", { id });
+    return null;
+  }
   const byId = new Map(property.images.map((image) => [image.id, image]));
   property.images = imageIds
     .map((imageId, sequence) => ({
@@ -126,23 +150,31 @@ export async function reorderImages(id: string, imageIds: string[]) {
     .filter((image) => image.id);
   property.updatedAt = new Date().toISOString();
   await writeDB(db);
+  console.info("[store] reordered images", { id, imageCount: property.images.length });
   return property;
 }
 export async function setCover(id: string, imageId: string) {
   const db = await readDB();
   const property = db.properties.find((item) => item.id === id);
-  if (!property) return null;
+  if (!property) {
+    console.warn("[store] setCover property not found", { id });
+    return null;
+  }
   property.images = property.images.map((image) => ({
     ...image,
     isCover: image.id === imageId,
   }));
   await writeDB(db);
+  console.info("[store] set cover image", { id, imageId });
   return property;
 }
 export async function saveExpose(id: string, content: ExposeContent) {
   const db = await readDB();
   const property = db.properties.find((item) => item.id === id);
-  if (!property) return null;
+  if (!property) {
+    console.warn("[store] saveExpose property not found", { id });
+    return null;
+  }
   const expose: Expose = {
     id: property.expose?.id ?? randomUUID(),
     propertyId: id,
@@ -153,6 +185,11 @@ export async function saveExpose(id: string, content: ExposeContent) {
   property.expose = expose;
   property.updatedAt = new Date().toISOString();
   await writeDB(db);
+  console.info("[store] saved expose content", {
+    id,
+    exposeId: expose.id,
+    title: content.title,
+  });
   return expose;
 }
 export { uploadPath };

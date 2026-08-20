@@ -3,6 +3,7 @@ import { addImage, createProperty, updateProperty } from "@/lib/store";
 import type { PropertyPayload } from "@/lib/types";
 
 export async function POST() {
+  console.info("[api:demo] creating demo property");
   const property = await createProperty();
   const payload: PropertyPayload = {
     propertyType: "apartment",
@@ -86,6 +87,7 @@ export async function POST() {
     ],
   };
   await updateProperty(property.id, payload);
+  console.info("[api:demo] demo data saved", { propertyId: property.id });
   for (let index = 1; index <= 6; index += 1)
     await addImage(property.id, {
       url: `/demo/room-${index}.svg`,
@@ -95,5 +97,6 @@ export async function POST() {
       sequence: index - 1,
       isCover: index === 1,
     });
+  console.info("[api:demo] demo images added", { propertyId: property.id, count: 6 });
   return NextResponse.json({ id: property.id });
 }
