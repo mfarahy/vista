@@ -182,6 +182,9 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState("");
+  const [locationIntelligence, setLocationIntelligence] = useState<any>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploadCategory, setUploadCategory] = useState<"exterior" | "interior" | "floor_plan" | "document">("exterior");
   const [uploadSubcategory, setUploadSubcategory] = useState("");
@@ -223,6 +226,28 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
   async function next() {
     await save();
     setStep((current) => Math.min(current + 1, 9));
+  }
+
+  async function fetchLocationIntelligence() {
+    setLocationLoading(true);
+    setLocationError("");
+    try {
+      const response = await apiFetch(`/api/properties/${initialProperty.id}/location`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh: true }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to fetch location intelligence");
+      }
+      const data = await response.json();
+      setLocationIntelligence(data);
+    } catch (error) {
+      setLocationError(error instanceof Error ? error.message : "Failed to fetch location intelligence");
+    } finally {
+      setLocationLoading(false);
+    }
   }
 
   async function generate(action = "") {
@@ -347,7 +372,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
               {step === 2 && <StepFeatures property={property} set={set} exposeData={property.exposeData!} updateExposeData={updateExposeData} />}
               {step === 3 && <StepRooms rooms={property.roomsData} roomAdd={roomAdd} roomUpdate={roomUpdate} roomRemove={roomRemove} />}
               {step === 4 && <StepEnergy data={property.exposeData!.energy} update={(energy) => updateExposeData({ energy })} />}
-              {step === 5 && <StepLocation property={property} set={set} exposeData={property.exposeData!} updateExposeData={updateExposeData} />}
+              {step === 5 && <StepLocation property={property} set={set} exposeData={property.exposeData!} updateExposeData={updateExposeData} locationIntelligence={locationIntelligence} locationLoading={locationLoading} locationError={locationError} onFetchLocation={fetchLocationIntelligence} />}
               {step === 6 && <StepPhotos images={images} fileInput={fileInput} upload={upload} removeImage={removeImage} cover={cover} moveImage={moveImage} category={uploadCategory} subcategory={uploadSubcategory} caption={uploadCaption} setCategory={setUploadCategory} setSubcategory={setUploadSubcategory} setCaption={setUploadCaption} />}
               {step === 7 && <StepPhotos images={images} fileInput={fileInput} upload={(files) => upload(files, "floor_plan")} removeImage={removeImage} cover={cover} moveImage={moveImage} category="floor_plan" subcategory={uploadSubcategory} caption={uploadCaption} setCategory={() => setUploadCategory("floor_plan")} setSubcategory={setUploadSubcategory} setCaption={setUploadCaption} />}
               {step === 8 && <StepAgent data={property.exposeData!.agent} update={(agent) => updateExposeData({ agent })} />}
@@ -419,11 +444,7 @@ function StepEnergy({ data, update }: { data?: EnergyData | null; update: (data:
   return <Section title="Energie" description="Nur die Werte eintragen, die im Energieausweis vorhanden sind."><div className="grid gap-5 sm:grid-cols-2"><Select label="Energieausweis" value={energy.certificateType} onChange={(value) => update({ ...energy, certificateType: (value || null) as EnergyData["certificateType"] })} options={[["", "Bitte auswählen"], ["needs_based", "Bedarfsorientiert"], ["consumption_based", "Verbrauchsorientiert"], ["not_available", "Nicht vorhanden"], ["unknown", "Unbekannt"]]} /><Input label="Baujahr laut Energieausweis" value={energy.yearOfConstruction} type="number" onChange={(value) => update({ ...energy, yearOfConstruction: number(value) })} placeholder="1969" /><Select label="Hauptenergieträger" value={energy.primaryEnergySource} onChange={(value) => update({ ...energy, primaryEnergySource: (value || null) as EnergyData["primaryEnergySource"] })} options={[["", "Bitte auswählen"], ["gas", "Gas"], ["oil", "Öl"], ["district_heating", "Fernwärme"], ["heat_pump", "Wärmepumpe"], ["electricity", "Strom"], ["wood", "Holz"], ["pellets", "Pellets"], ["other", "Sonstige"]]} /><Input label="Endenergiebedarf (kWh/(m²·a))" value={energy.finalEnergyDemand} type="number" onChange={(value) => update({ ...energy, finalEnergyDemand: number(value) })} placeholder="250,20" /><Input label="Endenergieverbrauch (kWh/(m²·a))" value={energy.finalEnergyConsumption} type="number" onChange={(value) => update({ ...energy, finalEnergyConsumption: number(value) })} placeholder="Optional" /><Select label="Energieeffizienzklasse" value={energy.efficiencyClass} onChange={(value) => update({ ...energy, efficiencyClass: (value || null) as EnergyData["efficiencyClass"] })} options={[["", "Bitte auswählen"], ...["A+", "A", "B", "C", "D", "E", "F", "G", "H"].map((item) => [item, item] as const)]} /></div></Section>;
 }
 
-function StepLocation({ property, set, exposeData, updateExposeData }: { property: PropertyPayload; set: <K extends keyof PropertyPayload>(key: K, value: PropertyPayload[K]) => void; exposeData: ExposeData; updateExposeData: (patch: Partial<ExposeData>) => void }) {
-  const address = exposeData.location.address;
-  const updateAddress = (key: keyof ExposeData["basicInformation"]["address"], value: string) => updateExposeData({ location: { ...exposeData.location, address: { ...address, [key]: value }, district: key === "district" ? value : exposeData.location.district } });
-  return <Section title="Lage / Adresse" description="Die Adresse wird strukturiert gespeichert. Geocoding folgt in einer späteren Phase."><div className="grid gap-5 sm:grid-cols-2"><Input label="Straße" value={address.street} onChange={(value) => updateAddress("street", value)} /><Input label="Hausnummer" value={address.houseNumber} onChange={(value) => updateAddress("houseNumber", value)} /><Input label="Postleitzahl" value={address.postalCode} onChange={(value) => updateAddress("postalCode", value)} /><Input label="Ort" value={address.city} onChange={(value) => updateAddress("city", value)} /><Input label="Stadtteil" value={address.district} onChange={(value) => updateAddress("district", value)} /><Input label="Land" value={address.country} onChange={(value) => updateAddress("country", value)} /><Textarea label="Lagebeschreibung" value={exposeData.location.description} onChange={(value) => updateExposeData({ location: { ...exposeData.location, description: value } })} placeholder="Nur eigene, gesicherte Angaben." /><Textarea label="Verkäuferbeschreibung" value={property.sellerDescription} onChange={(value) => set("sellerDescription", value)} placeholder="Was zeichnet das Objekt aus?" /></div></Section>;
-}
+// StepLocation component moved to ./step-location.tsx
 
 function StepPhotos({ images, fileInput, upload, removeImage, cover, moveImage, category, subcategory, caption, setCategory, setSubcategory, setCaption }: { images: Array<{ id: string; url: string; fileName: string; mimeType: string; size: number; sequence: number; isCover: boolean; category?: string | null; subcategory?: string | null; caption?: string | null }>; fileInput: React.RefObject<HTMLInputElement | null>; upload: (files: FileList | null) => Promise<void>; removeImage: (id: string) => Promise<void>; cover: (id: string) => Promise<void>; moveImage: (index: number, direction: -1 | 1) => Promise<void>; category: "exterior" | "interior" | "floor_plan" | "document"; subcategory: string; caption: string; setCategory: (value: "exterior" | "interior" | "floor_plan" | "document") => void; setSubcategory: (value: string) => void; setCaption: (value: string) => void }) {
   const options: readonly (readonly [string, string])[] = category === "exterior" ? [["front", "Hausansicht"], ["garden", "Garten"], ["terrace", "Terrasse"], ["balcony", "Balkon"], ["driveway", "Zufahrt"], ["entrance", "Eingang"], ["garage", "Garage"], ["parking", "Stellplatz"], ["other", "Sonstiges Außen"]] : category === "interior" ? [["living_room", "Wohnzimmer"], ["bedroom", "Schlafzimmer"], ["child_room", "Kinderzimmer"], ["office", "Arbeitszimmer"], ["kitchen", "Küche"], ["dining_room", "Esszimmer"], ["bathroom", "Badezimmer"], ["guest_wc", "Gäste-WC"], ["hallway", "Flur"], ["hobby_room", "Hobbyraum"], ["utility_room", "Hauswirtschaftsraum"], ["basement", "Keller"], ["attic", "Dachboden"], ["other", "Sonstiger Innenraum"]] : category === "floor_plan" ? [["ground_floor", "Grundriss"], ["furnished", "Grundriss möbliert"], ["site_plan", "Lageplan"], ["macro_location", "Makrolage"]] : [["energy_certificate", "Energieausweis"], ["other", "Sonstiges Dokument"]];

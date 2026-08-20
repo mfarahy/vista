@@ -7,3 +7,5 @@ public/uploads/*
 !public/uploads/.gitkeep
 expose-service/dist
 *.tsbuildinfo
+*/dist/*
+

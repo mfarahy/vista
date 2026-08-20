@@ -23,6 +23,12 @@ export interface GeocodingProvider {
   geocode(address: StructuredAddress): Promise<GeocodingResult>;
 }
 
+export interface AddressSuggestion extends StructuredAddress {
+  formattedAddress: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface PlacesProvider {
   searchNearby(
     latitude: number,
@@ -65,7 +71,11 @@ export function normalizeStructuredAddress(address: StructuredAddress): Structur
     postalCode: trim(address.postalCode),
     city: trim(address.city),
     district: trim(address.district),
+    ...(address.state ? { state: trim(address.state) } : {}),
     country: trim(address.country) || defaultCountry,
+    ...(address.formattedAddress ? { formattedAddress: trim(address.formattedAddress) } : {}),
+    ...(address.latitude != null ? { latitude: address.latitude } : {}),
+    ...(address.longitude != null ? { longitude: address.longitude } : {}),
   };
 }
 
@@ -155,6 +165,34 @@ class NominatimGeocodingProvider implements GeocodingProvider {
       ambiguous: results.length > 1 && !exactAddressMatch(first) && !exactHouseMatch,
     };
   }
+}
+
+export async function searchAddressSuggestions(query: string): Promise<AddressSuggestion[]> {
+  const endpoint = process.env.GEOCODING_BASE_URL || "https://nominatim.openstreetmap.org/search";
+  const response = await fetch(`${endpoint}?format=jsonv2&limit=6&addressdetails=1&countrycodes=de&q=${encodeURIComponent(query)}`, {
+    headers: { Accept: "application/json", "User-Agent": process.env.GEOCODING_USER_AGENT || "Vista/1.0 address suggestions" },
+  });
+  if (!response.ok) throw new Error(`Geocoding provider returned ${response.status}`);
+  const results = (await response.json()) as Array<{ lat?: string; lon?: string; display_name?: string; address?: { road?: string; house_number?: string; postcode?: string; city?: string; town?: string; municipality?: string; suburb?: string; state?: string; country?: string } }>;
+  return results.flatMap((result) => {
+    const latitude = Number(result.lat);
+    const longitude = Number(result.lon);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
+    const address = result.address || {};
+    const structured: AddressSuggestion = {
+      street: address.road || null,
+      houseNumber: address.house_number || null,
+      postalCode: address.postcode || null,
+      city: address.city || address.town || address.municipality || null,
+      district: address.suburb || null,
+      state: address.state || null,
+      country: address.country ?? defaultCountry,
+      formattedAddress: result.display_name || [address.road, address.house_number, address.postcode, address.city || address.town || address.municipality].filter(Boolean).join(", "),
+      latitude,
+      longitude,
+    };
+    return [structured];
+  });
 }
 
 class UnconfiguredGeocodingProvider implements GeocodingProvider {

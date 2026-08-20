@@ -10,11 +10,10 @@ import { createProperty, listProperties, getProperty, updateProperty, addImage, 
 import { propertySchema, exposeContentSchema } from "./lib/validation.js";
 import { generateExposeContent } from "./external-services/ai.js";
 import { createManualLocation, resolveLocation } from "./lib/location-service.js";
+import { searchAddressSuggestions } from "./external-services/location.js";
 import { exposeHTML } from "./lib/expose-template.js";
 import { researchLocation } from "./mastra/agents/location-research-agent.js";
 import { locationResearchInputSchema } from "./mastra/schemas/location-research.js";
-import { createExposeJob, retryExposeJob, resumeExposeJobs } from "./lib/expose-workflow.js";
-import { getExposeJob } from "./lib/store.js";
 dotenv.config();
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -28,6 +27,17 @@ app.use("/uploads", express.static(uploadPath));
 app.use("/demo", express.static(path.join(process.cwd(), "public", "demo")));
 app.get("/health", (_req, res) => {
     res.json({ status: "ok", service: "vista-expose-service" });
+});
+app.get("/api/address/suggestions", async (req, res) => {
+    const query = getParamValue(req.query.q).trim();
+    if (query.length < 3)
+        return res.json([]);
+    try {
+        res.json(await searchAddressSuggestions(query));
+    }
+    catch (error) {
+        res.status(502).json({ error: error instanceof Error ? error.message : "Address lookup could not be completed." });
+    }
 });
 app.get("/api/properties/:id/location", async (req, res) => {
     const property = await getProperty(getParamValue(req.params.id));
@@ -164,39 +174,6 @@ app.post("/api/properties/:id/ai/improve", async (req, res) => {
         res.status(502).json({ error: error instanceof Error ? error.message : "AI could not respond" });
     }
 });
-app.post("/api/exposes/generate", async (req, res) => {
-    const propertyId = typeof req.body?.propertyId === "string" ? req.body.propertyId : "";
-    if (!propertyId)
-        return res.status(400).json({ error: "propertyId is required" });
-    try {
-        const job = await createExposeJob(propertyId, { idempotencyKey: typeof req.body?.idempotencyKey === "string" ? req.body.idempotencyKey : undefined });
-        res.status(202).json({ jobId: job.id, status: job.status, currentStage: job.currentStage });
-    }
-    catch (error) {
-        res.status(error instanceof Error && error.message === "Property not found" ? 404 : 400).json({ error: error instanceof Error ? error.message : "Expose generation could not be started" });
-    }
-});
-app.post("/api/properties/:id/expose/generate", async (req, res) => {
-    try {
-        const job = await createExposeJob(getParamValue(req.params.id), { idempotencyKey: typeof req.body?.idempotencyKey === "string" ? req.body.idempotencyKey : undefined });
-        res.status(202).json({ jobId: job.id, status: job.status, currentStage: job.currentStage });
-    }
-    catch (error) {
-        res.status(error instanceof Error && error.message === "Property not found" ? 404 : 400).json({ error: error instanceof Error ? error.message : "Expose generation could not be started" });
-    }
-});
-app.get("/api/exposes/jobs/:jobId", async (req, res) => {
-    const job = await getExposeJob(getParamValue(req.params.jobId));
-    if (!job)
-        return res.status(404).json({ error: "Expose job not found" });
-    res.json({ ...job, stages: Object.fromEntries(job.stages.map((stage) => [stage.stage.toLowerCase(), stage])) });
-});
-app.post("/api/exposes/jobs/:jobId/retry", async (req, res) => {
-    const job = await retryExposeJob(getParamValue(req.params.jobId));
-    if (!job)
-        return res.status(404).json({ error: "Expose job not found" });
-    res.status(202).json({ jobId: job.id, status: job.status, currentStage: job.currentStage });
-});
 app.get("/api/properties/:id/expose", async (req, res) => {
     const propertyId = getParamValue(req.params.id);
     const property = await getProperty(propertyId);
@@ -292,6 +269,13 @@ app.put("/api/properties/:id/images/reorder", async (req, res) => {
         return res.status(404).json({ error: "Not found" });
     res.json(property.images);
 });
+app.get("/api/properties/:id/html", async (req, res) => {
+    const propertyId = getParamValue(req.params.id);
+    const property = await getProperty(propertyId);
+    if (!property?.expose?.content)
+        return res.status(400).json({ error: "Please generate content first" });
+    res.type("html").send(await exposeHTML(property, property.expose.content));
+});
 app.post("/api/properties/:id/pdf", async (req, res) => {
     const propertyId = getParamValue(req.params.id);
     const property = await getProperty(propertyId);
@@ -325,5 +309,4 @@ app.post("/api/demo", async (_req, res) => {
 });
 app.listen(port, host, () => {
     console.log(`Vista expose service listening on http://${host}:${port}`);
-    void resumeExposeJobs();
 });

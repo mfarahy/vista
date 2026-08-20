@@ -1,6 +1,512 @@
 {
   "properties": [
     {
+      "id": "4de320d3-efcf-4882-8ec0-f345293dc46c",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [
+        {
+          "name": "Living room",
+          "type": "Living",
+          "size": 31,
+          "floor": "3. OG",
+          "description": "Bright living area with balcony access and large windows.",
+          "sequence": 0,
+          "id": "c80e882b-e5bb-40df-9614-4b80ec7f114c"
+        },
+        {
+          "name": "Kitchen",
+          "type": "Kitchen",
+          "size": 11,
+          "floor": "3. OG",
+          "description": "Open-plan fitted kitchen with generous work surfaces.",
+          "sequence": 1,
+          "id": "e1402ded-5544-445a-94c9-0ef49a6ff190"
+        }
+      ],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": null,
+          "title": null,
+          "address": {
+            "street": "Aldebaranstraße",
+            "houseNumber": "6",
+            "postalCode": "12529",
+            "city": "Schönefeld",
+            "district": null,
+            "state": "Brandenburg",
+            "country": "Deutschland",
+            "formattedAddress": "6, Aldebaranstraße, Schönefeld, Schenkendorf-Krummensee, Dahme-Spreewald, Brandenburg, 12529, Deutschland",
+            "latitude": 52.3883659,
+            "longitude": 13.5004693
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null
+        },
+        "propertyDetails": {
+          "livingArea": null,
+          "plotArea": null,
+          "rooms": null,
+          "bathrooms": null,
+          "yearBuilt": null,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null
+        },
+        "energy": null,
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "street": "Aldebaranstraße",
+            "houseNumber": "6",
+            "postalCode": "12529",
+            "city": "Schönefeld",
+            "district": null,
+            "state": "Brandenburg",
+            "country": "Deutschland",
+            "formattedAddress": "6, Aldebaranstraße, Schönefeld, Schenkendorf-Krummensee, Dahme-Spreewald, Brandenburg, 12529, Deutschland",
+            "latitude": 52.3883659,
+            "longitude": 13.5004693
+          },
+          "latitude": null,
+          "longitude": null,
+          "district": null
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-20T22:06:45.677Z",
+      "updatedAt": "2026-08-20T22:07:45.105Z",
+      "constructionYear": 2018,
+      "address": "Aldebaranstraße 6",
+      "zipCode": "12529",
+      "city": "Schönefeld",
+      "district": null,
+      "livingArea": 86,
+      "rooms": 3,
+      "bathrooms": 1,
+      "floor": "3. OG",
+      "totalFloors": 5,
+      "availableFrom": "01.10.2026",
+      "condition": "good",
+      "askingPrice": 645000,
+      "additionalCosts": 19350,
+      "hausgeld": 385,
+      "additionalFeatures": "Oak flooring and triple-glazed windows"
+    },
+    {
+      "id": "f59e7f86-98e6-402c-a28e-c8878412c674",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": null,
+          "title": null,
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null
+        },
+        "propertyDetails": {
+          "livingArea": null,
+          "plotArea": null,
+          "rooms": null,
+          "bathrooms": null,
+          "yearBuilt": null,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null
+        },
+        "energy": null,
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-20T21:15:48.952Z",
+      "updatedAt": "2026-08-20T21:15:48.952Z"
+    },
+    {
+      "id": "2cb035ff-9298-42ed-8924-2fda392bec6e",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": null,
+          "title": null,
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null
+        },
+        "propertyDetails": {
+          "livingArea": null,
+          "plotArea": null,
+          "rooms": null,
+          "bathrooms": null,
+          "yearBuilt": null,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null
+        },
+        "energy": null,
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-20T21:15:47.905Z",
+      "updatedAt": "2026-08-20T21:15:47.905Z"
+    },
+    {
+      "id": "af7d9714-2a5c-40f3-939c-531084ab204a",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": null,
+          "title": null,
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null
+        },
+        "propertyDetails": {
+          "livingArea": null,
+          "plotArea": null,
+          "rooms": null,
+          "bathrooms": null,
+          "yearBuilt": null,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null
+        },
+        "energy": null,
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-20T21:15:47.308Z",
+      "updatedAt": "2026-08-20T21:15:47.308Z"
+    },
+    {
+      "id": "cf4994a6-3199-4856-ba5c-e22f90a1c5ab",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": null,
+          "title": null,
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null
+        },
+        "propertyDetails": {
+          "livingArea": null,
+          "plotArea": null,
+          "rooms": null,
+          "bathrooms": null,
+          "yearBuilt": null,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null
+        },
+        "energy": null,
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-20T21:15:45.500Z",
+      "updatedAt": "2026-08-20T21:15:45.500Z"
+    },
+    {
+      "id": "6e031875-9567-4892-98fb-da5d189166fb",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": null,
+          "title": null,
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null
+        },
+        "propertyDetails": {
+          "livingArea": null,
+          "plotArea": null,
+          "rooms": null,
+          "bathrooms": null,
+          "yearBuilt": null,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null
+        },
+        "energy": null,
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-20T21:15:09.258Z",
+      "updatedAt": "2026-08-20T21:15:09.258Z"
+    },
+    {
       "id": "f6da84a2-cc4d-43f1-9521-7a1af356467a",
       "propertyType": "apartment",
       "transactionType": "sale",
@@ -139,10 +645,10 @@
             "Built in 2018"
           ]
         },
-        "generatedAt": "2026-08-20T21:05:21.464Z"
+        "generatedAt": "2026-08-20T21:07:02.019Z"
       },
       "createdAt": "2026-08-20T21:01:55.808Z",
-      "updatedAt": "2026-08-20T21:06:23.638Z",
+      "updatedAt": "2026-08-20T21:07:02.019Z",
       "constructionYear": 2018,
       "address": "Lychener Straße 18",
       "zipCode": "10437",

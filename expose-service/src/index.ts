@@ -11,6 +11,7 @@ import { createProperty, listProperties, getProperty, updateProperty, addImage, 
 import { propertySchema, exposeContentSchema } from "./lib/validation.js";
 import { generateExposeContent } from "./external-services/ai.js";
 import { createManualLocation, resolveLocation } from "./lib/location-service.js";
+import { searchAddressSuggestions } from "./external-services/location.js";
 import { exposeHTML } from "./lib/expose-template.js";
 import type { PropertyPayload } from "./lib/types.js";
 import { researchLocation } from "./mastra/agents/location-research-agent.js";
@@ -32,6 +33,16 @@ app.use("/demo", express.static(path.join(process.cwd(), "public", "demo")));
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "vista-expose-service" });
+});
+
+app.get("/api/address/suggestions", async (req, res) => {
+  const query = getParamValue(req.query.q as string | string[] | undefined).trim();
+  if (query.length < 3) return res.json([]);
+  try {
+    res.json(await searchAddressSuggestions(query));
+  } catch (error) {
+    res.status(502).json({ error: error instanceof Error ? error.message : "Address lookup could not be completed." });
+  }
 });
 
 app.get("/api/properties/:id/location", async (req, res) => {
@@ -260,6 +271,13 @@ app.put("/api/properties/:id/images/reorder", async (req, res) => {
   const property = await reorderImages(propertyId, Array.isArray(req.body?.imageIds) ? req.body.imageIds : []);
   if (!property) return res.status(404).json({ error: "Not found" });
   res.json(property.images);
+});
+
+app.get("/api/properties/:id/html", async (req, res) => {
+  const propertyId = getParamValue(req.params.id);
+  const property = await getProperty(propertyId);
+  if (!property?.expose?.content) return res.status(400).json({ error: "Please generate content first" });
+  res.type("html").send(await exposeHTML(property, property.expose.content));
 });
 
 app.post("/api/properties/:id/pdf", async (req, res) => {

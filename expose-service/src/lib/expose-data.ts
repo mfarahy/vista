@@ -29,7 +29,11 @@ export const addressSchema = z.object({
   postalCode: optionalText(20),
   city: optionalText(100),
   district: optionalText(100),
+  state: optionalText(100),
   country: z.string().max(100).default("Deutschland"),
+  formattedAddress: optionalText(300),
+  latitude: z.number().finite().min(-90).max(90).nullable().optional(),
+  longitude: z.number().finite().min(-180).max(180).nullable().optional(),
 });
 
 export const placeCategorySchema = z.enum([
