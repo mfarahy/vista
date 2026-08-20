@@ -1,7 +1,9 @@
 import type { PropertyExposeData, ExposeImage, EnergyData, AgentData, SystemBranding, LocationIntelligence } from "./expose-data.js";
+import type { LocationResearch } from "../mastra/schemas/location-research.js";
 
 export { emptyExposeData, propertyExposeDataSchema } from "./expose-data.js";
 export type { PropertyExposeData, ExposeImage, EnergyData, AgentData, SystemBranding, LocationIntelligence } from "./expose-data.js";
+export type { LocationResearch } from "../mastra/schemas/location-research.js";
 
 export const PROPERTY_TYPES = [
   ["apartment", "Apartment"],
@@ -155,7 +157,7 @@ export interface StructuredExposeContent {
   };
   roomProgram?: { roomId: string; name: string; area?: string; description: string }[];
   equipment?: { facts: StructuredExposeFact[]; description?: string };
-  location?: { description: string; district?: string; neighborhood?: string; intelligence?: LocationIntelligence };
+  location?: { description: string; district?: string; neighborhood?: string; intelligence?: LocationIntelligence; research?: LocationResearch };
   otherInformation?: { items: StructuredExposeFact[] };
   additionalInformation?: { items: StructuredExposeFact[] };
   imageSections?: {

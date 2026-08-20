@@ -161,7 +161,7 @@ export async function generateLocationDescription(data: PropertyExposeData) {
   const name = [clean(location.address.city), clean(location.district || location.neighborhood)].filter(Boolean).join(", ");
   const fallback = clean(location.description) || (name ? `Die Immobilie liegt in ${name}.` : "Zur Lage liegen derzeit nur die angegebenen Adressdaten vor.");
   const description = await generateSectionText("Lage", { address: location.address, district: location.district, neighborhood: location.neighborhood, description: location.description }, fallback, 2500);
-  return { description, ...(clean(location.district) ? { district: clean(location.district) } : {}), ...(clean(location.neighborhood) ? { neighborhood: clean(location.neighborhood) } : {}), ...(location.intelligence ? { intelligence: location.intelligence } : {}) };
+  return { description, ...(clean(location.district) ? { district: clean(location.district) } : {}), ...(clean(location.neighborhood) ? { neighborhood: clean(location.neighborhood) } : {}), ...(location.intelligence ? { intelligence: location.intelligence } : {}), ...(location.research ? { research: location.research } : {}) };
 }
 
 export async function generateOtherInformation(data: PropertyExposeData) {

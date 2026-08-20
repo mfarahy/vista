@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { locationResearchSchema } from "../mastra/schemas/location-research.js";
 
 export const certificateTypeSchema = z.enum([
   "needs_based",
@@ -146,6 +147,7 @@ export const locationDataSchema = z.object({
   neighborhood: optionalText(100),
   description: optionalText(2000),
   intelligence: locationIntelligenceSchema.optional(),
+  research: locationResearchSchema.optional(),
 });
 
 export const agentDataSchema = z.object({
