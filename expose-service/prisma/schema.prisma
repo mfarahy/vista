@@ -1,163 +1,163 @@
 generator client {
-  provider = "prisma-client-js"
+    provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
 }
 
 model Property {
-  id                  String           @id @default(cuid())
-  propertyType        String
-  transactionType     String
-  constructionYear    Int?
-  address             String?
-  zipCode             String?
-  city                String?
-  district            String?
-  neighborhood        String?
-  latitude            Float?
-  longitude           Float?
-  formattedAddress    String?
-  geocodingProvider   String?
-  geocodedAt          DateTime?
-  geocodingConfidence Float?
-  geocodingMatchType  String?
-  locationSource      String?
-  livingArea          Float?
-  plotArea            Float?
-  rooms               Float?
-  bedrooms            Int?
-  bathrooms           Int?
-  floor               String?
-  totalFloors         Int?
-  availableFrom       String?
-  condition           String?
-  askingPrice         Float?
-  additionalCosts     Float?
-  commission          String?
-  hausgeld             Float?
-  coldRent             Float?
-  deposit              Float?
-  selectedFeatures     String[]
-  additionalFeatures   String?
-  surroundings        Json?
-  locationNote        String?
-  sellerDescription   String?
-  specialNotes        String?
-  targetAudience      String?
-  tone                String
-  language            String
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
-  images              PropertyImage[]
-  roomsData           PropertyRoom[]
-  exposeData          Json?
-  energy              PropertyEnergy?
-  agent               PropertyAgent?
-  expose              Expose?
-  locationCaches      LocationCache[]
+    id                  String          @id @default(cuid())
+    propertyType        String
+    transactionType     String
+    constructionYear    Int?
+    address             String?
+    zipCode             String?
+    city                String?
+    district            String?
+    neighborhood        String?
+    latitude            Float?
+    longitude           Float?
+    formattedAddress    String?
+    geocodingProvider   String?
+    geocodedAt          DateTime?
+    geocodingConfidence Float?
+    geocodingMatchType  String?
+    locationSource      String?
+    livingArea          Float?
+    plotArea            Float?
+    rooms               Float?
+    bedrooms            Int?
+    bathrooms           Int?
+    floor               String?
+    totalFloors         Int?
+    availableFrom       String?
+    condition           String?
+    askingPrice         Float?
+    additionalCosts     Float?
+    commission          String?
+    hausgeld            Float?
+    coldRent            Float?
+    deposit             Float?
+    selectedFeatures    String[]
+    additionalFeatures  String?
+    surroundings        Json?
+    locationNote        String?
+    sellerDescription   String?
+    specialNotes        String?
+    targetAudience      String?
+    tone                String
+    language            String
+    createdAt           DateTime        @default(now())
+    updatedAt           DateTime        @updatedAt
+    images              PropertyImage[]
+    roomsData           PropertyRoom[]
+    exposeData          Json?
+    energy              PropertyEnergy?
+    agent               PropertyAgent?
+    expose              Expose?
+    locationCaches      LocationCache[]
 }
 
 model LocationCache {
-  id           String   @id @default(cuid())
-  propertyId   String
-  latitude     Float
-  longitude    Float
-  searchRadius Int
-  provider     String
-  results      Json
-  createdAt    DateTime @default(now())
-  expiresAt    DateTime
-  property     Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+    id           String   @id @default(cuid())
+    propertyId   String
+    latitude     Float
+    longitude    Float
+    searchRadius Int
+    provider     String
+    results      Json
+    createdAt    DateTime @default(now())
+    expiresAt    DateTime
+    property     Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
-  @@index([propertyId, searchRadius])
+    @@index([propertyId, searchRadius])
 }
 
 model PropertyImage {
-  id               String   @id @default(cuid())
-  propertyId       String
-  url              String
-  fileName         String
-  mimeType         String
-  size             Int
-  sequence         Int      @default(0)
-  isCover          Boolean  @default(false)
-  room             String?
-  category         String?
-  assetId          String?
-  subcategory      String?
-  caption          String?
-  description      String?
-  isHeroCandidate  Boolean  @default(false)
-  confidence       Float?
-  aiDescription    String?
-  createdAt        DateTime @default(now())
-  property         Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+    id              String   @id @default(cuid())
+    propertyId      String
+    url             String
+    fileName        String
+    mimeType        String
+    size            Int
+    sequence        Int      @default(0)
+    isCover         Boolean  @default(false)
+    room            String?
+    category        String?
+    assetId         String?
+    subcategory     String?
+    caption         String?
+    description     String?
+    isHeroCandidate Boolean  @default(false)
+    confidence      Float?
+    aiDescription   String?
+    createdAt       DateTime @default(now())
+    property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 }
 
 model PropertyEnergy {
-  id                      String   @id @default(cuid())
-  propertyId              String   @unique
-  certificateType         String?
-  yearOfConstruction      Int?
-  primaryEnergySource     String?
-  finalEnergyDemand       Float?
-  finalEnergyConsumption  Float?
-  efficiencyClass         String?
-  property                Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+    id                     String   @id @default(cuid())
+    propertyId             String   @unique
+    certificateType        String?
+    yearOfConstruction     Int?
+    primaryEnergySource    String?
+    finalEnergyDemand      Float?
+    finalEnergyConsumption Float?
+    efficiencyClass        String?
+    property               Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 }
 
 model PropertyAgent {
-  id         String   @id @default(cuid())
-  propertyId String   @unique
-  name       String?
-  company    String?
-  address    Json?
-  phone      String?
-  email      String?
-  website    String?
-  photo      String?
-  logo       String?
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+    id         String   @id @default(cuid())
+    propertyId String   @unique
+    name       String?
+    company    String?
+    address    Json?
+    phone      String?
+    email      String?
+    website    String?
+    photo      String?
+    logo       String?
+    property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 }
 
 model PropertyRoom {
-  id          String   @id @default(cuid())
-  propertyId  String
-  name        String
-  type        String
-  size        Float?
-  floor       String?
-  description String?
-  sequence    Int      @default(0)
-  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+    id          String   @id @default(cuid())
+    propertyId  String
+    name        String
+    type        String
+    size        Float?
+    floor       String?
+    description String?
+    sequence    Int      @default(0)
+    property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 }
 
 model Expose {
-  id          String        @id @default(cuid())
-  propertyId  String        @unique
-  template     String        @default("modern")
-  content     ExposeContent?
-  pdfUrl      String?
-  pdfFileName String?
-  generatedAt DateTime?
-  updatedAt   DateTime      @updatedAt
-  property    Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+    id          String         @id @default(cuid())
+    propertyId  String         @unique
+    template    String         @default("modern")
+    content     ExposeContent?
+    pdfUrl      String?
+    pdfFileName String?
+    generatedAt DateTime?
+    updatedAt   DateTime       @updatedAt
+    property    Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 }
 
 model ExposeContent {
-  id                  String   @id @default(cuid())
-  exposeId            String   @unique
-  title               String
-  portalTitle         String
-  shortDescription    String
-  mainDescription     String
-  highlights          Json
-  roomDescriptions    Json
-  locationDescription String
-  targetAudience      String
-  factualSnapshot     Json
-  expose              Expose   @relation(fields: [exposeId], references: [id], onDelete: Cascade)
+    id                  String @id @default(cuid())
+    exposeId            String @unique
+    title               String
+    portalTitle         String
+    shortDescription    String
+    mainDescription     String
+    highlights          Json
+    roomDescriptions    Json
+    locationDescription String
+    targetAudience      String
+    factualSnapshot     Json
+    expose              Expose @relation(fields: [exposeId], references: [id], onDelete: Cascade)
 }
