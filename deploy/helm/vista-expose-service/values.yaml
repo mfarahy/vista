@@ -1,0 +1,34 @@
+replicaCount: 2
+image:
+  repository: ghcr.io/example/vista-expose-service
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 4000
+
+ingress:
+  enabled: true
+  className: traefik
+  host: api.vista.example.com
+  path: /
+  tls: []
+
+config:
+  CORS_ORIGIN: "https://vista.example.com"
+  OPENAI_BASE_URL: "https://api.openai.com/v1"
+  OPENAI_MODEL: "gpt-4o-mini"
+
+secrets:
+  OPENAI_API_KEY: "replace-me"
+  DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/vista"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

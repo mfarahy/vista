@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vista-expose-service
+  labels:
+    app: vista-expose-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vista-expose-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: vista-expose-service
+    spec:
+      containers:
+        - name: expose-service
+          image: ghcr.io/example/vista-expose-service:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4000
+          env:
+            - name: PORT
+              value: "4000"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: CORS_ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  name: vista-expose-service-config
+                  key: CORS_ORIGIN
+            - name: DATA_DIR
+              value: "/app/data"
+            - name: UPLOAD_DIR
+              value: "/app/public/uploads"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vista-expose-service-secrets
+                  key: OPENAI_API_KEY
+            - name: OPENAI_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: vista-expose-service-config
+                  key: OPENAI_BASE_URL
+            - name: OPENAI_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: vista-expose-service-config
+                  key: OPENAI_MODEL
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: vista-expose-service-secrets
+                  key: DATABASE_URL
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

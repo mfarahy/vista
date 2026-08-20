@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vista-frontend
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+    - host: vista.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vista-frontend
+                port:
+                  number: 80
