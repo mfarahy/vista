@@ -3,10 +3,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { afterEach, describe, it } from "node:test";
 
-import { generateExposeContent } from "./ai";
-import { exposeHTML } from "./expose-template";
-import type { StructuredExposeContent } from "./types";
-import { locationIntelligenceSchema } from "./expose-data";
+import { generateExposeContent } from "./ai.js";
+import { exposeHTML } from "../lib/expose-template.js";
+import type { StructuredExposeContent } from "../lib/types.js";
+import { locationIntelligenceSchema } from "../lib/expose-data.js";
 
 describe("generateExposeContent", () => {
   const originalFetch = global.fetch;

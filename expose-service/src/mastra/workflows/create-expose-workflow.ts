@@ -3,7 +3,6 @@ import { propertyExposeDataSchema } from "../../lib/expose-data.js";
 import { generatePropertyExposeContent, preparePropertyExposeData } from "../agents/property-expose-agent.js";
 import { createStep, createWorkflow } from "@mastra/core/workflows";
 import { validatePropertyDataInputSchema, generateExposeContentOutputSchema, prepareExposeDataOutputSchema } from "../schemas/index.js";
-import { resolveLocation } from "../../lib/location-service.js";
 
 const validatePropertyData = createStep({
   id: "ValidatePropertyData",
@@ -22,9 +21,7 @@ const resolveLocationStep = createStep({
   inputSchema: prepareExposeDataOutputSchema,
   outputSchema: prepareExposeDataOutputSchema,
   execute: async ({ inputData }) => {
-    // Resolution is deterministic; Phase 5 can consume this prepared location without adding research here.
-    const result = await resolveLocation(inputData.property);
-    return { ...inputData, property: result };
+    return inputData;
   },
 });
 const generateContent = createStep({
@@ -42,7 +39,7 @@ export const createExposeMastraWorkflow = createWorkflow({
 
 export async function createExposeWorkflow(property: unknown) {
   const validatedProperty = propertyExposeDataSchema.parse(property);
-  return generatePropertyExposeContent(await resolveLocation(validatedProperty));
+  return generatePropertyExposeContent(validatedProperty);
 }
 
 export type CreateExposeWorkflowInput = PropertyExposeData;

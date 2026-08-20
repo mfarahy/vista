@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "test:unit": "node --import tsx --test lib/*.test.ts",
-    "test:integration": "node --import tsx --test integration/*.integration.test.ts",
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build && npm --prefix expose-service run build",
+    "start": "npm --prefix frontend run start",
+    "lint": "npm --prefix frontend run lint && npm --prefix expose-service run lint",
+    "test:unit": "npm --prefix expose-service test",
+    "test:integration": "node --import tsx --test expose-service/src/location.integration.test.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts"

@@ -3,10 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import { chromium } from "playwright";
 import { describe, it } from "node:test";
-import { exposeHTML } from "../lib/expose-template";
-import { getGeocodingProvider, getPlacesProvider, distanceMetersBetween, type GeocodingProvider, type PlacesProvider } from "../lib/location";
-import { createManualLocation, resolveLocation } from "../lib/location-service";
-import type { Property, StructuredExposeContent } from "../lib/types";
+import { exposeHTML } from "./lib/expose-template.js";
+import { getGeocodingProvider, getPlacesProvider, distanceMetersBetween, type GeocodingProvider, type PlacesProvider } from "./external-services/location.js";
+import { createManualLocation, resolveLocation } from "./lib/location-service.js";
+import type { Property, StructuredExposeContent } from "./lib/types.js";
 
 const enabled = process.env.RUN_LOCATION_INTEGRATION === "1";
 const providersConfigured = process.env.GEOCODING_PROVIDER?.toLowerCase() === "nominatim" && process.env.PLACES_PROVIDER?.toLowerCase() === "overpass";

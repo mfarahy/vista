@@ -15,58 +15,102 @@ export function buildAIInput(property) {
             condition: property.condition,
             askingPrice: property.askingPrice,
         },
-        features: [...property.selectedFeatures, ...(property.additionalFeatures ? [property.additionalFeatures] : [])],
-        rooms: property.roomsData.map(({ id, name, type, size, floor, description }) => ({ id, name, type, size, floor, description })),
+        features: [
+            ...property.selectedFeatures,
+            ...(property.additionalFeatures ? [property.additionalFeatures] : []),
+        ],
+        rooms: property.roomsData.map(({ id, name, type, size, floor, description }) => ({
+            id,
+            name,
+            type,
+            size,
+            floor,
+            description,
+        })),
         locationInformation: Object.fromEntries(Object.entries(property.surroundings ?? {}).filter(([, value]) => value)),
         locationNote: property.locationNote,
-        additionalInformation: [property.sellerDescription, property.specialNotes].filter(Boolean).join("\n"),
+        additionalInformation: [property.sellerDescription, property.specialNotes]
+            .filter(Boolean)
+            .join("\n"),
         tone: property.tone,
         language: property.language,
     };
 }
 function label(value) {
-    return value?.replaceAll("-", " ").replace(/\b\w/g, (char) => char.toUpperCase()) ?? "Property";
+    return (value
+        ?.replaceAll("-", " ")
+        .replace(/\b\w/g, (char) => char.toUpperCase()) ?? "Property");
+}
+function euro(value) {
+    return value
+        ? new Intl.NumberFormat("de-DE", {
+            style: "currency",
+            currency: "EUR",
+            maximumFractionDigits: 0,
+        }).format(value)
+        : "";
 }
 function demoContent(property) {
     const city = property.city || "your city";
-    const district = property.district ? ` in ${property.district}` : "";
+    const district = property.district
+        ? ` in ${property.district}`
+        : "";
     const type = label(property.propertyType);
+    const facts = [
+        property.livingArea && `${property.livingArea} m² living area`,
+        property.rooms && `${property.rooms} rooms`,
+        property.bedrooms && `${property.bedrooms} bedrooms`,
+        property.bathrooms && `${property.bathrooms} bathrooms`,
+        property.constructionYear && `Built in ${property.constructionYear}`,
+    ].filter(Boolean);
     const features = property.selectedFeatures.slice(0, 6).map(label);
     const title = `${type}${property.rooms ? ` mit ${property.rooms}-Zimmern` : ""}${features[0] ? ` und ${features[0]}` : ""}${district ? ` in ${city}` : ` in ${city}`}`;
     const roomDescriptions = property.roomsData.map((room) => ({
         roomId: room.id,
         name: room.name,
-        description: room.description || `${room.name}${room.size ? ` with approx. ${room.size} m²` : ""} offers a versatile space that fits naturally into the overall layout.`,
+        description: room.description ||
+            `${room.name}${room.size ? ` with approx. ${room.size} m²` : ""} offers a versatile space that fits naturally into the overall layout.`,
     }));
     const locationDescription = property.locationNote ||
         Object.entries(property.surroundings ?? {})
             .filter(([, value]) => value)
             .map(([key, value]) => `${label(key)}: ${value}`)
             .join("\n") ||
-        `The location in ${city}${property.district ? `, ${property.district}` : ""} combines everyday convenience with a pleasant residential atmosphere.`;
+        `The location in ${city}${property.district ? `, ${property.district}` : ""} combines everyday convenience with a pleasant residential atmosphere. The information is based on the details provided.`;
     return {
         title,
         portalTitle: `${type} in ${city}${property.livingArea ? ` | ${property.livingArea} m²` : ""}`,
         shortDescription: `${type} in ${city}${property.livingArea ? ` with approx. ${property.livingArea} m² of living space` : ""}. A home with clear qualities and room for your personal touch.`,
         mainDescription: `${type} in ${city}${district} is a versatile property for people who value a good balance between everyday life and home. ${property.sellerDescription || "The rooms offer a welcoming foundation for individual living ideas and can adapt to different lifestyles."}\n\nHighlights include ${features.length ? features.join(", ") : "the well-proportioned rooms and versatile possibilities"}. All statements in this text are based on the information provided by the seller.`,
-        highlights: (features.length ? features : ["Well-proportioned rooms", "Versatile possibilities", "Room for personal design", "Attractive residential location"]).slice(0, 8),
+        highlights: (features.length
+            ? features
+            : [
+                "Well-proportioned rooms",
+                "Versatile possibilities",
+                "Room for personal design",
+                "Attractive residential location",
+            ]).slice(0, 8),
         roomDescriptions,
         locationDescription,
-        targetAudience: property.targetAudience || `Couples, families, and discerning owner-occupiers looking for a well-structured home in ${city}.`,
-        factualSnapshot: [
-            property.livingArea && `${property.livingArea} m² living area`,
-            property.rooms && `${property.rooms} rooms`,
-            property.bedrooms && `${property.bedrooms} bedrooms`,
-            property.bathrooms && `${property.bathrooms} bathrooms`,
-            property.constructionYear && `Built in ${property.constructionYear}`,
-        ].filter(Boolean),
+        targetAudience: property.targetAudience ||
+            `Couples, families, and discerning owner-occupiers looking for a well-structured home in ${city}.`,
+        factualSnapshot: facts,
     };
 }
 export async function generateExposeContent(property, instruction = "") {
+    console.info("[ai] generating expose content", {
+        propertyId: property.id,
+        city: property.city,
+        instructionLength: instruction.length,
+    });
     const input = buildAIInput(property);
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey)
+    if (!apiKey) {
+        console.info("[ai] no API key configured, using demo content", {
+            propertyId: property.id,
+        });
         return demoContent(property);
+    }
     const base = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
     const prompt = `You are a careful English real estate copywriter. Return only valid JSON matching the required schema. Use only facts from the input. Do not invent distances, features, energy, construction, or location details. Write persuasive but transparent copy. Location information may be improved stylistically but must not be expanded. ${instruction}\nInput: ${JSON.stringify(input)}`;
     try {
@@ -89,14 +133,28 @@ export async function generateExposeContent(property, instruction = "") {
                 ],
             }),
         });
-        if (!response.ok)
+        if (!response.ok) {
+            console.warn("[ai] AI provider rejected the request, using demo content", {
+                propertyId: property.id,
+                status: response.status,
+                statusText: response.statusText,
+            });
             return demoContent(property);
+        }
         const result = (await response.json());
         const content = JSON.parse(result.choices?.[0]?.message?.content || "{}");
         const parsed = exposeContentSchema.parse(content);
+        console.info("[ai] expose content generated successfully", {
+            propertyId: property.id,
+            title: parsed.title,
+        });
         return parsed;
     }
-    catch {
+    catch (error) {
+        console.warn("[ai] AI request failed, using demo content", {
+            propertyId: property.id,
+            error: error instanceof Error ? error.message : String(error),
+        });
         return demoContent(property);
     }
 }

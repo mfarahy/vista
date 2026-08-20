@@ -2,48 +2,21 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { emptyExposeData } from "./expose-data.js";
-import { addressFromLegacy, addressKey } from "./location.js";
-const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
-const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads");
-const dataFile = path.join(dataDir, "properties.json");
+import { addressFromLegacy, addressKey } from "../external-services/location.js";
+const dataPath = path.join(process.cwd(), "data", "properties.json");
+const uploadPath = path.join(process.cwd(), "public", "uploads");
 function normalizeProperty(property) {
     if (property.exposeData)
         return property;
-    const exposeData = emptyExposeData();
-    exposeData.basicInformation = {
-        propertyType: property.propertyType,
-        propertySubtype: null,
-        title: null,
-        address: {
-            street: property.address ?? null,
-            houseNumber: null,
-            postalCode: property.zipCode ?? null,
-            city: property.city ?? null,
-            district: property.district ?? null,
-            country: "Deutschland",
-        },
-    };
-    exposeData.pricing = {
-        purchasePrice: property.transactionType === "sale" ? property.askingPrice : null,
-        rentPrice: property.transactionType === "rent" ? property.coldRent ?? property.askingPrice : null,
-        additionalCosts: property.additionalCosts,
-        buyerCommission: property.commission,
-        sellerCommission: null,
-    };
-    exposeData.propertyDetails = {
-        ...exposeData.propertyDetails,
-        livingArea: property.livingArea,
-        plotArea: property.plotArea,
-        rooms: property.rooms,
-        bathrooms: property.bathrooms,
-        yearBuilt: property.constructionYear,
-        floor: property.floor,
-        numberOfFloors: property.totalFloors,
-    };
-    exposeData.location = { address: exposeData.basicInformation.address, district: property.district, latitude: null, longitude: null, neighborhood: null, description: property.locationNote };
-    exposeData.rooms = property.roomsData.map((room, order) => ({ id: room.id, type: "other", name: room.name, area: room.size, description: room.description, features: [], floor: room.floor, order }));
-    exposeData.images = property.images.map((image, order) => ({ ...image, id: image.id, assetId: image.id, category: image.category ?? "document", subcategory: image.subcategory, caption: image.caption, description: image.description, order, isHeroCandidate: image.isHeroCandidate ?? image.isCover }));
-    return { ...property, exposeData };
+    const data = emptyExposeData();
+    data.basicInformation.address = { street: property.address ?? null, houseNumber: null, postalCode: property.zipCode ?? null, city: property.city ?? null, district: property.district ?? null, country: "Deutschland" };
+    data.basicInformation.propertyType = property.propertyType;
+    data.pricing = { purchasePrice: property.transactionType === "sale" ? property.askingPrice : null, rentPrice: property.transactionType === "rent" ? property.coldRent ?? property.askingPrice : null, additionalCosts: property.additionalCosts, buyerCommission: property.commission, sellerCommission: null };
+    data.propertyDetails = { ...data.propertyDetails, livingArea: property.livingArea, plotArea: property.plotArea, rooms: property.rooms, bathrooms: property.bathrooms, yearBuilt: property.constructionYear, floor: property.floor, numberOfFloors: property.totalFloors };
+    data.location = { address: data.basicInformation.address, district: property.district, latitude: null, longitude: null, neighborhood: null, description: property.locationNote };
+    data.rooms = property.roomsData.map((room, order) => ({ id: room.id, type: "other", name: room.name, area: room.size, description: room.description, features: [], floor: room.floor, order }));
+    data.images = property.images.map((image, order) => ({ ...image, id: image.id, assetId: image.id, category: image.category ?? "document", subcategory: image.subcategory, caption: image.caption, description: image.description, order, isHeroCandidate: image.isHeroCandidate ?? image.isCover }));
+    return { ...property, exposeData: data };
 }
 function syncExposeImages(property) {
     if (!property.exposeData)
@@ -57,13 +30,9 @@ function syncExposeImages(property) {
         isHeroCandidate: item.isHeroCandidate ?? item.isCover,
     }));
 }
-async function ensureDataDir() {
-    await fs.mkdir(dataDir, { recursive: true });
-    await fs.mkdir(uploadDir, { recursive: true });
-}
 async function readDB() {
     try {
-        const db = JSON.parse(await fs.readFile(dataFile, "utf8"));
+        const db = JSON.parse(await fs.readFile(dataPath, "utf8"));
         return { properties: db.properties.map(normalizeProperty) };
     }
     catch {
@@ -71,11 +40,10 @@ async function readDB() {
     }
 }
 async function writeDB(db) {
-    await ensureDataDir();
-    await fs.writeFile(dataFile, JSON.stringify(db, null, 2));
+    await fs.mkdir(path.dirname(dataPath), { recursive: true });
+    await fs.writeFile(dataPath, JSON.stringify(db, null, 2));
 }
 export async function createProperty() {
-    await ensureDataDir();
     const db = await readDB();
     const now = new Date().toISOString();
     const property = {
@@ -95,21 +63,26 @@ export async function createProperty() {
     };
     db.properties.unshift(property);
     await writeDB(db);
+    console.info("[store] created property", { propertyId: property.id });
     return property;
 }
 export async function listProperties() {
     const properties = (await readDB()).properties;
+    console.info("[store] listed properties", { count: properties.length });
     return properties;
 }
 export async function getProperty(id) {
     const property = (await readDB()).properties.find((item) => item.id === id) ?? null;
+    console.info("[store] getProperty", { id, found: Boolean(property) });
     return property;
 }
 export async function updateProperty(id, payload) {
     const db = await readDB();
     const index = db.properties.findIndex((item) => item.id === id);
-    if (index < 0)
+    if (index < 0) {
+        console.warn("[store] updateProperty not found", { id });
         return null;
+    }
     const old = db.properties[index];
     const roomsData = payload.roomsData.map((room, sequence) => ({
         ...room,
@@ -136,13 +109,20 @@ export async function updateProperty(id, payload) {
     }
     db.properties[index] = updated;
     await writeDB(db);
+    console.info("[store] updated property", {
+        id,
+        roomCount: roomsData.length,
+        updatedAt: updated.updatedAt,
+    });
     return updated;
 }
 export async function addImage(id, image) {
     const db = await readDB();
     const property = db.properties.find((item) => item.id === id);
-    if (!property)
+    if (!property) {
+        console.warn("[store] addImage property not found", { id });
         return null;
+    }
     const record = {
         ...image,
         id: randomUUID(),
@@ -155,13 +135,16 @@ export async function addImage(id, image) {
     property.updatedAt = new Date().toISOString();
     syncExposeImages(property);
     await writeDB(db);
+    console.info("[store] added image", { id, imageId: record.id, fileName: record.fileName });
     return record;
 }
 export async function removeImage(id, imageId) {
     const db = await readDB();
     const property = db.properties.find((item) => item.id === id);
-    if (!property)
+    if (!property) {
+        console.warn("[store] removeImage property not found", { id });
         return null;
+    }
     const image = property.images.find((item) => item.id === imageId);
     property.images = property.images
         .filter((item) => item.id !== imageId)
@@ -169,19 +152,23 @@ export async function removeImage(id, imageId) {
         ...item,
         sequence,
         isCover: sequence === 0
-            ? item.isCover || !property.images.some((candidate) => candidate.id !== imageId && candidate.isCover)
+            ? item.isCover ||
+                !property.images.some((candidate) => candidate.id !== imageId && candidate.isCover)
             : item.isCover,
     }));
     property.updatedAt = new Date().toISOString();
     syncExposeImages(property);
     await writeDB(db);
+    console.info("[store] removed image", { id, imageId, fileName: image?.fileName ?? "unknown" });
     return image ?? null;
 }
 export async function reorderImages(id, imageIds) {
     const db = await readDB();
     const property = db.properties.find((item) => item.id === id);
-    if (!property)
+    if (!property) {
+        console.warn("[store] reorderImages property not found", { id });
         return null;
+    }
     const byId = new Map(property.images.map((image) => [image.id, image]));
     property.images = imageIds
         .map((imageId, sequence) => ({
@@ -192,26 +179,32 @@ export async function reorderImages(id, imageIds) {
         .filter((image) => image.id);
     property.updatedAt = new Date().toISOString();
     await writeDB(db);
+    console.info("[store] reordered images", { id, imageCount: property.images.length });
     return property;
 }
 export async function setCover(id, imageId) {
     const db = await readDB();
     const property = db.properties.find((item) => item.id === id);
-    if (!property)
+    if (!property) {
+        console.warn("[store] setCover property not found", { id });
         return null;
+    }
     property.images = property.images.map((image) => ({
         ...image,
         isCover: image.id === imageId,
     }));
     syncExposeImages(property);
     await writeDB(db);
+    console.info("[store] set cover image", { id, imageId });
     return property;
 }
 export async function saveExpose(id, content) {
     const db = await readDB();
     const property = db.properties.find((item) => item.id === id);
-    if (!property)
+    if (!property) {
+        console.warn("[store] saveExpose property not found", { id });
         return null;
+    }
     const expose = {
         id: property.expose?.id ?? randomUUID(),
         propertyId: id,
@@ -222,6 +215,11 @@ export async function saveExpose(id, content) {
     property.expose = expose;
     property.updatedAt = new Date().toISOString();
     await writeDB(db);
+    console.info("[store] saved expose content", {
+        id,
+        exposeId: expose.id,
+        title: "version" in content ? content.cover.title : content.title,
+    });
     return expose;
 }
 export async function saveLocationIntelligence(id, intelligence) {
@@ -230,10 +228,17 @@ export async function saveLocationIntelligence(id, intelligence) {
     if (!property)
         return null;
     const exposeData = property.exposeData || emptyExposeData();
-    exposeData.location = { ...exposeData.location, address: intelligence?.address || exposeData.location.address, latitude: intelligence?.coordinates.latitude ?? null, longitude: intelligence?.coordinates.longitude ?? null, district: intelligence?.address.district ?? exposeData.location.district ?? null, intelligence: intelligence || undefined };
+    exposeData.location = {
+        ...exposeData.location,
+        address: intelligence?.address || exposeData.location.address,
+        latitude: intelligence?.coordinates.latitude ?? null,
+        longitude: intelligence?.coordinates.longitude ?? null,
+        district: intelligence?.address.district ?? exposeData.location.district ?? null,
+        intelligence: intelligence || undefined,
+    };
     property.exposeData = exposeData;
     property.updatedAt = new Date().toISOString();
     await writeDB(db);
     return property;
 }
-export { uploadDir };
+export { uploadPath };

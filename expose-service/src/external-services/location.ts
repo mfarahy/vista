@@ -4,7 +4,7 @@ import type {
   PlaceCategory,
   PropertyExposeData,
   StructuredAddress,
-} from "./expose-data";
+} from "../lib/expose-data.js";
 
 export interface Coordinates {
   latitude: number;

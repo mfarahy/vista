@@ -1,6 +1,6 @@
 # Raumwerk Exposé Generator
 
-Phase 1 MVP für hochwertige Immobilien-Exposés auf Deutsch. Der lokale Demo-Modus funktioniert ohne externe Dienste: Eigenschaften werden in `data/properties.json` gespeichert, Uploads liegen unter `public/uploads/`, und die KI liefert ohne `OPENAI_API_KEY` einen transparenten Demo-Entwurf. Der kanonische Vertrag liegt in `lib/expose-data.ts`. Der integrierte MVP liegt in `app/` und `lib/`; die getrennte Bereitstellung liegt in `frontend/` und `expose-service/`. Für Produktion ist PostgreSQL/Prisma als Zielmodell enthalten.
+Phase 1 MVP für hochwertige Immobilien-Exposés auf Deutsch. Der lokale Demo-Modus funktioniert ohne externe Dienste: Eigenschaften werden in `expose-service/data/properties.json` gespeichert, Uploads liegen unter `expose-service/public/uploads/`, und die KI liefert ohne `OPENAI_API_KEY` einen transparenten Demo-Entwurf. Die getrennte Bereitstellung liegt in `frontend/` und `expose-service/`. Für Produktion ist PostgreSQL/Prisma als Zielmodell enthalten.
 
 ## Starten
 
@@ -14,7 +14,6 @@ Danach `http://localhost:3000` öffnen und **Neues Exposé** wählen.
 
 ## Projektstruktur
 
-- `app/` und `lib/`: integrierter Next.js-MVP mit UI, API, Persistenz, AI, Location und PDF-Rendering
 - `frontend/`: separat deploybarer Next.js-Webclient für `expose-service/`
 - `expose-service/`: separat deploybarer Express/Mastra-Dienst
 - `prisma/`: PostgreSQL-Schema und Seed für die Produktionspersistenz
@@ -63,7 +62,7 @@ npm run db:push
 npm run db:seed
 ```
 
-Die aktuelle integrierte MVP-Oberfläche nutzt absichtlich den lokalen Repository-Adapter, damit sie direkt nach `npm run dev` testbar ist. `lib/store.ts` ist die austauschbare Persistenzgrenze; Prisma-Schema und Seed sind für den Wechsel auf PostgreSQL vorbereitet.
+Der Express-Dienst ist die zentrale Laufzeit für Persistenz, AI, Standortauflösung, Uploads und PDF-Rendering. `expose-service/src/lib/store.ts` ist die austauschbare Persistenzgrenze; Prisma-Schema und Seed sind für den Wechsel auf PostgreSQL vorbereitet.
 
 ## PDF
 
