@@ -2,6 +2,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type {
+  DocumentAnalysisResult,
+  DocumentRecord,
+  DocumentStatus,
+  DocumentType,
   Expose,
   StoredExposeContent,
   Property,
@@ -17,7 +21,7 @@ import type { LocationResearch } from '../mastra/schemas/location-research.js';
 
 const dataPath = path.join(process.cwd(), 'data', 'properties.json');
 const uploadPath = path.join(process.cwd(), 'public', 'uploads');
-type DB = { properties: Property[] };
+type DB = { properties: Property[]; documents: DocumentRecord[] };
 
 function normalizeProperty(property: Property): Property {
   if (property.exposeData) return property;
@@ -96,9 +100,9 @@ function syncExposeImages(property: Property) {
 async function readDB(): Promise<DB> {
   try {
     const db = JSON.parse(await fs.readFile(dataPath, 'utf8')) as DB;
-    return { properties: db.properties.map(normalizeProperty) };
+    return { properties: db.properties.map(normalizeProperty), documents: db.documents ?? [] };
   } catch {
-    return { properties: [] };
+    return { properties: [], documents: [] };
   }
 }
 async function writeDB(db: DB) {
@@ -346,4 +350,87 @@ export async function saveBorisEnrichment(
   await writeDB(db);
   return property;
 }
+export async function listDocuments(propertyId: string): Promise<DocumentRecord[]> {
+  const db = await readDB();
+  return db.documents.filter((document) => document.propertyId === propertyId);
+}
+
+export async function getDocument(documentId: string): Promise<DocumentRecord | null> {
+  const db = await readDB();
+  return db.documents.find((document) => document.id === documentId) ?? null;
+}
+
+export async function createDocument(
+  propertyId: string,
+  input: {
+    filename: string;
+    mimeType: string;
+    size: number;
+    url: string;
+  },
+): Promise<DocumentRecord> {
+  const db = await readDB();
+  const now = new Date().toISOString();
+  const record: DocumentRecord = {
+    id: randomUUID(),
+    propertyId,
+    filename: input.filename,
+    mimeType: input.mimeType,
+    size: input.size,
+    url: input.url,
+    status: 'pending',
+    documentType: null,
+    error: null,
+    analysisResult: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+  db.documents.push(record);
+  await writeDB(db);
+  console.info('[store] created document', {
+    documentId: record.id,
+    propertyId,
+    fileName: record.filename,
+  });
+  return record;
+}
+
+export async function updateDocument(
+  documentId: string,
+  patch: {
+    status?: DocumentStatus;
+    documentType?: DocumentType | null;
+    error?: string | null;
+    analysisResult?: DocumentAnalysisResult | null;
+  },
+): Promise<DocumentRecord | null> {
+  const db = await readDB();
+  const record = db.documents.find((document) => document.id === documentId);
+  if (!record) {
+    console.warn('[store] updateDocument not found', { documentId });
+    return null;
+  }
+  Object.assign(record, patch, { updatedAt: new Date().toISOString() });
+  await writeDB(db);
+  console.info('[store] updated document', {
+    documentId,
+    status: record.status,
+    documentType: record.documentType ?? 'unknown',
+  });
+  return record;
+}
+
+export async function removeDocument(documentId: string): Promise<DocumentRecord | null> {
+  const db = await readDB();
+  const index = db.documents.findIndex((document) => document.id === documentId);
+  if (index < 0) {
+    console.warn('[store] removeDocument not found', { documentId });
+    return null;
+  }
+  const [removed] = db.documents.splice(index, 1);
+  await writeDB(db);
+  console.info('[store] removed document', { documentId, fileName: removed.filename });
+  return removed;
+}
+
 export { uploadPath };

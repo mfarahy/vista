@@ -1,4 +1,9 @@
-import type { PropertyExposeData, ExposeImage, AgentData, LocationIntelligence } from './expose-data.js';
+import type {
+  PropertyExposeData,
+  ExposeImage,
+  AgentData,
+  LocationIntelligence,
+} from './expose-data.js';
 import type { LocationResearch } from '../mastra/schemas/location-research.js';
 
 export { emptyExposeData, propertyExposeDataSchema } from './expose-data.js';
@@ -210,6 +215,53 @@ export interface PropertyPayload extends Omit<
 > {
   roomsData: Omit<PropertyRoom, 'id'>[];
   exposeData?: PropertyExposeData;
+}
+
+export type DocumentStatus = 'pending' | 'processing' | 'completed' | 'failed';
+export type DocumentType =
+  | 'grundbuchauszug'
+  | 'grundriss'
+  | 'energieausweis'
+  | 'expose'
+  | 'lageplan'
+  | 'wohnflaechenberechnung'
+  | 'kaufvertrag'
+  | 'other';
+
+export interface DocumentPage {
+  pageNumber: number;
+  text: string;
+}
+
+export interface ExtractedField {
+  field: string;
+  value: string | number | boolean | null;
+  sourceDocumentId: string;
+  evidence?: string | null;
+  confidence?: number | null;
+}
+
+export interface DocumentAnalysisResult {
+  text: string;
+  documentType?: DocumentType;
+  pages?: DocumentPage[];
+  fields: ExtractedField[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface DocumentRecord {
+  id: string;
+  propertyId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  status: DocumentStatus;
+  documentType?: DocumentType | null;
+  error?: string | null;
+  analysisResult?: DocumentAnalysisResult | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const emptyProperty = (): PropertyPayload => ({

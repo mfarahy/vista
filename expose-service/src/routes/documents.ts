@@ -1,0 +1,136 @@
+import { Router } from 'express';
+import path from 'node:path';
+import fs from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+
+import { upload, ALLOWED_DOCUMENT_MIMES, MAX_DOCUMENT_BYTES } from '../lib/upload.js';
+import {
+  uploadPath,
+  listDocuments,
+  getDocument,
+  createDocument,
+  updateDocument,
+  removeDocument,
+} from '../lib/store.js';
+import { getParam, sendError, errorMessage, asyncHandler, loadProperty } from '../lib/http.js';
+import { createDocumentAnalysisProvider } from '../lib/document-analysis/index.js';
+import type { DocumentRecord } from '../lib/types.js';
+
+export const documentsRouter = Router();
+
+function sanitizeFileName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, '');
+}
+
+async function analyzeRecord(record: DocumentRecord, content: Buffer, mimeType: string) {
+  const provider = createDocumentAnalysisProvider();
+  try {
+    const result = await provider.analyzeDocument({
+      documentId: record.id,
+      filename: record.filename,
+      mimeType,
+      content,
+    });
+    return await updateDocument(record.id, {
+      status: 'completed',
+      documentType: result.documentType ?? null,
+      analysisResult: result,
+    });
+  } catch (error) {
+    console.warn('[documents] analysis failed', {
+      documentId: record.id,
+      error: errorMessage(error, 'Analysis failed'),
+    });
+    return await updateDocument(record.id, {
+      status: 'failed',
+      error: 'The document could not be analyzed.',
+    });
+  }
+}
+
+documentsRouter.get(
+  '/api/properties/:id/documents',
+  asyncHandler(async (req, res) => {
+    const property = await loadProperty(req, res);
+    if (!property) return;
+    res.json(await listDocuments(property.id));
+  }),
+);
+
+documentsRouter.post(
+  '/api/properties/:id/documents',
+  upload.array('files'),
+  asyncHandler(async (req, res) => {
+    const property = await loadProperty(req, res);
+    if (!property) return;
+
+    const files = Array.isArray(req.files) ? req.files : [];
+    if (!files.length) return sendError(res, 400, 'No documents found');
+    for (const file of files) {
+      if (!ALLOWED_DOCUMENT_MIMES.has(file.mimetype))
+        return sendError(res, 400, 'Only PDF, JPG, PNG and WEBP are supported');
+      if (file.size > MAX_DOCUMENT_BYTES)
+        return sendError(res, 400, 'Documents may be up to 25 MB');
+    }
+
+    await fs.mkdir(uploadPath, { recursive: true });
+    const results: DocumentRecord[] = [];
+    for (const file of files) {
+      const name = `${randomUUID()}-${sanitizeFileName(file.originalname)}`;
+      await fs.writeFile(path.join(uploadPath, name), file.buffer);
+      const record = await createDocument(property.id, {
+        filename: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        url: `/uploads/${name}`,
+      });
+      const updated = await analyzeRecord(record, file.buffer, file.mimetype);
+      if (updated) results.push(updated);
+    }
+    res.status(201).json(results);
+  }),
+);
+
+documentsRouter.get(
+  '/api/properties/:id/documents/:documentId',
+  asyncHandler(async (req, res) => {
+    const property = await loadProperty(req, res);
+    if (!property) return;
+    const document = await getDocument(getParam(req, 'documentId'));
+    if (!document || document.propertyId !== property.id) return sendError(res, 404, 'Not found');
+    res.json(document);
+  }),
+);
+
+documentsRouter.post(
+  '/api/properties/:id/documents/:documentId/analyze',
+  asyncHandler(async (req, res) => {
+    const property = await loadProperty(req, res);
+    if (!property) return;
+    const document = await getDocument(getParam(req, 'documentId'));
+    if (!document || document.propertyId !== property.id) return sendError(res, 404, 'Not found');
+
+    const filePath = path.join(uploadPath, path.basename(document.url));
+    let content: Buffer;
+    try {
+      content = await fs.readFile(filePath);
+    } catch {
+      return sendError(res, 422, 'The document file is missing.');
+    }
+    const updated = await analyzeRecord(document, content, document.mimeType);
+    res.json(updated);
+  }),
+);
+
+documentsRouter.delete(
+  '/api/properties/:id/documents/:documentId',
+  asyncHandler(async (req, res) => {
+    const property = await loadProperty(req, res);
+    if (!property) return;
+    const document = await getDocument(getParam(req, 'documentId'));
+    if (!document || document.propertyId !== property.id) return sendError(res, 404, 'Not found');
+    await removeDocument(document.id);
+    await fs.rm(path.join(uploadPath, path.basename(document.url)), { force: true });
+    res.json({ ok: true });
+  }),
+);

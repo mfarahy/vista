@@ -6,6 +6,8 @@ import { ArrowLeft, ArrowRight, Check, FileText, LoaderCircle, Sparkles, X } fro
 import { apiFetch } from '@/lib/api';
 import type {
   BorisEnrichment,
+  DocumentRecord,
+  EnergyData,
   ExposeContent,
   ExposeData,
   ExternalFacility,
@@ -19,6 +21,7 @@ import { STEPS, emptyExposeData, initialPayload } from './types';
 import { StepAddress, StepProperty, StepDetails } from './components/basic-steps';
 import { StepFeatures, StepEnergy, StepAgent } from './components/feature-steps';
 import { StepPhotos, StepPlans } from './components/media-steps';
+import { StepDocuments } from './components/documents-step';
 import { Review, ContentEditor } from './components/review';
 import { AddressDebugPanel } from './components/debug';
 
@@ -29,7 +32,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
   const [content, setContent] = useState<ExposeContent | null>(
     initialProperty.expose?.content ?? null,
   );
-  const [step, setStep] = useState(content ? 10 : 0);
+  const [step, setStep] = useState(content ? 11 : 0);
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState('');
@@ -246,6 +249,140 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     });
   }
 
+  function applyExtractedDocuments(records: DocumentRecord[]) {
+    const address: Partial<StructuredAddress> = {};
+    const flat: Partial<PropertyPayload> = {};
+    const featureSet = new Set<string>();
+    let energyClass: string | null = null;
+    let energyConsumption: number | null = null;
+
+    for (const record of records) {
+      if (record.status !== 'completed' || !record.analysisResult) continue;
+      for (const field of record.analysisResult.fields) {
+        const value = field.value;
+        if (value === null || value === undefined || value === '') continue;
+        switch (field.field) {
+          case 'street':
+            if (!address.street) address.street = String(value);
+            break;
+          case 'houseNumber':
+            if (!address.houseNumber) address.houseNumber = String(value);
+            break;
+          case 'postalCode':
+            if (!address.postalCode) address.postalCode = String(value);
+            break;
+          case 'city':
+            if (!address.city) address.city = String(value);
+            break;
+          case 'livingArea':
+            if (flat.livingArea == null) flat.livingArea = Number(value);
+            break;
+          case 'plotArea':
+            if (flat.plotArea == null) flat.plotArea = Number(value);
+            break;
+          case 'rooms':
+            if (flat.rooms == null) flat.rooms = Number(value);
+            break;
+          case 'bedrooms':
+            if (flat.bedrooms == null) flat.bedrooms = Number(value);
+            break;
+          case 'bathrooms':
+            if (flat.bathrooms == null) flat.bathrooms = Number(value);
+            break;
+          case 'yearBuilt':
+            if (flat.constructionYear == null) flat.constructionYear = Number(value);
+            break;
+          case 'numberOfFloors':
+            if (flat.totalFloors == null) flat.totalFloors = Number(value);
+            break;
+          case 'energyClass':
+            if (!energyClass) energyClass = String(value);
+            break;
+          case 'energyConsumption':
+            if (energyConsumption == null) energyConsumption = Number(value);
+            break;
+          case 'basement':
+            if (value === true) featureSet.add('basement');
+            break;
+          case 'parking':
+            if (value === true) featureSet.add('parking');
+            break;
+          default:
+            break;
+        }
+      }
+    }
+
+    const hasData =
+      Object.keys(address).length ||
+      Object.keys(flat).length ||
+      featureSet.size ||
+      energyClass ||
+      energyConsumption != null;
+    if (!hasData) return;
+
+    setProperty((current) => {
+      const next = { ...current };
+      const data = next.exposeData ?? emptyExposeData(initialProperty);
+
+      if (Object.keys(address).length) {
+        const mergedAddress = { ...data.basicInformation.address, ...address };
+        data.basicInformation = { ...data.basicInformation, address: mergedAddress };
+        data.location = { ...data.location, address: mergedAddress };
+      }
+      if (address.city && !next.city) next.city = address.city;
+      if (address.postalCode && !next.zipCode) next.zipCode = address.postalCode;
+      if (address.street && !next.address)
+        next.address = [address.street, address.houseNumber].filter(Boolean).join(' ');
+
+      if (flat.livingArea != null && next.livingArea == null) next.livingArea = flat.livingArea;
+      if (flat.plotArea != null && next.plotArea == null) next.plotArea = flat.plotArea;
+      if (flat.rooms != null && next.rooms == null) next.rooms = flat.rooms;
+      if (flat.bedrooms != null && next.bedrooms == null) next.bedrooms = flat.bedrooms;
+      if (flat.bathrooms != null && next.bathrooms == null) next.bathrooms = flat.bathrooms;
+      if (flat.constructionYear != null && next.constructionYear == null)
+        next.constructionYear = flat.constructionYear;
+      if (flat.totalFloors != null && next.totalFloors == null)
+        next.totalFloors = flat.totalFloors;
+
+      for (const feature of featureSet) {
+        if (!next.selectedFeatures.includes(feature))
+          next.selectedFeatures = [...next.selectedFeatures, feature];
+      }
+
+      if (energyClass || energyConsumption != null) {
+        data.energy = {
+          ...data.energy,
+          ...(energyClass ? { efficiencyClass: energyClass } : {}),
+          ...(energyConsumption != null ? { finalEnergyConsumption: energyConsumption } : {}),
+        } as EnergyData;
+      }
+
+      data.propertyDetails = {
+        ...data.propertyDetails,
+        livingArea: next.livingArea,
+        plotArea: next.plotArea,
+        rooms: next.rooms,
+        bathrooms: next.bathrooms,
+        yearBuilt: next.constructionYear,
+        numberOfFloors: next.totalFloors,
+      };
+
+      return { ...next, exposeData: data };
+    });
+
+    if (!addressSelected && (address.street || address.city)) {
+      setAddressQuery(
+        [
+          [address.street, address.houseNumber].filter(Boolean).join(' '),
+          [address.postalCode, address.city].filter(Boolean).join(' '),
+        ]
+          .filter(Boolean)
+          .join(', '),
+      );
+    }
+  }
+
   function set<K extends keyof PropertyPayload>(key: K, value: PropertyPayload[K]) {
     setProperty((current) => {
       const next = { ...current, [key]: value };
@@ -333,12 +470,12 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
   }
 
   async function next() {
-    if (step === 0 && !addressSelected) {
+    if (step === 1 && !addressSelected) {
       setError('Please select an exact address from the suggestions before continuing.');
       return;
     }
     await save();
-    setStep((current) => Math.min(current + 1, 8));
+    setStep((current) => Math.min(current + 1, 9));
   }
 
   async function generate(action = '') {
@@ -354,7 +491,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     if (!response.ok) setError(result.error || 'The AI could not create the text.');
     else {
       setContent(result);
-      setStep(9);
+      setStep(10);
     }
     setAiLoading(false);
   }
@@ -462,7 +599,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
             <p className="text-xs font-bold tracking-[.18em] text-[#607b68]">NEW EXPOSÉ</p>
             <h1 className="serif mt-2 text-3xl sm:text-4xl">Your property, in focus.</h1>
           </div>
-          <span className="text-sm text-[#7c887f]">{Math.min(step + 1, 9)} / 9</span>
+          <span className="text-sm text-[#7c887f]">{Math.min(step + 1, 10)} / 10</span>
         </div>
         <div className="mb-10 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10">
           <nav
@@ -494,9 +631,15 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                 </button>
               </div>
             )}
-            {step < 9 ? (
+            {step < 10 ? (
               <div className="step-enter">
                 {step === 0 && (
+                  <StepDocuments
+                    propertyId={initialProperty.id}
+                    onExtracted={applyExtractedDocuments}
+                  />
+                )}
+                {step === 1 && (
                   <StepAddress
                     query={addressQuery}
                     suggestions={addressSuggestions}
@@ -511,7 +654,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                     address={property.exposeData!.basicInformation.address}
                   />
                 )}
-                {step === 0 && addressSelected && (
+                {step === 1 && addressSelected && (
                   <AddressDebugPanel
                     propertyId={initialProperty.id}
                     property={property}
@@ -519,7 +662,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                     onData={applyExternalData}
                   />
                 )}
-                {step === 1 && (
+                {step === 2 && (
                   <StepProperty
                     property={property}
                     set={set}
@@ -529,7 +672,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                     setNote={setNote}
                   />
                 )}
-                {step === 2 && (
+                {step === 3 && (
                   <StepDetails
                     property={property}
                     set={set}
@@ -539,7 +682,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                     setNote={setNote}
                   />
                 )}
-                {step === 3 && (
+                {step === 4 && (
                   <StepFeatures
                     property={property}
                     set={set}
@@ -549,7 +692,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                     setNote={setNote}
                   />
                 )}
-                {step === 4 && (
+                {step === 5 && (
                   <StepEnergy
                     data={property.exposeData!.energy}
                     update={(energy) => updateExposeData({ energy })}
@@ -557,7 +700,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                     setNote={setNote}
                   />
                 )}
-                {step === 5 && (
+                {step === 6 && (
                   <StepPhotos
                     images={images}
                     rooms={property.rooms}
@@ -569,7 +712,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                     setNote={setNote}
                   />
                 )}
-                {step === 6 && (
+                {step === 7 && (
                   <StepPlans
                     images={images}
                     upload={upload}
@@ -580,7 +723,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                     setNote={setNote}
                   />
                 )}
-                {step === 7 && (
+                {step === 8 && (
                   <StepAgent
                     data={property.exposeData!.agent}
                     update={(agent) => updateExposeData({ agent })}
@@ -588,7 +731,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                     setNote={setNote}
                   />
                 )}
-                {step === 8 && (
+                {step === 9 && (
                   <Review
                     property={property}
                     images={images}
@@ -619,11 +762,11 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
           >
             <ArrowLeft size={15} /> Back
           </button>
-          {step < 8 ? (
+          {step < 9 ? (
             <button className="btn btn-primary flex items-center gap-2" onClick={next}>
               {saving ? 'Saving…' : 'Next'} <ArrowRight size={15} />
             </button>
-          ) : step === 8 ? (
+          ) : step === 9 ? (
             <button
               className="btn btn-primary flex items-center gap-2"
               onClick={() => generate()}

@@ -7,6 +7,7 @@ import { systemRouter } from './routes/system.js';
 import { addressRouter } from './routes/address.js';
 import { propertiesRouter } from './routes/properties.js';
 import { floorplanRouter } from './routes/floorplan.js';
+import { documentsRouter } from './routes/documents.js';
 
 export function createApp(): express.Express {
   const app = express();
@@ -20,6 +21,7 @@ export function createApp(): express.Express {
   app.use(addressRouter);
   app.use(propertiesRouter);
   app.use(floorplanRouter);
+  app.use(documentsRouter);
 
   app.use(errorHandler);
   return app;

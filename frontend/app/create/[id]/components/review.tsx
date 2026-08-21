@@ -114,7 +114,7 @@ export function Review({
 
         {block(
           'Address',
-          0,
+          1,
           <dl>
             {row(
               'Street',
@@ -134,7 +134,7 @@ export function Review({
         )}
         {block(
           'Property',
-          1,
+          2,
           <dl>
             {row('Type', property.propertyType)}
             {row('Transaction', property.transactionType)}
@@ -143,7 +143,7 @@ export function Review({
         )}
         {block(
           'Details & price',
-          2,
+          3,
           <dl>
             {row('Living area (m²)', property.livingArea)}
             {row('Plot size (m²)', property.plotArea)}
@@ -183,7 +183,7 @@ export function Review({
         )}
         {block(
           'Features & equipment',
-          3,
+          4,
           <>
             {features.length ? (
               <p className="text-sm text-[#59675f]">{features.join(', ')}</p>
@@ -203,7 +203,7 @@ export function Review({
         )}
         {block(
           'Energy',
-          4,
+          5,
           <dl>
             {row('Certificate type', energy.certificateType)}
             {row('Construction year', energy.yearOfConstruction)}
@@ -215,7 +215,7 @@ export function Review({
         )}
         {block(
           'Photos',
-          5,
+          6,
           images.length ? (
             <div className="grid gap-3 sm:grid-cols-3">
               {images.slice(0, 6).map((image) => (
@@ -233,7 +233,7 @@ export function Review({
         )}
         {block(
           'Plans & documents',
-          6,
+          7,
           plans.length ? (
             <div className="grid gap-3 sm:grid-cols-3">
               {plans.slice(0, 6).map((image) => (
@@ -251,7 +251,7 @@ export function Review({
         )}
         {block(
           'Agent / contact',
-          7,
+          8,
           <dl>
             {row('Name', data.agent?.name)}
             {row('Company', data.agent?.company)}

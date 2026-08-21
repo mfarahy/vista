@@ -282,6 +282,7 @@ export const FEATURE_OPTIONS = [
 ] as const;
 
 export const STEPS = [
+  'Documents',
   'Address',
   'Property',
   'Details & Price',
@@ -292,6 +293,64 @@ export const STEPS = [
   'Agent',
   'Review',
 ];
+
+export type DocumentStatus = 'pending' | 'processing' | 'completed' | 'failed';
+export type DocumentType =
+  | 'grundbuchauszug'
+  | 'grundriss'
+  | 'energieausweis'
+  | 'expose'
+  | 'lageplan'
+  | 'wohnflaechenberechnung'
+  | 'kaufvertrag'
+  | 'other';
+
+export type DocumentPage = {
+  pageNumber: number;
+  text: string;
+};
+
+export type ExtractedField = {
+  field: string;
+  value: string | number | boolean | null;
+  sourceDocumentId: string;
+  evidence?: string | null;
+  confidence?: number | null;
+};
+
+export type DocumentAnalysisResult = {
+  text: string;
+  documentType?: DocumentType;
+  pages?: DocumentPage[];
+  fields: ExtractedField[];
+  metadata?: Record<string, unknown>;
+};
+
+export type DocumentRecord = {
+  id: string;
+  propertyId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  status: DocumentStatus;
+  documentType?: DocumentType | null;
+  error?: string | null;
+  analysisResult?: DocumentAnalysisResult | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  grundbuchauszug: 'Grundbuchauszug',
+  grundriss: 'Grundriss',
+  energieausweis: 'Energieausweis',
+  expose: 'Exposé',
+  lageplan: 'Lageplan / Flurkarte',
+  wohnflaechenberechnung: 'Wohnflächenberechnung',
+  kaufvertrag: 'Kaufvertrag',
+  other: 'Other',
+};
 
 export const emptyExposeData = (property: Property): ExposeData => ({
   basicInformation: {

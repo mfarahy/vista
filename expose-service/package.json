@@ -12,10 +12,11 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "test": "node --import tsx --test src/**/*.test.ts",
-    "prettier:write": "npx prettier --write ."
+    "pw": "npx prettier --write ."
   },
   "dependencies": {
     "@fal-ai/client": "^1.10.1",
+    "@google-cloud/documentai": "^10.0.0",
     "@mastra/core": "^1.60.0",
     "@mastra/tavily": "1.1.1",
     "@prisma/client": "^7.8.0",
