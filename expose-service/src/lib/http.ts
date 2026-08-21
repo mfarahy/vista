@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { getProperty } from './store.js';
 import type { Property } from './types.js';
+import { getLogger } from './logger.js';
 
 export function getParam(req: Request, name: string): string {
   const value = req.params[name];
@@ -49,8 +50,6 @@ export function errorHandler(
   res: Response,
   _next: NextFunction,
 ): void {
-  console.error('[http] unhandled error', {
-    error: error instanceof Error ? error.message : String(error),
-  });
+  getLogger().error({ err: error }, 'Unhandled error while processing request');
   sendError(res, 500, 'Internal server error');
 }

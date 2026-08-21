@@ -67,4 +67,25 @@ describe('document understanding prompt', () => {
     assert.match(prompt, /receive the actual image/i);
     assert.match(prompt, /visible in the image/i);
   });
+
+  it('instructs the model to distinguish the address from unrelated references', () => {
+    const prompt = buildSystemPrompt();
+    assert.match(prompt, /do not extract values merely because a number or word appears near a field/i);
+    assert.match(prompt, /references to other streets/i);
+    assert.match(prompt, /register numbers/i);
+    assert.match(prompt, /monetary values/i);
+  });
+
+  it('references common German real-estate terminology for context', () => {
+    const prompt = buildSystemPrompt();
+    assert.match(prompt, /Flurstück/);
+    assert.match(prompt, /Grundbuchauszug/);
+    assert.match(prompt, /Energieausweis/);
+  });
+
+  it('requires concise supporting evidence and null when undeterminable', () => {
+    const prompt = buildSystemPrompt();
+    assert.match(prompt, /every non-null extracted value must include concise supporting evidence/i);
+    assert.match(prompt, /return null/i);
+  });
 });

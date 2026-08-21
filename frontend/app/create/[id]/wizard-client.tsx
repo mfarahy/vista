@@ -17,7 +17,13 @@ import type {
   PropertyPayload,
   StructuredAddress,
 } from './types';
-import { STEPS, PROPERTY_TYPES, emptyExposeData, initialPayload } from './types';
+import { STEPS, emptyExposeData, initialPayload } from './types';
+import {
+  collectWizardFieldCandidates,
+  computeWizardPrefills,
+  groupCandidatesByField,
+  type WizardFieldCandidate,
+} from './document-prefill';
 import { StepAddress, StepProperty, StepDetails } from './components/basic-steps';
 import { StepFeatures, StepEnergy, StepAgent } from './components/feature-steps';
 import { StepPhotos, StepPlans } from './components/media-steps';
@@ -56,6 +62,28 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
   );
   const [boris, setBoris] = useState<BorisEnrichment | null>(null);
   const [borisLoading, setBorisLoading] = useState(false);
+  const [fieldSources, setFieldSources] = useState<Record<string, WizardFieldCandidate[]>>({});
+
+  // Load persisted documents and prefill empty wizard fields from their AI
+  // understanding results. This is what makes prefill survive a page reload:
+  // the user never has to re-upload or re-analyze anything.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadPersistedDocuments() {
+      try {
+        const response = await apiFetch(`/api/properties/${initialProperty.id}/documents`);
+        if (!response.ok) return;
+        const records = (await response.json()) as DocumentRecord[];
+        if (!cancelled) applyExtractedDocuments(records);
+      } catch {
+        // The documents step renders its own error state; prefill stays empty here.
+      }
+    }
+    loadPersistedDocuments();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialProperty.id]);
 
   useEffect(() => {
     if (addressSelected || addressQuery.trim().length < 3) {
@@ -250,210 +278,215 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
   }
 
   function applyExtractedDocuments(records: DocumentRecord[]) {
-    const address: Partial<StructuredAddress> = {};
-    const flat: Partial<PropertyPayload> = {};
-    const featureSet = new Set<string>();
-    let energyClass: string | null = null;
-    let energyConsumption: number | null = null;
-    let energyDemand: number | null = null;
-    let heatingType: string | null = null;
-    let yearOfConstruction: number | null = null;
+    // Collect every AI-extracted candidate across all persisted documents. All
+    // sources are preserved (conflicting values are never silently discarded);
+    // only empty wizard fields are prefilled.
+    const sourcesByField = groupCandidatesByField(collectWizardFieldCandidates(records));
+    setFieldSources(sourcesByField);
+    if (!Object.keys(sourcesByField).length) return;
 
-    for (const record of records) {
-      if (record.status !== 'completed' || !record.analysisResult) continue;
-      // Prefer the AI understanding result; fall back to the rule-based OCR
-      // fields when understanding is unavailable.
-      const understanding = record.understandingResult;
-      const candidates = understanding?.wizardFields?.length
-        ? understanding.wizardFields.map((field) => ({
-            field: field.field,
-            value: field.value,
-            sourceDocumentId: record.id,
-          }))
-        : record.analysisResult.fields;
-      for (const field of candidates) {
-        const value = field.value;
-        if (value === null || value === undefined || value === '') continue;
-        switch (field.field) {
-          case 'street':
-            if (!address.street) address.street = String(value);
-            break;
-          case 'houseNumber':
-            if (!address.houseNumber) address.houseNumber = String(value);
-            break;
-          case 'postalCode':
-            if (!address.postalCode) address.postalCode = String(value);
-            break;
-          case 'city':
-            if (!address.city) address.city = String(value);
-            break;
-          case 'district':
-            if (!address.district) address.district = String(value);
-            break;
-          case 'state':
-            if (!address.state) address.state = String(value);
-            break;
-          case 'country':
-            if (!address.country) address.country = String(value);
-            break;
-          case 'propertyType':
-            if (!flat.propertyType && PROPERTY_TYPES.some(([key]) => key === value)) {
-              flat.propertyType = value as PropertyPayload['propertyType'];
-            }
-            break;
-          case 'livingArea':
-            if (flat.livingArea == null) flat.livingArea = Number(value);
-            break;
-          case 'plotArea':
-            if (flat.plotArea == null) flat.plotArea = Number(value);
-            break;
-          case 'rooms':
-            if (flat.rooms == null) flat.rooms = Number(value);
-            break;
-          case 'bedrooms':
-            if (flat.bedrooms == null) flat.bedrooms = Number(value);
-            break;
-          case 'bathrooms':
-            if (flat.bathrooms == null) flat.bathrooms = Number(value);
-            break;
-          case 'yearBuilt':
-            if (flat.constructionYear == null) flat.constructionYear = Number(value);
-            break;
-          case 'numberOfFloors':
-            if (flat.totalFloors == null) flat.totalFloors = Number(value);
-            break;
-          case 'floor':
-            if (!flat.floor) flat.floor = String(value);
-            break;
-          case 'energyClass':
-            if (!energyClass) energyClass = String(value);
-            break;
-          case 'energyConsumption':
-            if (energyConsumption == null) energyConsumption = Number(value);
-            break;
-          case 'energyDemand':
-            if (energyDemand == null) energyDemand = Number(value);
-            break;
-          case 'heatingType':
-            if (!heatingType) heatingType = String(value);
-            break;
-          case 'yearOfConstruction':
-            if (yearOfConstruction == null) yearOfConstruction = Number(value);
-            break;
-          case 'basement':
-            if (value === true) featureSet.add('basement');
-            break;
-          case 'parking':
-            if (value === true) featureSet.add('parking');
-            break;
-          case 'garage':
-            if (value === true) featureSet.add('garage');
-            break;
-          case 'balcony':
-            if (value === true) featureSet.add('balcony');
-            break;
-          case 'terrace':
-            if (value === true) featureSet.add('terrace');
-            break;
-          case 'garden':
-            if (value === true) featureSet.add('garden');
-            break;
-          default:
-            break;
+    setProperty((current) => {
+      const data = current.exposeData ?? emptyExposeData(initialProperty);
+      const address = data.basicInformation.address;
+      const currentValues: Record<string, unknown> = {
+        livingArea: current.livingArea,
+        plotArea: current.plotArea,
+        rooms: current.rooms,
+        bedrooms: current.bedrooms,
+        bathrooms: current.bathrooms,
+        yearBuilt: current.constructionYear,
+        numberOfFloors: current.totalFloors,
+        floor: current.floor,
+        street: address.street,
+        houseNumber: address.houseNumber,
+        postalCode: address.postalCode,
+        city: address.city,
+        district: address.district,
+        state: address.state,
+        country: address.country,
+        energyClass: data.energy?.efficiencyClass,
+        energyConsumption: data.energy?.finalEnergyConsumption,
+        energyDemand: data.energy?.finalEnergyDemand,
+        heatingType: data.energy?.primaryEnergySource,
+        yearOfConstruction: data.energy?.yearOfConstruction,
+      };
+      const { defaults } = computeWizardPrefills(records, currentValues);
+      return applyPrefillToProperty(current, defaults);
+    });
+
+    if (!addressSelected && (sourcesByField.street || sourcesByField.city)) {
+      const prefilled = [
+        [sourcesByField.street?.[0]?.value, sourcesByField.houseNumber?.[0]?.value]
+          .filter(Boolean)
+          .join(' '),
+        [sourcesByField.postalCode?.[0]?.value, sourcesByField.city?.[0]?.value]
+          .filter(Boolean)
+          .join(' '),
+      ]
+        .filter(Boolean)
+        .join(', ');
+      if (prefilled) setAddressQuery(prefilled);
+    }
+  }
+
+  function applyPrefillToProperty(
+    current: PropertyPayload,
+    defaults: Record<string, string | number | boolean>,
+  ): PropertyPayload {
+    if (!Object.keys(defaults).length) return current;
+    const next = { ...current };
+    const data = next.exposeData ?? emptyExposeData(initialProperty);
+    const address = { ...data.basicInformation.address };
+    let addressChanged = false;
+    const addressRecord = address as Record<string, string | null | undefined>;
+    const setAddress = (key: keyof StructuredAddress, value: string) => {
+      if (value && !addressRecord[key]) {
+        addressRecord[key] = value;
+        addressChanged = true;
+      }
+    };
+
+    const energy = data.energy ? { ...data.energy } : {};
+    let energyChanged = false;
+    const setEnergy = (key: keyof EnergyData, value: string | number | boolean | null) => {
+      if (value !== null && value !== undefined && value !== '' && energy[key] == null) {
+        (energy as Record<string, string | number | boolean | null>)[key] = value;
+        energyChanged = true;
+      }
+    };
+
+    const features: string[] = [];
+    for (const [field, value] of Object.entries(defaults)) {
+      switch (field) {
+        case 'street':
+          setAddress('street', String(value));
+          break;
+        case 'houseNumber':
+          setAddress('houseNumber', String(value));
+          break;
+        case 'postalCode':
+          setAddress('postalCode', String(value));
+          break;
+        case 'city':
+          setAddress('city', String(value));
+          break;
+        case 'district':
+          setAddress('district', String(value));
+          break;
+        case 'state':
+          setAddress('state', String(value));
+          break;
+        case 'country':
+          setAddress('country', String(value));
+          break;
+        case 'propertyType': {
+          // propertyType always has the initial default value, so treat that
+          // default as "empty" and never overwrite an explicit user choice.
+          const currentType = current.propertyType;
+          if (value && (!currentType || currentType === 'apartment')) {
+            next.propertyType = value as PropertyPayload['propertyType'];
+          }
+          break;
         }
+        case 'livingArea':
+          if (next.livingArea == null) next.livingArea = Number(value);
+          break;
+        case 'plotArea':
+          if (next.plotArea == null) next.plotArea = Number(value);
+          break;
+        case 'rooms':
+          if (next.rooms == null) next.rooms = Number(value);
+          break;
+        case 'bedrooms':
+          if (next.bedrooms == null) next.bedrooms = Number(value);
+          break;
+        case 'bathrooms':
+          if (next.bathrooms == null) next.bathrooms = Number(value);
+          break;
+        case 'yearBuilt':
+          if (next.constructionYear == null) next.constructionYear = Number(value);
+          break;
+        case 'numberOfFloors':
+          if (next.totalFloors == null) next.totalFloors = Number(value);
+          break;
+        case 'floor':
+          if (!next.floor) next.floor = String(value);
+          break;
+        case 'energyClass':
+          setEnergy('efficiencyClass', String(value));
+          break;
+        case 'energyConsumption':
+          setEnergy('finalEnergyConsumption', Number(value));
+          break;
+        case 'energyDemand':
+          setEnergy('finalEnergyDemand', Number(value));
+          break;
+        case 'heatingType':
+          setEnergy(
+            'primaryEnergySource',
+            String(value)
+              .toLowerCase()
+              .replace('heizung', '')
+              .trim(),
+          );
+          break;
+        case 'yearOfConstruction':
+          setEnergy('yearOfConstruction', Number(value));
+          break;
+        case 'basement':
+          if (value === true) features.push('basement');
+          break;
+        case 'parking':
+          if (value === true) features.push('parking');
+          break;
+        case 'garage':
+          if (value === true) features.push('garage');
+          break;
+        case 'balcony':
+          if (value === true) features.push('balcony');
+          break;
+        case 'terrace':
+          if (value === true) features.push('terrace');
+          break;
+        case 'garden':
+          if (value === true) features.push('garden');
+          break;
+        default:
+          // Fields without a wizard target (e.g. parcelNumber, plotNumber) stay
+          // available in sourcesByField for inspection but are not forced in.
+          break;
       }
     }
 
-    const hasData =
-      Object.keys(address).length ||
-      Object.keys(flat).length ||
-      featureSet.size ||
-      energyClass ||
-      energyConsumption != null ||
-      energyDemand != null ||
-      heatingType ||
-      yearOfConstruction != null;
-    if (!hasData) return;
-
-    setProperty((current) => {
-      const next = { ...current };
-      const data = next.exposeData ?? emptyExposeData(initialProperty);
-
-      if (Object.keys(address).length) {
-        const mergedAddress = { ...data.basicInformation.address, ...address };
-        data.basicInformation = { ...data.basicInformation, address: mergedAddress };
-        data.location = { ...data.location, address: mergedAddress };
-      }
+    if (addressChanged) {
+      data.basicInformation = { ...data.basicInformation, address };
+      data.location = { ...data.location, address, district: address.district };
       if (address.city && !next.city) next.city = address.city;
       if (address.postalCode && !next.zipCode) next.zipCode = address.postalCode;
       if (address.district && !next.district) next.district = address.district;
       if (address.street && !next.address)
         next.address = [address.street, address.houseNumber].filter(Boolean).join(' ');
-
-      if (flat.propertyType && next.propertyType !== flat.propertyType) {
-        next.propertyType = flat.propertyType;
-        data.basicInformation = { ...data.basicInformation, propertyType: flat.propertyType };
-      }
-      if (flat.livingArea != null && next.livingArea == null) next.livingArea = flat.livingArea;
-      if (flat.plotArea != null && next.plotArea == null) next.plotArea = flat.plotArea;
-      if (flat.rooms != null && next.rooms == null) next.rooms = flat.rooms;
-      if (flat.bedrooms != null && next.bedrooms == null) next.bedrooms = flat.bedrooms;
-      if (flat.bathrooms != null && next.bathrooms == null) next.bathrooms = flat.bathrooms;
-      if (flat.constructionYear != null && next.constructionYear == null)
-        next.constructionYear = flat.constructionYear;
-      if (flat.totalFloors != null && next.totalFloors == null)
-        next.totalFloors = flat.totalFloors;
-      if (flat.floor && !next.floor) next.floor = flat.floor;
-
-      for (const feature of featureSet) {
-        if (!next.selectedFeatures.includes(feature))
-          next.selectedFeatures = [...next.selectedFeatures, feature];
-      }
-
-      if (
-        energyClass ||
-        energyConsumption != null ||
-        energyDemand != null ||
-        heatingType ||
-        yearOfConstruction != null
-      ) {
-        const primaryEnergySource = heatingType
-          ? (heatingType.toLowerCase().replace('heizung', '').trim() as EnergyData['primaryEnergySource'])
-          : undefined;
-        data.energy = {
-          ...data.energy,
-          ...(energyClass ? { efficiencyClass: energyClass } : {}),
-          ...(energyConsumption != null ? { finalEnergyConsumption: energyConsumption } : {}),
-          ...(energyDemand != null ? { finalEnergyDemand: energyDemand } : {}),
-          ...(yearOfConstruction != null ? { yearOfConstruction } : {}),
-          ...(primaryEnergySource ? { primaryEnergySource } : {}),
-        } as EnergyData;
-      }
-
-      data.propertyDetails = {
-        ...data.propertyDetails,
-        livingArea: next.livingArea,
-        plotArea: next.plotArea,
-        rooms: next.rooms,
-        bathrooms: next.bathrooms,
-        yearBuilt: next.constructionYear,
-        floor: next.floor ?? data.propertyDetails.floor,
-        numberOfFloors: next.totalFloors,
-      };
-
-      return { ...next, exposeData: data };
-    });
-
-    if (!addressSelected && (address.street || address.city)) {
-      setAddressQuery(
-        [
-          [address.street, address.houseNumber].filter(Boolean).join(' '),
-          [address.postalCode, address.city].filter(Boolean).join(' '),
-        ]
-          .filter(Boolean)
-          .join(', '),
-      );
     }
+
+    for (const feature of features) {
+      if (!next.selectedFeatures.includes(feature))
+        next.selectedFeatures = [...next.selectedFeatures, feature];
+    }
+
+    if (energyChanged) data.energy = energy as EnergyData;
+
+    data.propertyDetails = {
+      ...data.propertyDetails,
+      livingArea: next.livingArea,
+      plotArea: next.plotArea,
+      rooms: next.rooms,
+      bathrooms: next.bathrooms,
+      yearBuilt: next.constructionYear,
+      floor: next.floor ?? data.propertyDetails.floor,
+      numberOfFloors: next.totalFloors,
+    };
+
+    return { ...next, exposeData: data };
   }
 
   function set<K extends keyof PropertyPayload>(key: K, value: PropertyPayload[K]) {
@@ -725,6 +758,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                     }}
                     onSelect={selectAddress}
                     address={property.exposeData!.basicInformation.address}
+                    sources={fieldSources}
                   />
                 )}
                 {step === 1 && addressSelected && (
@@ -743,6 +777,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                     updateExposeData={updateExposeData}
                     noteValue={noteValue}
                     setNote={setNote}
+                    sources={fieldSources}
                   />
                 )}
                 {step === 3 && (
@@ -753,6 +788,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                     borisLoading={borisLoading}
                     noteValue={noteValue}
                     setNote={setNote}
+                    sources={fieldSources}
                   />
                 )}
                 {step === 4 && (
@@ -763,6 +799,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                     updateExposeData={updateExposeData}
                     noteValue={noteValue}
                     setNote={setNote}
+                    sources={fieldSources}
                   />
                 )}
                 {step === 5 && (
@@ -771,6 +808,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                     update={(energy) => updateExposeData({ energy })}
                     noteValue={noteValue}
                     setNote={setNote}
+                    sources={fieldSources}
                   />
                 )}
                 {step === 6 && (

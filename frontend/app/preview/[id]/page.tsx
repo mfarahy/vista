@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import { frontendLogger } from '@/lib/logger';
 import PreviewClient from './preview-client';
 
 async function getProperty(id: string) {
@@ -10,7 +11,11 @@ async function getProperty(id: string) {
       id: string;
       expose?: { content?: { title?: string } | null } | null;
     };
-  } catch {
+  } catch (error) {
+    frontendLogger.warn('Failed to load property during SSR preview', {
+      propertyId: id,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }
@@ -20,7 +25,11 @@ async function getExposeHtml(id: string) {
     const response = await apiFetch(`/api/properties/${id}/html`);
     if (!response.ok) return null;
     return await response.text();
-  } catch {
+  } catch (error) {
+    frontendLogger.warn('Failed to load expose HTML during SSR preview', {
+      propertyId: id,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }

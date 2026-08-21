@@ -1,7 +1,11 @@
 import type { EnergyData, ExposeData, PropertyPayload, SetProperty } from '../types';
+import type { WizardFieldCandidate } from '../document-prefill';
 import { FEATURE_OPTIONS } from '../types';
 import { EnergyClassPicker, Input, Section, SectionNotes, Select, Textarea } from './ui';
+import { DocumentSources } from './document-sources';
 import { AgentDebugPanel } from './debug';
+
+const FEATURE_WIZARD_FIELDS = ['basement', 'parking', 'garage', 'balcony', 'terrace', 'garden'];
 
 export function StepFeatures({
   property,
@@ -10,6 +14,7 @@ export function StepFeatures({
   updateExposeData,
   noteValue,
   setNote,
+  sources,
 }: {
   property: PropertyPayload;
   set: SetProperty;
@@ -17,6 +22,7 @@ export function StepFeatures({
   updateExposeData: (patch: Partial<ExposeData>) => void;
   noteValue: (key: string) => string;
   setNote: (key: string, value: string) => void;
+  sources?: Record<string, WizardFieldCandidate[]>;
 }) {
   const toggle = (key: string) =>
     set(
@@ -25,6 +31,9 @@ export function StepFeatures({
         ? property.selectedFeatures.filter((value) => value !== key)
         : [...property.selectedFeatures, key],
     );
+  const featureSources = FEATURE_WIZARD_FIELDS.map((field) => sources?.[field]).filter(
+    (group): group is WizardFieldCandidate[] => !!group?.length,
+  );
   const addEquipment = () =>
     updateExposeData({
       equipment: [...exposeData.equipment, { category: 'interior', name: '', description: null }],
@@ -56,6 +65,13 @@ export function StepFeatures({
           </button>
         ))}
       </div>
+      {featureSources.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {featureSources.map((group) => (
+            <DocumentSources key={group[0].field} sources={group} />
+          ))}
+        </div>
+      )}
       <div className="mt-6">
         <Textarea
           label="Additional features"
@@ -128,11 +144,13 @@ export function StepEnergy({
   update,
   noteValue,
   setNote,
+  sources,
 }: {
   data?: EnergyData | null;
   update: (data: EnergyData | null) => void;
   noteValue: (key: string) => string;
   setNote: (key: string, value: string) => void;
+  sources?: Record<string, WizardFieldCandidate[]>;
 }) {
   const energy = data ?? {};
   const number = (value: string) => (value === '' ? null : Number(value));
@@ -156,54 +174,69 @@ export function StepEnergy({
             ['unknown', 'Unknown'],
           ]}
         />
-        <Input
-          label="Construction year per certificate"
-          value={energy.yearOfConstruction}
-          type="number"
-          onChange={(value) => update({ ...energy, yearOfConstruction: number(value) })}
-          placeholder="1969"
-        />
-        <Select
-          label="Primary energy source"
-          value={energy.primaryEnergySource}
-          onChange={(value) =>
-            update({
-              ...energy,
-              primaryEnergySource: (value || null) as EnergyData['primaryEnergySource'],
-            })
-          }
-          options={[
-            ['', 'Select an option'],
-            ['gas', 'Gas'],
-            ['oil', 'Oil'],
-            ['district_heating', 'District heating'],
-            ['heat_pump', 'Heat pump'],
-            ['electricity', 'Electricity'],
-            ['wood', 'Wood'],
-            ['pellets', 'Pellets'],
-            ['other', 'Other'],
-          ]}
-        />
-        <Input
-          label="Final energy demand (kWh/(m²·a))"
-          value={energy.finalEnergyDemand}
-          type="number"
-          onChange={(value) => update({ ...energy, finalEnergyDemand: number(value) })}
-          placeholder="250.20"
-        />
-        <Input
-          label="Final energy consumption (kWh/(m²·a))"
-          value={energy.finalEnergyConsumption}
-          type="number"
-          onChange={(value) => update({ ...energy, finalEnergyConsumption: number(value) })}
-          placeholder="Optional"
-        />
-        <EnergyClassPicker
-          value={energy.efficiencyClass}
-          onChange={(value) =>
-            update({ ...energy, efficiencyClass: (value || null) as EnergyData['efficiencyClass'] })
-          }
-        />
+        <div>
+          <Input
+            label="Construction year per certificate"
+            value={energy.yearOfConstruction}
+            type="number"
+            onChange={(value) => update({ ...energy, yearOfConstruction: number(value) })}
+            placeholder="1969"
+          />
+          <DocumentSources sources={sources?.yearOfConstruction} />
+        </div>
+        <div>
+          <Select
+            label="Primary energy source"
+            value={energy.primaryEnergySource}
+            onChange={(value) =>
+              update({
+                ...energy,
+                primaryEnergySource: (value || null) as EnergyData['primaryEnergySource'],
+              })
+            }
+            options={[
+              ['', 'Select an option'],
+              ['gas', 'Gas'],
+              ['oil', 'Oil'],
+              ['district_heating', 'District heating'],
+              ['heat_pump', 'Heat pump'],
+              ['electricity', 'Electricity'],
+              ['wood', 'Wood'],
+              ['pellets', 'Pellets'],
+              ['other', 'Other'],
+            ]}
+          />
+          <DocumentSources sources={sources?.heatingType} />
+        </div>
+        <div>
+          <Input
+            label="Final energy demand (kWh/(m²·a))"
+            value={energy.finalEnergyDemand}
+            type="number"
+            onChange={(value) => update({ ...energy, finalEnergyDemand: number(value) })}
+            placeholder="250.20"
+          />
+          <DocumentSources sources={sources?.energyDemand} />
+        </div>
+        <div>
+          <Input
+            label="Final energy consumption (kWh/(m²·a))"
+            value={energy.finalEnergyConsumption}
+            type="number"
+            onChange={(value) => update({ ...energy, finalEnergyConsumption: number(value) })}
+            placeholder="Optional"
+          />
+          <DocumentSources sources={sources?.energyConsumption} />
+        </div>
+        <div>
+          <EnergyClassPicker
+            value={energy.efficiencyClass}
+            onChange={(value) =>
+              update({ ...energy, efficiencyClass: (value || null) as EnergyData['efficiencyClass'] })
+            }
+          />
+          <DocumentSources sources={sources?.energyClass} />
+        </div>
       </div>
       <SectionNotes
         value={noteValue('energy')}

@@ -7,6 +7,7 @@ import { floorplanTo3D } from '../external-services/floorplan.js';
 import { uploadPath } from '../lib/store.js';
 import { upload, isAllowedImageMime, MAX_IMAGE_BYTES } from '../lib/upload.js';
 import { sendError, errorMessage, asyncHandler } from '../lib/http.js';
+import { getLogger } from '../lib/logger.js';
 
 export const floorplanRouter = Router();
 
@@ -49,7 +50,7 @@ floorplanRouter.post(
 
       res.json({ url: `/uploads/${name}`, falUrl: result.imageUrl, seed: result.seed });
     } catch (error) {
-      console.error('[floorplan] conversion failed', { error: errorMessage(error, String(error)) });
+      getLogger().error({ err: error }, 'Floor plan conversion failed');
       sendError(res, 502, errorMessage(error, 'Floor plan conversion could not be completed.'));
     }
   }),

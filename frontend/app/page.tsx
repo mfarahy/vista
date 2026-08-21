@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowUpRight, FileText, Image as ImageIcon } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { frontendLogger } from '@/lib/logger';
 
 async function getProperties() {
   try {
@@ -12,7 +13,10 @@ async function getProperties() {
       livingArea?: number | null;
       images: Array<{ id: string }>;
     }>;
-  } catch {
+  } catch (error) {
+    frontendLogger.warn('Failed to load properties for the landing page', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return [];
   }
 }

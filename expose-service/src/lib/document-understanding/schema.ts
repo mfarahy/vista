@@ -54,7 +54,7 @@ export const DOCUMENT_TAGS = [
 
 /**
  * The set of wizard field keys the model may fill. These match the existing
- * wizard fields (see extract.ts and the frontend wizard) so prefilled values
+ * wizard fields (see prefill.ts and the frontend wizard) so prefilled values
  * drop straight into the wizard without a separate mapping layer.
  */
 export const WIZARD_FIELDS = [

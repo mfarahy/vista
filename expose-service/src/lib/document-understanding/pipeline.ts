@@ -1,6 +1,7 @@
 import type { DocumentAnalysisResult, DocumentRecord } from '../types.js';
 import type { DocumentUnderstandingInput, DocumentUnderstandingResult } from './types.js';
 import { isImageMime } from './types.js';
+import { getLogger } from '../logger.js';
 
 /**
  * Orchestrates the full document pipeline for a single document:
@@ -28,10 +29,6 @@ export interface DocumentPipelineDeps {
   update(documentId: string, patch: DocumentPipelineUpdate): Promise<DocumentRecord | null>;
 }
 
-function message(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message : fallback;
-}
-
 export async function runDocumentPipeline(
   record: DocumentRecord,
   content: Buffer,
@@ -41,11 +38,11 @@ export async function runDocumentPipeline(
   let ocr: DocumentAnalysisResult;
   try {
     ocr = await deps.analyze(content, mimeType);
-  } catch (error) {
-    console.warn('[documents] analysis failed', {
-      documentId: record.id,
-      error: message(error, 'Analysis failed'),
-    });
+  } catch {
+    getLogger().warn(
+      { documentId: record.id },
+      'Document analysis failed for document {documentId}',
+    );
     return deps.update(record.id, {
       status: 'failed',
       error: 'The document could not be analyzed.',
@@ -77,11 +74,11 @@ export async function runDocumentPipeline(
       understandingResult: understanding,
       understandingError: null,
     });
-  } catch (error) {
-    console.warn('[documents] understanding failed', {
-      documentId: record.id,
-      error: message(error, 'Understanding failed'),
-    });
+  } catch {
+    getLogger().warn(
+      { documentId: record.id },
+      'Document understanding failed for document {documentId}; preserving OCR result',
+    );
     return deps.update(record.id, {
       status: 'completed',
       documentType: withOcr.documentType ?? null,

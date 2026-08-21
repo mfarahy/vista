@@ -5,6 +5,15 @@ import type {
   PropertyExposeData,
   StructuredAddress,
 } from '../lib/expose-data.js';
+import { trackExternalCall } from '../lib/logger.js';
+
+function endpointPath(url: string): string {
+  try {
+    return new URL(url).pathname || url;
+  } catch {
+    return url;
+  }
+}
 
 export interface Coordinates {
   latitude: number;
@@ -140,16 +149,30 @@ class NominatimGeocodingProvider implements GeocodingProvider {
   async geocode(address: StructuredAddress): Promise<GeocodingResult> {
     const query = formatAddress(address);
     const endpoint = process.env.GEOCODING_BASE_URL || 'https://nominatim.openstreetmap.org/search';
-    const response = await fetch(
-      `${endpoint}?format=jsonv2&limit=5&addressdetails=1&q=${encodeURIComponent(query)}`,
+    const response = await trackExternalCall(
       {
-        headers: {
-          Accept: 'application/json',
-          'User-Agent': process.env.GEOCODING_USER_AGENT || 'Vista/1.0 location resolver',
-        },
+        service: 'nominatim',
+        operation: 'geocode',
+        method: 'GET',
+        path: endpointPath(endpoint),
+        status: (result) => (result as Response).status,
       },
+      () =>
+        fetch(
+          `${endpoint}?format=jsonv2&limit=5&addressdetails=1&q=${encodeURIComponent(query)}`,
+          {
+            headers: {
+              Accept: 'application/json',
+              'User-Agent': process.env.GEOCODING_USER_AGENT || 'Vista/1.0 location resolver',
+            },
+          },
+        ),
     );
-    if (!response.ok) throw new Error(`Geocoding provider returned ${response.status}`);
+    if (!response.ok) {
+      const error = new Error(`Geocoding provider returned ${response.status}`);
+      (error as { status?: number }).status = response.status;
+      throw error;
+    }
     const results = (await response.json()) as Array<{
       lat?: string;
       lon?: string;
@@ -214,16 +237,30 @@ class NominatimGeocodingProvider implements GeocodingProvider {
 
 export async function searchAddressSuggestions(query: string): Promise<AddressSuggestion[]> {
   const endpoint = process.env.GEOCODING_BASE_URL || 'https://nominatim.openstreetmap.org/search';
-  const response = await fetch(
-    `${endpoint}?format=jsonv2&limit=6&addressdetails=1&countrycodes=de&q=${encodeURIComponent(query)}`,
+  const response = await trackExternalCall(
     {
-      headers: {
-        Accept: 'application/json',
-        'User-Agent': process.env.GEOCODING_USER_AGENT || 'Vista/1.0 address suggestions',
-      },
+      service: 'nominatim',
+      operation: 'address-suggestions',
+      method: 'GET',
+      path: endpointPath(endpoint),
+      status: (result) => (result as Response).status,
     },
+    () =>
+      fetch(
+        `${endpoint}?format=jsonv2&limit=6&addressdetails=1&countrycodes=de&q=${encodeURIComponent(query)}`,
+        {
+          headers: {
+            Accept: 'application/json',
+            'User-Agent': process.env.GEOCODING_USER_AGENT || 'Vista/1.0 address suggestions',
+          },
+        },
+      ),
   );
-  if (!response.ok) throw new Error(`Geocoding provider returned ${response.status}`);
+  if (!response.ok) {
+    const error = new Error(`Geocoding provider returned ${response.status}`);
+    (error as { status?: number }).status = response.status;
+    throw error;
+  }
   const results = (await response.json()) as Array<{
     lat?: string;
     lon?: string;
@@ -322,16 +359,31 @@ class OverpassPlacesProvider implements PlacesProvider {
     if (!fragment) return [];
     const query = `[out:json][timeout:15];(${fragment.replaceAll('{radius}', String(radiusMeters)).replaceAll('{lat}', String(latitude)).replaceAll('{lon}', String(longitude))});out center tags;`;
     const endpoint = process.env.PLACES_BASE_URL || 'https://overpass-api.de/api/interpreter';
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'text/plain',
-        'User-Agent': process.env.PLACES_USER_AGENT || 'Vista/1.0 location resolver',
+    const response = await trackExternalCall(
+      {
+        service: 'overpass',
+        operation: 'search-nearby',
+        method: 'POST',
+        path: endpointPath(endpoint),
+        props: { category, radiusMeters },
+        status: (result) => (result as Response).status,
       },
-      body: query,
-    });
-    if (!response.ok) throw new Error(`Places provider returned ${response.status}`);
+      () =>
+        fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'text/plain',
+            'User-Agent': process.env.PLACES_USER_AGENT || 'Vista/1.0 location resolver',
+          },
+          body: query,
+        }),
+    );
+    if (!response.ok) {
+      const error = new Error(`Places provider returned ${response.status}`);
+      (error as { status?: number }).status = response.status;
+      throw error;
+    }
     const body = (await response.json()) as {
       elements?: Array<{
         id?: number;

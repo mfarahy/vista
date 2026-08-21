@@ -20,6 +20,7 @@ import type { PropertyPayload } from '../lib/types.js';
 import { researchLocation } from '../mastra/agents/location-research-agent.js';
 import { locationResearchInputSchema } from '../mastra/schemas/location-research.js';
 import { getParam, loadProperty, sendError, errorMessage, asyncHandler } from '../lib/http.js';
+import { getLogger } from '../lib/logger.js';
 import { upload, isAllowedImageMime, MAX_IMAGE_BYTES, IMAGE_CATEGORIES } from '../lib/upload.js';
 import { exposeHTML } from '../lib/expose-template.js';
 import { persistImages, removeImageRecord } from '../services/image-files.js';
@@ -361,7 +362,10 @@ propertiesRouter.post(
         })
         .send(pdf);
     } catch (error) {
-      console.error('[pdf] render failed', { error: errorMessage(error, String(error)) });
+      getLogger().error(
+        { err: error, propertyId: property.id },
+        'PDF render failed for property {propertyId}',
+      );
       sendError(res, 502, errorMessage(error, 'PDF could not be rendered.'));
     }
   }),

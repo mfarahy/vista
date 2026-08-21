@@ -1,5 +1,6 @@
 import type { BorisEnrichment } from '../lib/expose-data.js';
 import type { Coordinates } from './location.js';
+import { trackExternalCall } from '../lib/logger.js';
 
 /**
  * Minimal, isolated client for the Brandenburg BORIS OGC API.
@@ -203,19 +204,36 @@ async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs =
 export async function fetchBorisEnrichment(
   coordinates: Coordinates,
 ): Promise<BorisEnrichment | null> {
+  if (!borisCoversCoordinates(coordinates)) return null;
+  const baseUrl = getBorisBaseUrl();
+  // Degenerate bbox selects only zones intersecting the exact point.
+  const bbox = `${coordinates.longitude},${coordinates.latitude},${coordinates.longitude},${coordinates.latitude}`;
+  const url = `${baseUrl}/collections/${BORIS_COLLECTION}/items?bbox=${encodeURIComponent(bbox)}&limit=1&f=json`;
   try {
-    if (!borisCoversCoordinates(coordinates)) return null;
-    const baseUrl = getBorisBaseUrl();
-    // Degenerate bbox selects only zones intersecting the exact point.
-    const bbox = `${coordinates.longitude},${coordinates.latitude},${coordinates.longitude},${coordinates.latitude}`;
-    const url = `${baseUrl}/collections/${BORIS_COLLECTION}/items?bbox=${encodeURIComponent(bbox)}&limit=1&f=json`;
-    const response = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } });
-    if (!response.ok) return null;
+    const response = await trackExternalCall(
+      {
+        service: 'boris',
+        operation: 'bodenrichtwert-query',
+        method: 'GET',
+        path: `/collections/${BORIS_COLLECTION}/items`,
+        status: (result) => (result as Response).status,
+      },
+      () =>
+        fetchWithTimeout(url, { headers: { Accept: 'application/json' } }).then((response) => {
+          if (!response.ok) {
+            const error = new Error(`BORIS request rejected with status ${response.status}`);
+            (error as { status?: number }).status = response.status;
+            throw error;
+          }
+          return response;
+        }),
+    );
     const body = (await response.json()) as { features?: Array<Record<string, unknown>> };
     const feature = body?.features?.[0];
     if (!feature) return null;
     return normalizeBorisFeature(feature);
   } catch {
+    // Optional enrichment source: all failures resolve to `null`.
     return null;
   }
 }

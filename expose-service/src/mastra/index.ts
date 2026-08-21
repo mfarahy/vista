@@ -1,4 +1,6 @@
 import { Mastra } from '@mastra/core/mastra';
+import { createLogger } from '@mastra/core/logger';
+import { mastraLogLevel } from '../lib/logger.js';
 import { propertyExposeAgent } from './agents/property-expose-agent.js';
 import { createExposeMastraWorkflow } from './workflows/create-expose-workflow.js';
 import { locationResearchAgent } from './agents/location-research-agent.js';
@@ -22,6 +24,7 @@ export {
 export * from './schemas/index.js';
 
 export const mastra = new Mastra({
+  logger: createLogger({ name: 'mastra', level: mastraLogLevel() }),
   agents: { propertyExposeAgent, locationResearchAgent },
   workflows: { createExposeWorkflow: createExposeMastraWorkflow, locationResearchWorkflow },
 });

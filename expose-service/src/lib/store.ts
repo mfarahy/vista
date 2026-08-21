@@ -19,6 +19,7 @@ import { addressFromLegacy, addressKey } from '../external-services/location.js'
 import type { LocationIntelligence } from './expose-data.js';
 import type { BorisEnrichment } from './expose-data.js';
 import type { LocationResearch } from '../mastra/schemas/location-research.js';
+import { getLogger } from './logger.js';
 
 const dataPath = path.join(process.cwd(), 'data', 'properties.json');
 const uploadPath = path.join(process.cwd(), 'public', 'uploads');
@@ -130,17 +131,17 @@ export async function createProperty(): Promise<Property> {
   };
   db.properties.unshift(property);
   await writeDB(db);
-  console.info('[store] created property', { propertyId: property.id });
+  getLogger().info({ propertyId: property.id }, 'Created property {propertyId}');
   return property;
 }
 export async function listProperties(): Promise<Property[]> {
   const properties = (await readDB()).properties;
-  console.info('[store] listed properties', { count: properties.length });
+  getLogger().info({ count: properties.length }, 'Listed {count} properties');
   return properties;
 }
 export async function getProperty(id: string): Promise<Property | null> {
   const property = (await readDB()).properties.find((item) => item.id === id) ?? null;
-  console.info('[store] getProperty', { id, found: Boolean(property) });
+  getLogger().debug({ id, found: Boolean(property) }, 'getProperty {id}');
   return property;
 }
 export async function updateProperty(
@@ -150,7 +151,7 @@ export async function updateProperty(
   const db = await readDB();
   const index = db.properties.findIndex((item) => item.id === id);
   if (index < 0) {
-    console.warn('[store] updateProperty not found', { id });
+    getLogger().warn({ id }, 'updateProperty not found for {id}');
     return null;
   }
   const old = db.properties[index];
@@ -183,11 +184,10 @@ export async function updateProperty(
   }
   db.properties[index] = updated;
   await writeDB(db);
-  console.info('[store] updated property', {
-    id,
-    roomCount: roomsData.length,
-    updatedAt: updated.updatedAt,
-  });
+  getLogger().info(
+    { id, roomCount: roomsData.length, updatedAt: updated.updatedAt },
+    'Updated property {id}',
+  );
   return updated;
 }
 export async function addImage(
@@ -197,7 +197,7 @@ export async function addImage(
   const db = await readDB();
   const property = db.properties.find((item) => item.id === id);
   if (!property) {
-    console.warn('[store] addImage property not found', { id });
+    getLogger().warn({ id }, 'addImage property not found for {id}');
     return null;
   }
   const record = {
@@ -211,14 +211,17 @@ export async function addImage(
   syncExposeImages(property);
   property.updatedAt = new Date().toISOString();
   await writeDB(db);
-  console.info('[store] added image', { id, imageId: record.id, fileName: record.fileName });
+  getLogger().info(
+    { id, imageId: record.id, fileName: record.fileName },
+    'Added image {imageId} to property {id}',
+  );
   return record;
 }
 export async function removeImage(id: string, imageId: string): Promise<PropertyImage | null> {
   const db = await readDB();
   const property = db.properties.find((item) => item.id === id);
   if (!property) {
-    console.warn('[store] removeImage property not found', { id });
+    getLogger().warn({ id }, 'removeImage property not found for {id}');
     return null;
   }
   const image = property.images.find((item) => item.id === imageId);
@@ -236,14 +239,17 @@ export async function removeImage(id: string, imageId: string): Promise<Property
   property.updatedAt = new Date().toISOString();
   syncExposeImages(property);
   await writeDB(db);
-  console.info('[store] removed image', { id, imageId, fileName: image?.fileName ?? 'unknown' });
+  getLogger().info(
+    { id, imageId, fileName: image?.fileName ?? 'unknown' },
+    'Removed image {imageId} from property {id}',
+  );
   return image ?? null;
 }
 export async function reorderImages(id: string, imageIds: string[]): Promise<Property | null> {
   const db = await readDB();
   const property = db.properties.find((item) => item.id === id);
   if (!property) {
-    console.warn('[store] reorderImages property not found', { id });
+    getLogger().warn({ id }, 'reorderImages property not found for {id}');
     return null;
   }
   const byId = new Map(property.images.map((image) => [image.id, image]));
@@ -256,14 +262,17 @@ export async function reorderImages(id: string, imageIds: string[]): Promise<Pro
     .filter((image): image is PropertyImage => image !== null);
   property.updatedAt = new Date().toISOString();
   await writeDB(db);
-  console.info('[store] reordered images', { id, imageCount: property.images.length });
+  getLogger().info(
+    { id, imageCount: property.images.length },
+    'Reordered {imageCount} images for property {id}',
+  );
   return property;
 }
 export async function setCover(id: string, imageId: string): Promise<Property | null> {
   const db = await readDB();
   const property = db.properties.find((item) => item.id === id);
   if (!property) {
-    console.warn('[store] setCover property not found', { id });
+    getLogger().warn({ id }, 'setCover property not found for {id}');
     return null;
   }
   property.images = property.images.map((image) => ({
@@ -272,14 +281,14 @@ export async function setCover(id: string, imageId: string): Promise<Property | 
   }));
   syncExposeImages(property);
   await writeDB(db);
-  console.info('[store] set cover image', { id, imageId });
+  getLogger().info({ id, imageId }, 'Set cover image {imageId} for property {id}');
   return property;
 }
 export async function saveExpose(id: string, content: StoredExposeContent): Promise<Expose | null> {
   const db = await readDB();
   const property = db.properties.find((item) => item.id === id);
   if (!property) {
-    console.warn('[store] saveExpose property not found', { id });
+    getLogger().warn({ id }, 'saveExpose property not found for {id}');
     return null;
   }
   const expose: Expose = {
@@ -292,11 +301,10 @@ export async function saveExpose(id: string, content: StoredExposeContent): Prom
   property.expose = expose;
   property.updatedAt = new Date().toISOString();
   await writeDB(db);
-  console.info('[store] saved expose content', {
-    id,
-    exposeId: expose.id,
-    title: 'version' in content ? content.cover.title : content.title,
-  });
+  getLogger().info(
+    { id, exposeId: expose.id, title: 'version' in content ? content.cover.title : content.title },
+    'Saved expose content {exposeId} for property {id}',
+  );
   return expose;
 }
 
@@ -391,11 +399,10 @@ export async function createDocument(
   };
   db.documents.push(record);
   await writeDB(db);
-  console.info('[store] created document', {
-    documentId: record.id,
-    propertyId,
-    fileName: record.filename,
-  });
+  getLogger().info(
+    { documentId: record.id, propertyId, fileName: record.filename },
+    'Created document {documentId} for property {propertyId}',
+  );
   return record;
 }
 
@@ -414,16 +421,15 @@ export async function updateDocument(
   const db = await readDB();
   const record = db.documents.find((document) => document.id === documentId);
   if (!record) {
-    console.warn('[store] updateDocument not found', { documentId });
+    getLogger().warn({ documentId }, 'updateDocument not found for {documentId}');
     return null;
   }
   Object.assign(record, patch, { updatedAt: new Date().toISOString() });
   await writeDB(db);
-  console.info('[store] updated document', {
-    documentId,
-    status: record.status,
-    documentType: record.documentType ?? 'unknown',
-  });
+  getLogger().info(
+    { documentId, status: record.status, documentType: record.documentType ?? 'unknown' },
+    'Updated document {documentId}',
+  );
   return record;
 }
 
@@ -431,12 +437,15 @@ export async function removeDocument(documentId: string): Promise<DocumentRecord
   const db = await readDB();
   const index = db.documents.findIndex((document) => document.id === documentId);
   if (index < 0) {
-    console.warn('[store] removeDocument not found', { documentId });
+    getLogger().warn({ documentId }, 'removeDocument not found for {documentId}');
     return null;
   }
   const [removed] = db.documents.splice(index, 1);
   await writeDB(db);
-  console.info('[store] removed document', { documentId, fileName: removed.filename });
+  getLogger().info(
+    { documentId, fileName: removed.filename },
+    'Removed document {documentId}',
+  );
   return removed;
 }
 

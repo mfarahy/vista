@@ -7,7 +7,37 @@ import type {
   StructuredAddress,
 } from '../types';
 import { PROPERTY_TYPES } from '../types';
+import type { WizardFieldCandidate } from '../document-prefill';
 import { DatePicker, Input, Section, SectionNotes, Select } from './ui';
+import { DocumentSources } from './document-sources';
+
+const ADDRESS_FIELD_KEYS: Array<keyof StructuredAddress> = [
+  'street',
+  'houseNumber',
+  'postalCode',
+  'city',
+  'district',
+  'state',
+  'country',
+];
+
+function AddressDocumentSources({
+  sources,
+}: {
+  sources?: Record<string, WizardFieldCandidate[]>;
+}) {
+  const found = ADDRESS_FIELD_KEYS.map((key) => sources?.[key]).filter(
+    (group): group is WizardFieldCandidate[] => !!group?.length,
+  );
+  if (!found.length) return null;
+  return (
+    <div className="mt-3 space-y-2 border-t border-[#c8d9cb] pt-3">
+      {found.map((group) => (
+        <DocumentSources key={group[0].field} sources={group} />
+      ))}
+    </div>
+  );
+}
 
 export function StepAddress({
   query,
@@ -18,6 +48,7 @@ export function StepAddress({
   onQueryChange,
   onSelect,
   address,
+  sources,
 }: {
   query: string;
   suggestions: StructuredAddress[];
@@ -27,6 +58,7 @@ export function StepAddress({
   onQueryChange: (value: string) => void;
   onSelect: (address: StructuredAddress) => void;
   address: StructuredAddress;
+  sources?: Record<string, WizardFieldCandidate[]>;
 }) {
   return (
     <Section
@@ -108,6 +140,7 @@ export function StepAddress({
           <p className="mt-3 text-xs text-[#607b68]">
             Structured address saved. You can continue without entering it again.
           </p>
+          <AddressDocumentSources sources={sources} />
         </div>
       )}
     </Section>
@@ -121,6 +154,7 @@ export function StepProperty({
   updateExposeData,
   noteValue,
   setNote,
+  sources,
 }: {
   property: PropertyPayload;
   set: SetProperty;
@@ -128,6 +162,7 @@ export function StepProperty({
   updateExposeData: (patch: Partial<ExposeData>) => void;
   noteValue: (key: string) => string;
   setNote: (key: string, value: string) => void;
+  sources?: Record<string, WizardFieldCandidate[]>;
 }) {
   return (
     <Section
@@ -153,6 +188,7 @@ export function StepProperty({
               </button>
             ))}
           </div>
+          <DocumentSources sources={sources?.propertyType} />
         </div>
         <div>
           <span className="label">What are you planning?</span>
@@ -179,6 +215,7 @@ export function StepProperty({
             onChange={(value) => set('constructionYear', value ? Number(value) : null)}
             placeholder="e.g. 2018"
           />
+          <DocumentSources sources={sources?.yearBuilt} />
         </div>
         <SectionNotes
           value={noteValue('property')}
@@ -197,6 +234,7 @@ export function StepDetails({
   borisLoading,
   noteValue,
   setNote,
+  sources,
 }: {
   property: PropertyPayload;
   set: SetProperty;
@@ -204,6 +242,7 @@ export function StepDetails({
   borisLoading: boolean;
   noteValue: (key: string) => string;
   setNote: (key: string, value: string) => void;
+  sources?: Record<string, WizardFieldCandidate[]>;
 }) {
   const hasFloor =
     property.propertyType === 'apartment' ||
@@ -216,56 +255,77 @@ export function StepDetails({
       description="The more precise the details, the better the AI can write."
     >
       <div className="grid gap-5 sm:grid-cols-2">
-        <Input
-          label="Living area (m²)"
-          value={property.livingArea}
-          type="number"
-          onChange={(value) => set('livingArea', value ? Number(value) : null)}
-          placeholder="92"
-        />
-        <Input
-          label="Plot size (m²)"
-          value={property.plotArea}
-          type="number"
-          onChange={(value) => set('plotArea', value ? Number(value) : null)}
-          placeholder="Optional"
-        />
-        <Input
-          label="Rooms"
-          value={property.rooms}
-          type="number"
-          onChange={(value) => set('rooms', value ? Number(value) : null)}
-          placeholder="3"
-        />
-        <Input
-          label="Bedrooms"
-          value={property.bedrooms}
-          type="number"
-          onChange={(value) => set('bedrooms', value ? Number(value) : null)}
-          placeholder="2"
-        />
-        <Input
-          label="Bathrooms"
-          value={property.bathrooms}
-          type="number"
-          onChange={(value) => set('bathrooms', value ? Number(value) : null)}
-          placeholder="1"
-        />
-        {hasFloor && (
+        <div>
           <Input
-            label="Floor"
-            value={property.floor}
-            onChange={(value) => set('floor', value)}
-            placeholder="e.g. 3rd floor"
+            label="Living area (m²)"
+            value={property.livingArea}
+            type="number"
+            onChange={(value) => set('livingArea', value ? Number(value) : null)}
+            placeholder="92"
           />
+          <DocumentSources sources={sources?.livingArea} />
+        </div>
+        <div>
+          <Input
+            label="Plot size (m²)"
+            value={property.plotArea}
+            type="number"
+            onChange={(value) => set('plotArea', value ? Number(value) : null)}
+            placeholder="Optional"
+          />
+          <DocumentSources sources={sources?.plotArea} />
+        </div>
+        <div>
+          <Input
+            label="Rooms"
+            value={property.rooms}
+            type="number"
+            onChange={(value) => set('rooms', value ? Number(value) : null)}
+            placeholder="3"
+          />
+          <DocumentSources sources={sources?.rooms} />
+        </div>
+        <div>
+          <Input
+            label="Bedrooms"
+            value={property.bedrooms}
+            type="number"
+            onChange={(value) => set('bedrooms', value ? Number(value) : null)}
+            placeholder="2"
+          />
+          <DocumentSources sources={sources?.bedrooms} />
+        </div>
+        <div>
+          <Input
+            label="Bathrooms"
+            value={property.bathrooms}
+            type="number"
+            onChange={(value) => set('bathrooms', value ? Number(value) : null)}
+            placeholder="1"
+          />
+          <DocumentSources sources={sources?.bathrooms} />
+        </div>
+        {hasFloor && (
+          <div>
+            <Input
+              label="Floor"
+              value={property.floor}
+              onChange={(value) => set('floor', value)}
+              placeholder="e.g. 3rd floor"
+            />
+            <DocumentSources sources={sources?.floor} />
+          </div>
         )}
-        <Input
-          label="Total floors"
-          value={property.totalFloors}
-          type="number"
-          onChange={(value) => set('totalFloors', value ? Number(value) : null)}
-          placeholder="5"
-        />
+        <div>
+          <Input
+            label="Total floors"
+            value={property.totalFloors}
+            type="number"
+            onChange={(value) => set('totalFloors', value ? Number(value) : null)}
+            placeholder="5"
+          />
+          <DocumentSources sources={sources?.numberOfFloors} />
+        </div>
         <DatePicker
           value={property.availableFrom}
           onChange={(value) => set('availableFrom', value)}

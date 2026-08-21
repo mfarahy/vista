@@ -43,26 +43,27 @@ describe('normalizeDocumentAIResponse', () => {
       },
     };
 
-    const result = normalizeDocumentAIResponse(raw, 'doc-1');
+    const result = normalizeDocumentAIResponse(raw);
 
-    assert.equal(result.documentType, 'grundriss');
     assert.equal(result.text.includes('Grundriss'), true);
     assert.equal(result.pages![0].pageNumber, 1);
-    assert.ok(result.fields.some((field) => field.field === 'rooms' && field.value === 3));
+    // The OCR layer does no semantic extraction, so it never emits fields.
+    assert.equal(result.fields.length, 0);
     const rawEntities = result.metadata?.raw as { entities?: unknown[] } | undefined;
     assert.equal(rawEntities?.entities?.length, 1);
   });
 
-  it('returns other for an invalid document with no text', () => {
-    const result = normalizeDocumentAIResponse({ document: {} }, 'doc-1');
-    assert.equal(result.documentType, 'other');
+  it('returns no fields and no type for an invalid document with no text', () => {
+    const result = normalizeDocumentAIResponse({ document: {} });
+    assert.equal(result.documentType, undefined);
     assert.equal(result.text, '');
     assert.equal(result.fields.length, 0);
   });
 
   it('handles a missing document gracefully', () => {
-    const result = normalizeDocumentAIResponse(null, 'doc-1');
-    assert.equal(result.documentType, 'other');
+    const result = normalizeDocumentAIResponse(null);
+    assert.equal(result.documentType, undefined);
+    assert.equal(result.fields.length, 0);
   });
 });
 
@@ -72,8 +73,8 @@ describe('GoogleDocumentAIProvider', () => {
       document: { text: 'Wohnfläche 80 m², 3 Zimmer' },
     }));
     const result = await provider.analyzeDocument(makeInput());
-    assert.equal(result.documentType, 'other');
-    assert.ok(result.fields.some((field) => field.field === 'livingArea' && field.value === 80));
+    assert.equal(result.documentType, undefined);
+    assert.equal(result.fields.length, 0);
   });
 
   it('rejects when the Google API fails', async () => {

@@ -1,5 +1,6 @@
 import { fal } from '@fal-ai/client';
 import type { Flux2FlexEditInput, Flux2FlexEditOutput } from '@fal-ai/client/endpoints';
+import { trackExternalCall } from '../lib/logger.js';
 
 export const FAL_FLOORPLAN_MODEL = 'fal-ai/flux-2-flex/edit';
 
@@ -45,25 +46,38 @@ export async function floorplanTo3D(input: FloorplanTo3DInput): Promise<Floorpla
   const userPrompt = input.userPrompt || DEFAULT_USER_PROMPT;
   const prompt = [systemPrompt, userPrompt].filter(Boolean).join('\n\n');
 
-  const blob = new Blob([new Uint8Array(input.imageBuffer)], { type: input.mimeType });
-  const imageUrl = await fal.storage.upload(blob);
+  return trackExternalCall(
+    {
+      service: 'fal.ai',
+      operation: 'floorplan-to-3d',
+      props: {
+        model: FAL_FLOORPLAN_MODEL,
+        imageSize: input.imageSize ?? 'landscape_4_3',
+        ...(input.seed !== undefined ? { seed: input.seed } : {}),
+      },
+    },
+    async () => {
+      const blob = new Blob([new Uint8Array(input.imageBuffer)], { type: input.mimeType });
+      const imageUrl = await fal.storage.upload(blob);
 
-  const payload: Flux2FlexEditInput = {
-    prompt,
-    image_urls: [imageUrl],
-    image_size: input.imageSize ?? 'landscape_4_3',
-    guidance_scale: input.guidanceScale ?? 3.5,
-    num_inference_steps: input.numInferenceSteps ?? 28,
-    output_format: 'png',
-    safety_tolerance: '2',
-    ...(input.seed !== undefined ? { seed: input.seed } : {}),
-  };
+      const payload: Flux2FlexEditInput = {
+        prompt,
+        image_urls: [imageUrl],
+        image_size: input.imageSize ?? 'landscape_4_3',
+        guidance_scale: input.guidanceScale ?? 3.5,
+        num_inference_steps: input.numInferenceSteps ?? 28,
+        output_format: 'png',
+        safety_tolerance: '2',
+        ...(input.seed !== undefined ? { seed: input.seed } : {}),
+      };
 
-  const response = await fal.subscribe(FAL_FLOORPLAN_MODEL, { input: payload });
-  const data = response.data as Flux2FlexEditOutput;
-  const image = data.images?.[0];
-  if (!image?.url) {
-    throw new Error('fal.ai response did not contain an output image.');
-  }
-  return { imageUrl: image.url, seed: data.seed };
+      const response = await fal.subscribe(FAL_FLOORPLAN_MODEL, { input: payload });
+      const data = response.data as Flux2FlexEditOutput;
+      const image = data.images?.[0];
+      if (!image?.url) {
+        throw new Error('fal.ai response did not contain an output image.');
+      }
+      return { imageUrl: image.url, seed: data.seed };
+    },
+  );
 }

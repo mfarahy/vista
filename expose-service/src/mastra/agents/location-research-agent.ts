@@ -5,6 +5,7 @@ import {
   getCachedLocationResearch,
   setCachedLocationResearch,
 } from '../../lib/location-research-cache.js';
+import { getLogger, trackExternalCall } from '../../lib/logger.js';
 import {
   locationResearchSchema,
   locationResearchInputSchema,
@@ -191,12 +192,20 @@ export async function researchLocation(
   const results = await Promise.all(
     buildLocationResearchQueries(validated).map(async (query) => ({
       query,
-      output: await provider.search({
-        query: query.query,
-        searchDepth: query.searchDepth,
-        maxResults: query.searchDepth === 'advanced' ? 5 : 4,
-        includeDomains: officialDomains,
-      }),
+      output: await trackExternalCall(
+        {
+          service: 'tavily',
+          operation: 'search',
+          props: { query: query.query, searchDepth: query.searchDepth },
+        },
+        () =>
+          provider.search({
+            query: query.query,
+            searchDepth: query.searchDepth,
+            maxResults: query.searchDepth === 'advanced' ? 5 : 4,
+            includeDomains: officialDomains,
+          }),
+      ),
     })),
   );
   const selected = results.flatMap(({ query, output }) =>
@@ -211,9 +220,14 @@ export async function researchLocation(
     ),
   ];
   const extracted = topUrls.length
-    ? await provider
-        .extract({ urls: topUrls, extractDepth: 'basic', format: 'text' })
-        .catch(() => ({ results: [] }))
+    ? await trackExternalCall(
+        {
+          service: 'tavily',
+          operation: 'extract',
+          props: { urlCount: topUrls.length },
+        },
+        () => provider.extract({ urls: topUrls, extractDepth: 'basic', format: 'text' }),
+      ).catch(() => ({ results: [] }))
     : { results: [] };
   const extractedByUrl = new Map(extracted.results.map((item) => [item.url, item.rawContent]));
   const sources = dedupeSources(
@@ -257,13 +271,16 @@ export async function researchLocation(
       ? claims.reduce((sum, claim) => sum + claim.confidence, 0) / claims.length
       : 0,
   });
-  console.info('[location-research] completed', {
-    propertyId: validated.propertyId,
-    cacheKey: locationResearchCacheKey(validated),
-    searches: results.length,
-    sources: sources.length,
-    claims: claims.length,
-  });
+  getLogger().info(
+    {
+      propertyId: validated.propertyId,
+      cacheKey: locationResearchCacheKey(validated),
+      searches: results.length,
+      sources: sources.length,
+      claims: claims.length,
+    },
+    'Location research completed for property {propertyId}',
+  );
   return setCachedLocationResearch(validated, research);
 }
 

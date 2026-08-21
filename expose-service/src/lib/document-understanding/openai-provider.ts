@@ -7,6 +7,7 @@ import type {
 } from './types.js';
 import { documentUnderstandingSchema, type DocumentUnderstandingStructured } from './schema.js';
 import { buildSystemPrompt, buildUserMessage } from './prompt.js';
+import { getLogger, trackExternalCall } from '../logger.js';
 
 /**
  * OpenAI-backed document understanding provider. Uses the OpenAI SDK's
@@ -38,15 +39,23 @@ export class OpenAIDocumentUnderstandingProvider implements DocumentUnderstandin
   }
 
   async analyzeDocument(input: DocumentUnderstandingInput): Promise<DocumentUnderstandingResult> {
-    const completion = await this.client.chat.completions.parse({
-      model: this.model,
-      ...(this.temperature !== undefined ? { temperature: this.temperature } : {}),
-      response_format: zodResponseFormat(documentUnderstandingSchema, 'document_understanding'),
-      messages: [
-        { role: 'system', content: buildSystemPrompt() },
-        { role: 'user', content: buildUserMessage(input) },
-      ],
-    });
+    const completion = await trackExternalCall(
+      {
+        service: 'openai',
+        operation: 'document-understanding',
+        props: { provider: 'openai', model: this.model },
+      },
+      () =>
+        this.client.chat.completions.parse({
+          model: this.model,
+          ...(this.temperature !== undefined ? { temperature: this.temperature } : {}),
+          response_format: zodResponseFormat(documentUnderstandingSchema, 'document_understanding'),
+          messages: [
+            { role: 'system', content: buildSystemPrompt() },
+            { role: 'user', content: buildUserMessage(input) },
+          ],
+        }),
+    );
 
     const parsed = completion.choices[0]?.message.parsed;
     if (!parsed) {
@@ -54,6 +63,16 @@ export class OpenAIDocumentUnderstandingProvider implements DocumentUnderstandin
     }
 
     const structured: DocumentUnderstandingStructured = documentUnderstandingSchema.parse(parsed);
+    getLogger().info(
+      {
+        provider: 'openai',
+        model: this.model,
+        inputTokens: completion.usage?.prompt_tokens,
+        outputTokens: completion.usage?.completion_tokens,
+        documentType: structured.documentType,
+      },
+      'AI document understanding completed with {provider}/{model}',
+    );
     return {
       documentType: structured.documentType,
       tags: [...structured.tags],

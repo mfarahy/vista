@@ -11,6 +11,17 @@ import type {
 } from './types.js';
 import type { PropertyExposeData } from './expose-data.js';
 import { structuredExposeContentSchema } from './validation.js';
+import { getLogger } from './logger.js';
+
+/** Strips query strings so signed/external URLs are not logged with tokens. */
+function sanitizeAssetUrl(url: string): string {
+  if (url.startsWith('data:')) return 'data-uri';
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return url.split('?')[0];
+  }
+}
 
 type RenderContent = ExposeContent | StructuredExposeContent;
 type Asset = PropertyImage | ExposeImage;
@@ -166,10 +177,10 @@ async function loadImage(url: string, declaredMime?: string): Promise<ResolvedAs
     const size = dimensions(buffer, mimeType);
     return { src: `data:${mimeType};base64,${buffer.toString('base64')}`, ...size, mimeType };
   } catch (error) {
-    console.warn('[pdf] image asset unavailable', {
-      url: url.startsWith('data:') ? 'data-uri' : url,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    getLogger().warn(
+      { url: sanitizeAssetUrl(url), err: error },
+      'PDF image asset unavailable for {url}',
+    );
     return null;
   }
 }
@@ -202,14 +213,15 @@ async function resolveReference(
 ) {
   const asset = assets.get(reference.assetId);
   if (!asset) {
-    console.warn('[pdf] image reference not found', { assetId: reference.assetId });
+    getLogger().warn({ assetId: reference.assetId }, 'PDF image reference not found for {assetId}');
     return null;
   }
   const url = 'url' in asset ? asset.url : '';
   const resolved = url
     ? await loadImage(url, 'mimeType' in asset ? asset.mimeType : undefined)
     : null;
-  if (!resolved) console.warn('[pdf] image reference omitted', { assetId: reference.assetId });
+  if (!resolved)
+    getLogger().warn({ assetId: reference.assetId }, 'PDF image reference omitted for {assetId}');
   return resolved ? { ...resolved, caption: imageCaption(asset, reference.caption) } : null;
 }
 

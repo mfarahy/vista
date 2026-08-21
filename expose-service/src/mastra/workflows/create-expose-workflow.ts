@@ -11,6 +11,7 @@ import {
   prepareExposeDataOutputSchema,
 } from '../schemas/index.js';
 import { researchLocation, validateLocationResearch } from '../agents/location-research-agent.js';
+import { getLogger } from '../../lib/logger.js';
 
 const validatePropertyData = createStep({
   id: 'ValidatePropertyData',
@@ -71,9 +72,10 @@ const researchLocationStep = createStep({
         },
       };
     } catch (error) {
-      console.warn('[location-research] failed; continuing without research', {
-        error: error instanceof Error ? error.message : String(error),
-      });
+      getLogger().warn(
+        { err: error },
+        'Location research failed; continuing without research in workflow',
+      );
       return inputData;
     }
   },

@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'node:path';
 import { uploadPath } from './lib/store.js';
 import { errorHandler } from './lib/http.js';
+import { requestLogger } from './lib/logger.js';
 import { systemRouter } from './routes/system.js';
 import { addressRouter } from './routes/address.js';
 import { propertiesRouter } from './routes/properties.js';
@@ -12,6 +13,7 @@ import { documentsRouter } from './routes/documents.js';
 export function createApp(): express.Express {
   const app = express();
 
+  app.use(requestLogger());
   app.use(cors({ origin: process.env.CORS_ORIGIN || true, credentials: true }));
   app.use(express.json({ limit: '20mb', type: ['application/json', 'application/*+json'] }));
   app.use('/uploads', express.static(uploadPath));

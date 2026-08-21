@@ -1,12 +1,13 @@
 import type { DocumentProcessorServiceClient } from '@google-cloud/documentai';
 import { readFile } from 'node:fs/promises';
+import type { ExtractedField } from '../types.js';
+import { trackExternalCall } from '../logger.js';
 import type {
   DocumentAnalysisInput,
   DocumentAnalysisResult,
   DocumentAnalysisProvider,
   DocumentPage,
 } from './types.js';
-import { detectDocumentType, extractFields } from './extract.js';
 
 /**
  * Minimal view of the Google Document AI response used for normalization. The
@@ -51,11 +52,13 @@ function pageText(
 /**
  * Converts the raw Google Document AI response into the application's internal
  * model. Kept as a pure function so it can be tested with a fake response.
+ *
+ * This layer is responsible only for OCR: text extraction and page
+ * information. It performs no semantic property extraction — the document type
+ * and all extracted property fields come from the AI understanding step, which
+ * is the single source of truth.
  */
-export function normalizeDocumentAIResponse(
-  raw: unknown,
-  sourceDocumentId: string,
-): DocumentAnalysisResult {
+export function normalizeDocumentAIResponse(raw: unknown): DocumentAnalysisResult {
   const response = (raw ?? {}) as { document?: RawDocumentLike };
   const document = response.document ?? {};
   const text = document.text?.trim() ?? '';
@@ -65,8 +68,9 @@ export function normalizeDocumentAIResponse(
     text: pageText(document, page),
   }));
 
-  const documentType = text ? detectDocumentType(text) : 'other';
-  const fields = extractFields(text, sourceDocumentId);
+  // No rule-based extraction runs here. Semantic fields are produced by the AI
+  // understanding step, so the OCR layer never emits values on its own.
+  const fields: ExtractedField[] = [];
 
   const entities = (document.entities ?? [])
     .filter((entity) => entity.type && entity.mentionText)
@@ -78,7 +82,6 @@ export function normalizeDocumentAIResponse(
 
   return {
     text,
-    documentType,
     pages,
     fields,
     metadata: entities.length ? { raw: { entities } } : undefined,
@@ -142,10 +145,18 @@ async function defaultProcessFn(input: ProcessDocumentInput): Promise<unknown> {
     await loadGoogleAuthOptions(),
   );
   const name = `projects/${projectId}/locations/${location}/processors/${processorId}`;
-  const [result] = await client.processDocument({
-    name,
-    rawDocument: { content: input.content, mimeType: input.mimeType },
-  });
+  const [result] = await trackExternalCall(
+    {
+      service: 'google-document-ai',
+      operation: 'process-document',
+      props: { processorId },
+    },
+    () =>
+      client.processDocument({
+        name,
+        rawDocument: { content: input.content, mimeType: input.mimeType },
+      }),
+  );
   return result;
 }
 
@@ -158,6 +169,6 @@ export class GoogleDocumentAIProvider implements DocumentAnalysisProvider {
 
   async analyzeDocument(input: DocumentAnalysisInput): Promise<DocumentAnalysisResult> {
     const raw = await this.processFn({ content: input.content, mimeType: input.mimeType });
-    return normalizeDocumentAIResponse(raw, input.documentId);
+    return normalizeDocumentAIResponse(raw);
   }
 }

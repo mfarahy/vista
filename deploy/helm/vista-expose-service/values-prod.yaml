@@ -6,6 +6,7 @@ config:
   CORS_ORIGIN: "https://vista.example.com"
   OPENAI_BASE_URL: "https://api.openai.com/v1"
   OPENAI_MODEL: "gpt-4o-mini"
+  LOG_LEVEL: "info"
 secrets:
   OPENAI_API_KEY: "replace-me"
   DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/vista"
