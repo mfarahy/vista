@@ -1,4 +1,6 @@
-import { LoaderCircle } from 'lucide-react';
+import { Check, LoaderCircle, MapPin, Search } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Input as ShadInput } from '@/components/ui/input';
 import type {
   BorisEnrichment,
   ExposeData,
@@ -31,7 +33,7 @@ function AddressDocumentSources({
   );
   if (!found.length) return null;
   return (
-    <div className="mt-3 space-y-2 border-t border-[#c8d9cb] pt-3">
+    <div className="mt-4 space-y-2 border-t pt-3">
       {found.map((group) => (
         <DocumentSources key={group[0].field} sources={group} />
       ))}
@@ -60,89 +62,100 @@ export function StepAddress({
   address: StructuredAddress;
   sources?: Record<string, WizardFieldCandidate[]>;
 }) {
+  const showSuggestions = suggestions.length > 0 && !selected;
   return (
     <Section
-      title="Property Address"
-      description="Start with the exact property address. Vista can use it as the foundation for location and property data."
+      title="Property address"
+      description="Start with the exact property address. Vista uses it as the foundation for location and property data."
     >
-      <div className="relative">
-        <label>
-          <span className="label">Search address</span>
-          <input
-            autoFocus
-            className="field"
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Start typing a street, house number or city"
-            aria-autocomplete="list"
-            aria-expanded={suggestions.length > 0}
-          />
-        </label>
-        {loading && (
-          <div className="mt-3 flex items-center gap-2 text-sm text-[#718078]">
-            <LoaderCircle size={15} className="animate-spin" /> Searching addresses…
+      <div className="space-y-6">
+        <div className="relative">
+          <span className="text-sm font-medium text-foreground">Search address</span>
+          <div className="relative mt-1.5">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <ShadInput
+              autoFocus
+              className="w-full pl-8"
+              value={query}
+              onChange={(event) => onQueryChange(event.target.value)}
+              placeholder="Start typing a street, house number or city"
+              aria-autocomplete="list"
+              aria-expanded={showSuggestions}
+            />
           </div>
-        )}
-        {lookupError && <p className="mt-3 text-sm text-red-700">{lookupError}</p>}
-        {!loading &&
-          query.trim().length >= 3 &&
-          !suggestions.length &&
-          !selected &&
-          !lookupError && (
-            <p className="mt-3 text-sm text-[#718078]">No matching addresses found.</p>
+          {loading && (
+            <p className="mt-2 inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <LoaderCircle className="size-4 animate-spin" /> Searching addresses…
+            </p>
           )}
-        {suggestions.length > 0 && (
-          <div
-            className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border border-[#dce4dc] bg-white shadow-xl"
-            role="listbox"
-          >
-            {suggestions.map((suggestion, index) => (
-              <button
-                type="button"
-                role="option"
-                key={`${suggestion.formattedAddress}-${index}`}
-                onClick={() => onSelect(suggestion)}
-                className="block w-full border-b border-[#edf1ed] px-4 py-3 text-left last:border-0 hover:bg-[#f1f6f1]"
-              >
-                <span className="block text-sm font-bold text-[#33463a]">
-                  {[suggestion.street, suggestion.houseNumber].filter(Boolean).join(' ') ||
-                    suggestion.formattedAddress}
-                </span>
-                <span className="mt-1 block text-xs text-[#718078]">
-                  {[suggestion.postalCode, suggestion.city, suggestion.state, suggestion.country]
-                    .filter(Boolean)
-                    .join(', ')}
-                </span>
-              </button>
-            ))}
+          {lookupError && <p className="mt-2 text-sm text-destructive">{lookupError}</p>}
+          {!loading &&
+            query.trim().length >= 3 &&
+            !suggestions.length &&
+            !selected &&
+            !lookupError && (
+              <p className="mt-2 text-sm text-muted-foreground">No matching addresses found.</p>
+            )}
+          {showSuggestions && (
+            <div
+              className="absolute z-20 mt-2 w-full overflow-hidden rounded-lg border bg-popover shadow-lg"
+              role="listbox"
+            >
+              {suggestions.map((suggestion, index) => (
+                <button
+                  type="button"
+                  role="option"
+                  key={`${suggestion.formattedAddress}-${index}`}
+                  onClick={() => onSelect(suggestion)}
+                  className="flex w-full items-center gap-3 border-b px-3 py-3 text-left last:border-0 hover:bg-accent"
+                >
+                  <MapPin className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-foreground">
+                      {[suggestion.street, suggestion.houseNumber].filter(Boolean).join(' ') ||
+                        suggestion.formattedAddress}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {[suggestion.postalCode, suggestion.city, suggestion.state, suggestion.country]
+                        .filter(Boolean)
+                        .join(', ')}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {selected && (
+          <div className="rounded-lg border border-primary/25 bg-primary/[0.04] p-4">
+            <div className="flex items-center gap-2">
+              <span className="grid size-6 place-items-center rounded-full bg-primary text-primary-foreground">
+                <Check className="size-3.5" aria-hidden />
+              </span>
+              <p className="text-sm font-semibold text-foreground">Address selected</p>
+            </div>
+            <p className="mt-3 text-sm font-semibold text-foreground">
+              {[
+                [address.street, address.houseNumber].filter(Boolean).join(' '),
+                [address.postalCode, address.city].filter(Boolean).join(' '),
+              ]
+                .filter(Boolean)
+                .join(', ')}
+            </p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {[address.street, address.houseNumber].filter(Boolean).join(' ')} ·{' '}
+              {[address.postalCode, address.city, address.state, address.country]
+                .filter(Boolean)
+                .join(', ')}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Structured address saved — you can continue without entering it again.
+            </p>
+            <AddressDocumentSources sources={sources} />
           </div>
         )}
       </div>
-      {selected && (
-        <div className="mt-6 rounded-xl border border-[#c8d9cb] bg-[#f0f6f0] p-4">
-          <p className="text-xs font-bold uppercase tracking-[.14em] text-[#607b68]">
-            Selected address
-          </p>
-          <p className="mt-2 font-bold text-[#304636]">
-            {[
-              [address.street, address.houseNumber].filter(Boolean).join(' '),
-              [address.postalCode, address.city].filter(Boolean).join(' '),
-            ]
-              .filter(Boolean)
-              .join(', ')}
-          </p>
-          <p className="mt-1 text-sm text-[#65736a]">
-            {[address.street, address.houseNumber].filter(Boolean).join(' ')} ·{' '}
-            {[address.postalCode, address.city, address.state, address.country]
-              .filter(Boolean)
-              .join(', ')}
-          </p>
-          <p className="mt-3 text-xs text-[#607b68]">
-            Structured address saved. You can continue without entering it again.
-          </p>
-          <AddressDocumentSources sources={sources} />
-        </div>
-      )}
     </Section>
   );
 }
@@ -169,44 +182,66 @@ export function StepProperty({
       title="Property"
       description="Basic information about the property. The listing title and subtype are generated at the end."
     >
-      <div className="grid gap-6">
-        <div>
-          <span className="label">Property type</span>
+      <div className="space-y-7">
+        <div className="space-y-3">
+          <span className="text-sm font-medium text-foreground">Property type</span>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {PROPERTY_TYPES.map(([key, name]) => (
-              <button
-                key={key}
-                onClick={() => {
-                  set('propertyType', key);
-                  updateExposeData({
-                    basicInformation: { ...exposeData.basicInformation, propertyType: key },
-                  });
-                }}
-                className={`rounded-xl border px-3 py-3 text-left text-xs font-bold transition ${property.propertyType === key ? 'border-[#6e8b76] bg-[#eaf0ea] text-[#45614d]' : 'border-[#e0e5e0] bg-white text-[#66716a] hover:border-[#9caf9e]'}`}
-              >
-                {name}
-              </button>
-            ))}
+            {PROPERTY_TYPES.map(([key, name]) => {
+              const active = property.propertyType === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => {
+                    set('propertyType', key);
+                    updateExposeData({
+                      basicInformation: { ...exposeData.basicInformation, propertyType: key },
+                    });
+                  }}
+                  aria-pressed={active}
+                  className={cn(
+                    'rounded-lg border px-3 py-3 text-left text-sm font-medium transition-colors',
+                    active
+                      ? 'border-primary bg-primary/[0.06] text-primary'
+                      : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                  )}
+                >
+                  {name}
+                </button>
+              );
+            })}
           </div>
           <DocumentSources sources={sources?.propertyType} />
         </div>
-        <div>
-          <span className="label">What are you planning?</span>
+
+        <div className="space-y-3">
+          <span className="text-sm font-medium text-foreground">What are you planning?</span>
           <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => set('transactionType', 'sale')}
-              className={`rounded-xl border px-4 py-4 text-left text-sm font-bold ${property.transactionType === 'sale' ? 'border-[#6e8b76] bg-[#eaf0ea] text-[#45614d]' : 'border-[#e0e5e0]'}`}
-            >
-              Sell
-            </button>
-            <button
-              onClick={() => set('transactionType', 'rent')}
-              className={`rounded-xl border px-4 py-4 text-left text-sm font-bold ${property.transactionType === 'rent' ? 'border-[#6e8b76] bg-[#eaf0ea] text-[#45614d]' : 'border-[#e0e5e0]'}`}
-            >
-              Rent
-            </button>
+            {(
+              [
+                ['sale', 'Sell'],
+                ['rent', 'Rent'],
+              ] as const
+            ).map(([key, label]) => {
+              const active = property.transactionType === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => set('transactionType', key)}
+                  aria-pressed={active}
+                  className={cn(
+                    'rounded-lg border px-4 py-3.5 text-left text-sm font-semibold transition-colors',
+                    active
+                      ? 'border-primary bg-primary/[0.06] text-primary'
+                      : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         </div>
+
         <div className="max-w-xs">
           <Input
             label="Year built (optional)"
@@ -217,6 +252,7 @@ export function StepProperty({
           />
           <DocumentSources sources={sources?.yearBuilt} />
         </div>
+
         <SectionNotes
           value={noteValue('property')}
           onChange={(value) => setNote('property', value)}
@@ -254,186 +290,195 @@ export function StepDetails({
       title="Details & price"
       description="The more precise the details, the better the AI can write."
     >
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <Input
-            label="Living area (m²)"
-            value={property.livingArea}
-            type="number"
-            onChange={(value) => set('livingArea', value ? Number(value) : null)}
-            placeholder="92"
-          />
-          <DocumentSources sources={sources?.livingArea} />
-        </div>
-        <div>
-          <Input
-            label="Plot size (m²)"
-            value={property.plotArea}
-            type="number"
-            onChange={(value) => set('plotArea', value ? Number(value) : null)}
-            placeholder="Optional"
-          />
-          <DocumentSources sources={sources?.plotArea} />
-        </div>
-        <div>
-          <Input
-            label="Rooms"
-            value={property.rooms}
-            type="number"
-            onChange={(value) => set('rooms', value ? Number(value) : null)}
-            placeholder="3"
-          />
-          <DocumentSources sources={sources?.rooms} />
-        </div>
-        <div>
-          <Input
-            label="Bedrooms"
-            value={property.bedrooms}
-            type="number"
-            onChange={(value) => set('bedrooms', value ? Number(value) : null)}
-            placeholder="2"
-          />
-          <DocumentSources sources={sources?.bedrooms} />
-        </div>
-        <div>
-          <Input
-            label="Bathrooms"
-            value={property.bathrooms}
-            type="number"
-            onChange={(value) => set('bathrooms', value ? Number(value) : null)}
-            placeholder="1"
-          />
-          <DocumentSources sources={sources?.bathrooms} />
-        </div>
-        {hasFloor && (
+      <div className="space-y-7">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Input
-              label="Floor"
-              value={property.floor}
-              onChange={(value) => set('floor', value)}
-              placeholder="e.g. 3rd floor"
+              label="Living area (m²)"
+              value={property.livingArea}
+              type="number"
+              onChange={(value) => set('livingArea', value ? Number(value) : null)}
+              placeholder="92"
             />
-            <DocumentSources sources={sources?.floor} />
+            <DocumentSources sources={sources?.livingArea} />
           </div>
-        )}
-        <div>
-          <Input
-            label="Total floors"
-            value={property.totalFloors}
-            type="number"
-            onChange={(value) => set('totalFloors', value ? Number(value) : null)}
-            placeholder="5"
+          <div>
+            <Input
+              label="Plot size (m²)"
+              value={property.plotArea}
+              type="number"
+              onChange={(value) => set('plotArea', value ? Number(value) : null)}
+              placeholder="Optional"
+            />
+            <DocumentSources sources={sources?.plotArea} />
+          </div>
+          <div>
+            <Input
+              label="Rooms"
+              value={property.rooms}
+              type="number"
+              onChange={(value) => set('rooms', value ? Number(value) : null)}
+              placeholder="3"
+            />
+            <DocumentSources sources={sources?.rooms} />
+          </div>
+          <div>
+            <Input
+              label="Bedrooms"
+              value={property.bedrooms}
+              type="number"
+              onChange={(value) => set('bedrooms', value ? Number(value) : null)}
+              placeholder="2"
+            />
+            <DocumentSources sources={sources?.bedrooms} />
+          </div>
+          <div>
+            <Input
+              label="Bathrooms"
+              value={property.bathrooms}
+              type="number"
+              onChange={(value) => set('bathrooms', value ? Number(value) : null)}
+              placeholder="1"
+            />
+            <DocumentSources sources={sources?.bathrooms} />
+          </div>
+          {hasFloor && (
+            <div>
+              <Input
+                label="Floor"
+                value={property.floor}
+                onChange={(value) => set('floor', value)}
+                placeholder="e.g. 3rd floor"
+              />
+              <DocumentSources sources={sources?.floor} />
+            </div>
+          )}
+          <div>
+            <Input
+              label="Total floors"
+              value={property.totalFloors}
+              type="number"
+              onChange={(value) => set('totalFloors', value ? Number(value) : null)}
+              placeholder="5"
+            />
+            <DocumentSources sources={sources?.numberOfFloors} />
+          </div>
+          <DatePicker
+            value={property.availableFrom}
+            onChange={(value) => set('availableFrom', value)}
           />
-          <DocumentSources sources={sources?.numberOfFloors} />
+          <Select
+            label="Condition"
+            value={property.condition}
+            onChange={(value) => set('condition', value)}
+            placeholder="Select an option"
+            options={[
+              ['new', 'Like new'],
+              ['renovated', 'Renovated'],
+              ['good', 'Well maintained'],
+              ['needs-renovation', 'Needs renovation'],
+            ]}
+          />
+          {sale ? (
+            <>
+              <Input
+                label="Asking price (€)"
+                value={property.askingPrice}
+                type="number"
+                onChange={(value) => set('askingPrice', value ? Number(value) : null)}
+                placeholder="449000"
+              />
+              <Input
+                label="Purchase costs (€)"
+                value={property.additionalCosts}
+                type="number"
+                onChange={(value) => set('additionalCosts', value ? Number(value) : null)}
+                placeholder="Optional"
+              />
+              <Input
+                label="Commission"
+                value={property.commission}
+                onChange={(value) => set('commission', value)}
+                placeholder="e.g. 3.57% incl. VAT"
+              />
+              <Input
+                label="Service charge / month (€)"
+                value={property.hausgeld}
+                type="number"
+                onChange={(value) => set('hausgeld', value ? Number(value) : null)}
+                placeholder="Optional"
+              />
+            </>
+          ) : (
+            <>
+              <Input
+                label="Cold rent / month (€)"
+                value={property.coldRent}
+                type="number"
+                onChange={(value) => set('coldRent', value ? Number(value) : null)}
+                placeholder="1800"
+              />
+              <Input
+                label="Additional costs / month (€)"
+                value={property.additionalCosts}
+                type="number"
+                onChange={(value) => set('additionalCosts', value ? Number(value) : null)}
+                placeholder="350"
+              />
+              <Input
+                label="Total rent / month (€)"
+                value={property.askingPrice}
+                type="number"
+                onChange={(value) => set('askingPrice', value ? Number(value) : null)}
+                placeholder="2150"
+              />
+              <Input
+                label="Deposit (€)"
+                value={property.deposit}
+                type="number"
+                onChange={(value) => set('deposit', value ? Number(value) : null)}
+                placeholder="5400"
+              />
+            </>
+          )}
+          <Input
+            label="Bodenrichtwert (€/m²)"
+            value={property.bodenrichtwert}
+            type="number"
+            onChange={(value) => set('bodenrichtwert', value ? Number(value) : null)}
+            placeholder={
+              boris?.bodenrichtwert?.value != null ? String(boris.bodenrichtwert.value) : 'Optional'
+            }
+          />
         </div>
-        <DatePicker
-          value={property.availableFrom}
-          onChange={(value) => set('availableFrom', value)}
-        />
-        <Select
-          label="Condition"
-          value={property.condition}
-          onChange={(value) => set('condition', value)}
-          options={[
-            ['', 'Select an option'],
-            ['new', 'Like new'],
-            ['renovated', 'Renovated'],
-            ['good', 'Well maintained'],
-            ['needs-renovation', 'Needs renovation'],
-          ]}
-        />
-        {sale ? (
-          <>
-            <Input
-              label="Asking price (€)"
-              value={property.askingPrice}
-              type="number"
-              onChange={(value) => set('askingPrice', value ? Number(value) : null)}
-              placeholder="449000"
-            />
-            <Input
-              label="Purchase costs (€)"
-              value={property.additionalCosts}
-              type="number"
-              onChange={(value) => set('additionalCosts', value ? Number(value) : null)}
-              placeholder="Optional"
-            />
-            <Input
-              label="Commission"
-              value={property.commission}
-              onChange={(value) => set('commission', value)}
-              placeholder="e.g. 3.57% incl. VAT"
-            />
-            <Input
-              label="Service charge / month (€)"
-              value={property.hausgeld}
-              type="number"
-              onChange={(value) => set('hausgeld', value ? Number(value) : null)}
-              placeholder="Optional"
-            />
-          </>
-        ) : (
-          <>
-            <Input
-              label="Cold rent / month (€)"
-              value={property.coldRent}
-              type="number"
-              onChange={(value) => set('coldRent', value ? Number(value) : null)}
-              placeholder="1800"
-            />
-            <Input
-              label="Additional costs / month (€)"
-              value={property.additionalCosts}
-              type="number"
-              onChange={(value) => set('additionalCosts', value ? Number(value) : null)}
-              placeholder="350"
-            />
-            <Input
-              label="Total rent / month (€)"
-              value={property.askingPrice}
-              type="number"
-              onChange={(value) => set('askingPrice', value ? Number(value) : null)}
-              placeholder="2150"
-            />
-            <Input
-              label="Deposit (€)"
-              value={property.deposit}
-              type="number"
-              onChange={(value) => set('deposit', value ? Number(value) : null)}
-              placeholder="5400"
-            />
-          </>
+
+        {borisLoading && (
+          <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <LoaderCircle className="size-4 animate-spin" /> Checking Bodenrichtwert…
+          </p>
         )}
-        <Input
-          label="Bodenrichtwert (€/m²)"
-          value={property.bodenrichtwert}
-          type="number"
-          onChange={(value) => set('bodenrichtwert', value ? Number(value) : null)}
-          placeholder={
-            boris?.bodenrichtwert?.value != null ? String(boris.bodenrichtwert.value) : 'Optional'
-          }
-        />
-        {borisLoading && <p className="text-sm text-[#718078]">Checking Bodenrichtwert…</p>}
+
         {boris?.available && boris.bodenrichtwert?.value != null && (
-          <div className="sm:col-span-2 rounded-xl border border-[#d0a35a] bg-[#fdf9f0] px-4 py-3 text-xs text-[#7a6230]">
-            <p className="font-bold">Bodenrichtwert {boris.bodenrichtwert.value} €/m²</p>
-            <p>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+            <p className="font-semibold">Bodenrichtwert {boris.bodenrichtwert.value} €/m²</p>
+            <p className="mt-0.5 text-amber-700">
               Source: {boris.source}
               {boris.referenceDate
                 ? ` · Reference date: ${new Date(boris.referenceDate).toLocaleDateString('en-GB')}`
                 : ''}
             </p>
-            <p className="mt-1 text-[#9a7a2f]">
+            <p className="mt-1 text-amber-600">
               Official value suggested — you can change it at any time.
             </p>
           </div>
         )}
+
+        <SectionNotes
+          value={noteValue('details')}
+          onChange={(value) => setNote('details', value)}
+          placeholder="Add any extra details or highlights about the property…"
+        />
       </div>
-      <SectionNotes
-        value={noteValue('details')}
-        onChange={(value) => setNote('details', value)}
-        placeholder="Add any extra details or highlights about the property…"
-      />
     </Section>
   );
 }

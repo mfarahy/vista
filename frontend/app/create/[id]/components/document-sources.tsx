@@ -1,6 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { ChevronDown, Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 import type { WizardFieldCandidate } from '../document-prefill';
 
 function formatValue(value: string | number | boolean | null): string {
@@ -28,36 +30,42 @@ export function DocumentSources({ sources }: { sources?: WizardFieldCandidate[] 
 
   return (
     <div className="mt-1.5">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[#607b68]">
-        <Sparkles size={12} className="shrink-0 text-[#78917d]" />
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+        <Sparkles className="size-3.5 shrink-0 text-primary" aria-hidden />
         <span>
           Found in your documents:{' '}
-          <span className="font-bold text-[#45614d]">
+          <span className="font-semibold text-foreground">
             {multiple ? `${sources.length} documents` : primary.sourceFilename}
           </span>
         </span>
         {conflicting && (
-          <span className="rounded-full bg-[#fdf3e3] px-2 py-0.5 font-bold text-[#9a7a2f]">
+          <Badge
+            variant="outline"
+            className="border-amber-300 bg-amber-50 font-medium text-amber-700"
+          >
             Different values found
-          </span>
+          </Badge>
         )}
         <button
           type="button"
           onClick={() => setOpen((current) => !current)}
-          className="inline-flex items-center gap-1 font-bold text-[#45614d] underline underline-offset-2"
+          className="inline-flex items-center gap-1 font-semibold text-primary underline-offset-2 hover:underline"
         >
           {open ? 'Hide sources' : 'Show sources'}
-          <ChevronDown size={12} className={open ? 'rotate-180 transition' : 'transition'} />
+          <ChevronDown
+            size={12}
+            className={cn('transition-transform', open && 'rotate-180')}
+          />
         </button>
       </div>
       {open && (
-        <ul className="mt-1.5 space-y-1.5 rounded-lg border border-[#e0e5e0] bg-[#fafcfb] px-3 py-2">
+        <ul className="mt-2 space-y-1.5 rounded-lg border bg-card px-3 py-2">
           {sources.map((source, index) => (
-            <li key={`${source.sourceDocumentId}-${index}`} className="text-[11px] leading-4">
-              <span className="font-bold text-[#45614d]">{source.sourceFilename}</span>
-              <span className="text-[#718078]"> → {formatValue(source.value)}</span>
+            <li key={`${source.sourceDocumentId}-${index}`} className="text-xs leading-5">
+              <span className="font-semibold text-foreground">{source.sourceFilename}</span>
+              <span className="text-muted-foreground"> → {formatValue(source.value)}</span>
               {source.evidence && (
-                <p className="mt-0.5 pl-0 text-[#7a877e]">Evidence: “{source.evidence}”</p>
+                <p className="text-muted-foreground">Evidence: “{source.evidence}”</p>
               )}
             </li>
           ))}

@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { ArrowLeft, Download, Printer } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { VistaLogoLink } from '@/components/vista-logo';
 
 export default function PreviewClient({
   id,
@@ -26,43 +28,44 @@ export default function PreviewClient({
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `raumwerk-expose-${id}.pdf`;
+    anchor.download = `vista-expose-${id}.pdf`;
     anchor.click();
     URL.revokeObjectURL(url);
     setLoading(false);
   }
 
   return (
-    <main className="min-h-screen bg-[#e7ebe7]">
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[#d8ded8] bg-[#f7f8f5]/95 px-5 py-4 backdrop-blur sm:px-8">
+    <main className="min-h-screen bg-muted/40">
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-background/95 px-4 py-3 backdrop-blur sm:px-8">
         <div className="flex items-center gap-4">
-          <Link href={`/create/${id}`} className="btn btn-ghost flex items-center gap-2">
-            <ArrowLeft size={16} /> <span className="hidden sm:inline">Back to editor</span>
-          </Link>
-          <div className="hidden border-l border-[#d9dfd9] pl-4 text-sm font-bold sm:block">
-            Preview · {title}
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/create/${id}`}>
+              <ArrowLeft className="size-4" /> <span className="hidden sm:inline">Back to editor</span>
+            </Link>
+          </Button>
+          <div className="hidden items-center gap-3 border-l pl-4 sm:flex">
+            <VistaLogoLink href="/" />
+            <span className="max-w-md truncate text-sm font-medium text-foreground">{title}</span>
           </div>
         </div>
         <div className="flex gap-2">
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => window.print()}
-            className="btn btn-secondary hidden items-center gap-2 sm:flex"
+            className="hidden sm:flex"
           >
-            <Printer size={15} /> Print
-          </button>
-          <button
-            onClick={pdf}
-            disabled={loading}
-            className="btn btn-primary flex items-center gap-2"
-          >
-            <Download size={15} /> {loading ? 'Creating PDF…' : 'Create PDF'}
-          </button>
+            <Printer className="size-4" /> Print
+          </Button>
+          <Button size="sm" onClick={pdf} disabled={loading}>
+            <Download className="size-4" /> {loading ? 'Creating PDF…' : 'Create PDF'}
+          </Button>
         </div>
       </header>
       <iframe
         title="Exposé preview"
         srcDoc={html}
-        className="mx-auto block h-[calc(100vh-73px)] w-full border-0"
+        className="mx-auto block h-[calc(100vh-56px)] w-full border-0"
       />
     </main>
   );

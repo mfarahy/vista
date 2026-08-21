@@ -12,6 +12,10 @@ import {
   X,
 } from 'lucide-react';
 import { apiAssetUrl, apiFetch } from '@/lib/api';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import type { DocumentRecord } from '../types';
 import { DOCUMENT_TYPE_LABELS } from '../types';
 import { Section } from './ui';
@@ -174,6 +178,7 @@ export function StepDocuments({
       if (response.ok) {
         setConfirmingId(null);
         notify(documents.filter((document) => document.id !== documentId));
+        toast.success('Document removed');
       } else setError('The document could not be removed.');
     } catch {
       setError('The document could not be removed.');
@@ -191,196 +196,200 @@ export function StepDocuments({
   return (
     <Section
       title="Property documents"
-      description="Upload any documents, plans or photos you have. Vista will analyze them and use the information to prefill the property details."
+      description="Upload any documents, plans or photos you have. Vista analyzes them and prefills the property details for you."
     >
-      <div
-        onDragOver={(event) => {
-          event.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(event) => {
-          event.preventDefault();
-          setDragOver(false);
-          uploadFiles(event.dataTransfer.files);
-        }}
-        className={`rounded-2xl border-2 border-dashed p-8 text-center transition ${
-          dragOver ? 'border-[#6e8b76] bg-[#f0f6f0]' : 'border-[#c8d9cb] bg-[#f6faf6]'
-        }`}
-      >
-        <UploadCloud size={28} className="mx-auto text-[#78917d]" />
-        <p className="mt-3 font-bold text-[#415743]">
-          Upload everything you have about this property
-        </p>
-        <p className="mt-1 text-sm text-[#718078]">
-          Vista will organize the documents and use the information to prefill the rest of the
-          wizard.
-        </p>
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="btn btn-primary mt-4"
-          disabled={uploading}
-        >
-          {uploading ? (
-            <LoaderCircle size={15} className="animate-spin" />
-          ) : (
-            <UploadCloud size={15} />
-          )}{' '}
-          {uploading ? 'Uploading…' : 'Upload documents'}
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept={ACCEPT}
-          multiple
-          className="hidden"
-          onChange={(event) => {
-            uploadFiles(event.target.files);
-            event.target.value = '';
+      <div className="space-y-6">
+        <div
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragOver(true);
           }}
-        />
-        <p className="mt-2 text-[11px] text-[#9aab9d]">
-          Drag &amp; drop or choose files · PDF, JPG, PNG or WEBP · up to 25 MB each
-        </p>
-      </div>
-
-      {error && <p className="mt-4 text-sm text-red-700">{error}</p>}
-
-      {uploading && documents.length > 0 && (
-        <p className="mt-4 inline-flex items-center gap-2 text-sm text-[#718078]">
-          <LoaderCircle size={15} className="animate-spin" /> Analyzing…
-        </p>
-      )}
-
-      {!documents.length && !uploading ? (
-        <div className="mt-8 rounded-2xl border border-[#e1e7e1] bg-[#fafcfb] p-10 text-center">
-          <FileText size={26} className="mx-auto text-[#aab4ac]" />
-          <p className="mt-3 font-bold text-[#415743]">No documents yet</p>
-          <p className="mx-auto mt-1 max-w-md text-sm text-[#718078]">
-            Upload your property documents, plans or photos. Vista will organize them and use them
-            to help complete the wizard.
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragOver(false);
+            uploadFiles(event.dataTransfer.files);
+          }}
+          className={cn(
+            'flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors',
+            dragOver
+              ? 'border-primary bg-primary/[0.05]'
+              : 'border-border bg-muted/30 hover:border-primary/40',
+          )}
+        >
+          <span className="grid size-12 place-items-center rounded-xl bg-primary/10 text-primary">
+            <UploadCloud className="size-6" aria-hidden />
+          </span>
+          <p className="mt-4 text-sm font-semibold text-foreground">
+            Upload everything you have about this property
           </p>
-          <button
+          <p className="mt-1 max-w-md text-sm text-muted-foreground">
+            Vista organizes the documents and uses the information to prefill the rest of the wizard.
+          </p>
+          <Button
             type="button"
+            className="mt-5"
+            disabled={uploading}
             onClick={() => fileRef.current?.click()}
-            className="btn btn-primary mt-5"
           >
-            <UploadCloud size={15} /> Upload documents
-          </button>
+            {uploading ? <LoaderCircle className="size-4 animate-spin" /> : <UploadCloud className="size-4" />}
+            {uploading ? 'Uploading…' : 'Upload documents'}
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept={ACCEPT}
+            multiple
+            className="hidden"
+            onChange={(event) => {
+              uploadFiles(event.target.files);
+              event.target.value = '';
+            }}
+          />
+          <p className="mt-3 text-xs text-muted-foreground">
+            Drag &amp; drop or choose files · PDF, JPG, PNG or WEBP · up to 25 MB each
+          </p>
         </div>
-      ) : null}
 
-      {documents.length > 0 && (
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {documents.map((document) => (
-            <DocumentCard
-              key={document.id}
-              document={document}
-              confirming={confirmingId === document.id}
-              onToggleConfirm={() => toggleConfirm(document.id)}
-              onRemove={() => remove(document.id)}
-              onRetry={() => retry(document.id)}
-            />
-          ))}
-        </div>
-      )}
+        {error && (
+          <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            {error}
+          </p>
+        )}
 
-      {hasFoundInfo && (
-        <div className="mt-8 rounded-2xl border border-[#c8d9cb] bg-[#f6faf6] p-5">
-          <div className="flex items-center gap-2">
-            <Check size={16} className="text-[#2f7d46]" />
-            <p className="font-bold text-[#415743]">Information found</p>
+        {uploading && documents.length > 0 && (
+          <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <LoaderCircle className="size-4 animate-spin" /> Analyzing…
+          </p>
+        )}
+
+        {!documents.length && !uploading ? (
+          <div className="flex flex-col items-center justify-center rounded-xl border bg-muted/20 px-6 py-12 text-center">
+            <FileText className="size-6 text-muted-foreground" aria-hidden />
+            <p className="mt-3 text-sm font-semibold text-foreground">No documents yet</p>
+            <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+              Upload your property documents, plans or photos. Vista will organize them and use them
+              to help complete the wizard.
+            </p>
+            <Button type="button" className="mt-5" onClick={() => fileRef.current?.click()}>
+              <UploadCloud className="size-4" /> Upload documents
+            </Button>
           </div>
-          <p className="mt-1 text-xs text-[#718078]">
-            Vista understood your documents and found useful information across {analyzedCount}{' '}
-            {analyzedCount === 1 ? 'document' : 'documents'}.
-          </p>
-          <div className="mt-4 grid gap-6 sm:grid-cols-2">
-            {foundAddress.length > 0 && (
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[.14em] text-[#607b68]">
-                  Address
-                </p>
-                <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
-                  {ADDRESS_FIELDS.map(([field, label]) => {
-                    const sources = sourcesByField[field];
-                    if (!sources?.length) return null;
-                    return (
-                      <li key={field} className="inline-flex items-center gap-1.5 text-sm">
-                        <Check size={13} className="shrink-0 text-[#2f7d46]" />
-                        <span className="text-[#415743]">{label}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-            {foundProperty.length > 0 && (
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[.14em] text-[#607b68]">
-                  Property
-                </p>
-                <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
-                  {PROPERTY_FIELDS.map(([field, label]) => {
-                    const sources = sourcesByField[field];
-                    if (!sources?.length) return null;
-                    return (
-                      <li key={field} className="inline-flex items-center gap-1.5 text-sm">
-                        <Check size={13} className="shrink-0 text-[#2f7d46]" />
-                        <span className="text-[#415743]">{label}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+        ) : null}
 
-      {conflicts.length > 0 && (
-        <div className="mt-4 rounded-2xl border border-[#ecd9b0] bg-[#fdf6e9] p-5">
-          <p className="inline-flex items-center gap-2 font-bold text-[#9a7a2f]">
-            <AlertTriangle size={16} /> Different values found in your documents
-          </p>
-          <p className="mt-1 text-xs text-[#8a7a4a]">
-            Some fields were found with different values. You can review and adjust them later in
-            the wizard.
-          </p>
-          <ul className="mt-4 space-y-3">
-            {conflicts.map(({ field, sources }) => {
-              const differing = sources.filter(
-                (source, index) =>
-                  sources.findIndex(
-                    (other) => JSON.stringify(other.value) === JSON.stringify(source.value),
-                  ) === index,
-              );
-              return (
-                <li key={field}>
-                  <p className="text-sm font-bold text-[#415743]">
-                    {conflictLabel(field)}{' '}
-                    <span className="font-normal text-[#7a877e]">
-                      · {formatValue(sources[0].value)}
-                    </span>
+        {documents.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {documents.map((document) => (
+              <DocumentCard
+                key={document.id}
+                document={document}
+                confirming={confirmingId === document.id}
+                onToggleConfirm={() => toggleConfirm(document.id)}
+                onRemove={() => remove(document.id)}
+                onRetry={() => retry(document.id)}
+              />
+            ))}
+          </div>
+        )}
+
+        {hasFoundInfo && (
+          <div className="rounded-lg border border-primary/25 bg-primary/[0.04] p-5">
+            <div className="flex items-center gap-2">
+              <span className="grid size-6 place-items-center rounded-full bg-primary text-primary-foreground">
+                <Check className="size-3.5" aria-hidden />
+              </span>
+              <p className="font-semibold text-foreground">Information found</p>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Vista understood your documents and found useful information across {analyzedCount}{' '}
+              {analyzedCount === 1 ? 'document' : 'documents'}.
+            </p>
+            <div className="mt-4 grid gap-6 sm:grid-cols-2">
+              {foundAddress.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Address
                   </p>
-                  {differing.length > 1 && (
-                    <p className="mt-0.5 text-xs text-[#8a7a4a]">
-                      Different value also found in:{' '}
-                      <span className="font-bold text-[#7a6230]">
-                        {differing
-                          .slice(1)
-                          .map((source) => source.sourceFilename)
-                          .join(', ')}
+                  <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+                    {ADDRESS_FIELDS.map(([field, label]) => {
+                      const sources = sourcesByField[field];
+                      if (!sources?.length) return null;
+                      return (
+                        <li key={field} className="inline-flex items-center gap-1.5 text-sm">
+                          <Check className="size-3.5 shrink-0 text-primary" aria-hidden />
+                          <span className="text-foreground">{label}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+              {foundProperty.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Property
+                  </p>
+                  <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+                    {PROPERTY_FIELDS.map(([field, label]) => {
+                      const sources = sourcesByField[field];
+                      if (!sources?.length) return null;
+                      return (
+                        <li key={field} className="inline-flex items-center gap-1.5 text-sm">
+                          <Check className="size-3.5 shrink-0 text-primary" aria-hidden />
+                          <span className="text-foreground">{label}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {conflicts.length > 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-5">
+            <p className="inline-flex items-center gap-2 font-semibold text-amber-800">
+              <AlertTriangle className="size-4" /> Different values found in your documents
+            </p>
+            <p className="mt-1 text-sm text-amber-700">
+              Some fields were found with different values. You can review and adjust them later in
+              the wizard.
+            </p>
+            <ul className="mt-4 space-y-3">
+              {conflicts.map(({ field, sources }) => {
+                const differing = sources.filter(
+                  (source, index) =>
+                    sources.findIndex(
+                      (other) => JSON.stringify(other.value) === JSON.stringify(source.value),
+                    ) === index,
+                );
+                return (
+                  <li key={field}>
+                    <p className="text-sm font-semibold text-foreground">
+                      {conflictLabel(field)}{' '}
+                      <span className="font-normal text-muted-foreground">
+                        · {formatValue(sources[0].value)}
                       </span>
                     </p>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
+                    {differing.length > 1 && (
+                      <p className="mt-0.5 text-xs text-amber-700">
+                        Different value also found in:{' '}
+                        <span className="font-semibold text-amber-800">
+                          {differing
+                            .slice(1)
+                            .map((source) => source.sourceFilename)
+                            .join(', ')}
+                        </span>
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </div>
     </Section>
   );
 }
@@ -410,11 +419,11 @@ function DocumentCard({
       : [];
 
   return (
-    <div className="rounded-2xl border border-[#e1e7e1] bg-[#fafcfb] p-4">
+    <div className="flex flex-col rounded-xl border bg-card p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-3">
           {image ? (
-            <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-[#eaf0ea]">
+            <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted">
               <img
                 src={apiAssetUrl(document.url)}
                 alt={document.filename}
@@ -422,135 +431,126 @@ function DocumentCard({
               />
             </div>
           ) : (
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#eaf0ea] text-[#45614d]">
-              <FileText size={20} />
+            <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+              <FileText className="size-5" />
             </span>
           )}
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-[#33463a]" title={document.filename}>
+            <p className="truncate text-sm font-medium text-foreground" title={document.filename}>
               {document.filename}
             </p>
-            <p className="text-[11px] text-[#7a877e]">
+            <p className="text-xs text-muted-foreground">
               {image ? 'Image' : 'Document'} · {formatSize(document.size)}
             </p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <button
+          <Button
             type="button"
-            onClick={onToggleConfirm}
-            className="rounded-lg p-1.5 text-[#aab4ac] hover:bg-[#eef3ee] hover:text-red-600"
+            variant="ghost"
+            size="icon-xs"
             aria-label={`Remove ${document.filename}`}
+            className="text-muted-foreground hover:text-destructive"
+            onClick={onToggleConfirm}
           >
-            {confirming ? <X size={16} /> : <Trash2 size={16} />}
-          </button>
+            {confirming ? <X className="size-4" /> : <Trash2 className="size-4" />}
+          </Button>
           {document.understandingResult && (
-            <button
+            <Button
               type="button"
-              onClick={() => setOpen((current) => !current)}
-              className="rounded-lg p-1.5 text-[#aab4ac] hover:bg-[#eef3ee] hover:text-[#45614d]"
+              variant="ghost"
+              size="icon-xs"
               aria-label={`Inspect ${document.filename}`}
               aria-expanded={open}
+              className="text-muted-foreground"
+              onClick={() => setOpen((current) => !current)}
             >
-              <ChevronDown size={16} className={open ? 'rotate-180 transition' : 'transition'} />
-            </button>
+              <ChevronDown className={cn('size-4 transition-transform', open && 'rotate-180')} />
+            </Button>
           )}
         </div>
       </div>
 
       {confirming && (
-        <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3">
-          <p className="text-xs text-red-700">Remove this document from the property?</p>
+        <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+          <p className="text-sm text-destructive">Remove this document from the property?</p>
           <div className="mt-2 flex gap-2">
-            <button
-              type="button"
-              onClick={onRemove}
-              className="btn bg-red-600 px-3 py-1.5 text-[11px] text-white"
-            >
+            <Button type="button" variant="destructive" size="sm" onClick={onRemove}>
               Remove
-            </button>
-            <button
-              type="button"
-              onClick={onToggleConfirm}
-              className="btn btn-secondary px-3 py-1.5 text-[11px]"
-            >
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={onToggleConfirm}>
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {document.documentType && document.documentType !== 'other' && (
-          <span className="rounded-full bg-[#eaf0ea] px-2 py-0.5 text-[11px] font-bold text-[#45614d]">
-            {DOCUMENT_TYPE_LABELS[document.documentType]}
-          </span>
+          <Badge variant="secondary">{DOCUMENT_TYPE_LABELS[document.documentType]}</Badge>
         )}
         {analyzed && (
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#2f7d46]">
-            <Check size={13} /> Analyzed
-          </span>
+          <Badge variant="outline" className="border-transparent bg-primary/10 font-medium text-primary">
+            <Check className="size-3" /> Analyzed
+          </Badge>
         )}
         {document.status === 'completed' && !document.understandingResult && (
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#718078]">
-            <Check size={13} /> Analyzed
-          </span>
+          <Badge variant="outline" className="text-muted-foreground">
+            <Check className="size-3" /> Analyzed
+          </Badge>
         )}
         {failed && (
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600">
+          <Badge variant="outline" className="border-transparent bg-destructive/10 font-medium text-destructive">
             Analysis failed
-          </span>
+          </Badge>
         )}
         {analyzing && (
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#718078]">
-            <LoaderCircle size={13} className="animate-spin" /> Analyzing…
-          </span>
+          <Badge variant="outline" className="text-muted-foreground">
+            <LoaderCircle className="size-3 animate-spin" /> Analyzing…
+          </Badge>
         )}
       </div>
 
       {tags.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {tags.map((tag) => (
-            <span
-              key={tag}
-              className="rounded-full bg-[#fdf3e3] px-2 py-0.5 text-[10px] font-semibold text-[#9a7a2f]"
-            >
+            <Badge key={tag} variant="secondary" className="font-normal">
               {tag}
-            </span>
+            </Badge>
           ))}
         </div>
       )}
 
       {document.understandingResult?.summary && !open ? (
-        <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-[#7a877e]">
+        <p className="mt-2 line-clamp-2 text-xs leading-4 text-muted-foreground">
           {document.understandingResult.summary}
         </p>
       ) : null}
 
       {open && document.understandingResult && (
-        <div className="mt-3 space-y-3 border-t border-[#e1e7e1] pt-3">
+        <div className="mt-3 space-y-3 border-t pt-3">
           {document.understandingResult.summary ? (
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#607b68]">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Summary
               </p>
-              <p className="mt-1 text-[11px] leading-4 text-[#415743]">
+              <p className="mt-1 text-xs leading-4 text-foreground">
                 {document.understandingResult.summary}
               </p>
             </div>
           ) : null}
           {document.understandingResult.wizardFields?.length ? (
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#607b68]">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Extracted information
               </p>
               <ul className="mt-1 space-y-1">
                 {document.understandingResult.wizardFields.map((field, index) => (
-                  <li key={`${field.field}-${index}`} className="text-[11px] leading-4">
-                    <span className="font-bold text-[#415743]">{field.field}</span>
-                    <span className="text-[#718078]"> → {formatValue(field.value)}</span>
+                  <li key={`${field.field}-${index}`} className="text-xs leading-5">
+                    <span className="font-medium text-foreground">{field.field}</span>
+                    <span className="text-muted-foreground"> → {formatValue(field.value)}</span>
                     {field.evidence && (
-                      <span className="block text-[#7a877e]">Evidence: “{field.evidence}”</span>
+                      <span className="block text-muted-foreground">Evidence: “{field.evidence}”</span>
                     )}
                   </li>
                 ))}
@@ -559,14 +559,14 @@ function DocumentCard({
           ) : null}
           {document.understandingResult.additionalInformation?.length ? (
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#607b68]">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Additional information
               </p>
               <ul className="mt-1 space-y-1">
                 {document.understandingResult.additionalInformation.map((info, index) => (
-                  <li key={`${info.key}-${index}`} className="text-[11px] leading-4">
-                    <span className="font-bold text-[#415743]">{info.key}</span>
-                    <span className="text-[#718078]"> → {formatValue(info.value)}</span>
+                  <li key={`${info.key}-${index}`} className="text-xs leading-5">
+                    <span className="font-medium text-foreground">{info.key}</span>
+                    <span className="text-muted-foreground"> → {formatValue(info.value)}</span>
                   </li>
                 ))}
               </ul>
@@ -576,13 +576,15 @@ function DocumentCard({
       )}
 
       {failed && (
-        <button
+        <Button
           type="button"
+          variant="link"
+          size="sm"
+          className="mt-2 h-auto justify-start p-0 text-primary"
           onClick={onRetry}
-          className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-[#607b68] underline"
         >
-          <RefreshCw size={13} /> Try analysis again
-        </button>
+          <RefreshCw className="size-3.5" /> Try analysis again
+        </Button>
       )}
     </div>
   );

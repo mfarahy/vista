@@ -2,7 +2,22 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, FileText, LoaderCircle, Sparkles, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  FileText,
+  LoaderCircle,
+  Sparkles,
+  X,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
+import { VistaLogoLink } from '@/components/vista-logo';
 import { apiFetch } from '@/lib/api';
 import type {
   BorisEnrichment,
@@ -552,7 +567,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     });
     const result = await response.json();
     if (!response.ok) setError(result.error || 'The AI could not generate a title.');
-    else
+    else {
       updateExposeData({
         basicInformation: {
           ...property.exposeData!.basicInformation,
@@ -560,6 +575,8 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
           propertySubtype: result.subtitle,
         },
       });
+      toast.success('Listing title generated');
+    }
     setMetadataLoading(false);
   }
 
@@ -644,8 +661,10 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       const response = await apiFetch(`/api/properties/${initialProperty.id}/images/${id}`, {
         method: 'DELETE',
       });
-      if (response.ok) setImages((current) => current.filter((image) => image.id !== id));
-      else setError('The image could not be removed.');
+      if (response.ok) {
+        setImages((current) => current.filter((image) => image.id !== id));
+        toast.success('Photo removed');
+      } else setError('The image could not be removed.');
     } catch {
       setError('The image could not be removed.');
     }
@@ -684,220 +703,291 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
   }
 
   return (
-    <main className="min-h-screen bg-[#f4f6f3]">
-      <header className="flex items-center justify-between border-b border-[#e0e5e0] bg-white px-5 py-4 sm:px-8">
-        <Link href="/" className="flex items-center gap-3">
-          <span className="grid h-8 w-8 place-items-center rounded-full bg-[#202522] font-serif text-white">
-            R
-          </span>
-          <span className="hidden text-sm font-bold tracking-[.16em] sm:block">RAUMWERK</span>
-        </Link>
+    <main className="min-h-screen bg-background">
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-card/90 px-5 py-3.5 backdrop-blur sm:px-8">
+        <VistaLogoLink href="/" />
         <div className="flex items-center gap-3">
-          <span className="hidden text-xs text-[#7a877e] sm:block">
-            {saving ? 'Saving…' : 'Saved automatically'}
+          <span className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex">
+            {saving ? (
+              <>
+                <LoaderCircle className="size-3.5 animate-spin" /> Saving…
+              </>
+            ) : (
+              <>
+                <span className="size-1.5 rounded-full bg-emerald-500" />
+                Saved automatically
+              </>
+            )}
           </span>
-          <span className="h-2 w-2 rounded-full bg-[#84a28b]" />
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/">Back to drafts</Link>
+          </Button>
         </div>
       </header>
-      <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-12">
-        <div className="mb-9 flex items-end justify-between">
+
+      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:py-10">
+        <div className="mb-7 flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-bold tracking-[.18em] text-[#607b68]">NEW EXPOSÉ</p>
-            <h1 className="serif mt-2 text-3xl sm:text-4xl">Your property, in focus.</h1>
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+              New exposé
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+              {STEPS[Math.min(step, 9)]}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Step {Math.min(step + 1, 10)} of {STEPS.length}
+            </p>
           </div>
-          <span className="text-sm text-[#7c887f]">{Math.min(step + 1, 10)} / 10</span>
+          <span className="hidden text-sm font-medium text-muted-foreground sm:block">
+            {Math.round(((Math.min(step, 9) + 1) / STEPS.length) * 100)}% complete
+          </span>
         </div>
-        <div className="mb-10 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10">
+
+        <Progress
+          value={((Math.min(step, 9) + 1) / STEPS.length) * 100}
+          className="mb-8 h-1.5"
+        />
+
+        <div className="lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-8">
           <nav
-            className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-5 lg:mb-0 lg:block lg:space-y-2"
+            className="mb-6 flex gap-1 overflow-x-auto pb-2 lg:mb-0 lg:block lg:space-y-1 lg:overflow-visible lg:pb-0"
             aria-label="Wizard steps"
           >
-            {STEPS.map((name, index) => (
-              <button
-                key={name}
-                onClick={() => index <= step && setStep(index)}
-                disabled={index > step}
-                className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left text-xs font-bold transition ${index === step ? 'border-[#202522] bg-[#202522] text-white' : index < step ? 'border-[#c5d3c7] bg-[#edf3ee] text-[#48624f]' : 'border-[#e0e5e0] bg-white text-[#aab4ac]'}`}
-              >
-                <span
-                  className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border text-[11px] ${index < step ? 'border-[#78917d] bg-[#78917d] text-white' : index === step ? 'border-white/30 bg-white/10 text-white' : 'border-[#d7ded8] bg-white'}`}
+            {STEPS.map((name, index) => {
+              const current = index === step;
+              const completed = index < step;
+              const future = index > step;
+              return (
+                <button
+                  key={name}
+                  onClick={() => index <= step && setStep(index)}
+                  disabled={future}
+                  aria-current={current ? 'step' : undefined}
+                  className={cn(
+                    'group flex min-w-[160px] shrink-0 items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors lg:min-w-0 lg:w-full',
+                    current
+                      ? 'border-primary bg-primary/[0.06]'
+                      : completed
+                        ? 'border-border bg-card hover:bg-muted/40'
+                        : 'cursor-not-allowed border-transparent bg-transparent',
+                  )}
                 >
-                  {index < step ? <Check size={14} /> : `0${index + 1}`}
-                </span>
-                <span className="min-w-0 leading-4">{name}</span>
-              </button>
-            ))}
+                  <span
+                    className={cn(
+                      'grid size-6 shrink-0 place-items-center rounded-full border text-xs font-semibold transition-colors',
+                      current
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : completed
+                          ? 'border-transparent bg-primary/90 text-primary-foreground'
+                          : 'border-border text-muted-foreground',
+                    )}
+                  >
+                    {completed ? <Check className="size-3.5" aria-hidden /> : index + 1}
+                  </span>
+                  <span
+                    className={cn(
+                      'truncate text-sm',
+                      current
+                        ? 'font-semibold text-primary'
+                        : completed
+                          ? 'font-medium text-foreground'
+                          : 'font-medium text-muted-foreground/60',
+                    )}
+                  >
+                    {name}
+                  </span>
+                </button>
+              );
+            })}
           </nav>
+
           <div className="min-w-0">
             {error && (
-              <div className="mb-6 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-                <button onClick={() => setError('')}>
-                  <X size={16} />
-                </button>
-              </div>
+              <Alert variant="destructive" className="mb-6">
+                <AlertTitle className="flex items-center justify-between gap-2">
+                  Something went wrong
+                  <button onClick={() => setError('')} aria-label="Dismiss">
+                    <X className="size-4" />
+                  </button>
+                </AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
-            {step < 10 ? (
-              <div className="step-enter">
-                {step === 0 && (
-                  <StepDocuments
-                    propertyId={initialProperty.id}
-                    onExtracted={applyExtractedDocuments}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.16, ease: 'easeOut' }}
+              >
+                {step < 10 ? (
+                  <>
+                    {step === 0 && (
+                      <StepDocuments
+                        propertyId={initialProperty.id}
+                        onExtracted={applyExtractedDocuments}
+                      />
+                    )}
+                    {step === 1 && (
+                      <StepAddress
+                        query={addressQuery}
+                        suggestions={addressSuggestions}
+                        loading={addressLoading}
+                        lookupError={addressError}
+                        selected={addressSelected}
+                        onQueryChange={(value) => {
+                          setAddressQuery(value);
+                          setAddressSelected(false);
+                        }}
+                        onSelect={selectAddress}
+                        address={property.exposeData!.basicInformation.address}
+                        sources={fieldSources}
+                      />
+                    )}
+                    {step === 1 && addressSelected && (
+                      <AddressDebugPanel
+                        propertyId={initialProperty.id}
+                        property={property}
+                        address={property.exposeData!.basicInformation.address}
+                        onData={applyExternalData}
+                      />
+                    )}
+                    {step === 2 && (
+                      <StepProperty
+                        property={property}
+                        set={set}
+                        exposeData={property.exposeData!}
+                        updateExposeData={updateExposeData}
+                        noteValue={noteValue}
+                        setNote={setNote}
+                        sources={fieldSources}
+                      />
+                    )}
+                    {step === 3 && (
+                      <StepDetails
+                        property={property}
+                        set={set}
+                        boris={boris}
+                        borisLoading={borisLoading}
+                        noteValue={noteValue}
+                        setNote={setNote}
+                        sources={fieldSources}
+                      />
+                    )}
+                    {step === 4 && (
+                      <StepFeatures
+                        property={property}
+                        set={set}
+                        exposeData={property.exposeData!}
+                        updateExposeData={updateExposeData}
+                        noteValue={noteValue}
+                        setNote={setNote}
+                        sources={fieldSources}
+                      />
+                    )}
+                    {step === 5 && (
+                      <StepEnergy
+                        data={property.exposeData!.energy}
+                        update={(energy) => updateExposeData({ energy })}
+                        noteValue={noteValue}
+                        setNote={setNote}
+                        sources={fieldSources}
+                      />
+                    )}
+                    {step === 6 && (
+                      <StepPhotos
+                        images={images}
+                        rooms={property.rooms}
+                        upload={upload}
+                        removeImage={removeImage}
+                        cover={cover}
+                        moveImage={moveImage}
+                        noteValue={noteValue}
+                        setNote={setNote}
+                      />
+                    )}
+                    {step === 7 && (
+                      <StepPlans
+                        images={images}
+                        upload={upload}
+                        removeImage={removeImage}
+                        cover={cover}
+                        moveImage={moveImage}
+                        noteValue={noteValue}
+                        setNote={setNote}
+                      />
+                    )}
+                    {step === 8 && (
+                      <StepAgent
+                        data={property.exposeData!.agent}
+                        update={(agent) => updateExposeData({ agent })}
+                        noteValue={noteValue}
+                        setNote={setNote}
+                      />
+                    )}
+                    {step === 9 && (
+                      <Review
+                        property={property}
+                        images={images}
+                        onEdit={setStep}
+                        generateMetadata={generateMetadata}
+                        metadataLoading={metadataLoading}
+                        updateExposeData={updateExposeData}
+                        noteValue={noteValue}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <ContentEditor
+                    content={content}
+                    setContent={setContent}
+                    onGenerate={generate}
+                    loading={aiLoading}
+                    saving={saving}
                   />
                 )}
-                {step === 1 && (
-                  <StepAddress
-                    query={addressQuery}
-                    suggestions={addressSuggestions}
-                    loading={addressLoading}
-                    lookupError={addressError}
-                    selected={addressSelected}
-                    onQueryChange={(value) => {
-                      setAddressQuery(value);
-                      setAddressSelected(false);
-                    }}
-                    onSelect={selectAddress}
-                    address={property.exposeData!.basicInformation.address}
-                    sources={fieldSources}
-                  />
-                )}
-                {step === 1 && addressSelected && (
-                  <AddressDebugPanel
-                    propertyId={initialProperty.id}
-                    property={property}
-                    address={property.exposeData!.basicInformation.address}
-                    onData={applyExternalData}
-                  />
-                )}
-                {step === 2 && (
-                  <StepProperty
-                    property={property}
-                    set={set}
-                    exposeData={property.exposeData!}
-                    updateExposeData={updateExposeData}
-                    noteValue={noteValue}
-                    setNote={setNote}
-                    sources={fieldSources}
-                  />
-                )}
-                {step === 3 && (
-                  <StepDetails
-                    property={property}
-                    set={set}
-                    boris={boris}
-                    borisLoading={borisLoading}
-                    noteValue={noteValue}
-                    setNote={setNote}
-                    sources={fieldSources}
-                  />
-                )}
-                {step === 4 && (
-                  <StepFeatures
-                    property={property}
-                    set={set}
-                    exposeData={property.exposeData!}
-                    updateExposeData={updateExposeData}
-                    noteValue={noteValue}
-                    setNote={setNote}
-                    sources={fieldSources}
-                  />
-                )}
-                {step === 5 && (
-                  <StepEnergy
-                    data={property.exposeData!.energy}
-                    update={(energy) => updateExposeData({ energy })}
-                    noteValue={noteValue}
-                    setNote={setNote}
-                    sources={fieldSources}
-                  />
-                )}
-                {step === 6 && (
-                  <StepPhotos
-                    images={images}
-                    rooms={property.rooms}
-                    upload={upload}
-                    removeImage={removeImage}
-                    cover={cover}
-                    moveImage={moveImage}
-                    noteValue={noteValue}
-                    setNote={setNote}
-                  />
-                )}
-                {step === 7 && (
-                  <StepPlans
-                    images={images}
-                    upload={upload}
-                    removeImage={removeImage}
-                    cover={cover}
-                    moveImage={moveImage}
-                    noteValue={noteValue}
-                    setNote={setNote}
-                  />
-                )}
-                {step === 8 && (
-                  <StepAgent
-                    data={property.exposeData!.agent}
-                    update={(agent) => updateExposeData({ agent })}
-                    noteValue={noteValue}
-                    setNote={setNote}
-                  />
-                )}
-                {step === 9 && (
-                  <Review
-                    property={property}
-                    images={images}
-                    onEdit={setStep}
-                    generateMetadata={generateMetadata}
-                    metadataLoading={metadataLoading}
-                    updateExposeData={updateExposeData}
-                    noteValue={noteValue}
-                  />
-                )}
-              </div>
-            ) : (
-              <ContentEditor
-                content={content}
-                setContent={setContent}
-                onGenerate={generate}
-                loading={aiLoading}
-                saving={saving}
-              />
-            )}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
-        <div className="mt-10 flex border-t border-[#e0e5e0] pt-5 lg:ml-[250px]">
-          <button
-            className="btn btn-ghost flex items-center gap-2"
+
+        <div className="mt-8 flex items-center justify-between border-t pt-5 lg:ml-[270px]">
+          <Button
+            variant="outline"
             disabled={step === 0}
             onClick={() => setStep((current) => current - 1)}
           >
-            <ArrowLeft size={15} /> Back
-          </button>
+            <ArrowLeft className="size-4" /> Back
+          </Button>
           {step < 9 ? (
-            <button className="btn btn-primary flex items-center gap-2" onClick={next}>
-              {saving ? 'Saving…' : 'Next'} <ArrowRight size={15} />
-            </button>
-          ) : step === 9 ? (
-            <button
-              className="btn btn-primary flex items-center gap-2"
-              onClick={() => generate()}
-              disabled={aiLoading}
-            >
-              {aiLoading ? (
-                <LoaderCircle size={15} className="animate-spin" />
+            <Button onClick={next} disabled={saving}>
+              {saving ? (
+                <>
+                  <LoaderCircle className="size-4 animate-spin" /> Saving…
+                </>
               ) : (
-                <Sparkles size={15} />
-              )}{' '}
-              Improve with AI
-            </button>
+                <>
+                  Next <ArrowRight className="size-4" />
+                </>
+              )}
+            </Button>
+          ) : step === 9 ? (
+            <Button onClick={() => generate()} disabled={aiLoading}>
+              {aiLoading ? (
+                <>
+                  <LoaderCircle className="size-4 animate-spin" /> Improving…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="size-4" /> Improve with AI
+                </>
+              )}
+            </Button>
           ) : (
-            <button
-              className="btn btn-primary flex items-center gap-2"
-              onClick={saveContent}
-              disabled={saving}
-            >
-              <FileText size={15} /> Open preview <ArrowRight size={15} />
-            </button>
+            <Button onClick={saveContent} disabled={saving}>
+              <FileText className="size-4" /> Open preview <ArrowRight className="size-4" />
+            </Button>
           )}
         </div>
       </div>

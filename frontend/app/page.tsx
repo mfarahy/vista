@@ -1,7 +1,18 @@
 import Link from 'next/link';
-import { ArrowUpRight, FileText, Image as ImageIcon } from 'lucide-react';
+import {
+  ArrowRight,
+  FileText,
+  Image as ImageIcon,
+  Building2,
+  FileUp,
+  Sparkles,
+  FileDown,
+} from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { frontendLogger } from '@/lib/logger';
+import { Button } from '@/components/ui/button';
+import { VistaLogoLink } from '@/components/vista-logo';
+import { EmptyState } from '@/components/empty-state';
 
 async function getProperties() {
   try {
@@ -25,176 +36,120 @@ export default async function Home() {
   const properties = await getProperties();
 
   return (
-    <main className="min-h-screen shell-grid">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
-        <Link href="/" className="flex items-center gap-3">
-          <span className="grid h-9 w-9 place-items-center rounded-full bg-[#202522] font-serif text-lg text-white">
-            R
-          </span>
-          <span className="text-sm font-bold tracking-[.18em]">RAUMWERK</span>
-        </Link>
-        <span className="hidden text-xs font-bold tracking-[.16em] text-[#758078] sm:block">
-          REAL ESTATE EXPOSÉS · PHASE 01
-        </span>
-        <Link href="/create" className="btn btn-primary flex items-center gap-2">
-          New exposé <ArrowUpRight size={15} />
-        </Link>
-      </nav>
-      <section className="mx-auto grid max-w-7xl gap-12 px-6 pb-20 pt-14 lg:grid-cols-[1.05fr_.95fr] lg:px-10 lg:pb-28 lg:pt-20">
-        <div className="max-w-2xl">
-          <div className="mb-8 flex items-center gap-3 text-xs font-bold tracking-[.18em] text-[#607b68]">
-            <span className="h-px w-10 bg-[#607b68]" /> EDITORIAL PROPERTY TOOL
-          </div>
-          <p className="text-sm font-semibold tracking-[.12em] text-[#758078]">
-            Your property. Deine Immobilie.
-          </p>
-          <h1 className="serif mt-4 text-5xl leading-[.98] tracking-[-.04em] sm:text-7xl">
-            <em className="text-[#78917d]">Better told.</em>
-            <br />
-            <em className="text-[#78917d]">Besser erzählt.</em>
-          </h1>
-          <p className="mt-6 max-w-xl text-base leading-7 text-[#5f6c63]">
-            Create a polished exposé in a few steps, with clear facts and a compelling story for
-            your home. Erstelle in wenigen Schritten ein hochwertiges Exposé, das Fakten klar
-            strukturiert und dein Zuhause in Szene setzt.
-          </p>
-          <div className="mt-10 flex flex-wrap gap-3">
-            <Link href="/create" className="btn btn-primary flex items-center gap-2">
-              Create exposé <ArrowUpRight size={15} />
-            </Link>
-            <Link href="/demo" className="btn btn-secondary">
-              View demo
-            </Link>
-            <a href="#workflow" className="btn btn-secondary">
-              How it works
-            </a>
-          </div>
-          <div className="mt-14 flex gap-7 text-xs text-[#758078]">
-            <span>No design skills required</span>
-            <span>English and German copy</span>
-          </div>
-        </div>
-        <div className="relative mx-auto w-full max-w-md lg:mt-3">
-          <div className="absolute -inset-5 rounded-[30px] border border-[#dfe8df]" />
-          <div className="relative overflow-hidden rounded-2xl bg-[#33453b] p-5 shadow-2xl shadow-[#31453922]">
-            <div className="mb-5 flex items-center justify-between text-[10px] tracking-[.16em] text-[#bdcdbf]">
-              <span>VORSCHAU · MODERN</span>
-              <span>01 / 04</span>
-            </div>
-            <div
-              className="flex aspect-[4/5] flex-col justify-between overflow-hidden rounded-xl bg-[#8c9b8f] p-6"
-              style={{ background: 'linear-gradient(140deg,#91a296,#50645a)' }}
-            >
-              <div className="flex justify-between text-[10px] font-bold tracking-[.2em] text-white/70">
-                <span>RAUMWERK</span>
-                <span>EXPOSÉ</span>
-              </div>
-              <div>
-                <div className="mb-3 h-px w-10 bg-white/60" />
-                <p className="serif text-3xl leading-[1.05] text-white">
-                  Spaces that
-                  <br />
-                  <em>tell stories</em>
-                  <br />
-                  beautifully.
-                </p>
-                <p className="mt-5 text-[10px] tracking-[.18em] text-white/80">
-                  BERLIN · FRIEDRICHSHAIN
-                </p>
-              </div>
-            </div>
-            <div className="mt-5 grid grid-cols-3 gap-2 text-center text-[10px] text-[#d5e0d5]">
-              <span>
-                <b className="block text-base text-white">92</b>m2
-              </span>
-              <span>
-                <b className="block text-base text-white">3</b>rooms
-              </span>
-              <span>
-                <b className="block text-base text-white">449k</b>EUR
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
-      <section id="workflow" className="border-y border-[#e0e6e0] bg-white/60">
-        <div className="mx-auto grid max-w-7xl gap-4 px-6 py-10 sm:grid-cols-3 lg:px-10">
-          <div className="flex gap-4">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#eaf0ea] text-[#607b68]">
-              01
-            </span>
-            <div>
-              <b className="text-sm">Daten eingeben</b>
-              <p className="mt-1 text-xs leading-5 text-[#78837b]">Your details. Your facts.</p>
-            </div>
-          </div>
-          <div className="flex gap-4">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#eaf0ea] text-[#607b68]">
-              02
-            </span>
-            <div>
-              <b className="text-sm">KI verfeinert</b>
-              <p className="mt-1 text-xs leading-5 text-[#78837b]">
-                Professional copy at the click of a button.
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-4">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#eaf0ea] text-[#607b68]">
-              03
-            </span>
-            <div>
-              <b className="text-sm">PDF exportieren</b>
-              <p className="mt-1 text-xs leading-5 text-[#78837b]">
-                Ready for portals and prospective buyers.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-      <section className="mx-auto max-w-7xl px-6 py-16 lg:px-10">
-        <div className="mb-7 flex items-end justify-between">
-          <div>
-            <p className="text-xs font-bold tracking-[.18em] text-[#607b68]">
-              DEINE ENTWÜRFE · YOUR DRAFTS
-            </p>
-            <h2 className="serif mt-2 text-3xl">Zuletzt bearbeitet</h2>
-          </div>
-          <Link href="/create" className="hidden text-xs font-bold text-[#607b68] sm:block">
-            View all drafts →
-          </Link>
-        </div>
-        {properties.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {properties.slice(0, 3).map((property) => (
-              <Link
-                key={property.id}
-                href={`/create/${property.id}`}
-                className="card p-5 transition hover:-translate-y-1 hover:shadow-lg"
-              >
-                <div className="mb-5 flex items-center justify-between">
-                  <span className="rounded-full bg-[#eaf0ea] px-3 py-1 text-[10px] font-bold tracking-wider text-[#607b68]">
-                    ENTWURF · DRAFT
-                  </span>
-                  <FileText size={17} className="text-[#92a198]" />
-                </div>
-                <h3 className="serif text-xl">{property.city || 'New property'}</h3>
-                <p className="mt-2 text-xs text-[#77837b]">
-                  {property.livingArea ? `${property.livingArea} m2 · ` : ''}
-                  {property.images.length} photos
-                </p>
+    <main className="min-h-screen bg-background">
+      <header className="border-b">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
+          <VistaLogoLink href="/" />
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/floorplan">Floorplan 3D</Link>
+            </Button>
+            <Button asChild>
+              <Link href="/create">
+                New exposé <ArrowRight className="size-4" />
               </Link>
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <section className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 sm:px-8 lg:grid-cols-2 lg:py-24">
+        <div>
+          <span className="inline-flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-xs font-medium text-primary">
+            <Sparkles className="size-3.5" /> Real-estate exposés, made simple
+          </span>
+          <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-tight text-foreground sm:text-5xl">
+            Your property, presented <span className="text-primary">professionally</span>.
+          </h1>
+          <p className="mt-4 max-w-lg text-base leading-7 text-muted-foreground">
+            Create a polished exposé in a few steps. Upload your documents, enter the facts once,
+            and Vista writes a compelling story for your home — ready for portals and PDF export.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Button size="lg" asChild>
+              <Link href="/create">
+                Create exposé <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+            <Button size="lg" variant="outline" asChild>
+              <Link href="/demo">View demo</Link>
+            </Button>
+          </div>
+          <p className="mt-6 text-sm text-muted-foreground">
+            Works in German and English. No design skills required.
+          </p>
+        </div>
+
+        <div className="hidden rounded-2xl border bg-card p-6 shadow-sm lg:block">
+          <div className="space-y-3">
+            {[
+              { icon: FileUp, title: 'Upload your documents', text: 'Grundbuch, Grundriss, Energieausweis' },
+              { icon: Sparkles, title: 'AI refines your copy', text: 'Professional text at the click of a button' },
+              { icon: FileDown, title: 'Export to PDF', text: 'Ready for portals and prospective buyers' },
+            ].map((step) => (
+              <div key={step.title} className="flex gap-4 rounded-xl border bg-background p-4">
+                <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <step.icon className="size-5" aria-hidden />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{step.title}</p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">{step.text}</p>
+                </div>
+              </div>
             ))}
           </div>
-        ) : (
-          <div className="card flex flex-col items-center justify-center py-14 text-center">
-            <div className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-[#eaf0ea] text-[#607b68]">
-              <ImageIcon size={20} />
+        </div>
+      </section>
+
+      <section className="border-t bg-card/50">
+        <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8">
+          <div className="mb-6 flex items-end justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                Your drafts
+              </p>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">
+                Recently edited
+              </h2>
             </div>
-            <p className="text-sm font-bold">No exposé created yet</p>
-            <p className="mt-2 text-sm text-[#77837b]">Start with your property details.</p>
+            <Link href="/create" className="text-sm font-medium text-primary hover:underline">
+              New exposé →
+            </Link>
           </div>
-        )}
+          {properties.length ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {properties.slice(0, 3).map((property) => (
+                <Link
+                  key={property.id}
+                  href={`/create/${property.id}`}
+                  className="group rounded-xl border bg-card p-5 transition-shadow hover:shadow-md"
+                >
+                  <div className="mb-4 flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                      <FileText className="size-3" /> Draft
+                    </span>
+                    <Building2 className="size-4 text-muted-foreground" aria-hidden />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground group-hover:text-primary">
+                    {property.city || 'New property'}
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {property.livingArea ? `${property.livingArea} m² · ` : ''}
+                    {property.images.length} photos
+                  </p>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={ImageIcon}
+              title="No exposé created yet"
+              description="Start with your property details and create your first draft."
+              actionLabel="Create exposé"
+              href="/create"
+            />
+          )}
+        </div>
       </section>
     </main>
   );

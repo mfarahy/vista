@@ -1,6 +1,20 @@
 import { useRef, useState } from 'react';
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Check, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import { apiAssetUrl } from '@/lib/api';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input as ShadInput } from '@/components/ui/input';
+import { Textarea as ShadTextarea } from '@/components/ui/textarea';
+import {
+  Select as SelectRoot,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
 import type { ImageCategory, PropertyImage, UploadImages } from '../types';
 
 export function Section({
@@ -13,10 +27,51 @@ export function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="card bg-white p-5 sm:p-8">
-      <h2 className="serif text-2xl sm:text-3xl">{title}</h2>
-      {description && <p className="mt-2 text-sm leading-6 text-[#78847c]">{description}</p>}
-      <div className="mt-8">{children}</div>
+    <section className="rounded-xl border border-border bg-card shadow-sm">
+      <header className="border-b border-border px-5 py-5 sm:px-7">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">{title}</h2>
+        {description && (
+          <p className="mt-1 max-w-2xl text-sm leading-5 text-muted-foreground">{description}</p>
+        )}
+      </header>
+      <div className="px-5 py-6 sm:px-7">{children}</div>
+    </section>
+  );
+}
+
+export function Field({
+  label,
+  htmlFor,
+  hint,
+  error,
+  required,
+  children,
+  className,
+}: {
+  label?: string;
+  htmlFor?: string;
+  hint?: string;
+  error?: string;
+  required?: boolean;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn('space-y-1.5', className)}>
+      {label && (
+        <Label htmlFor={htmlFor} className="text-sm font-medium text-foreground">
+          {label}
+          {required && <span className="ml-0.5 text-destructive">*</span>}
+        </Label>
+      )}
+      {children}
+      {hint && (
+        <p className="flex items-start gap-1 text-xs text-muted-foreground">
+          <Info className="mt-0.5 size-3 shrink-0" aria-hidden />
+          {hint}
+        </p>
+      )}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
@@ -27,24 +82,31 @@ export function Input({
   onChange,
   type = 'text',
   placeholder,
+  hint,
+  error,
+  id,
 }: {
   label: string;
   value: string | number | null | undefined;
   onChange: (value: string) => void;
   type?: string;
   placeholder?: string;
+  hint?: string;
+  error?: string;
+  id?: string;
 }) {
   return (
-    <label>
-      <span className="label">{label}</span>
-      <input
-        className="field"
+    <Field label={label} htmlFor={id} hint={hint} error={error}>
+      <ShadInput
+        id={id}
         type={type}
         value={value ?? ''}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
+        aria-invalid={error ? true : undefined}
+        className="w-full"
       />
-    </label>
+    </Field>
   );
 }
 
@@ -53,27 +115,33 @@ export function Select({
   value,
   onChange,
   options,
+  placeholder,
+  hint,
 }: {
   label: string;
   value: string | undefined | null;
   onChange: (value: string) => void;
   options: readonly (readonly [string, string])[];
+  placeholder?: string;
+  hint?: string;
 }) {
   return (
-    <label>
-      <span className="label">{label}</span>
-      <select
-        className="field"
-        value={value ?? ''}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {options.map(([key, name]) => (
-          <option key={key} value={key}>
-            {name}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Field label={label} hint={hint}>
+      <SelectRoot value={value || undefined} onValueChange={(v) => onChange(v)}>
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder={placeholder ?? 'Select an option'} />
+        </SelectTrigger>
+        <SelectContent>
+          {options
+            .filter(([key]) => key !== '')
+            .map(([key, name]) => (
+              <SelectItem key={key} value={key}>
+                {name}
+              </SelectItem>
+            ))}
+        </SelectContent>
+      </SelectRoot>
+    </Field>
   );
 }
 
@@ -82,22 +150,26 @@ export function Textarea({
   value,
   onChange,
   placeholder,
+  hint,
+  rows,
 }: {
   label: string;
   value: string | null | undefined;
   onChange: (value: string) => void;
   placeholder?: string;
+  hint?: string;
+  rows?: number;
 }) {
   return (
-    <label>
-      <span className="label">{label}</span>
-      <textarea
-        className="field min-h-28 resize-y"
+    <Field label={label} hint={hint}>
+      <ShadTextarea
         value={value ?? ''}
         placeholder={placeholder}
+        rows={rows ?? 4}
         onChange={(event) => onChange(event.target.value)}
+        className="w-full resize-y"
       />
-    </label>
+    </Field>
   );
 }
 
@@ -111,12 +183,12 @@ export function SectionNotes({
   placeholder?: string;
 }) {
   return (
-    <div className="mt-6 rounded-xl border border-dashed border-[#c8d9cb] bg-[#f6faf6] p-4">
-      <p className="text-xs font-bold uppercase tracking-[.14em] text-[#607b68]">
+    <div className="mt-7 rounded-lg border border-dashed bg-muted/40 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         Your notes / highlights
       </p>
-      <textarea
-        className="field mt-3 min-h-20 resize-y"
+      <ShadTextarea
+        className="mt-3 w-full resize-y bg-card"
         value={value ?? ''}
         placeholder={placeholder ?? 'Add any extra information or highlights for this section…'}
         onChange={(event) => onChange(event.target.value)}
@@ -159,49 +231,47 @@ export function DatePicker({
   const display = selected
     ? selected.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
     : '';
+
   return (
-    <label className="relative block">
-      <span className="label">Available from</span>
-      <div className="flex items-center gap-2">
-        <input
-          className="field"
-          value={display}
-          placeholder={placeholder ?? 'Select a date'}
-          readOnly
-          onClick={() => setOpen((current) => !current)}
-        />
-        <button
-          type="button"
-          onClick={() => setOpen((current) => !current)}
-          className="btn btn-secondary px-3 py-2 text-xs"
-        >
-          <Calendar size={14} />
-        </button>
-      </div>
-      {open && (
-        <div className="absolute z-20 mt-2 w-72 rounded-xl border border-[#dce4dc] bg-white p-3 shadow-xl">
+    <Field label="Available from">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-between font-normal text-foreground"
+          >
+            {display ? display : (placeholder ?? 'Select a date')}
+            <Calendar className="size-4 text-muted-foreground" aria-hidden />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-3" align="start">
           <div className="mb-3 flex items-center justify-between">
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-sm"
               onClick={() => setView(new Date(year, month - 1, 1))}
-              className="rounded-lg p-1 hover:bg-[#eef3ee]"
             >
-              <ChevronLeft size={16} />
-            </button>
-            <span className="text-sm font-bold text-[#33463a]">
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="text-sm font-semibold">
               {view.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </span>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-sm"
               onClick={() => setView(new Date(year, month + 1, 1))}
-              className="rounded-lg p-1 hover:bg-[#eef3ee]"
             >
-              <ChevronRight size={16} />
-            </button>
+              <ChevronRight className="size-4" />
+            </Button>
           </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-[#7a877e]">
+          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-muted-foreground">
             {weekdayLabels.map((label) => (
-              <span key={label}>{label}</span>
+              <span key={label} className="py-1">
+                {label}
+              </span>
             ))}
           </div>
           <div className="mt-1 grid grid-cols-7 gap-1">
@@ -221,38 +291,46 @@ export function DatePicker({
                     onChange(fmt(date));
                     setOpen(false);
                   }}
-                  className={`rounded-lg py-1.5 text-xs transition ${selectedDay ? 'bg-[#26352b] font-bold text-white' : current ? 'font-bold text-[#45614d]' : 'text-[#59675f] hover:bg-[#eef3ee]'}`}
+                  className={cn(
+                    'grid size-8 place-items-center rounded-md text-xs transition-colors hover:bg-accent',
+                    selectedDay && 'bg-primary font-semibold text-primary-foreground hover:bg-primary',
+                    current && !selectedDay && 'font-semibold text-primary',
+                  )}
                 >
                   {day}
                 </button>
               );
             })}
           </div>
-          <div className="mt-3 flex items-center justify-between border-t border-[#edf1ed] pt-2">
-            <button
+          <Separator className="my-3" />
+          <div className="flex items-center justify-between">
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground"
               onClick={() => {
                 onChange('');
                 setOpen(false);
               }}
-              className="text-xs text-[#6d7b6f] underline"
             >
               Clear
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 onChange(fmt(today));
                 setOpen(false);
               }}
-              className="text-xs font-bold text-[#45614d] underline"
             >
               Today
-            </button>
+            </Button>
           </div>
-        </div>
-      )}
-    </label>
+        </PopoverContent>
+      </Popover>
+    </Field>
   );
 }
 
@@ -275,9 +353,9 @@ export function EnergyClassPicker({
     { key: 'H', color: '#9c1f1f' },
   ];
   return (
-    <div>
-      <span className="label">Energy efficiency class</span>
-      <div className="mt-2 flex gap-1.5">
+    <div className="space-y-2">
+      <span className="text-sm font-medium text-foreground">Energy efficiency class</span>
+      <div className="grid grid-cols-9 gap-1.5">
         {classes.map((entry) => {
           const active = value === entry.key;
           return (
@@ -285,21 +363,21 @@ export function EnergyClassPicker({
               key={entry.key}
               type="button"
               title={entry.key}
+              aria-pressed={active}
               onClick={() => onChange(active ? null : entry.key)}
-              className="flex h-20 flex-1 flex-col items-center justify-center gap-1 rounded-xl font-bold text-white transition"
-              style={{
-                backgroundColor: entry.color,
-                opacity: active ? 1 : 0.35,
-                outline: active ? '3px solid #202522' : 'none',
-                outlineOffset: 2,
-              }}
+              className={cn(
+                'flex aspect-square flex-col items-center justify-center rounded-lg text-sm font-bold text-white transition-all',
+                active ? 'ring-2 ring-ring ring-offset-2' : 'opacity-40 hover:opacity-75',
+              )}
+              style={{ backgroundColor: entry.color }}
             >
-              <span className="text-sm">{entry.key}</span>
+              {entry.key}
+              {active && <Check className="mt-0.5 size-3" aria-hidden />}
             </button>
           );
         })}
       </div>
-      <p className="mt-2 text-xs text-[#718078]">
+      <p className="text-xs text-muted-foreground">
         {value ? `Selected class: ${value}` : 'Select an energy efficiency class'}
       </p>
     </div>
@@ -331,74 +409,80 @@ export function PhotoSection({
   );
   const globalIndex = (id: string) => images.findIndex((image) => image.id === id);
   return (
-    <div className="rounded-2xl border border-[#e5e9e5] bg-[#fafcfb] p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="font-bold text-[#415743]">{title}</h3>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="btn btn-secondary px-3 py-2 text-xs"
-          >
-            Upload
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            multiple
-            className="hidden"
-            onChange={(event) => {
-              upload(event.target.files, { category, subcategory });
-              event.target.value = '';
-            }}
-          />
-        </div>
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="truncate text-sm font-semibold text-foreground">{title}</h3>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => fileRef.current?.click()}
+        >
+          Upload
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          className="hidden"
+          onChange={(event) => {
+            upload(event.target.files, { category, subcategory });
+            event.target.value = '';
+          }}
+        />
       </div>
       {sectionImages.length ? (
         <div className="grid gap-3 sm:grid-cols-2">
           {sectionImages.map((image) => (
-            <div key={image.id} className="rounded-xl border border-[#e2e8e2] bg-white p-2">
+            <div key={image.id} className="overflow-hidden rounded-lg border border-border bg-background">
               <img
                 src={apiAssetUrl(image.url)}
                 alt={image.caption || subcategory || 'Property photo'}
-                className="h-32 w-full rounded-lg object-cover"
+                className="h-32 w-full object-cover"
               />
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                <button
+              <div className="flex flex-wrap gap-1.5 p-2">
+                <Button
                   type="button"
+                  variant={image.isCover ? 'default' : 'outline'}
+                  size="xs"
                   onClick={() => cover(image.id)}
-                  className="btn btn-secondary px-2 py-1.5 text-[11px]"
                 >
-                  Cover
-                </button>
-                <button
+                  {image.isCover ? 'Cover ✓' : 'Cover'}
+                </Button>
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="xs"
+                  className="text-destructive hover:text-destructive"
                   onClick={() => removeImage(image.id)}
-                  className="btn btn-secondary px-2 py-1.5 text-[11px]"
                 >
                   Delete
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Move up"
                   onClick={() => moveImage(globalIndex(image.id), -1)}
-                  className="btn btn-secondary px-2 py-1.5 text-[11px]"
                 >
-                  ↑
-                </button>
-                <button
+                  <ChevronLeft className="size-3" />
+                </Button>
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Move down"
                   onClick={() => moveImage(globalIndex(image.id), 1)}
-                  className="btn btn-secondary px-2 py-1.5 text-[11px]"
                 >
-                  ↓
-                </button>
+                  <ChevronRight className="size-3" />
+                </Button>
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <p className="text-sm text-[#aab4ac]">No photos in this section yet.</p>
+        <p className="py-2 text-sm text-muted-foreground">No photos in this section yet.</p>
       )}
     </div>
   );

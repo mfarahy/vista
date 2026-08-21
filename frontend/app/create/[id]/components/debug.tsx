@@ -84,25 +84,27 @@ export function AddressDebugPanel({
   }, [propertyId, addressKey]);
 
   return (
-    <div className="mt-6 rounded-xl border border-dashed border-[#d0a35a] bg-[#fdf9f0] p-4">
+    <div className="mt-6 rounded-lg border border-dashed border-amber-300 bg-amber-50/60 p-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-bold uppercase tracking-[.14em] text-[#9a7a2f]">
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
           Debug · External services (remove later)
         </p>
         <button
           type="button"
           onClick={() => setData(null)}
-          className="text-xs text-[#8a6d2a] underline"
+          className="text-xs text-amber-700 underline"
         >
           Clear
         </button>
       </div>
       {onData && (
-        <p className="mt-2 text-[11px] text-[#8a7a4a]">
+        <p className="mt-2 text-xs text-amber-600">
           The wizard is pre-filled automatically from these results wherever a field is still empty.
         </p>
       )}
-      {loading && <p className="mt-3 text-sm text-[#8a7a4a]">Querying external services…</p>}
+      {loading && (
+        <p className="mt-3 text-sm text-amber-700">Querying external services…</p>
+      )}
       {(() => {
         const geocoding = data?.geocoding as
           | {
@@ -141,7 +143,7 @@ export function AddressDebugPanel({
         );
       })()}
       {data && (
-        <pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-[#1f1f1f] p-3 text-[11px] leading-5 text-[#d6d6d6]">
+        <pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-muted p-3 text-[11px] leading-5 text-foreground">
           {JSON.stringify(data, null, 2)}
         </pre>
       )}
@@ -155,24 +157,24 @@ export function AgentDebugPanel({ agent }: { agent: ExposeData['agent'] }) {
     .join(' ');
   const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
   return (
-    <div className="mt-6 rounded-xl border border-dashed border-[#d0a35a] bg-[#fdf9f0] p-4">
+    <div className="mt-6 rounded-lg border border-dashed border-amber-300 bg-amber-50/60 p-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-bold uppercase tracking-[.14em] text-[#9a7a2f]">
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
           Debug · Agent lookup (remove later)
         </p>
         <a
           href={searchUrl}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs text-[#8a6d2a] underline"
+          className="inline-flex items-center gap-1.5 text-xs text-amber-700 underline"
         >
-          <Search size={13} /> Search the web
+          <Search className="size-3" /> Search the web
         </a>
       </div>
-      <p className="mt-2 text-[11px] text-[#8a7a4a]">
+      <p className="mt-2 text-xs text-amber-600">
         Opens a web search for this agent. Replace this panel with real online research later.
       </p>
-      <pre className="mt-3 max-h-72 overflow-auto rounded-lg bg-[#1f1f1f] p-3 text-[11px] leading-5 text-[#d6d6d6]">
+      <pre className="mt-3 max-h-72 overflow-auto rounded-lg bg-muted p-3 text-[11px] leading-5 text-foreground">
         {JSON.stringify(agent ?? {}, null, 2)}
       </pre>
     </div>

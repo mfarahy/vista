@@ -1,8 +1,11 @@
-import { LoaderCircle, Sparkles } from 'lucide-react';
+import { LoaderCircle, Pencil, Sparkles } from 'lucide-react';
 import { apiAssetUrl } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Input as ShadInput } from '@/components/ui/input';
+import { Textarea as ShadTextarea } from '@/components/ui/textarea';
 import type { ExposeContent, ExposeData, PropertyImage, PropertyPayload } from '../types';
 import { money, pretty } from '../types';
-import { Section, Textarea } from './ui';
+import { Section } from './ui';
 
 export function Review({
   property,
@@ -26,13 +29,19 @@ export function Review({
   const subtitle = data.basicInformation.propertySubtype ?? '';
   const sale = property.transactionType === 'sale';
   const block = (label: string, editStep: number, children: React.ReactNode) => (
-    <div className="rounded-2xl border border-[#e1e7e1] bg-[#fafcfb] p-4">
+    <div className="rounded-xl border bg-card p-5">
       <div className="flex items-center justify-between">
-        <p className="font-bold text-[#415743]">{label}</p>
+        <p className="text-sm font-semibold text-foreground">{label}</p>
         {editStep >= 0 && (
-          <button type="button" onClick={() => onEdit(editStep)} className="text-sm text-[#607b68]">
-            Edit
-          </button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            className="text-muted-foreground"
+            onClick={() => onEdit(editStep)}
+          >
+            <Pencil className="size-3" /> Edit
+          </Button>
         )}
       </div>
       <div className="mt-3">{children}</div>
@@ -40,9 +49,9 @@ export function Review({
   );
   const row = (dt: string, dd: string | number | null | undefined) =>
     dd != null && dd !== '' ? (
-      <div className="sm:grid sm:grid-cols-[170px_1fr] sm:gap-2 text-sm text-[#59675f]">
-        <dt className="font-bold text-[#3b4b40]">{dt}</dt>
-        <dd>{pretty(dd)}</dd>
+      <div className="flex justify-between gap-4 py-1 text-sm sm:grid sm:grid-cols-[180px_1fr]">
+        <dt className="text-muted-foreground">{dt}</dt>
+        <dd className="text-right font-medium text-foreground sm:text-left">{pretty(dd)}</dd>
       </div>
     ) : null;
   const features = [
@@ -59,15 +68,15 @@ export function Review({
       description="Check everything and finish your listing title before generating the AI copy."
     >
       <div className="space-y-5">
-        <div className="rounded-2xl border border-[#d5e0d7] bg-[#eef5ef] p-4">
-          <p className="text-xs font-bold uppercase tracking-[.14em] text-[#607b68]">
+        <div className="rounded-xl border border-primary/25 bg-primary/[0.04] p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
             Listing title & subtype
           </p>
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <label>
-              <span className="label">Objekttitel (title)</span>
-              <input
-                className="field"
+            <label className="space-y-1.5">
+              <span className="text-sm font-medium text-foreground">Objekttitel (title)</span>
+              <ShadInput
+                className="w-full bg-card"
                 value={title}
                 onChange={(event) =>
                   updateExposeData({
@@ -77,10 +86,10 @@ export function Review({
                 placeholder="e.g. Helle 3-Zimmer-Wohnung"
               />
             </label>
-            <label>
-              <span className="label">Unterart (subtype)</span>
-              <input
-                className="field"
+            <label className="space-y-1.5">
+              <span className="text-sm font-medium text-foreground">Unterart (subtype)</span>
+              <ShadInput
+                className="w-full bg-card"
                 value={subtitle}
                 onChange={(event) =>
                   updateExposeData({
@@ -94,28 +103,29 @@ export function Review({
               />
             </label>
           </div>
-          <button
+          <Button
             type="button"
-            onClick={generateMetadata}
+            variant="outline"
+            className="mt-4"
             disabled={metadataLoading}
-            className="btn btn-secondary mt-4 px-3 py-2 text-xs"
+            onClick={generateMetadata}
           >
             {metadataLoading ? (
-              <span className="inline-flex items-center gap-1.5">
-                <LoaderCircle size={14} className="animate-spin" /> Generating…
-              </span>
+              <>
+                <LoaderCircle className="size-4 animate-spin" /> Generating…
+              </>
             ) : (
-              <span className="inline-flex items-center gap-1.5">
-                <Sparkles size={14} /> Generate title with AI
-              </span>
+              <>
+                <Sparkles className="size-4" /> Generate title with AI
+              </>
             )}
-          </button>
+          </Button>
         </div>
 
         {block(
           'Address',
           1,
-          <dl>
+          <dl className="divide-y">
             {row(
               'Street',
               [data.basicInformation.address.street, data.basicInformation.address.houseNumber]
@@ -135,7 +145,7 @@ export function Review({
         {block(
           'Property',
           2,
-          <dl>
+          <dl className="divide-y">
             {row('Type', property.propertyType)}
             {row('Transaction', property.transactionType)}
             {row('Year built', property.constructionYear)}
@@ -144,7 +154,7 @@ export function Review({
         {block(
           'Details & price',
           3,
-          <dl>
+          <dl className="divide-y">
             {row('Living area (m²)', property.livingArea)}
             {row('Plot size (m²)', property.plotArea)}
             {row('Rooms', property.rooms)}
@@ -186,14 +196,14 @@ export function Review({
           4,
           <>
             {features.length ? (
-              <p className="text-sm text-[#59675f]">{features.join(', ')}</p>
+              <p className="text-sm text-foreground">{features.join(', ')}</p>
             ) : (
-              <p className="text-sm text-[#78847c]">No features selected.</p>
+              <p className="text-sm text-muted-foreground">No features selected.</p>
             )}
             {data.equipment.length ? (
-              <div className="mt-2 text-sm text-[#59675f]">
+              <div className="mt-2 flex flex-wrap gap-1.5 text-sm text-muted-foreground">
                 {data.equipment.map((item) => (
-                  <span key={item.name} className="mr-2">
+                  <span key={item.name} className="rounded-md bg-muted px-2 py-1 text-xs">
                     {item.category}: {item.name}
                   </span>
                 ))}
@@ -204,7 +214,7 @@ export function Review({
         {block(
           'Energy',
           5,
-          <dl>
+          <dl className="divide-y">
             {row('Certificate type', energy.certificateType)}
             {row('Construction year', energy.yearOfConstruction)}
             {row('Primary energy source', energy.primaryEnergySource)}
@@ -223,12 +233,12 @@ export function Review({
                   key={image.id}
                   src={apiAssetUrl(image.url)}
                   alt={image.fileName}
-                  className="h-24 w-full rounded-xl object-cover"
+                  className="h-24 w-full rounded-lg object-cover"
                 />
               ))}
             </div>
           ) : (
-            <p className="text-sm text-[#78847c]">No photos uploaded yet.</p>
+            <p className="text-sm text-muted-foreground">No photos uploaded yet.</p>
           ),
         )}
         {block(
@@ -241,18 +251,18 @@ export function Review({
                   key={image.id}
                   src={apiAssetUrl(image.url)}
                   alt={image.subcategory || 'document'}
-                  className="h-24 w-full rounded-xl object-cover"
+                  className="h-24 w-full rounded-lg object-cover"
                 />
               ))}
             </div>
           ) : (
-            <p className="text-sm text-[#78847c]">No plans or documents uploaded yet.</p>
+            <p className="text-sm text-muted-foreground">No plans or documents uploaded yet.</p>
           ),
         )}
         {block(
           'Agent / contact',
           8,
-          <dl>
+          <dl className="divide-y">
             {row('Name', data.agent?.name)}
             {row('Company', data.agent?.company)}
             {row('Phone', data.agent?.phone)}
@@ -263,18 +273,18 @@ export function Review({
         {block(
           'Your notes',
           -1,
-          <div className="space-y-3 text-sm text-[#59675f]">
+          <div className="space-y-3 text-sm text-muted-foreground">
             {(
               ['property', 'details', 'features', 'energy', 'photos', 'plans', 'agent'] as const
             ).map((key) =>
               noteValue(key) ? (
                 <p key={key}>
-                  <span className="font-bold text-[#3b4b40] capitalize">{key}: </span>
+                  <span className="font-medium text-foreground capitalize">{key}: </span>
                   {noteValue(key)}
                 </p>
               ) : null,
             )}
-            <p className="text-[#78847c]">
+            <p className="text-muted-foreground">
               Notes are optional — add highlights or extra information for each section.
             </p>
           </div>,
@@ -311,44 +321,70 @@ export function ContentEditor({
   return (
     <Section title="AI content editor" description="Review or adjust the generated exposé content.">
       <div className="space-y-5">
-        <Textarea
-          label="Title"
-          value={draft.title}
-          onChange={(value) => setContent({ ...draft, title: value })}
-        />
-        <Textarea
-          label="Portal title"
-          value={draft.portalTitle}
-          onChange={(value) => setContent({ ...draft, portalTitle: value })}
-        />
-        <Textarea
-          label="Short description"
-          value={draft.shortDescription}
-          onChange={(value) => setContent({ ...draft, shortDescription: value })}
-        />
-        <Textarea
-          label="Main description"
-          value={draft.mainDescription}
-          onChange={(value) => setContent({ ...draft, mainDescription: value })}
-        />
-        <Textarea
-          label="Location description"
-          value={draft.locationDescription}
-          onChange={(value) => setContent({ ...draft, locationDescription: value })}
-        />
-        <Textarea
-          label="Target audience"
-          value={draft.targetAudience}
-          onChange={(value) => setContent({ ...draft, targetAudience: value })}
-        />
-        <button
+        <label className="space-y-1.5">
+          <span className="text-sm font-medium text-foreground">Title</span>
+          <ShadTextarea
+            className="w-full resize-y"
+            value={draft.title}
+            onChange={(event) => setContent({ ...draft, title: event.target.value })}
+          />
+        </label>
+        <label className="space-y-1.5">
+          <span className="text-sm font-medium text-foreground">Portal title</span>
+          <ShadTextarea
+            className="w-full resize-y"
+            value={draft.portalTitle}
+            onChange={(event) => setContent({ ...draft, portalTitle: event.target.value })}
+          />
+        </label>
+        <label className="space-y-1.5">
+          <span className="text-sm font-medium text-foreground">Short description</span>
+          <ShadTextarea
+            className="w-full resize-y"
+            value={draft.shortDescription}
+            onChange={(event) => setContent({ ...draft, shortDescription: event.target.value })}
+          />
+        </label>
+        <label className="space-y-1.5">
+          <span className="text-sm font-medium text-foreground">Main description</span>
+          <ShadTextarea
+            className="w-full resize-y"
+            value={draft.mainDescription}
+            onChange={(event) => setContent({ ...draft, mainDescription: event.target.value })}
+          />
+        </label>
+        <label className="space-y-1.5">
+          <span className="text-sm font-medium text-foreground">Location description</span>
+          <ShadTextarea
+            className="w-full resize-y"
+            value={draft.locationDescription}
+            onChange={(event) => setContent({ ...draft, locationDescription: event.target.value })}
+          />
+        </label>
+        <label className="space-y-1.5">
+          <span className="text-sm font-medium text-foreground">Target audience</span>
+          <ShadTextarea
+            className="w-full resize-y"
+            value={draft.targetAudience}
+            onChange={(event) => setContent({ ...draft, targetAudience: event.target.value })}
+          />
+        </label>
+        <Button
           type="button"
-          onClick={() => onGenerate('Make the copy more premium and concise.')}
-          className="btn btn-secondary"
+          variant="secondary"
           disabled={loading || saving}
+          onClick={() => onGenerate('Make the copy more premium and concise.')}
         >
-          {loading ? 'Generating…' : 'Regenerate with AI'}
-        </button>
+          {loading ? (
+            <>
+              <LoaderCircle className="size-4 animate-spin" /> Generating…
+            </>
+          ) : (
+            <>
+              <Sparkles className="size-4" /> Regenerate with AI
+            </>
+          )}
+        </Button>
       </div>
     </Section>
   );

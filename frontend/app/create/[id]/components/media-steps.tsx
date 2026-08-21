@@ -47,7 +47,9 @@ export function StepPhotos({
     >
       <div className="space-y-6">
         <div>
-          <h3 className="mb-3 font-bold text-[#33463a]">Exterior</h3>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Exterior
+          </h3>
           <div className="grid gap-4 lg:grid-cols-2">
             {exteriorSections.map((section) => (
               <PhotoSection
@@ -65,7 +67,9 @@ export function StepPhotos({
           </div>
         </div>
         <div>
-          <h3 className="mb-3 font-bold text-[#33463a]">Interior</h3>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Interior
+          </h3>
           <div className="grid gap-4 lg:grid-cols-2">
             {interiorSections.map((section) => (
               <PhotoSection
