@@ -1,21 +1,82 @@
-"use client";
-import { useRef, useState } from "react";
-import { LoaderCircle, RefreshCw, Sparkles, Upload } from "lucide-react";
-import { apiAssetUrl, apiFetch } from "@/lib/api";
+'use client';
+import { useRef, useState } from 'react';
+import { LoaderCircle, Minus, Plus, RefreshCw, RotateCcw, Sparkles, Upload } from 'lucide-react';
+import { apiAssetUrl, apiFetch } from '@/lib/api';
+
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 4;
+const ZOOM_STEP = 0.25;
+
+function ZoomableImage({
+  src,
+  alt,
+  imageClassName = '',
+}: {
+  src: string;
+  alt: string;
+  imageClassName?: string;
+}) {
+  const [scale, setScale] = useState(1);
+  const clamp = (value: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value));
+
+  return (
+    <div className="relative flex w-full flex-col items-center">
+      <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-lg border border-[#dce2dc] bg-white/95 p-1 shadow-sm">
+        <button
+          type="button"
+          aria-label="Zoom out"
+          disabled={scale <= ZOOM_MIN}
+          onClick={() => setScale((value) => clamp(+(value - ZOOM_STEP).toFixed(2)))}
+          className="grid h-7 w-7 place-items-center rounded-md text-[#4b5c50] transition hover:bg-[#eef3ee] disabled:opacity-40"
+        >
+          <Minus size={14} />
+        </button>
+        <span className="w-10 text-center text-[11px] font-bold text-[#65736a]">
+          {Math.round(scale * 100)}%
+        </span>
+        <button
+          type="button"
+          aria-label="Zoom in"
+          disabled={scale >= ZOOM_MAX}
+          onClick={() => setScale((value) => clamp(+(value + ZOOM_STEP).toFixed(2)))}
+          className="grid h-7 w-7 place-items-center rounded-md text-[#4b5c50] transition hover:bg-[#eef3ee] disabled:opacity-40"
+        >
+          <Plus size={14} />
+        </button>
+        <button
+          type="button"
+          aria-label="Reset zoom"
+          onClick={() => setScale(1)}
+          className="grid h-7 w-7 place-items-center rounded-md text-[#4b5c50] transition hover:bg-[#eef3ee]"
+        >
+          <RotateCcw size={13} />
+        </button>
+      </div>
+      <div className="flex w-full justify-center overflow-hidden">
+        <img
+          src={src}
+          alt={alt}
+          className={`transition-transform duration-200 ${imageClassName}`}
+          style={{ transform: `scale(${scale})` }}
+        />
+      </div>
+    </div>
+  );
+}
 
 const DEFAULT_SYSTEM_PROMPT =
-  "The input image is a 2D architectural floor plan. Preserve the EXACT room layout: the position and proportions of every wall, door, window, and each room must stay unchanged. Do NOT add, remove, merge, or resize any rooms. Do NOT change the architecture or the overall outline of the building.";
+  'The input image is a 2D architectural floor plan. Preserve the EXACT room layout: the position and proportions of every wall, door, window, and each room must stay unchanged. Do NOT add, remove, merge, or resize any rooms. Do NOT change the architecture or the overall outline of the building.';
 
 const DEFAULT_USER_PROMPT =
-  "Transform the 2D floor plan into a realistic 3D interior/exterior visualization. Add realistic furniture appropriate to each room (sofas, beds, kitchen counters, tables, chairs, etc.). Use realistic materials (wood flooring, tiles, brick, glass, concrete, drywall) and realistic natural lighting with soft shadows. Render as a professional architectural 3D visualization with a slightly elevated isometric view so the full layout is visible. Warm inviting color palette, high detail, photorealistic.";
+  'Transform the 2D floor plan into a realistic 3D interior/exterior visualization. Add realistic furniture appropriate to each room (sofas, beds, kitchen counters, tables, chairs, etc.). Use realistic materials (wood flooring, tiles, brick, glass, concrete, drywall) and realistic natural lighting with soft shadows. Render as a professional architectural 3D visualization with a slightly elevated isometric view so the full layout is visible. Warm inviting color palette, high detail, photorealistic.';
 
 const IMAGE_SIZES = [
-  ["landscape_4_3", "Landscape 4:3"],
-  ["landscape_16_9", "Landscape 16:9"],
-  ["square", "Square"],
-  ["square_hd", "Square HD"],
-  ["portrait_4_3", "Portrait 4:3"],
-  ["portrait_16_9", "Portrait 16:9"],
+  ['landscape_4_3', 'Landscape 4:3'],
+  ['landscape_16_9', 'Landscape 16:9'],
+  ['square', 'Square'],
+  ['square_hd', 'Square HD'],
+  ['portrait_4_3', 'Portrait 4:3'],
+  ['portrait_16_9', 'Portrait 16:9'],
 ] as const;
 
 type Result = { url: string; falUrl: string; seed: number };
@@ -25,10 +86,10 @@ export default function FloorplanPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
   const [userPrompt, setUserPrompt] = useState(DEFAULT_USER_PROMPT);
-  const [imageSize, setImageSize] = useState("landscape_4_3");
-  const [guidanceScale, setGuidanceScale] = useState("3.5");
-  const [numInferenceSteps, setNumInferenceSteps] = useState("28");
-  const [seed, setSeed] = useState("");
+  const [imageSize, setImageSize] = useState('landscape_4_3');
+  const [guidanceScale, setGuidanceScale] = useState('3.5');
+  const [numInferenceSteps, setNumInferenceSteps] = useState('28');
+  const [seed, setSeed] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
@@ -44,7 +105,7 @@ export default function FloorplanPage() {
 
   async function handleGenerate() {
     if (!image) {
-      setError("Please upload a 2D floor plan image first.");
+      setError('Please upload a 2D floor plan image first.');
       return;
     }
     setLoading(true);
@@ -52,23 +113,23 @@ export default function FloorplanPage() {
     setResult(null);
     try {
       const form = new FormData();
-      form.append("image", image);
-      form.append("systemPrompt", systemPrompt);
-      form.append("userPrompt", userPrompt);
-      form.append("imageSize", imageSize);
-      form.append("guidanceScale", guidanceScale);
-      form.append("numInferenceSteps", numInferenceSteps);
-      if (seed.trim()) form.append("seed", seed.trim());
+      form.append('image', image);
+      form.append('systemPrompt', systemPrompt);
+      form.append('userPrompt', userPrompt);
+      form.append('imageSize', imageSize);
+      form.append('guidanceScale', guidanceScale);
+      form.append('numInferenceSteps', numInferenceSteps);
+      if (seed.trim()) form.append('seed', seed.trim());
 
-      const response = await apiFetch("/api/floorplan/to3d", {
-        method: "POST",
+      const response = await apiFetch('/api/floorplan/to3d', {
+        method: 'POST',
         body: form,
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error || `Request failed (${response.status})`);
       setResult(body as Result);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Generation failed");
+      setError(e instanceof Error ? e.message : 'Generation failed');
     } finally {
       setLoading(false);
     }
@@ -96,8 +157,8 @@ export default function FloorplanPage() {
           2D floor plan → <em className="text-[#78917d]">3D render</em>
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[#5f6c63]">
-          Upload a floor plan image, tune the system and user prompts, and get a
-          3D interior/exterior visualization back. Nothing is persisted.
+          Upload a floor plan image, tune the system and user prompts, and get a 3D
+          interior/exterior visualization back. Nothing is persisted.
         </p>
       </header>
 
@@ -108,28 +169,43 @@ export default function FloorplanPage() {
             <label className="mb-2 block text-xs font-bold tracking-wider text-[#607b68]">
               INPUT IMAGE
             </label>
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                handleFile(e.dataTransfer.files?.[0]);
-              }}
-              className="flex w-full items-center justify-center gap-3 rounded-xl border border-dashed border-[#c6d0c6] bg-[#f7faf7] px-4 py-10 text-sm text-[#65736a] transition hover:border-[#92a998] hover:bg-white"
-            >
-              {previewUrl ? (
-                <img src={previewUrl} alt="Floor plan preview" className="max-h-48 rounded-lg object-contain" />
-              ) : (
-                <>
-                  <Upload size={18} />
-                  <span>
-                    Click or drop a floor plan image
-                    <span className="block text-xs text-[#92a198]">JPG · PNG · WEBP, up to 15 MB</span>
+            {previewUrl ? (
+              <div className="flex flex-col gap-2">
+                <div className="rounded-xl border border-[#dfe6df] bg-[#f7faf7] px-3 py-3">
+                  <ZoomableImage
+                    src={previewUrl}
+                    alt="Floor plan preview"
+                    imageClassName="max-h-48 rounded-lg object-contain"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.click()}
+                  className="btn btn-secondary flex items-center justify-center gap-2"
+                >
+                  <RefreshCw size={14} /> Replace image
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  handleFile(e.dataTransfer.files?.[0]);
+                }}
+                className="flex w-full items-center justify-center gap-3 rounded-xl border border-dashed border-[#c6d0c6] bg-[#f7faf7] px-4 py-10 text-sm text-[#65736a] transition hover:border-[#92a998] hover:bg-white"
+              >
+                <Upload size={18} />
+                <span>
+                  Click or drop a floor plan image
+                  <span className="block text-xs text-[#92a198]">
+                    JPG · PNG · WEBP, up to 15 MB
                   </span>
-                </>
-              )}
-            </button>
+                </span>
+              </button>
+            )}
             <input
               ref={inputRef}
               type="file"
@@ -234,17 +310,13 @@ export default function FloorplanPage() {
             )}
           </button>
 
-          {error && (
-            <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
-          )}
+          {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
         </div>
 
         {/* Result */}
         <div className="card flex flex-col gap-4 p-6">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold tracking-wider text-[#607b68]">
-              OUTPUT
-            </label>
+            <label className="text-xs font-bold tracking-wider text-[#607b68]">OUTPUT</label>
             {result && (
               <a
                 href={apiAssetUrl(result.url)}
@@ -263,11 +335,13 @@ export default function FloorplanPage() {
                 Rendering 3D visualization…
               </div>
             ) : result ? (
-              <img
-                src={apiAssetUrl(result.url)}
-                alt="Generated 3D render"
-                className="max-h-[560px] w-full object-contain"
-              />
+              <div className="w-full px-3 py-3">
+                <ZoomableImage
+                  src={apiAssetUrl(result.url)}
+                  alt="Generated 3D render"
+                  imageClassName="max-h-[520px] w-full object-contain"
+                />
+              </div>
             ) : (
               <div className="flex flex-col items-center gap-3 py-20 text-sm text-[#92a198]">
                 <RefreshCw size={22} />
@@ -278,12 +352,17 @@ export default function FloorplanPage() {
           {result && (
             <div className="text-xs text-[#65736a]">
               <p>
-                Seed: <span className="font-semibold">{result.seed}</span> · Served
-                from <code className="rounded bg-[#eef3ee] px-1.5 py-0.5">{result.url}</code>
+                Seed: <span className="font-semibold">{result.seed}</span> · Served from{' '}
+                <code className="rounded bg-[#eef3ee] px-1.5 py-0.5">{result.url}</code>
               </p>
               <p className="mt-1 truncate">
-                fal.ai URL:{" "}
-                <a href={result.falUrl} target="_blank" rel="noreferrer" className="text-[#607b68] underline">
+                fal.ai URL:{' '}
+                <a
+                  href={result.falUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[#607b68] underline"
+                >
                   {result.falUrl}
                 </a>
               </p>

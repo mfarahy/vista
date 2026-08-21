@@ -1,9 +1,15 @@
-import type { LocationResearch, LocationResearchInput } from "../mastra/schemas/location-research.js";
+import type {
+  LocationResearch,
+  LocationResearchInput,
+} from '../mastra/schemas/location-research.js';
 
 const cache = new Map<string, { value: LocationResearch; expiresAt: number }>();
 
 export function locationResearchCacheKey(input: LocationResearchInput) {
-  return [input.city, input.district, input.neighborhood, input.postalCode, input.country].filter(Boolean).join("|").toLowerCase();
+  return [input.city, input.district, input.neighborhood, input.postalCode, input.country]
+    .filter(Boolean)
+    .join('|')
+    .toLowerCase();
 }
 
 export function getCachedLocationResearch(input: LocationResearchInput, now = Date.now()) {
@@ -15,7 +21,11 @@ export function getCachedLocationResearch(input: LocationResearchInput, now = Da
   return item.value;
 }
 
-export function setCachedLocationResearch(input: LocationResearchInput, value: LocationResearch, ttlMs = Number(process.env.LOCATION_RESEARCH_TTL_MS || 7 * 24 * 60 * 60 * 1000)) {
+export function setCachedLocationResearch(
+  input: LocationResearchInput,
+  value: LocationResearch,
+  ttlMs = Number(process.env.LOCATION_RESEARCH_TTL_MS || 7 * 24 * 60 * 60 * 1000),
+) {
   cache.set(locationResearchCacheKey(input), { value, expiresAt: Date.now() + ttlMs });
   return value;
 }

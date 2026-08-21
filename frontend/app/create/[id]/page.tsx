@@ -1,12 +1,13 @@
-import { notFound } from "next/navigation";
-import { apiFetch } from "@/lib/api";
-import WizardClient from "./wizard-client";
+import { notFound } from 'next/navigation';
+import { apiFetch } from '@/lib/api';
+import type { Property } from './types';
+import WizardClient from './wizard-client';
 
 async function getProperty(id: string) {
   try {
     const response = await apiFetch(`/api/properties/${id}`);
     if (!response.ok) return null;
-    return (await response.json()) as any;
+    return (await response.json()) as Property;
   } catch {
     return null;
   }

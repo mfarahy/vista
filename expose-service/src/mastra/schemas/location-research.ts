@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 const text = z.string().trim().min(1);
 
@@ -9,13 +9,17 @@ export const locationResearchInputSchema = z.object({
   district: text.max(100).optional(),
   neighborhood: text.max(100).optional(),
   postalCode: text.max(20),
-  country: text.max(100).default("Germany"),
+  country: text.max(100).default('Germany'),
   latitude: z.number().finite().min(-90).max(90).optional(),
   longitude: z.number().finite().min(-180).max(180).optional(),
-  locationIntelligence: z.object({
-    coordinates: z.object({ latitude: z.number(), longitude: z.number() }),
-    facilities: z.record(z.array(z.object({ name: text, category: text, distanceMeters: z.number().nonnegative() }))),
-  }).optional(),
+  locationIntelligence: z
+    .object({
+      coordinates: z.object({ latitude: z.number(), longitude: z.number() }),
+      facilities: z.record(
+        z.array(z.object({ name: text, category: text, distanceMeters: z.number().nonnegative() })),
+      ),
+    })
+    .optional(),
 });
 
 export const researchSourceSchema = z.object({
@@ -30,8 +34,18 @@ export const researchSourceSchema = z.object({
 
 export const researchClaimSchema = z.object({
   statement: text.max(1200),
-  category: z.enum(["mikrolage", "makrolage", "infrastructure", "transport", "education", "shopping", "recreation", "healthcare", "important_fact"]),
-  factType: z.enum(["hard_fact", "contextual_fact"]),
+  category: z.enum([
+    'mikrolage',
+    'makrolage',
+    'infrastructure',
+    'transport',
+    'education',
+    'shopping',
+    'recreation',
+    'healthcare',
+    'important_fact',
+  ]),
+  factType: z.enum(['hard_fact', 'contextual_fact']),
   confidence: z.number().finite().min(0).max(1),
   sources: z.array(researchSourceSchema).min(1),
 });

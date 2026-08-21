@@ -1,6 +1,144 @@
 {
   "properties": [
     {
+      "id": "636aab5c-6ce2-4b6e-9c86-d47de96f4639",
+      "propertyType": "house",
+      "transactionType": "sale",
+      "selectedFeatures": [
+        "balcony",
+        "garage",
+        "basement",
+        "underfloor-heating"
+      ],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [
+        {
+          "name": "Living room",
+          "type": "Living",
+          "size": 31,
+          "floor": "3. OG",
+          "description": "Bright living area with balcony access and large windows.",
+          "sequence": 0,
+          "id": "efdf238c-88bd-4f04-bf45-c0a94b621085"
+        },
+        {
+          "name": "Kitchen",
+          "type": "Kitchen",
+          "size": 11,
+          "floor": "3. OG",
+          "description": "Open-plan fitted kitchen with generous work surfaces.",
+          "sequence": 1,
+          "id": "2cd7f781-ea99-4af1-b779-0a1e69d7a85b"
+        }
+      ],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "house",
+          "propertySubtype": null,
+          "title": null,
+          "address": {
+            "street": "Großbeerenstraße",
+            "houseNumber": "83",
+            "postalCode": "12107",
+            "city": "Berlin",
+            "district": "Mariendorf",
+            "state": null,
+            "country": "Deutschland",
+            "formattedAddress": "83, Großbeerenstraße, Mariendorf, Tempelhof-Schöneberg, Berlin, 12107, Deutschland",
+            "latitude": 52.4333079,
+            "longitude": 13.377859
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null
+        },
+        "propertyDetails": {
+          "livingArea": null,
+          "plotArea": null,
+          "rooms": null,
+          "bathrooms": null,
+          "yearBuilt": null,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "bodenrichtwert": null
+        },
+        "energy": null,
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "street": "Großbeerenstraße",
+            "houseNumber": "83",
+            "postalCode": "12107",
+            "city": "Berlin",
+            "district": "Mariendorf",
+            "state": null,
+            "country": "Deutschland",
+            "formattedAddress": "83, Großbeerenstraße, Mariendorf, Tempelhof-Schöneberg, Berlin, 12107, Deutschland",
+            "latitude": 52.4333079,
+            "longitude": 13.377859
+          },
+          "latitude": 52.4333079,
+          "longitude": 13.377859,
+          "district": "Mariendorf"
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null,
+          "notes": {}
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-21T09:27:20.069Z",
+      "updatedAt": "2026-08-21T09:35:57.639Z",
+      "constructionYear": 2018,
+      "address": "Großbeerenstraße 83",
+      "zipCode": "12107",
+      "city": "Berlin",
+      "district": "Mariendorf",
+      "livingArea": 86,
+      "rooms": 3,
+      "bathrooms": 1,
+      "floor": "3. OG",
+      "totalFloors": 5,
+      "availableFrom": "01.10.2026",
+      "condition": "good",
+      "askingPrice": 645000,
+      "additionalCosts": 19350,
+      "hausgeld": 385,
+      "additionalFeatures": "Oak flooring and triple-glazed windows"
+    },
+    {
       "id": "4de320d3-efcf-4882-8ec0-f345293dc46c",
       "propertyType": "apartment",
       "transactionType": "sale",

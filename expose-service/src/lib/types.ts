@@ -1,43 +1,50 @@
-import type { PropertyExposeData, ExposeImage, EnergyData, AgentData, SystemBranding, LocationIntelligence } from "./expose-data.js";
-import type { LocationResearch } from "../mastra/schemas/location-research.js";
+import type { PropertyExposeData, ExposeImage, AgentData, LocationIntelligence } from './expose-data.js';
+import type { LocationResearch } from '../mastra/schemas/location-research.js';
 
-export { emptyExposeData, propertyExposeDataSchema } from "./expose-data.js";
-export type { PropertyExposeData, ExposeImage, EnergyData, AgentData, SystemBranding, LocationIntelligence } from "./expose-data.js";
-export type { LocationResearch } from "../mastra/schemas/location-research.js";
+export { emptyExposeData, propertyExposeDataSchema } from './expose-data.js';
+export type {
+  PropertyExposeData,
+  ExposeImage,
+  EnergyData,
+  AgentData,
+  SystemBranding,
+  LocationIntelligence,
+} from './expose-data.js';
+export type { LocationResearch } from '../mastra/schemas/location-research.js';
 
 export const PROPERTY_TYPES = [
-  ["apartment", "Apartment"],
-  ["house", "House"],
-  ["villa", "Villa"],
-  ["penthouse", "Penthouse"],
-  ["semi-detached", "Semi-detached house"],
-  ["terraced", "Terraced house"],
-  ["other", "Other"],
+  ['apartment', 'Apartment'],
+  ['house', 'House'],
+  ['villa', 'Villa'],
+  ['penthouse', 'Penthouse'],
+  ['semi-detached', 'Semi-detached house'],
+  ['terraced', 'Terraced house'],
+  ['other', 'Other'],
 ] as const;
 
 export const FEATURE_OPTIONS = [
-  ["balcony", "Balcony"],
-  ["terrace", "Terrace"],
-  ["garden", "Garden"],
-  ["garage", "Garage"],
-  ["parking", "Parking space"],
-  ["elevator", "Elevator"],
-  ["basement", "Basement"],
-  ["attic", "Attic"],
-  ["fitted-kitchen", "Fitted kitchen"],
-  ["underfloor-heating", "Underfloor heating"],
-  ["air-conditioning", "Air conditioning"],
-  ["guest-toilet", "Guest toilet"],
-  ["accessible", "Accessible"],
-  ["storage", "Storage room"],
-  ["wardrobes", "Built-in wardrobes"],
-  ["smart-home", "Smart home"],
-  ["energy-efficient", "Energy efficient"],
+  ['balcony', 'Balcony'],
+  ['terrace', 'Terrace'],
+  ['garden', 'Garden'],
+  ['garage', 'Garage'],
+  ['parking', 'Parking space'],
+  ['elevator', 'Elevator'],
+  ['basement', 'Basement'],
+  ['attic', 'Attic'],
+  ['fitted-kitchen', 'Fitted kitchen'],
+  ['underfloor-heating', 'Underfloor heating'],
+  ['air-conditioning', 'Air conditioning'],
+  ['guest-toilet', 'Guest toilet'],
+  ['accessible', 'Accessible'],
+  ['storage', 'Storage room'],
+  ['wardrobes', 'Built-in wardrobes'],
+  ['smart-home', 'Smart home'],
+  ['energy-efficient', 'Energy efficient'],
 ] as const;
 
 export type PropertyType = (typeof PROPERTY_TYPES)[number][0];
-export type TransactionType = "sale" | "rent";
-export type Tone = "professional" | "premium" | "modern" | "warm" | "neutral";
+export type TransactionType = 'sale' | 'rent';
+export type Tone = 'professional' | 'premium' | 'modern' | 'warm' | 'neutral';
 
 export interface PropertyImage {
   id: string;
@@ -49,7 +56,7 @@ export interface PropertyImage {
   isCover: boolean;
   room?: string | null;
   assetId?: string;
-  category?: "exterior" | "interior" | "floor_plan" | "document" | null;
+  category?: 'exterior' | 'interior' | 'floor_plan' | 'document' | null;
   subcategory?: string | null;
   caption?: string | null;
   description?: string | null;
@@ -108,7 +115,7 @@ export interface Property {
   specialNotes?: string | null;
   targetAudience?: string | null;
   tone: Tone;
-  language: "de" | "en";
+  language: 'de' | 'en';
   images: PropertyImage[];
   roomsData: PropertyRoom[];
   expose?: Expose | null;
@@ -152,17 +159,25 @@ export interface StructuredExposeContent {
     facts: StructuredExposeFact[];
     energy?: { facts: StructuredExposeFact[] };
   };
-  objectInformation?: { address: import("./expose-data.js").PropertyExposeData["basicInformation"]["address"] };
+  objectInformation?: {
+    address: import('./expose-data.js').PropertyExposeData['basicInformation']['address'];
+  };
   propertyDescription?: {
     paragraphs: { heading: string; text: string }[];
   };
   roomProgram?: { roomId: string; name: string; area?: string; description: string }[];
   equipment?: { facts: StructuredExposeFact[]; description?: string };
-  location?: { description: string; district?: string; neighborhood?: string; intelligence?: LocationIntelligence; research?: LocationResearch };
+  location?: {
+    description: string;
+    district?: string;
+    neighborhood?: string;
+    intelligence?: LocationIntelligence;
+    research?: LocationResearch;
+  };
   otherInformation?: { items: StructuredExposeFact[] };
   additionalInformation?: { items: StructuredExposeFact[] };
   imageSections?: {
-    category: ExposeImage["category"];
+    category: ExposeImage['category'];
     label: string;
     images: StructuredExposeImageReference[];
   }[];
@@ -184,51 +199,51 @@ export type StoredExposeContent = ExposeContent | StructuredExposeContent;
 export interface Expose {
   id: string;
   propertyId: string;
-  template: "modern";
+  template: 'modern';
   content: StoredExposeContent | null;
   pdfUrl?: string | null;
   generatedAt?: string | null;
 }
 export interface PropertyPayload extends Omit<
   Property,
-  "id" | "images" | "expose" | "roomsData" | "createdAt" | "updatedAt"
+  'id' | 'images' | 'expose' | 'roomsData' | 'createdAt' | 'updatedAt'
 > {
-  roomsData: Omit<PropertyRoom, "id">[];
+  roomsData: Omit<PropertyRoom, 'id'>[];
   exposeData?: PropertyExposeData;
 }
 
 export const emptyProperty = (): PropertyPayload => ({
-  propertyType: "apartment",
-  transactionType: "sale",
+  propertyType: 'apartment',
+  transactionType: 'sale',
   constructionYear: null,
-  address: "",
-  zipCode: "",
-  city: "",
-  district: "",
+  address: '',
+  zipCode: '',
+  city: '',
+  district: '',
   livingArea: null,
   plotArea: null,
   rooms: null,
   bedrooms: null,
   bathrooms: null,
-  floor: "",
+  floor: '',
   totalFloors: null,
   bodenrichtwert: null,
-  availableFrom: "",
-  condition: "",
+  availableFrom: '',
+  condition: '',
   askingPrice: null,
   additionalCosts: null,
-  commission: "",
+  commission: '',
   hausgeld: null,
   coldRent: null,
   deposit: null,
   selectedFeatures: [],
-  additionalFeatures: "",
+  additionalFeatures: '',
   surroundings: {},
-  locationNote: "",
-  sellerDescription: "",
-  specialNotes: "",
-  targetAudience: "",
-  tone: "professional",
-  language: "en",
+  locationNote: '',
+  sellerDescription: '',
+  specialNotes: '',
+  targetAudience: '',
+  tone: 'professional',
+  language: 'en',
   roomsData: [],
 });

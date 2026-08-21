@@ -1,25 +1,24 @@
-import { z } from "zod";
-import { locationResearchSchema } from "../mastra/schemas/location-research.js";
+import { z } from 'zod';
+import { locationResearchSchema } from '../mastra/schemas/location-research.js';
 
 export const certificateTypeSchema = z.enum([
-  "needs_based",
-  "consumption_based",
-  "not_available",
-  "unknown",
+  'needs_based',
+  'consumption_based',
+  'not_available',
+  'unknown',
 ]);
 export const primaryEnergySourceSchema = z.enum([
-  "gas",
-  "oil",
-  "district_heating",
-  "heat_pump",
-  "electricity",
-  "wood",
-  "pellets",
-  "other",
+  'gas',
+  'oil',
+  'district_heating',
+  'heat_pump',
+  'electricity',
+  'wood',
+  'pellets',
+  'other',
 ]);
-export const efficiencyClassSchema = z.enum(["A+", "A", "B", "C", "D", "E", "F", "G", "H"]);
+export const efficiencyClassSchema = z.enum(['A+', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
 
-const nullableNumber = z.number().finite().nullable().optional();
 const nonNegativeNumber = z.number().finite().nonnegative().nullable().optional();
 const optionalText = (max: number) => z.string().max(max).nullable().optional();
 
@@ -30,17 +29,32 @@ export const addressSchema = z.object({
   city: optionalText(100),
   district: optionalText(100),
   state: optionalText(100),
-  country: z.string().max(100).default("Deutschland"),
+  country: z.string().max(100).default('Deutschland'),
   formattedAddress: optionalText(300),
   latitude: z.number().finite().min(-90).max(90).nullable().optional(),
   longitude: z.number().finite().min(-180).max(180).nullable().optional(),
 });
 
 export const placeCategorySchema = z.enum([
-  "supermarket", "grocery", "shopping_center", "kindergarten", "school",
-  "train_station", "subway", "tram", "bus_stop", "doctor", "pharmacy",
-  "hospital", "park", "playground", "sports_facility", "restaurant", "cafe",
-  "bank", "post_office",
+  'supermarket',
+  'grocery',
+  'shopping_center',
+  'kindergarten',
+  'school',
+  'train_station',
+  'subway',
+  'tram',
+  'bus_stop',
+  'doctor',
+  'pharmacy',
+  'hospital',
+  'park',
+  'playground',
+  'sports_facility',
+  'restaurant',
+  'cafe',
+  'bank',
+  'post_office',
 ]);
 export const placeSchema = z.object({
   id: z.string().max(200),
@@ -50,24 +64,38 @@ export const placeSchema = z.object({
   longitude: z.number().finite().min(-180).max(180),
   address: z.string().max(300).optional(),
   distanceMeters: z.number().finite().nonnegative(),
-  distanceType: z.literal("straight_line"),
+  distanceType: z.literal('straight_line'),
   source: z.string().max(100),
 });
 export const locationIntelligenceSchema = z.object({
   address: addressSchema,
-  coordinates: z.object({ latitude: z.number().finite().min(-90).max(90), longitude: z.number().finite().min(-180).max(180) }),
+  coordinates: z.object({
+    latitude: z.number().finite().min(-90).max(90),
+    longitude: z.number().finite().min(-180).max(180),
+  }),
   formattedAddress: z.string().max(300).optional(),
-  source: z.enum(["geocoded", "manual"]),
+  source: z.enum(['geocoded', 'manual']),
   geocodingProvider: z.string().max(100).optional(),
   confidence: z.number().finite().min(0).max(1).optional(),
   matchType: z.string().max(100).optional(),
   verificationRequired: z.boolean().default(false),
   facilities: z.object({
-    shopping: z.array(placeSchema), education: z.array(placeSchema), transport: z.array(placeSchema),
-    healthcare: z.array(placeSchema), recreation: z.array(placeSchema), dailyLife: z.array(placeSchema),
+    shopping: z.array(placeSchema),
+    education: z.array(placeSchema),
+    transport: z.array(placeSchema),
+    healthcare: z.array(placeSchema),
+    recreation: z.array(placeSchema),
+    dailyLife: z.array(placeSchema),
   }),
   radiusMeters: z.number().int().positive(),
-  mapAsset: z.object({ assetId: z.string(), url: z.string(), mimeType: z.literal("image/svg+xml"), caption: z.string() }).optional(),
+  mapAsset: z
+    .object({
+      assetId: z.string(),
+      url: z.string(),
+      mimeType: z.literal('image/svg+xml'),
+      caption: z.string(),
+    })
+    .optional(),
   summary: z.string().max(2000),
   generatedAt: z.string(),
   expiresAt: z.string(),
@@ -76,25 +104,51 @@ export const locationIntelligenceSchema = z.object({
 export const energyDataSchema = z
   .object({
     certificateType: certificateTypeSchema.nullable().optional(),
-    yearOfConstruction: z.number().int().min(1800).max(new Date().getFullYear() + 1).nullable().optional(),
+    yearOfConstruction: z
+      .number()
+      .int()
+      .min(1800)
+      .max(new Date().getFullYear() + 1)
+      .nullable()
+      .optional(),
     primaryEnergySource: primaryEnergySourceSchema.nullable().optional(),
     finalEnergyDemand: nonNegativeNumber,
     finalEnergyConsumption: nonNegativeNumber,
     efficiencyClass: efficiencyClassSchema.nullable().optional(),
   })
   .superRefine((value, context) => {
-    if (value.certificateType === "needs_based" && value.finalEnergyDemand == null) {
-      context.addIssue({ code: z.ZodIssueCode.custom, path: ["finalEnergyDemand"], message: "Bedarfsorientierte Ausweise benötigen einen Endenergiebedarf." });
+    if (value.certificateType === 'needs_based' && value.finalEnergyDemand == null) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['finalEnergyDemand'],
+        message: 'Bedarfsorientierte Ausweise benötigen einen Endenergiebedarf.',
+      });
     }
-    if (value.certificateType === "consumption_based" && value.finalEnergyConsumption == null) {
-      context.addIssue({ code: z.ZodIssueCode.custom, path: ["finalEnergyConsumption"], message: "Verbrauchsorientierte Ausweise benötigen einen Endenergieverbrauch." });
+    if (value.certificateType === 'consumption_based' && value.finalEnergyConsumption == null) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['finalEnergyConsumption'],
+        message: 'Verbrauchsorientierte Ausweise benötigen einen Endenergieverbrauch.',
+      });
     }
   });
 
 export const roomTypeSchema = z.enum([
-  "living_room", "bedroom", "child_room", "office", "kitchen", "dining_room",
-  "bathroom", "guest_wc", "hallway", "utility_room", "hobby_room", "basement",
-  "attic", "garage", "other",
+  'living_room',
+  'bedroom',
+  'child_room',
+  'office',
+  'kitchen',
+  'dining_room',
+  'bathroom',
+  'guest_wc',
+  'hallway',
+  'utility_room',
+  'hobby_room',
+  'basement',
+  'attic',
+  'garage',
+  'other',
 ]);
 export const roomDataSchema = z.object({
   id: z.string().optional(),
@@ -108,8 +162,17 @@ export const roomDataSchema = z.object({
 });
 
 export const equipmentCategorySchema = z.enum([
-  "interior", "kitchen", "bathroom", "flooring", "windows", "heating",
-  "technology", "outdoor", "parking", "storage", "other",
+  'interior',
+  'kitchen',
+  'bathroom',
+  'flooring',
+  'windows',
+  'heating',
+  'technology',
+  'outdoor',
+  'parking',
+  'storage',
+  'other',
 ]);
 export const equipmentDataSchema = z.object({
   id: z.string().optional(),
@@ -118,7 +181,13 @@ export const equipmentDataSchema = z.object({
   description: optionalText(1000),
 });
 
-export const outdoorAreaTypeSchema = z.enum(["garden", "terrace", "balcony", "courtyard", "roof_terrace"]);
+export const outdoorAreaTypeSchema = z.enum([
+  'garden',
+  'terrace',
+  'balcony',
+  'courtyard',
+  'roof_terrace',
+]);
 export const outdoorAreaSchema = z.object({
   id: z.string().optional(),
   type: outdoorAreaTypeSchema,
@@ -127,7 +196,7 @@ export const outdoorAreaSchema = z.object({
   description: optionalText(1000),
 });
 
-export const imageCategorySchema = z.enum(["exterior", "interior", "floor_plan", "document"]);
+export const imageCategorySchema = z.enum(['exterior', 'interior', 'floor_plan', 'document']);
 export const exposeImageSchema = z.object({
   id: z.string().optional(),
   assetId: z.string().min(1),
@@ -148,14 +217,20 @@ export const borisEnrichmentSchema = z.object({
   source: z.string().max(200),
   retrievedAt: z.string(),
   referenceDate: z.string().nullable().optional(),
-  zone: z.object({
-    id: z.string().nullable().optional(),
-    name: z.string().nullable().optional(),
-  }).nullable().optional(),
-  bodenrichtwert: z.object({
-    value: z.number().finite().nullable().optional(),
-    unit: z.string().max(50).default("EUR/m²"),
-  }).nullable().optional(),
+  zone: z
+    .object({
+      id: z.string().nullable().optional(),
+      name: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
+  bodenrichtwert: z
+    .object({
+      value: z.number().finite().nullable().optional(),
+      unit: z.string().max(50).default('EUR/m²'),
+    })
+    .nullable()
+    .optional(),
   landUse: z.string().nullable().optional(),
   developmentState: z.string().nullable().optional(),
   valueDeterminingCharacteristics: z.record(z.string(), z.unknown()).default({}),
@@ -186,7 +261,7 @@ export const agentDataSchema = z.object({
 });
 
 export const systemBrandingSchema = z.object({
-  companyName: z.string().max(150).default("Vista"),
+  companyName: z.string().max(150).default('Vista'),
   logo: optionalText(500),
   website: z.string().url().nullable().optional(),
   email: z.string().email().nullable().optional(),
@@ -208,8 +283,20 @@ export const propertyDetailsSchema = z.object({
   plotArea: nonNegativeNumber,
   rooms: nonNegativeNumber,
   bathrooms: nonNegativeNumber,
-  yearBuilt: z.number().int().min(1000).max(new Date().getFullYear() + 1).nullable().optional(),
-  completionYear: z.number().int().min(1000).max(new Date().getFullYear() + 1).nullable().optional(),
+  yearBuilt: z
+    .number()
+    .int()
+    .min(1000)
+    .max(new Date().getFullYear() + 1)
+    .nullable()
+    .optional(),
+  completionYear: z
+    .number()
+    .int()
+    .min(1000)
+    .max(new Date().getFullYear() + 1)
+    .nullable()
+    .optional(),
   floor: optionalText(30),
   numberOfFloors: z.number().int().nonnegative().nullable().optional(),
   garageCount: z.number().int().nonnegative().nullable().optional(),
@@ -246,17 +333,19 @@ export const propertyExposeDataSchema = z.object({
   equipment: z.array(equipmentDataSchema).max(200).default([]),
   outdoorAreas: z.array(outdoorAreaSchema).max(20).default([]),
   parking: parkingSchema.optional(),
-  description: z.object({
-    short: optionalText(2000),
-    long: optionalText(6000),
-  }).optional(),
+  description: z
+    .object({
+      short: optionalText(2000),
+      long: optionalText(6000),
+    })
+    .optional(),
   location: locationDataSchema,
   images: z.array(exposeImageSchema).max(500).default([]),
   floorPlans: z.array(exposeImageSchema).max(100).default([]),
   maps: z.array(exposeImageSchema).max(20).default([]),
   additionalInformation: additionalInformationSchema.default({}),
   agent: agentDataSchema.optional(),
-  systemBranding: systemBrandingSchema.default({ companyName: "Vista", processSteps: [] }),
+  systemBranding: systemBrandingSchema.default({ companyName: 'Vista', processSteps: [] }),
 });
 
 export type EnergyData = z.infer<typeof energyDataSchema>;
@@ -274,12 +363,50 @@ export type SystemBranding = z.infer<typeof systemBrandingSchema>;
 export type PropertyExposeData = z.infer<typeof propertyExposeDataSchema>;
 
 export const emptyExposeData = (): PropertyExposeData => ({
-  basicInformation: { propertyType: "apartment", propertySubtype: null, title: null, address: { country: "Deutschland" } },
-  pricing: { purchasePrice: null, rentPrice: null, additionalCosts: null, buyerCommission: null, sellerCommission: null },
-  propertyDetails: { livingArea: null, plotArea: null, rooms: null, bathrooms: null, yearBuilt: null, completionYear: null, floor: null, numberOfFloors: null, garageCount: null, parkingSpaceCount: null, bodenrichtwert: null },
+  basicInformation: {
+    propertyType: 'apartment',
+    propertySubtype: null,
+    title: null,
+    address: { country: 'Deutschland' },
+  },
+  pricing: {
+    purchasePrice: null,
+    rentPrice: null,
+    additionalCosts: null,
+    buyerCommission: null,
+    sellerCommission: null,
+  },
+  propertyDetails: {
+    livingArea: null,
+    plotArea: null,
+    rooms: null,
+    bathrooms: null,
+    yearBuilt: null,
+    completionYear: null,
+    floor: null,
+    numberOfFloors: null,
+    garageCount: null,
+    parkingSpaceCount: null,
+    bodenrichtwert: null,
+  },
   energy: null,
-  rooms: [], equipment: [], outdoorAreas: [], parking: { garageCount: null, parkingSpaceCount: null, description: null },
-  description: { short: null, long: null }, location: { address: { country: "Deutschland" } }, images: [], floorPlans: [], maps: [],
-  additionalInformation: { additionalInformation: null, legalNotes: null, sellerNotes: null, commissionNotes: null, availability: null, notes: {} },
-  agent: undefined, systemBranding: { companyName: "Vista", processSteps: [] },
+  rooms: [],
+  equipment: [],
+  outdoorAreas: [],
+  parking: { garageCount: null, parkingSpaceCount: null, description: null },
+  description: { short: null, long: null },
+  location: { address: { country: 'Deutschland' } },
+  images: [],
+  floorPlans: [],
+  maps: [],
+  additionalInformation: {
+    additionalInformation: null,
+    legalNotes: null,
+    sellerNotes: null,
+    commissionNotes: null,
+    availability: null,
+    notes: {},
+  },
+  agent: undefined,
+  systemBranding: { companyName: 'Vista', processSteps: [] },
 });

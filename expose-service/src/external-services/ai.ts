@@ -1,5 +1,5 @@
-import { exposeContentSchema } from "../lib/validation.js";
-import type { ExposeContent, Property } from "../lib/types.js";
+import { exposeContentSchema } from '../lib/validation.js';
+import type { ExposeContent, Property } from '../lib/types.js';
 
 export interface AIInput {
   propertyType: string;
@@ -42,50 +42,33 @@ export function buildAIInput(property: Property): AIInput {
       ...property.selectedFeatures,
       ...(property.additionalFeatures ? [property.additionalFeatures] : []),
     ],
-    rooms: property.roomsData.map(
-      ({ id, name, type, size, floor, description }) => ({
-        id,
-        name,
-        type,
-        size,
-        floor,
-        description,
-      }),
-    ),
+    rooms: property.roomsData.map(({ id, name, type, size, floor, description }) => ({
+      id,
+      name,
+      type,
+      size,
+      floor,
+      description,
+    })),
     locationInformation: Object.fromEntries(
       Object.entries(property.surroundings ?? {}).filter(([, value]) => value),
     ),
     locationNote: property.locationNote,
     additionalInformation: [property.sellerDescription, property.specialNotes]
       .filter(Boolean)
-      .join("\n"),
+      .join('\n'),
     tone: property.tone,
     language: property.language,
   };
 }
 
 function label(value: string | undefined | null) {
-  return (
-    value
-      ?.replaceAll("-", " ")
-        .replace(/\b\w/g, (char) => char.toUpperCase()) ?? "Property"
-  );
-}
-function euro(value?: number | null) {
-  return value
-    ? new Intl.NumberFormat("de-DE", {
-        style: "currency",
-        currency: "EUR",
-        maximumFractionDigits: 0,
-      }).format(value)
-    : "";
+  return value?.replaceAll('-', ' ').replace(/\b\w/g, (char) => char.toUpperCase()) ?? 'Property';
 }
 
 function demoContent(property: Property): ExposeContent {
-  const city = property.city || "your city";
-  const district = property.district
-    ? ` in ${property.district}`
-    : "";
+  const city = property.city || 'your city';
+  const district = property.district ? ` in ${property.district}` : '';
   const type = label(property.propertyType);
   const facts = [
     property.livingArea && `${property.livingArea} m² living area`,
@@ -95,33 +78,33 @@ function demoContent(property: Property): ExposeContent {
     property.constructionYear && `Built in ${property.constructionYear}`,
   ].filter(Boolean) as string[];
   const features = property.selectedFeatures.slice(0, 6).map(label);
-  const title = `${type}${property.rooms ? ` mit ${property.rooms}-Zimmern` : ""}${features[0] ? ` und ${features[0]}` : ""}${district ? ` in ${city}` : ` in ${city}`}`;
+  const title = `${type}${property.rooms ? ` mit ${property.rooms}-Zimmern` : ''}${features[0] ? ` und ${features[0]}` : ''}${district ? ` in ${city}` : ` in ${city}`}`;
   const roomDescriptions = property.roomsData.map((room) => ({
     roomId: room.id,
     name: room.name,
     description:
       room.description ||
-      `${room.name}${room.size ? ` with approx. ${room.size} m²` : ""} offers a versatile space that fits naturally into the overall layout.`,
+      `${room.name}${room.size ? ` with approx. ${room.size} m²` : ''} offers a versatile space that fits naturally into the overall layout.`,
   }));
   const locationDescription =
     property.locationNote ||
     Object.entries(property.surroundings ?? {})
       .filter(([, value]) => value)
       .map(([key, value]) => `${label(key)}: ${value}`)
-      .join("\n") ||
-    `The location in ${city}${property.district ? `, ${property.district}` : ""} combines everyday convenience with a pleasant residential atmosphere. The information is based on the details provided.`;
+      .join('\n') ||
+    `The location in ${city}${property.district ? `, ${property.district}` : ''} combines everyday convenience with a pleasant residential atmosphere. The information is based on the details provided.`;
   return {
     title,
-    portalTitle: `${type} in ${city}${property.livingArea ? ` | ${property.livingArea} m²` : ""}`,
-    shortDescription: `${type} in ${city}${property.livingArea ? ` with approx. ${property.livingArea} m² of living space` : ""}. A home with clear qualities and room for your personal touch.`,
-    mainDescription: `${type} in ${city}${district} is a versatile property for people who value a good balance between everyday life and home. ${property.sellerDescription || "The rooms offer a welcoming foundation for individual living ideas and can adapt to different lifestyles."}\n\nHighlights include ${features.length ? features.join(", ") : "the well-proportioned rooms and versatile possibilities"}. All statements in this text are based on the information provided by the seller.`,
+    portalTitle: `${type} in ${city}${property.livingArea ? ` | ${property.livingArea} m²` : ''}`,
+    shortDescription: `${type} in ${city}${property.livingArea ? ` with approx. ${property.livingArea} m² of living space` : ''}. A home with clear qualities and room for your personal touch.`,
+    mainDescription: `${type} in ${city}${district} is a versatile property for people who value a good balance between everyday life and home. ${property.sellerDescription || 'The rooms offer a welcoming foundation for individual living ideas and can adapt to different lifestyles.'}\n\nHighlights include ${features.length ? features.join(', ') : 'the well-proportioned rooms and versatile possibilities'}. All statements in this text are based on the information provided by the seller.`,
     highlights: (features.length
       ? features
       : [
-          "Well-proportioned rooms",
-          "Versatile possibilities",
-          "Room for personal design",
-          "Attractive residential location",
+          'Well-proportioned rooms',
+          'Versatile possibilities',
+          'Room for personal design',
+          'Attractive residential location',
         ]
     ).slice(0, 8),
     roomDescriptions,
@@ -135,9 +118,9 @@ function demoContent(property: Property): ExposeContent {
 
 function demoMetadata(property: Property): { title: string; subtitle: string } {
   const type = label(property.propertyType);
-  const city = property.city || "";
-  const rooms = property.rooms ? `${property.rooms}-room` : "";
-  const title = [type, rooms, "in", city].filter(Boolean).join(" ");
+  const city = property.city || '';
+  const rooms = property.rooms ? `${property.rooms}-room` : '';
+  const title = [type, rooms, 'in', city].filter(Boolean).join(' ');
   const subtitle = property.exposeData?.basicInformation.propertySubtype || type;
   return { title, subtitle };
 }
@@ -148,36 +131,35 @@ export async function generateMetadata(
   const input = buildAIInput(property);
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    console.info("[ai] no API key configured, using demo metadata");
+    console.info('[ai] no API key configured, using demo metadata');
     return demoMetadata(property);
   }
 
-  const base = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
+  const base = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
   const prompt = `You are an English real estate listing expert. Return only valid JSON with exactly two short fields: "title" (a catchy listing headline, max 8 words) and "subtitle" (a short descriptor of the property type/subtype, max 6 words). Base both only on the facts in the input; do not invent information. Input: ${JSON.stringify(input)}`;
 
   try {
     const response = await fetch(`${base}/chat/completions`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
         temperature: 0.5,
-        response_format: { type: "json_object" },
+        response_format: { type: 'json_object' },
         messages: [
           {
-            role: "system",
-            content:
-              "Respond in English. The JSON must contain title and subtitle.",
+            role: 'system',
+            content: 'Respond in English. The JSON must contain title and subtitle.',
           },
-          { role: "user", content: prompt },
+          { role: 'user', content: prompt },
         ],
       }),
     });
     if (!response.ok) {
-      console.warn("[ai] metadata request rejected, using demo metadata", {
+      console.warn('[ai] metadata request rejected, using demo metadata', {
         status: response.status,
       });
       return demoMetadata(property);
@@ -185,24 +167,21 @@ export async function generateMetadata(
     const result = (await response.json()) as {
       choices?: { message?: { content?: string } }[];
     };
-    const parsed = JSON.parse(result.choices?.[0]?.message?.content || "{}");
+    const parsed = JSON.parse(result.choices?.[0]?.message?.content || '{}');
     return {
-      title: String(parsed.title ?? "").slice(0, 200),
-      subtitle: String(parsed.subtitle ?? "").slice(0, 100),
+      title: String(parsed.title ?? '').slice(0, 200),
+      subtitle: String(parsed.subtitle ?? '').slice(0, 100),
     };
   } catch (error) {
-    console.warn("[ai] metadata request failed, using demo metadata", {
+    console.warn('[ai] metadata request failed, using demo metadata', {
       error: error instanceof Error ? error.message : String(error),
     });
     return demoMetadata(property);
   }
 }
 
-export async function generateExposeContent(
-  property: Property,
-  instruction = "",
-) {
-  console.info("[ai] generating expose content", {
+export async function generateExposeContent(property: Property, instruction = '') {
+  console.info('[ai] generating expose content', {
     propertyId: property.id,
     city: property.city,
     instructionLength: instruction.length,
@@ -210,39 +189,39 @@ export async function generateExposeContent(
   const input = buildAIInput(property);
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    console.info("[ai] no API key configured, using demo content", {
+    console.info('[ai] no API key configured, using demo content', {
       propertyId: property.id,
     });
     return demoContent(property);
   }
 
-  const base = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
+  const base = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
   const prompt = `You are a careful English real estate copywriter. Return only valid JSON matching the required schema. Use only facts from the input. Do not invent distances, features, energy, construction, or location details. Write persuasive but transparent copy. Location information may be improved stylistically but must not be expanded. ${instruction}\nInput: ${JSON.stringify(input)}`;
 
   try {
     const response = await fetch(`${base}/chat/completions`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
         temperature: 0.5,
-        response_format: { type: "json_object" },
+        response_format: { type: 'json_object' },
         messages: [
           {
-            role: "system",
+            role: 'system',
             content:
-              "Respond in English. The JSON must contain title, portalTitle, shortDescription, mainDescription, highlights, roomDescriptions, locationDescription, targetAudience, and factualSnapshot.",
+              'Respond in English. The JSON must contain title, portalTitle, shortDescription, mainDescription, highlights, roomDescriptions, locationDescription, targetAudience, and factualSnapshot.',
           },
-          { role: "user", content: prompt },
+          { role: 'user', content: prompt },
         ],
       }),
     });
 
     if (!response.ok) {
-      console.warn("[ai] AI provider rejected the request, using demo content", {
+      console.warn('[ai] AI provider rejected the request, using demo content', {
         propertyId: property.id,
         status: response.status,
         statusText: response.statusText,
@@ -253,15 +232,15 @@ export async function generateExposeContent(
     const result = (await response.json()) as {
       choices?: { message?: { content?: string } }[];
     };
-    const content = JSON.parse(result.choices?.[0]?.message?.content || "{}");
+    const content = JSON.parse(result.choices?.[0]?.message?.content || '{}');
     const parsed = exposeContentSchema.parse(content);
-    console.info("[ai] expose content generated successfully", {
+    console.info('[ai] expose content generated successfully', {
       propertyId: property.id,
       title: parsed.title,
     });
     return parsed;
   } catch (error) {
-    console.warn("[ai] AI request failed, using demo content", {
+    console.warn('[ai] AI request failed, using demo content', {
       propertyId: property.id,
       error: error instanceof Error ? error.message : String(error),
     });
