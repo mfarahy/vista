@@ -92,7 +92,6 @@
             "postalCode": "12107",
             "city": "Berlin",
             "district": "Mariendorf",
-            "state": null,
             "country": "Deutschland",
             "formattedAddress": "83, Großbeerenstraße, Mariendorf, Tempelhof-Schöneberg, Berlin, 12107, Deutschland",
             "latitude": 52.4333079,
@@ -100,7 +99,534 @@
           },
           "latitude": 52.4333079,
           "longitude": 13.377859,
-          "district": "Mariendorf"
+          "district": "Mariendorf",
+          "intelligence": {
+            "address": {
+              "street": "Großbeerenstraße",
+              "houseNumber": "83",
+              "postalCode": "12107",
+              "city": "Berlin",
+              "district": "Mariendorf",
+              "country": "Deutschland",
+              "formattedAddress": "83, Großbeerenstraße, Mariendorf, Tempelhof-Schöneberg, Berlin, 12107, Deutschland",
+              "latitude": 52.4333079,
+              "longitude": 13.377859
+            },
+            "coordinates": {
+              "latitude": 52.4333079,
+              "longitude": 13.377859
+            },
+            "formattedAddress": "83, Großbeerenstraße, Mariendorf, Tempelhof-Schöneberg, Berlin, 12107, Deutschland",
+            "source": "geocoded",
+            "geocodingProvider": "nominatim",
+            "confidence": 0.00008875486381318407,
+            "matchType": "house",
+            "verificationRequired": false,
+            "facilities": {
+              "shopping": [],
+              "education": [],
+              "transport": [],
+              "healthcare": [],
+              "recreation": [],
+              "dailyLife": []
+            },
+            "radiusMeters": 1000,
+            "mapAsset": {
+              "assetId": "location-map",
+              "url": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5MDAiIGhlaWdodD0iNTIwIiB2aWV3Qm94PSIwIDAgOTAwIDUyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2U3ZWVlOCIvPjxnIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2MxZDBjNCIgc3Ryb2tlLXdpZHRoPSIxNCIgb3BhY2l0eT0iLjc1Ij48cGF0aCBkPSJNMCA2NSBDIDIyNSAyOSA2MzAgMTAxIDkwMCA1NyIvPjxwYXRoIGQ9Ik0wIDEzMCBDIDIyNSA5NCA2MzAgMTY2IDkwMCAxMjIiLz48cGF0aCBkPSJNMCAxOTUgQyAyMjUgMTU5IDYzMCAyMzEgOTAwIDE4NyIvPjxwYXRoIGQ9Ik0wIDI2MCBDIDIyNSAyMjQgNjMwIDI5NiA5MDAgMjUyIi8+PHBhdGggZD0iTTAgMzI1IEMgMjI1IDI4OSA2MzAgMzYxIDkwMCAzMTciLz48cGF0aCBkPSJNMCAzOTAgQyAyMjUgMzU0IDYzMCA0MjYgOTAwIDM4MiIvPjxwYXRoIGQ9Ik0wIDQ1NSBDIDIyNSA0MTkgNjMwIDQ5MSA5MDAgNDQ3Ii8+PC9nPjxnIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2Y4ZjhmNCIgc3Ryb2tlLXdpZHRoPSI0Ij48cGF0aCBkPSJNMCA2NSBDIDIyNSAyOSA2MzAgMTAxIDkwMCA1NyIvPjxwYXRoIGQ9Ik0wIDEzMCBDIDIyNSA5NCA2MzAgMTY2IDkwMCAxMjIiLz48cGF0aCBkPSJNMCAxOTUgQyAyMjUgMTU5IDYzMCAyMzEgOTAwIDE4NyIvPjxwYXRoIGQ9Ik0wIDI2MCBDIDIyNSAyMjQgNjMwIDI5NiA5MDAgMjUyIi8+PHBhdGggZD0iTTAgMzI1IEMgMjI1IDI4OSA2MzAgMzYxIDkwMCAzMTciLz48cGF0aCBkPSJNMCAzOTAgQyAyMjUgMzU0IDYzMCA0MjYgOTAwIDM4MiIvPjxwYXRoIGQ9Ik0wIDQ1NSBDIDIyNSA0MTkgNjMwIDQ5MSA5MDAgNDQ3Ii8+PC9nPjxjaXJjbGUgY3g9IjQ1MCIgY3k9IjI2MCIgcj0iMTcxLjYiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzkxYWE5NyIgc3Ryb2tlLWRhc2hhcnJheT0iNSA5Ii8+PGcgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE2IiBmaWxsPSIjMjYzNTJiIj48Zz48Y2lyY2xlIGN4PSI0NTAiIGN5PSIyNjAiIHI9IjEzIiBmaWxsPSIjMjYzNTJiIiBzdHJva2U9IiNmOGY4ZjQiIHN0cm9rZS13aWR0aD0iNCIvPjx0ZXh0IHg9IjQ2NCIgeT0iMjY0IiBjbGFzcz0ibGFiZWwiPkltbW9iaWxpZTwvdGV4dD48L2c+PC9nPjx0ZXh0IHg9IjI4IiB5PSI0OTQiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzcxODA3OCI+U3RhbmRvcnTDvGJlcnNpY2h0IMK3IFZpc3RhPC90ZXh0Pjwvc3ZnPg==",
+              "mimeType": "image/svg+xml",
+              "caption": "Lage und Umgebung"
+            },
+            "summary": "Die Immobilie befindet sich in Berlin, Mariendorf.",
+            "generatedAt": "2026-08-21T10:14:31.263Z",
+            "expiresAt": "2026-09-20T10:14:31.263Z"
+          },
+          "research": {
+            "researchedAt": "2026-08-21T10:14:31.301Z",
+            "mikrolage": {
+              "summary": "3 belegte Rechercheaussage(n).",
+              "claims": [
+                {
+                  "statement": "Berlin.de\nBerlin.deDas offizielle Hauptstadtportal\nBarrierefreiheit\nWie barrierefrei ist diese Webseite?\nHaben Sie Anmerkungen oder Fragen zur Barrierefreiheit dieser Webseite?\nWo gibt es zusätzliche Informationen zur Barrierefreiheit im Land Berlin?\nSuche\nMenü\nSprache der Webseite ändern\nWeitere Links\nSie befinden sich hier:\nTempelhof: Wohnlagen & Infrastruktur\nDas Stadtbild Tempelhofs wird bestimmt durch Miets- und Einfamilienhaussiedlungen sowie Industrie- und Gewerbeflächen. Gleichzeitig ist Tempelhof recht grün.\nWohnlagen\nSanierte Gründerzeitaltbauten in kleinen Straßen sind in Tempelhof keine Seltenheit. Je weiter man nach Süden kommt, desto dörflicher wird die Umgebung. Mariendorf, Marienfelde und Lichtenrade haben teilweise dörflichen Charakter und außerdem einige gut erhaltene historische Bauwerke. Das Leben verläuft hier trotz Spuren der Großstadt recht gemächlich.\nLage\nTempelhof liegt zentral im Süden Berlins und grenzt seinerseits im Süden an das Bundesland Brandenburg. Schnell ist man im angrenzenden Schöneberg, in Neukölln und Kreuzberg.\nÖffentlicher Nahverkehr\nTempelhof ist mit öffentlichen Verkehrsmitteln schnell und leicht erreichbar. Einmal mittendurch fährt die U",
+                  "category": "mikrolage",
+                  "factType": "hard_fact",
+                  "confidence": 0.8464979,
+                  "sources": [
+                    {
+                      "url": "https://www.berlin.de/special/immobilien-und-wohnen/stadtteile/tempelhof/914868-5170848-wohnlagen-infrastruktur.html",
+                      "title": "Tempelhof: Wohnlagen & Infrastruktur – Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.6929958,
+                      "authorityScore": 1,
+                      "excerpt": "Berlin.de\nBerlin.deDas offizielle Hauptstadtportal\nBarrierefreiheit\nWie barrierefrei ist diese Webseite?\nHaben Sie Anmerkungen oder Fragen zur Barrierefreiheit dieser Webseite?\nWo gibt es zusätzliche Informationen zur Barrierefreiheit im Land Berlin?\nSuche\nMenü\nSprache der Webseite ändern\nWeitere Links\nSie befinden sich hier:\nTempelhof: Wohnlagen & Infrastruktur\nDas Stadtbild Tempelhofs wird bestimmt durch Miets- und Einfamilienhaussiedlungen sowie Industrie- und Gewerbeflächen. Gleichzeitig ist Tempelhof recht grün.\nWohnlagen\nSanierte Gründerzeitaltbauten in kleinen Straßen sind in Tempelhof keine Seltenheit. Je weiter man nach Süden kommt, desto dörflicher wird die Umgebung. Mariendorf, Marienfelde und Lichtenrade haben teilweise dörflichen Charakter und außerdem einige gut erhaltene historische Bauwerke. Das Leben verläuft hier trotz Spuren der Großstadt recht gemächlich.\nLage\nTempelhof liegt zentral im Süden Berlins und grenzt seinerseits im Süden an das Bundesland Brandenburg. Schnell ist man im angrenzenden Schöneberg, in Neukölln und Kreuzberg.\nÖffentlicher Nahverkehr\nTempelhof ist mit öffentlichen Verkehrsmitteln schnell und leicht erreichbar. Einmal mittendurch fährt die U"
+                    }
+                  ]
+                },
+                {
+                  "statement": "Berlin.de\nBerlin.deDas offizielle Hauptstadtportal\nBarrierefreiheit\nWie barrierefrei ist diese Webseite?\nHaben Sie Anmerkungen oder Fragen zur Barrierefreiheit dieser Webseite?\nWo gibt es zusätzliche Informationen zur Barrierefreiheit im Land Berlin?\nSuche\nMenü\nSprache der Webseite ändern\nWeitere Links\nSie befinden sich hier:\nTempelhof: Wohnlagen & Infrastruktur\nDas Stadtbild Tempelhofs wird bestimmt durch Miets- und Einfamilienhaussiedlungen sowie Industrie- und Gewerbeflächen. Gleichzeitig ist Tempelhof recht grün.\nWohnlagen\nSanierte Gründerzeitaltbauten in kleinen Straßen sind in Tempelhof keine Seltenheit. Je weiter man nach Süden kommt, desto dörflicher wird die Umgebung. Mariendorf, Marienfelde und Lichtenrade haben teilweise dörflichen Charakter und außerdem einige gut erhaltene historische Bauwerke. Das Leben verläuft hier trotz Spuren der Großstadt recht gemächlich.\nLage\nTempelhof liegt zentral im Süden Berlins und grenzt seinerseits im Süden an das Bundesland Brandenburg. Schnell ist man im angrenzenden Schöneberg, in Neukölln und Kreuzberg.\nÖffentlicher Nahverkehr\nTempelhof ist mit öffentlichen Verkehrsmitteln schnell und leicht erreichbar. Einmal mittendurch fährt die U",
+                  "category": "mikrolage",
+                  "factType": "hard_fact",
+                  "confidence": 0.8464979,
+                  "sources": [
+                    {
+                      "url": "https://berlin.de/special/stadtteile/tempelhof/914868-5170848-wohnlagen-infrastruktur.html",
+                      "title": "Tempelhof: Wohnlagen & Infrastruktur – Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.6929958,
+                      "authorityScore": 1,
+                      "excerpt": "Berlin.de\nBerlin.deDas offizielle Hauptstadtportal\nBarrierefreiheit\nWie barrierefrei ist diese Webseite?\nHaben Sie Anmerkungen oder Fragen zur Barrierefreiheit dieser Webseite?\nWo gibt es zusätzliche Informationen zur Barrierefreiheit im Land Berlin?\nSuche\nMenü\nSprache der Webseite ändern\nWeitere Links\nSie befinden sich hier:\nTempelhof: Wohnlagen & Infrastruktur\nDas Stadtbild Tempelhofs wird bestimmt durch Miets- und Einfamilienhaussiedlungen sowie Industrie- und Gewerbeflächen. Gleichzeitig ist Tempelhof recht grün.\nWohnlagen\nSanierte Gründerzeitaltbauten in kleinen Straßen sind in Tempelhof keine Seltenheit. Je weiter man nach Süden kommt, desto dörflicher wird die Umgebung. Mariendorf, Marienfelde und Lichtenrade haben teilweise dörflichen Charakter und außerdem einige gut erhaltene historische Bauwerke. Das Leben verläuft hier trotz Spuren der Großstadt recht gemächlich.\nLage\nTempelhof liegt zentral im Süden Berlins und grenzt seinerseits im Süden an das Bundesland Brandenburg. Schnell ist man im angrenzenden Schöneberg, in Neukölln und Kreuzberg.\nÖffentlicher Nahverkehr\nTempelhof ist mit öffentlichen Verkehrsmitteln schnell und leicht erreichbar. Einmal mittendurch fährt die U"
+                    }
+                  ]
+                },
+                {
+                  "statement": "### Wohnlagen\n\nSanierte Gründerzeitaltbauten in kleinen Straßen sind in Tempelhof keine Seltenheit. Je weiter man nach Süden kommt, desto dörflicher wird die Umgebung. Mariendorf, Marienfelde und Lichtenrade haben teilweise dörflichen Charakter und außerdem einige gut erhaltene historische Bauwerke. Das Leben verläuft hier trotz Spuren der Großstadt recht gemächlich.\n\n### Lage\n\nTempelhof liegt zentral im Süden Berlins und grenzt seinerseits im Süden an das Bundesland Brandenburg. Schnell ist man im angrenzenden Schöneberg, in Neukölln und Kreuzberg.\n\n### Öffentlicher Nahverkehr [...] ### Verkehrsachsen\n\nDie B96 (Tempelhofer Damm/ Mariendorfer Damm/ Lichtenrader Damm) ist die wichtigste Verkehrsachse.  \nDurch Tempelhof verläuft die Stadtautobahn A100 mit zwei Auffahrten.\n\nAktualisierung: 16. Oktober 2019\n\n## Tempelhof im Portrait\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin\n\n### Hauptstadtportal\n\n### Politik & Verwaltung\n\n### Behörden\n\n### Berlin erleben\n\n### Extras\n\n### In anderen Sprachen\n\nBerlin.de ist ein Angebot des La",
+                  "category": "mikrolage",
+                  "factType": "hard_fact",
+                  "confidence": 0.8464979,
+                  "sources": [
+                    {
+                      "url": "https://www.berlin.de/special/stadtteile/tempelhof/914868-5170848-wohnlagen-infrastruktur.html",
+                      "title": "Tempelhof: Wohnlagen & Infrastruktur – Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.6929958,
+                      "authorityScore": 1,
+                      "excerpt": "### Wohnlagen\n\nSanierte Gründerzeitaltbauten in kleinen Straßen sind in Tempelhof keine Seltenheit. Je weiter man nach Süden kommt, desto dörflicher wird die Umgebung. Mariendorf, Marienfelde und Lichtenrade haben teilweise dörflichen Charakter und außerdem einige gut erhaltene historische Bauwerke. Das Leben verläuft hier trotz Spuren der Großstadt recht gemächlich.\n\n### Lage\n\nTempelhof liegt zentral im Süden Berlins und grenzt seinerseits im Süden an das Bundesland Brandenburg. Schnell ist man im angrenzenden Schöneberg, in Neukölln und Kreuzberg.\n\n### Öffentlicher Nahverkehr [...] ### Verkehrsachsen\n\nDie B96 (Tempelhofer Damm/ Mariendorfer Damm/ Lichtenrader Damm) ist die wichtigste Verkehrsachse.  \nDurch Tempelhof verläuft die Stadtautobahn A100 mit zwei Auffahrten.\n\nAktualisierung: 16. Oktober 2019\n\n## Tempelhof im Portrait\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin\n\n### Hauptstadtportal\n\n### Politik & Verwaltung\n\n### Behörden\n\n### Berlin erleben\n\n### Extras\n\n### In anderen Sprachen\n\nBerlin.de ist ein Angebot des La"
+                    }
+                  ]
+                }
+              ]
+            },
+            "makrolage": {
+              "summary": "3 belegte Rechercheaussage(n).",
+              "claims": [
+                {
+                  "statement": "Das Bezirksamt Mitte hatte als erster Berliner Bezirk die Profile seiner zehn Bezirksregionen erarbeitet und nun wiederum aktualisiert, um die kommunalen Aufgaben und die kommunale Infrastruktur möglichst passgenau auf die Bedarfe der Bürgerinnen und Bürger auszurichten. Dabei handelt es sich um eine Sammlung und Analyse von statistischen Daten zur Beschreibung der demografischen und sozialen Situation des Bezirks. Es finden sich beispielsweise Aussagen zur Altersstruktur der Einwohnenden, der [...] Einwohnenden, der sozialen und gesundheitlichen Situation von Kindern und Jugendlichen, der Schulen, Kitas, Spielplätze und Sporteinrichtungen im Stadtteil und der Akteure der Bürgerbeteiligung. Ergänzt sind eine Vielzahl von Daten durch eine fachliche Einschätzung. [...] Berlin.de zur Startseite\nweitere Informationen\n\nBezirksamtMitte\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptnavigation\n\nWeiteres\n\n# Bezirksregionenprofile für alle Stadtteile im Bezirk Mitte aktualisiert\n\nPressemitteilung Nr. 460/2021 vom 16.12.2021\n\nDer Bezirksstadtrat für Stadtentwicklung und Facility Management, Ephraim G",
+                  "category": "makrolage",
+                  "factType": "hard_fact",
+                  "confidence": 0.7773923300000001,
+                  "sources": [
+                    {
+                      "url": "https://www.berlin.de/ba-mitte/aktuelles/pressemitteilungen/2021/pressemitteilung.1158157.php",
+                      "title": "Bezirksregionenprofile für alle Stadtteile im Bezirk Mitte aktualisiert - Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.55478466,
+                      "authorityScore": 1,
+                      "excerpt": "Das Bezirksamt Mitte hatte als erster Berliner Bezirk die Profile seiner zehn Bezirksregionen erarbeitet und nun wiederum aktualisiert, um die kommunalen Aufgaben und die kommunale Infrastruktur möglichst passgenau auf die Bedarfe der Bürgerinnen und Bürger auszurichten. Dabei handelt es sich um eine Sammlung und Analyse von statistischen Daten zur Beschreibung der demografischen und sozialen Situation des Bezirks. Es finden sich beispielsweise Aussagen zur Altersstruktur der Einwohnenden, der [...] Einwohnenden, der sozialen und gesundheitlichen Situation von Kindern und Jugendlichen, der Schulen, Kitas, Spielplätze und Sporteinrichtungen im Stadtteil und der Akteure der Bürgerbeteiligung. Ergänzt sind eine Vielzahl von Daten durch eine fachliche Einschätzung. [...] Berlin.de zur Startseite\nweitere Informationen\n\nBezirksamtMitte\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptnavigation\n\nWeiteres\n\n# Bezirksregionenprofile für alle Stadtteile im Bezirk Mitte aktualisiert\n\nPressemitteilung Nr. 460/2021 vom 16.12.2021\n\nDer Bezirksstadtrat für Stadtentwicklung und Facility Management, Ephraim G"
+                    }
+                  ]
+                },
+                {
+                  "statement": "Der Stadtteil verfügt über eine gute Infrastruktur mit S- und U-Bahn (die Ringbahn im Norden und die U2 vom Alexanderplatz entlang der Schönhauser Alle bis nach Pankow), zahlreichen Tramlinien und ein paar Bussen.  \nMan ist schnell in Mitte oder auch im nördlichen Umland von Berlin.\n\nFestival der Riesendrachen\n\n© Stadt und Land\n\n### 13. Stadt und Land-Festival der Riesendrachen [...] ### Lage\n\nPrenzlauer Berg liegt in unmittelbarer Nähe des Zentrums Ost: Im Westen und Südwesten grenzt der Stadtteil an den Bezirk Mitte, im Süden an Friedrichshain-Kreuzberg. Die größte Erhebung liegt auf einem ehemaligen Trümmerberg mitten im Volkspark Prenzlauer Berg.\n\n### Öffentlicher Nahverkehr [...] © dpa\n\nDer beliebte Stadtteil zeichnet sich durch recht hohe Mieten, aber auch viele Freizeitangebote und eine gute Verkehrsanbindung aus.\n\n### Wohnlagen",
+                  "category": "makrolage",
+                  "factType": "hard_fact",
+                  "confidence": 0.7500369250000001,
+                  "sources": [
+                    {
+                      "url": "https://www.berlin.de/special/stadtteile/prenzlauer-berg/920605-5170843-wohnlagen-infrastruktur.html",
+                      "title": "Prenzlauer Berg: Wohnlagen & Infrastruktur – Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.50007385,
+                      "authorityScore": 1,
+                      "excerpt": "Der Stadtteil verfügt über eine gute Infrastruktur mit S- und U-Bahn (die Ringbahn im Norden und die U2 vom Alexanderplatz entlang der Schönhauser Alle bis nach Pankow), zahlreichen Tramlinien und ein paar Bussen.  \nMan ist schnell in Mitte oder auch im nördlichen Umland von Berlin.\n\nFestival der Riesendrachen\n\n© Stadt und Land\n\n### 13. Stadt und Land-Festival der Riesendrachen [...] ### Lage\n\nPrenzlauer Berg liegt in unmittelbarer Nähe des Zentrums Ost: Im Westen und Südwesten grenzt der Stadtteil an den Bezirk Mitte, im Süden an Friedrichshain-Kreuzberg. Die größte Erhebung liegt auf einem ehemaligen Trümmerberg mitten im Volkspark Prenzlauer Berg.\n\n### Öffentlicher Nahverkehr [...] © dpa\n\nDer beliebte Stadtteil zeichnet sich durch recht hohe Mieten, aber auch viele Freizeitangebote und eine gute Verkehrsanbindung aus.\n\n### Wohnlagen"
+                    }
+                  ]
+                },
+                {
+                  "statement": "Der Stadtteil verfügt über eine gute Infrastruktur mit S- und U-Bahn (die Ringbahn im Norden und die U2 vom Alexanderplatz entlang der Schönhauser Alle bis nach Pankow), zahlreichen Tramlinien und ein paar Bussen.  \nMan ist schnell in Mitte oder auch im nördlichen Umland von Berlin.\n\nFestival der Riesendrachen\n\n© Stadt und Land\n\n### 13. Stadt und Land-Festival der Riesendrachen [...] ### Lage\n\nPrenzlauer Berg liegt in unmittelbarer Nähe des Zentrums Ost: Im Westen und Südwesten grenzt der Stadtteil an den Bezirk Mitte, im Süden an Friedrichshain-Kreuzberg. Die größte Erhebung liegt auf einem ehemaligen Trümmerberg mitten im Volkspark Prenzlauer Berg.\n\n### Öffentlicher Nahverkehr [...] © dpa\n\nDer beliebte Stadtteil zeichnet sich durch recht hohe Mieten, aber auch viele Freizeitangebote und eine gute Verkehrsanbindung aus.\n\n### Wohnlagen",
+                  "category": "makrolage",
+                  "factType": "hard_fact",
+                  "confidence": 0.7500369250000001,
+                  "sources": [
+                    {
+                      "url": "https://berlin.de/special/stadtteile/prenzlauer-berg/920605-5170843-wohnlagen-infrastruktur.html",
+                      "title": "Prenzlauer Berg: Wohnlagen & Infrastruktur – Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.50007385,
+                      "authorityScore": 1,
+                      "excerpt": "Der Stadtteil verfügt über eine gute Infrastruktur mit S- und U-Bahn (die Ringbahn im Norden und die U2 vom Alexanderplatz entlang der Schönhauser Alle bis nach Pankow), zahlreichen Tramlinien und ein paar Bussen.  \nMan ist schnell in Mitte oder auch im nördlichen Umland von Berlin.\n\nFestival der Riesendrachen\n\n© Stadt und Land\n\n### 13. Stadt und Land-Festival der Riesendrachen [...] ### Lage\n\nPrenzlauer Berg liegt in unmittelbarer Nähe des Zentrums Ost: Im Westen und Südwesten grenzt der Stadtteil an den Bezirk Mitte, im Süden an Friedrichshain-Kreuzberg. Die größte Erhebung liegt auf einem ehemaligen Trümmerberg mitten im Volkspark Prenzlauer Berg.\n\n### Öffentlicher Nahverkehr [...] © dpa\n\nDer beliebte Stadtteil zeichnet sich durch recht hohe Mieten, aber auch viele Freizeitangebote und eine gute Verkehrsanbindung aus.\n\n### Wohnlagen"
+                    }
+                  ]
+                }
+              ]
+            },
+            "infrastructure": {
+              "transport": [
+                {
+                  "statement": "Zum Hauptinhalt springen\n\n# S+U Friedrichstr.\n\n## Vorhandene Verkehrsmittel\n\nU-BahnS-BahnTramBus\n\nTarifbereich Berlin Teilbereich A\n\n## Umstiege\n\n### barrierefreier Zugang: U-Bahn U6U6U Seestr.►U Alt-Mariendorf\n\nDer Bahnsteig Richtung Alt Tegel ist mit Aufzug erreichbar.\n\n ### U-Bahn\n\n  + U-Bahn U6U6\n\n    U Kurt-Schumacher-Platz◄►U Alt-Mariendorf\n ### S-Bahn\n\n  + S-Bahn S1S1\n\n    S Wannsee◄►S Oranienburg\n  + S-Bahn S2S2\n\n    S Blankenfelde◄►S Bernau\n  + S-Bahn S25S25 [...] S+U Zoologischer Garten◄►S+U Friedrichstr.\n  + Bus N6N6\n\n    U Alt-Tegel◄►U Alt-Mariendorf\n ### Weitere Umstiege\n\n  + Regionalverkehr\n\n## Services\n\n### Mobilitätsservices\n\n Aufzug\n\n## Nächste Abfahrten\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\nVerbindungen von hier suchen\n\n## Aufzugstörungen\n\n‌‌‌\n\nStörungsmeldungen aller Linien\n\n## Lageplan\n\n friedrichstr 900100001PDF | 0.33 MB [...] S Teltow Stadt◄►S Hennigsdorf\n  + S-Bahn S26S26\n\n    S Teltow Stadt◄►S Blankenburg\n  + S-Bahn S3S3\n\n    S Erkner◄►S Spandau\n  + S-Bahn S5S5\n\n    S Strausberg Nord◄►S Westkreuz\n  + S-Bahn S7S7\n\n    S Ahrensfelde◄►S Potsdam Hbf\n  + S-Bahn S9S9\n\n    Flughafen BER◄►S Spandau\n ### Tram\n\n  + Tram M1M1\n\n    Schillerstr. oder Rosenthal Nord◄►",
+                  "category": "transport",
+                  "factType": "hard_fact",
+                  "confidence": 0.86695515,
+                  "sources": [
+                    {
+                      "url": "https://www.bvg.de/de/verbindungen/stationsuebersicht/s-u-friedrichstr",
+                      "title": "S+U Friedrichstr.: Haltestelleninfo | BVG",
+                      "domain": "bvg.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.7339103,
+                      "authorityScore": 1,
+                      "excerpt": "Zum Hauptinhalt springen\n\n# S+U Friedrichstr.\n\n## Vorhandene Verkehrsmittel\n\nU-BahnS-BahnTramBus\n\nTarifbereich Berlin Teilbereich A\n\n## Umstiege\n\n### barrierefreier Zugang: U-Bahn U6U6U Seestr.►U Alt-Mariendorf\n\nDer Bahnsteig Richtung Alt Tegel ist mit Aufzug erreichbar.\n\n ### U-Bahn\n\n  + U-Bahn U6U6\n\n    U Kurt-Schumacher-Platz◄►U Alt-Mariendorf\n ### S-Bahn\n\n  + S-Bahn S1S1\n\n    S Wannsee◄►S Oranienburg\n  + S-Bahn S2S2\n\n    S Blankenfelde◄►S Bernau\n  + S-Bahn S25S25 [...] S+U Zoologischer Garten◄►S+U Friedrichstr.\n  + Bus N6N6\n\n    U Alt-Tegel◄►U Alt-Mariendorf\n ### Weitere Umstiege\n\n  + Regionalverkehr\n\n## Services\n\n### Mobilitätsservices\n\n Aufzug\n\n## Nächste Abfahrten\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\nVerbindungen von hier suchen\n\n## Aufzugstörungen\n\n‌‌‌\n\nStörungsmeldungen aller Linien\n\n## Lageplan\n\n friedrichstr 900100001PDF | 0.33 MB [...] S Teltow Stadt◄►S Hennigsdorf\n  + S-Bahn S26S26\n\n    S Teltow Stadt◄►S Blankenburg\n  + S-Bahn S3S3\n\n    S Erkner◄►S Spandau\n  + S-Bahn S5S5\n\n    S Strausberg Nord◄►S Westkreuz\n  + S-Bahn S7S7\n\n    S Ahrensfelde◄►S Potsdam Hbf\n  + S-Bahn S9S9\n\n    Flughafen BER◄►S Spandau\n ### Tram\n\n  + Tram M1M1\n\n    Schillerstr. oder Rosenthal Nord◄►"
+                    }
+                  ]
+                },
+                {
+                  "statement": "+ U-Bahn U6U6\n\n    U Kurt-Schumacher-Platz◄►U Alt-Mariendorf\n ### S-Bahn\n\n  + S-Bahn S41S41\n\n    S+U Gesundbrunnen►S+U Gesundbrunnen\n  + S-Bahn S42S42\n\n    S+U Gesundbrunnen►S+U Gesundbrunnen\n  + S-Bahn S46S46\n\n    S Königs Wusterhausen◄►S Westend\n  + S-Bahn S47S47\n\n    S Spindlersfeld◄►S Südkreuz\n ### Bus\n\n  + Bus 140140\n\n    S+U Tempelhof◄►S Ostbahnhof\n  + Bus 184184\n\n    S Südkreuz oder S+U Tempelhof◄►Teltow, Warthestr. oder Saaleckplatz\n  + Bus N6N6 [...] Zum Hauptinhalt springen\n\n# S+U Tempelhof\n\n## Vorhandene Verkehrsmittel\n\nU-BahnS-BahnBus\n\nTarifbereich Berlin Teilbereich A\n\n## Umstiege\n\n### barrierefreier Zugang: U-Bahn U6U6U Seestr.►U Alt-Mariendorf\n\nDer Bahnsteig Richtung Alt Tegel ist mit Aufzug erreichbar.\n\n### Kleine Fahrplanänderung: Bus 101101Bus 122122Bus 140140Bus 221221Bus 322322\n\nVom\n\nAuf dieser Linie kommt es zu Anpassungen am Fahrplan. Abfahrtszeiten können sich ändern.\n\n ### U-Bahn\n\n  + U-Bahn U6U6 [...] U Alt-Tegel◄►U Alt-Mariendorf\n  + Bus N84N84\n\n    S+U Tempelhof◄►Zehlendorf Eiche\n\n## Services\n\n### Mobilitätsservices\n\n Aufzug\n\n## Nächste Abfahrten\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\nVerbindungen von hier suchen\n\n## Aufzugstörungen\n\n‌‌‌\n\nStörungsmeldun",
+                  "category": "transport",
+                  "factType": "hard_fact",
+                  "confidence": 0.8095863,
+                  "sources": [
+                    {
+                      "url": "https://www.bvg.de/de/verbindungen/stationsuebersicht/s-u-tempelhof",
+                      "title": "S+U Tempelhof: Haltestelleninfo | BVG",
+                      "domain": "bvg.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.6191726,
+                      "authorityScore": 1,
+                      "excerpt": "+ U-Bahn U6U6\n\n    U Kurt-Schumacher-Platz◄►U Alt-Mariendorf\n ### S-Bahn\n\n  + S-Bahn S41S41\n\n    S+U Gesundbrunnen►S+U Gesundbrunnen\n  + S-Bahn S42S42\n\n    S+U Gesundbrunnen►S+U Gesundbrunnen\n  + S-Bahn S46S46\n\n    S Königs Wusterhausen◄►S Westend\n  + S-Bahn S47S47\n\n    S Spindlersfeld◄►S Südkreuz\n ### Bus\n\n  + Bus 140140\n\n    S+U Tempelhof◄►S Ostbahnhof\n  + Bus 184184\n\n    S Südkreuz oder S+U Tempelhof◄►Teltow, Warthestr. oder Saaleckplatz\n  + Bus N6N6 [...] Zum Hauptinhalt springen\n\n# S+U Tempelhof\n\n## Vorhandene Verkehrsmittel\n\nU-BahnS-BahnBus\n\nTarifbereich Berlin Teilbereich A\n\n## Umstiege\n\n### barrierefreier Zugang: U-Bahn U6U6U Seestr.►U Alt-Mariendorf\n\nDer Bahnsteig Richtung Alt Tegel ist mit Aufzug erreichbar.\n\n### Kleine Fahrplanänderung: Bus 101101Bus 122122Bus 140140Bus 221221Bus 322322\n\nVom\n\nAuf dieser Linie kommt es zu Anpassungen am Fahrplan. Abfahrtszeiten können sich ändern.\n\n ### U-Bahn\n\n  + U-Bahn U6U6 [...] U Alt-Tegel◄►U Alt-Mariendorf\n  + Bus N84N84\n\n    S+U Tempelhof◄►Zehlendorf Eiche\n\n## Services\n\n### Mobilitätsservices\n\n Aufzug\n\n## Nächste Abfahrten\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\nVerbindungen von hier suchen\n\n## Aufzugstörungen\n\n‌‌‌\n\nStörungsmeldun"
+                    }
+                  ]
+                },
+                {
+                  "statement": "Zum Hauptinhalt springen\n\n# Verkehrsmittel und Tarifbereiche\n\nErfahre hier, wie der öffentliche Personennahverkehr in Berlin und Umkreis funktioniert.\n\n## Welche öffentlichen Verkehrsmittel gibt es?\n\n S-Bahn\n\n  S-Bahn: Betrieben von der Deutschen Bahn, ergänzt sie das BVG-Netz und verbindet Berlin unter anderem mit dem Umland.\n U-Bahn\n\n  U-Bahn: Die schnellste Verbindung in der Stadt, meist fährt sie unterirdisch, aber an einigen Stellen auch oberirdisch.\n TRAM [...] Tram (Straßenbahn): Besonders im Osten Berlins weit verbreitet.\n Bus\n\n  Bus: Ideal für Stadtteile ohne direkte U-Bahn-Anbindung.\n Fähre\n\n  Fähre: 6 Fährlinien, die sich über das Wasser sicher ans Ziel bringen.\n\n## Wo kann ich weitere Verkehrsmittel mieten?\n\n Icon: Jelbi-App\n\n  Mit der BVG Jelbi-App auf deinem Smartphone kannst du verschiedene Verkehrsmittel von Drittanbietern ganz einfach selbst mieten: Autos, Taxis, E-Scooter, Räder und E-Mopeds\n\n## Welche Tarifbereiche gibt es in Berlin? [...] In Berlin gibt es ein einheitliches Tarifsystem für den öffentlichen Personennahverkehr (ÖPNV). Dieses System umfasst verschiedene Tarifbereiche, die nach Entfernung gestaffelt sind. Die Stadt ist in drei Tarifbereiche untertei",
+                  "category": "transport",
+                  "factType": "hard_fact",
+                  "confidence": 0.79742895,
+                  "sources": [
+                    {
+                      "url": "http://www.bvg.de/de/touristen/verkehrsmittel-tarifbereiche",
+                      "title": "Verkehrsmittel & Tarifbereiche | BVG",
+                      "domain": "bvg.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.5948579,
+                      "authorityScore": 1,
+                      "excerpt": "Zum Hauptinhalt springen\n\n# Verkehrsmittel und Tarifbereiche\n\nErfahre hier, wie der öffentliche Personennahverkehr in Berlin und Umkreis funktioniert.\n\n## Welche öffentlichen Verkehrsmittel gibt es?\n\n S-Bahn\n\n  S-Bahn: Betrieben von der Deutschen Bahn, ergänzt sie das BVG-Netz und verbindet Berlin unter anderem mit dem Umland.\n U-Bahn\n\n  U-Bahn: Die schnellste Verbindung in der Stadt, meist fährt sie unterirdisch, aber an einigen Stellen auch oberirdisch.\n TRAM [...] Tram (Straßenbahn): Besonders im Osten Berlins weit verbreitet.\n Bus\n\n  Bus: Ideal für Stadtteile ohne direkte U-Bahn-Anbindung.\n Fähre\n\n  Fähre: 6 Fährlinien, die sich über das Wasser sicher ans Ziel bringen.\n\n## Wo kann ich weitere Verkehrsmittel mieten?\n\n Icon: Jelbi-App\n\n  Mit der BVG Jelbi-App auf deinem Smartphone kannst du verschiedene Verkehrsmittel von Drittanbietern ganz einfach selbst mieten: Autos, Taxis, E-Scooter, Räder und E-Mopeds\n\n## Welche Tarifbereiche gibt es in Berlin? [...] In Berlin gibt es ein einheitliches Tarifsystem für den öffentlichen Personennahverkehr (ÖPNV). Dieses System umfasst verschiedene Tarifbereiche, die nach Entfernung gestaffelt sind. Die Stadt ist in drei Tarifbereiche untertei"
+                    }
+                  ]
+                }
+              ],
+              "education": [
+                {
+                  "statement": "Wir in Mariendorf arbeiten eng mit Trägern, die Leistungen für junge Menschen anbieten, aber auch mit anderen Einrichtungen und Institutionen wie Schulen, Polizei, Gesundheitsdiensten, Ehrenamtlichen etc. zusammen.  \nDurch einen engen Austausch mit unseren lokalen Akteuren wollen wir erreichen, dass die Angebote für Kinder, Jugendliche und Familien kontinuierlich weiterentwickelt werden. [...] In der Bezirksregion Mariendorf gibt es vielfältige Kinder- und Jugendfreizeiteinrichtungen, die vom Jugendamt gefördert werden. Diese bieten Kinder und Jugendlichen – ob nach der Schule oder in der Ferienzeit – Möglichkeiten, sich zu treffen oder an Gruppenangeboten teilzunehmen.  \nHier findet ihr weitere Informationen zu den Einrichtungen\n\nEs folgt eine Kartendarstellung.\nzur Teaserliste mit den enthaltenen Adressen unter der Karte springen\n\n### BEATS42\n\n### Jugendfreizeithaus Bungalow [...] Hier treffen sich regelmäßig Mariendorfer Fachkräfte, die Kinder und Jugendliche betreuen und begleiten.\n\n18.03.2026  \n11:00 bis 13:30 Uhr  \nBungalow, Mariendorfer Damm 117-121, 12109 Berlin\n\n17.06.2026  \n10:00 bis 13:00 Uhr  \nJugendclub Lindenhof, Domnauerstraße 20a\n\n30.09.2026  \n11:00 bis 13:00 Uhr (A",
+                  "category": "education",
+                  "factType": "hard_fact",
+                  "confidence": 0.8052850650000001,
+                  "sources": [
+                    {
+                      "url": "https://www.berlin.de/ba-tempelhof-schoeneberg/politik-und-verwaltung/aemter/jugendamt/wir-vor-ort/artikel.395999.php",
+                      "title": "Sozialraum Mariendorf - Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.61057013,
+                      "authorityScore": 1,
+                      "excerpt": "Wir in Mariendorf arbeiten eng mit Trägern, die Leistungen für junge Menschen anbieten, aber auch mit anderen Einrichtungen und Institutionen wie Schulen, Polizei, Gesundheitsdiensten, Ehrenamtlichen etc. zusammen.  \nDurch einen engen Austausch mit unseren lokalen Akteuren wollen wir erreichen, dass die Angebote für Kinder, Jugendliche und Familien kontinuierlich weiterentwickelt werden. [...] In der Bezirksregion Mariendorf gibt es vielfältige Kinder- und Jugendfreizeiteinrichtungen, die vom Jugendamt gefördert werden. Diese bieten Kinder und Jugendlichen – ob nach der Schule oder in der Ferienzeit – Möglichkeiten, sich zu treffen oder an Gruppenangeboten teilzunehmen.  \nHier findet ihr weitere Informationen zu den Einrichtungen\n\nEs folgt eine Kartendarstellung.\nzur Teaserliste mit den enthaltenen Adressen unter der Karte springen\n\n### BEATS42\n\n### Jugendfreizeithaus Bungalow [...] Hier treffen sich regelmäßig Mariendorfer Fachkräfte, die Kinder und Jugendliche betreuen und begleiten.\n\n18.03.2026  \n11:00 bis 13:30 Uhr  \nBungalow, Mariendorfer Damm 117-121, 12109 Berlin\n\n17.06.2026  \n10:00 bis 13:00 Uhr  \nJugendclub Lindenhof, Domnauerstraße 20a\n\n30.09.2026  \n11:00 bis 13:00 Uhr (A"
+                    }
+                  ]
+                },
+                {
+                  "statement": "Der Kirchhof der Mariendorfer Dorfkirche wurde 1873 durch den Bau der Berliner Chaussee, dem heutigen Mariendorfer Damm, verkleinert. Kreuzt hier auch die moderne Zeit das historische Ensemble, so trutzt die historische Kirche doch immer noch der Neuzeit.\n\n(Bild: Pressestelle T-S)\n\nGemeindeschule Mariendorf\n\n## Rudolf-Hildebrand-Grundschule [...] Auf dem Grundstück in Alt-Mariendorf 43 befindet sich das Gebäude des alten Mariendorfer Schulhauses. Es wurde 1873 eingeweiht und bot auf zwei Etagen Platz für bis zu 250 Schüler\\_innen.  \nNach nur etwas über 30 Jahren wurde es bereits eng in dem Gebäude und so wurde ein neues Schulgebäude in der Friedenstraße 23 gebaut. Das 1907-1908 von Otto Kerwien errichtete Gebäude beherrscht mit seiner Größe den gesamten ehemaligen Dorfkern. [...] Mariendorf, im Süden des Bezirkes Tempelhof-Schöneberg, besticht durch seine ruhigen Wohnviertel und ist weit über die Landesgrenzen Berlins durch die Trabrennbahn bekannt. Moderne und Geschichte prägen hier das Stadtbild.\n\nGegründet wurde Mariendorf im 13. Jahrhundert als Angerdorf von den Tempelrittern. Dieser geistliche Ritterorden wurde 1312 aufgelöst, danach wurde das Dorf von dem Johanniterorden über",
+                  "category": "education",
+                  "factType": "hard_fact",
+                  "confidence": 0.8016507500000001,
+                  "sources": [
+                    {
+                      "url": "https://www.berlin.de/ba-tempelhof-schoeneberg/ueber-den-bezirk/ortsteile/mariendorf",
+                      "title": "Ortsteil Mariendorf - Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.6033015,
+                      "authorityScore": 1,
+                      "excerpt": "Der Kirchhof der Mariendorfer Dorfkirche wurde 1873 durch den Bau der Berliner Chaussee, dem heutigen Mariendorfer Damm, verkleinert. Kreuzt hier auch die moderne Zeit das historische Ensemble, so trutzt die historische Kirche doch immer noch der Neuzeit.\n\n(Bild: Pressestelle T-S)\n\nGemeindeschule Mariendorf\n\n## Rudolf-Hildebrand-Grundschule [...] Auf dem Grundstück in Alt-Mariendorf 43 befindet sich das Gebäude des alten Mariendorfer Schulhauses. Es wurde 1873 eingeweiht und bot auf zwei Etagen Platz für bis zu 250 Schüler\\_innen.  \nNach nur etwas über 30 Jahren wurde es bereits eng in dem Gebäude und so wurde ein neues Schulgebäude in der Friedenstraße 23 gebaut. Das 1907-1908 von Otto Kerwien errichtete Gebäude beherrscht mit seiner Größe den gesamten ehemaligen Dorfkern. [...] Mariendorf, im Süden des Bezirkes Tempelhof-Schöneberg, besticht durch seine ruhigen Wohnviertel und ist weit über die Landesgrenzen Berlins durch die Trabrennbahn bekannt. Moderne und Geschichte prägen hier das Stadtbild.\n\nGegründet wurde Mariendorf im 13. Jahrhundert als Angerdorf von den Tempelrittern. Dieser geistliche Ritterorden wurde 1312 aufgelöst, danach wurde das Dorf von dem Johanniterorden über"
+                    }
+                  ]
+                },
+                {
+                  "statement": "## Ganztagsschulen\n\nGanztagsschulen sind Lebens- und Lernorte, an denen sich Kinder und Jugendliche wohlfühlen sollen und die vielfältige Bildungsprozesse ermöglichen. In Berlin zählen dazu alle Grundschulen und die Mehrheit der weiterführenden Schulen. \n Weitere Informationen\n\nGute Schule\n\nBild: Janette Kneisel\n\n## Gute Schule [...] Im Schulverzeichnis finden Sie alle Berliner Schulen nach Bezirk, Schulart oder Fremdsprachenangebot. Außerdem können Sie sich über einen Schulwechsel nach Berlin erkundigen oder Schulen und Kitas in Ihrer Wohnnähe finden. \n Weitere Informationen\n\nDas Berliner Schulsystem\n\nBild: Senatsverwaltung für Bildung, Jugend und Familie\n\n## Bildungswege [...] Berlin.de zur Startseite\n\nSenatsverwaltung fürBildung, Jugend und Familie\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptnavigation\n\nWeiteres\n\n# Schule\n\nSchulgebäude\n\nBild: SenBJF\n\n## Berliner Schulen",
+                  "category": "education",
+                  "factType": "hard_fact",
+                  "confidence": 0.6238756,
+                  "sources": [
+                    {
+                      "url": "https://www.berlin.de/sen/bildung/schule",
+                      "title": "Schule - Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.2477512,
+                      "authorityScore": 1,
+                      "excerpt": "## Ganztagsschulen\n\nGanztagsschulen sind Lebens- und Lernorte, an denen sich Kinder und Jugendliche wohlfühlen sollen und die vielfältige Bildungsprozesse ermöglichen. In Berlin zählen dazu alle Grundschulen und die Mehrheit der weiterführenden Schulen. \n Weitere Informationen\n\nGute Schule\n\nBild: Janette Kneisel\n\n## Gute Schule [...] Im Schulverzeichnis finden Sie alle Berliner Schulen nach Bezirk, Schulart oder Fremdsprachenangebot. Außerdem können Sie sich über einen Schulwechsel nach Berlin erkundigen oder Schulen und Kitas in Ihrer Wohnnähe finden. \n Weitere Informationen\n\nDas Berliner Schulsystem\n\nBild: Senatsverwaltung für Bildung, Jugend und Familie\n\n## Bildungswege [...] Berlin.de zur Startseite\n\nSenatsverwaltung fürBildung, Jugend und Familie\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptnavigation\n\nWeiteres\n\n# Schule\n\nSchulgebäude\n\nBild: SenBJF\n\n## Berliner Schulen"
+                    }
+                  ]
+                }
+              ],
+              "shopping": [
+                {
+                  "statement": "The Berlin district of Mariendorf is characterized by a closed residential development in the north and around Old Mariendorf. Old buildings from the Wilhelminian period alternate with apartment buildings from the 1930s, 50s and 60s. The south mostly consists of individual houses, with the exception of the two- to four-story apartment buildings along Mariendorfer Damm. Industry and commerce are mainly concentrated in Marienpark and the areas along the Teltow canal. [...] Summer in Tempelhof\n\n© www.enrico-verworner.de\n\nThe Teltow canal forms the border between the districts of Mariendorf and Tempelhof. The Tempelhofer Hafen shopping center is located on the Tempelhof side.\n\nMariendorf, like the surrounding districts, is rather quiet with a suburban flair. The trotting course is known beyond the region. [...] Mariendorf is known nationwide for its trotting course, which is surrounded by the new buildings on Mariendorfer Damm. It was inaugurated in 1913 as the most modern horse racing facility in Germany at the time. Here, a rural ambience mixes with remnants of the Gründerzeit and modern functional buildings.",
+                  "category": "shopping",
+                  "factType": "hard_fact",
+                  "confidence": 0.687384175,
+                  "sources": [
+                    {
+                      "url": "https://www.berlin.de/en/districts/tempelhof/914931-6654133-mariendorf.en.html",
+                      "title": "Mariendorf – Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.37476835,
+                      "authorityScore": 1,
+                      "excerpt": "The Berlin district of Mariendorf is characterized by a closed residential development in the north and around Old Mariendorf. Old buildings from the Wilhelminian period alternate with apartment buildings from the 1930s, 50s and 60s. The south mostly consists of individual houses, with the exception of the two- to four-story apartment buildings along Mariendorfer Damm. Industry and commerce are mainly concentrated in Marienpark and the areas along the Teltow canal. [...] Summer in Tempelhof\n\n© www.enrico-verworner.de\n\nThe Teltow canal forms the border between the districts of Mariendorf and Tempelhof. The Tempelhofer Hafen shopping center is located on the Tempelhof side.\n\nMariendorf, like the surrounding districts, is rather quiet with a suburban flair. The trotting course is known beyond the region. [...] Mariendorf is known nationwide for its trotting course, which is surrounded by the new buildings on Mariendorfer Damm. It was inaugurated in 1913 as the most modern horse racing facility in Germany at the time. Here, a rural ambience mixes with remnants of the Gründerzeit and modern functional buildings."
+                    }
+                  ]
+                },
+                {
+                  "statement": "## Gewerbegebiet [...] Mariendorf ist vielfältig, beschaulich und doch modern und mit seinen Industrieansiedlungen ein wichtiger Wirtschaftsmotor von Tempelhof-Schöneberg und Berlin.\n\n## Statistik\n\nEinwohner\\_innen: 53.553 (Stand: 31.12.2023)  \nFläche: 9,3 km²\n\nWeitere statistische Informationen zu Mariendorf und dem Bezirk Tempelhof-Schöneberg finden Sie unter “Zahlen und Fakten”\n\n## Bezirksamt Tempelhof-Schöneberg von Berlin\n\nPostanschrift  \n10820 Berlin [...] Mariendorf, im Süden des Bezirkes Tempelhof-Schöneberg, besticht durch seine ruhigen Wohnviertel und ist weit über die Landesgrenzen Berlins durch die Trabrennbahn bekannt. Moderne und Geschichte prägen hier das Stadtbild.\n\nGegründet wurde Mariendorf im 13. Jahrhundert als Angerdorf von den Tempelrittern. Dieser geistliche Ritterorden wurde 1312 aufgelöst, danach wurde das Dorf von dem Johanniterorden übernommen. Die erste urkundliche Erwähnung ist aus dem Jahre 1373.",
+                  "category": "shopping",
+                  "factType": "hard_fact",
+                  "confidence": 0.68165426,
+                  "sources": [
+                    {
+                      "url": "http://www.berlin.de/ba-tempelhof-schoeneberg/ueber-den-bezirk/ortsteile/mariendorf",
+                      "title": "Ortsteil Mariendorf - Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.36330852,
+                      "authorityScore": 1,
+                      "excerpt": "## Gewerbegebiet [...] Mariendorf ist vielfältig, beschaulich und doch modern und mit seinen Industrieansiedlungen ein wichtiger Wirtschaftsmotor von Tempelhof-Schöneberg und Berlin.\n\n## Statistik\n\nEinwohner\\_innen: 53.553 (Stand: 31.12.2023)  \nFläche: 9,3 km²\n\nWeitere statistische Informationen zu Mariendorf und dem Bezirk Tempelhof-Schöneberg finden Sie unter “Zahlen und Fakten”\n\n## Bezirksamt Tempelhof-Schöneberg von Berlin\n\nPostanschrift  \n10820 Berlin [...] Mariendorf, im Süden des Bezirkes Tempelhof-Schöneberg, besticht durch seine ruhigen Wohnviertel und ist weit über die Landesgrenzen Berlins durch die Trabrennbahn bekannt. Moderne und Geschichte prägen hier das Stadtbild.\n\nGegründet wurde Mariendorf im 13. Jahrhundert als Angerdorf von den Tempelrittern. Dieser geistliche Ritterorden wurde 1312 aufgelöst, danach wurde das Dorf von dem Johanniterorden übernommen. Die erste urkundliche Erwähnung ist aus dem Jahre 1373."
+                    }
+                  ]
+                },
+                {
+                  "statement": "## Gewerbegebiet [...] Mariendorf ist vielfältig, beschaulich und doch modern und mit seinen Industrieansiedlungen ein wichtiger Wirtschaftsmotor von Tempelhof-Schöneberg und Berlin.\n\n## Statistik\n\nEinwohner\\_innen: 53.553 (Stand: 31.12.2023)  \nFläche: 9,3 km²\n\nWeitere statistische Informationen zu Mariendorf und dem Bezirk Tempelhof-Schöneberg finden Sie unter “Zahlen und Fakten”\n\n## Bezirksamt Tempelhof-Schöneberg von Berlin\n\nPostanschrift  \n10820 Berlin",
+                  "category": "shopping",
+                  "factType": "hard_fact",
+                  "confidence": 0.8016507500000001,
+                  "sources": [
+                    {
+                      "url": "https://www.berlin.de/ba-tempelhof-schoeneberg/ueber-den-bezirk/ortsteile/mariendorf",
+                      "title": "Ortsteil Mariendorf - Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.6033015,
+                      "authorityScore": 1,
+                      "excerpt": "Der Kirchhof der Mariendorfer Dorfkirche wurde 1873 durch den Bau der Berliner Chaussee, dem heutigen Mariendorfer Damm, verkleinert. Kreuzt hier auch die moderne Zeit das historische Ensemble, so trutzt die historische Kirche doch immer noch der Neuzeit.\n\n(Bild: Pressestelle T-S)\n\nGemeindeschule Mariendorf\n\n## Rudolf-Hildebrand-Grundschule [...] Auf dem Grundstück in Alt-Mariendorf 43 befindet sich das Gebäude des alten Mariendorfer Schulhauses. Es wurde 1873 eingeweiht und bot auf zwei Etagen Platz für bis zu 250 Schüler\\_innen.  \nNach nur etwas über 30 Jahren wurde es bereits eng in dem Gebäude und so wurde ein neues Schulgebäude in der Friedenstraße 23 gebaut. Das 1907-1908 von Otto Kerwien errichtete Gebäude beherrscht mit seiner Größe den gesamten ehemaligen Dorfkern. [...] Mariendorf, im Süden des Bezirkes Tempelhof-Schöneberg, besticht durch seine ruhigen Wohnviertel und ist weit über die Landesgrenzen Berlins durch die Trabrennbahn bekannt. Moderne und Geschichte prägen hier das Stadtbild.\n\nGegründet wurde Mariendorf im 13. Jahrhundert als Angerdorf von den Tempelrittern. Dieser geistliche Ritterorden wurde 1312 aufgelöst, danach wurde das Dorf von dem Johanniterorden über"
+                    }
+                  ]
+                }
+              ],
+              "healthcare": [],
+              "recreation": [
+                {
+                  "statement": "Der große Nichtschwimmerbereich mit Springbrunnen und Wasserrutsche ist für Kinder zum Spielen und Planschen bestens geeignet. Außerdem gibt es einen Kinderspielplatz mit Sandkasten und Wippen, und die Erwachsenen können im 50-Meter-Becken ihre Bahnen ziehen, das 3-Meter-Sprungbrett nutzen oder auf der Liegewiese entspannen. Erwachsene und Kinder werden sich über die zahlreichen Sportmöglichkeiten freuen, die von Tischtennisplatten bis hin zu einem Trampolin reichen.\n\n### Ausstattung [...] Tegeler Forst und Tegeler See (1)\n\n© visitberlin/Foto: Chris Martin Scholl\n\n### Berliner Seen\n\nÜbersicht der beliebtesten Berliner Seen mit Informationen zu den Badestellen, Freizeitangeboten sowie Cafés und Restaurants in unmittelbarer Nähe. \n mehr\n\nAktualisierung: 27. März 2025\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin [...] © dpa\n\nDas am Rande des Volksparks Mariendorf gelegene Sommerbad ist ideal für Familien mit Kindern",
+                  "category": "recreation",
+                  "factType": "hard_fact",
+                  "confidence": 0.7743491499999999,
+                  "sources": [
+                    {
+                      "url": "http://www.berlin.de/special/sport-und-fitness/schwimmbad/7645797-3302093-sommerbad-mariendorf.html",
+                      "title": "Sommerbad Mariendorf – Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.5486983,
+                      "authorityScore": 1,
+                      "excerpt": "Der große Nichtschwimmerbereich mit Springbrunnen und Wasserrutsche ist für Kinder zum Spielen und Planschen bestens geeignet. Außerdem gibt es einen Kinderspielplatz mit Sandkasten und Wippen, und die Erwachsenen können im 50-Meter-Becken ihre Bahnen ziehen, das 3-Meter-Sprungbrett nutzen oder auf der Liegewiese entspannen. Erwachsene und Kinder werden sich über die zahlreichen Sportmöglichkeiten freuen, die von Tischtennisplatten bis hin zu einem Trampolin reichen.\n\n### Ausstattung [...] Tegeler Forst und Tegeler See (1)\n\n© visitberlin/Foto: Chris Martin Scholl\n\n### Berliner Seen\n\nÜbersicht der beliebtesten Berliner Seen mit Informationen zu den Badestellen, Freizeitangeboten sowie Cafés und Restaurants in unmittelbarer Nähe. \n mehr\n\nAktualisierung: 27. März 2025\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin [...] © dpa\n\nDas am Rande des Volksparks Mariendorf gelegene Sommerbad ist ideal für Familien mit Kindern"
+                    }
+                  ]
+                },
+                {
+                  "statement": "Der große Nichtschwimmerbereich mit Springbrunnen und Wasserrutsche ist für Kinder zum Spielen und Planschen bestens geeignet. Außerdem gibt es einen Kinderspielplatz mit Sandkasten und Wippen, und die Erwachsenen können im 50-Meter-Becken ihre Bahnen ziehen, das 3-Meter-Sprungbrett nutzen oder auf der Liegewiese entspannen. Erwachsene und Kinder werden sich über die zahlreichen Sportmöglichkeiten freuen, die von Tischtennisplatten bis hin zu einem Trampolin reichen.\n\n### Ausstattung [...] Tegeler Forst und Tegeler See (1)\n\n© visitberlin/Foto: Chris Martin Scholl\n\n### Berliner Seen\n\nÜbersicht der beliebtesten Berliner Seen mit Informationen zu den Badestellen, Freizeitangeboten sowie Cafés und Restaurants in unmittelbarer Nähe. \n mehr\n\nAktualisierung: 27. März 2025\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin [...] © dpa\n\nDas am Rande des Volksparks Mariendorf gelegene Sommerbad ist ideal für Familien mit Kindern",
+                  "category": "recreation",
+                  "factType": "hard_fact",
+                  "confidence": 0.7743491499999999,
+                  "sources": [
+                    {
+                      "url": "https://berlin.de/special/sport-und-fitness/schwimmbad/7645797-3302093-sommerbad-mariendorf.html",
+                      "title": "Sommerbad Mariendorf – Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.5486983,
+                      "authorityScore": 1,
+                      "excerpt": "Der große Nichtschwimmerbereich mit Springbrunnen und Wasserrutsche ist für Kinder zum Spielen und Planschen bestens geeignet. Außerdem gibt es einen Kinderspielplatz mit Sandkasten und Wippen, und die Erwachsenen können im 50-Meter-Becken ihre Bahnen ziehen, das 3-Meter-Sprungbrett nutzen oder auf der Liegewiese entspannen. Erwachsene und Kinder werden sich über die zahlreichen Sportmöglichkeiten freuen, die von Tischtennisplatten bis hin zu einem Trampolin reichen.\n\n### Ausstattung [...] Tegeler Forst und Tegeler See (1)\n\n© visitberlin/Foto: Chris Martin Scholl\n\n### Berliner Seen\n\nÜbersicht der beliebtesten Berliner Seen mit Informationen zu den Badestellen, Freizeitangeboten sowie Cafés und Restaurants in unmittelbarer Nähe. \n mehr\n\nAktualisierung: 27. März 2025\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin [...] © dpa\n\nDas am Rande des Volksparks Mariendorf gelegene Sommerbad ist ideal für Familien mit Kindern"
+                    }
+                  ]
+                },
+                {
+                  "statement": "Der große Nichtschwimmerbereich mit Springbrunnen und Wasserrutsche ist für Kinder zum Spielen und Planschen bestens geeignet. Außerdem gibt es einen Kinderspielplatz mit Sandkasten und Wippen, und die Erwachsenen können im 50-Meter-Becken ihre Bahnen ziehen, das 3-Meter-Sprungbrett nutzen oder auf der Liegewiese entspannen. Erwachsene und Kinder werden sich über die zahlreichen Sportmöglichkeiten freuen, die von Tischtennisplatten bis hin zu einem Trampolin reichen.\n\n### Ausstattung [...] Tegeler Forst und Tegeler See (1)\n\n© visitberlin/Foto: Chris Martin Scholl\n\n### Berliner Seen\n\nÜbersicht der beliebtesten Berliner Seen mit Informationen zu den Badestellen, Freizeitangeboten sowie Cafés und Restaurants in unmittelbarer Nähe. \n mehr\n\nAktualisierung: 27. März 2025\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin [...] © dpa\n\nDas am Rande des Volksparks Mariendorf gelegene Sommerbad ist ideal für Familien mit Kindern",
+                  "category": "recreation",
+                  "factType": "hard_fact",
+                  "confidence": 0.7743491499999999,
+                  "sources": [
+                    {
+                      "url": "https://www.berlin.de/special/sport-und-fitness/schwimmbad/7645797-3302093-sommerbad-mariendorf.html",
+                      "title": "Sommerbad Mariendorf – Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T10:14:31.301Z",
+                      "relevanceScore": 0.5486983,
+                      "authorityScore": 1,
+                      "excerpt": "Der große Nichtschwimmerbereich mit Springbrunnen und Wasserrutsche ist für Kinder zum Spielen und Planschen bestens geeignet. Außerdem gibt es einen Kinderspielplatz mit Sandkasten und Wippen, und die Erwachsenen können im 50-Meter-Becken ihre Bahnen ziehen, das 3-Meter-Sprungbrett nutzen oder auf der Liegewiese entspannen. Erwachsene und Kinder werden sich über die zahlreichen Sportmöglichkeiten freuen, die von Tischtennisplatten bis hin zu einem Trampolin reichen.\n\n### Ausstattung [...] Tegeler Forst und Tegeler See (1)\n\n© visitberlin/Foto: Chris Martin Scholl\n\n### Berliner Seen\n\nÜbersicht der beliebtesten Berliner Seen mit Informationen zu den Badestellen, Freizeitangeboten sowie Cafés und Restaurants in unmittelbarer Nähe. \n mehr\n\nAktualisierung: 27. März 2025\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin [...] © dpa\n\nDas am Rande des Volksparks Mariendorf gelegene Sommerbad ist ideal für Familien mit Kindern"
+                    }
+                  ]
+                }
+              ]
+            },
+            "sources": [
+              {
+                "url": "https://www.bvg.de/de/verbindungen/stationsuebersicht/s-u-friedrichstr",
+                "title": "S+U Friedrichstr.: Haltestelleninfo | BVG",
+                "domain": "bvg.de",
+                "retrievedAt": "2026-08-21T10:14:31.301Z",
+                "relevanceScore": 0.7339103,
+                "authorityScore": 1,
+                "excerpt": "Zum Hauptinhalt springen\n\n# S+U Friedrichstr.\n\n## Vorhandene Verkehrsmittel\n\nU-BahnS-BahnTramBus\n\nTarifbereich Berlin Teilbereich A\n\n## Umstiege\n\n### barrierefreier Zugang: U-Bahn U6U6U Seestr.►U Alt-Mariendorf\n\nDer Bahnsteig Richtung Alt Tegel ist mit Aufzug erreichbar.\n\n ### U-Bahn\n\n  + U-Bahn U6U6\n\n    U Kurt-Schumacher-Platz◄►U Alt-Mariendorf\n ### S-Bahn\n\n  + S-Bahn S1S1\n\n    S Wannsee◄►S Oranienburg\n  + S-Bahn S2S2\n\n    S Blankenfelde◄►S Bernau\n  + S-Bahn S25S25 [...] S+U Zoologischer Garten◄►S+U Friedrichstr.\n  + Bus N6N6\n\n    U Alt-Tegel◄►U Alt-Mariendorf\n ### Weitere Umstiege\n\n  + Regionalverkehr\n\n## Services\n\n### Mobilitätsservices\n\n Aufzug\n\n## Nächste Abfahrten\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\nVerbindungen von hier suchen\n\n## Aufzugstörungen\n\n‌‌‌\n\nStörungsmeldungen aller Linien\n\n## Lageplan\n\n friedrichstr 900100001PDF | 0.33 MB [...] S Teltow Stadt◄►S Hennigsdorf\n  + S-Bahn S26S26\n\n    S Teltow Stadt◄►S Blankenburg\n  + S-Bahn S3S3\n\n    S Erkner◄►S Spandau\n  + S-Bahn S5S5\n\n    S Strausberg Nord◄►S Westkreuz\n  + S-Bahn S7S7\n\n    S Ahrensfelde◄►S Potsdam Hbf\n  + S-Bahn S9S9\n\n    Flughafen BER◄►S Spandau\n ### Tram\n\n  + Tram M1M1\n\n    Schillerstr. oder Rosenthal Nord◄►"
+              },
+              {
+                "url": "https://www.berlin.de/special/immobilien-und-wohnen/stadtteile/tempelhof/914868-5170848-wohnlagen-infrastruktur.html",
+                "title": "Tempelhof: Wohnlagen & Infrastruktur – Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T10:14:31.301Z",
+                "relevanceScore": 0.6929958,
+                "authorityScore": 1,
+                "excerpt": "Berlin.de\nBerlin.deDas offizielle Hauptstadtportal\nBarrierefreiheit\nWie barrierefrei ist diese Webseite?\nHaben Sie Anmerkungen oder Fragen zur Barrierefreiheit dieser Webseite?\nWo gibt es zusätzliche Informationen zur Barrierefreiheit im Land Berlin?\nSuche\nMenü\nSprache der Webseite ändern\nWeitere Links\nSie befinden sich hier:\nTempelhof: Wohnlagen & Infrastruktur\nDas Stadtbild Tempelhofs wird bestimmt durch Miets- und Einfamilienhaussiedlungen sowie Industrie- und Gewerbeflächen. Gleichzeitig ist Tempelhof recht grün.\nWohnlagen\nSanierte Gründerzeitaltbauten in kleinen Straßen sind in Tempelhof keine Seltenheit. Je weiter man nach Süden kommt, desto dörflicher wird die Umgebung. Mariendorf, Marienfelde und Lichtenrade haben teilweise dörflichen Charakter und außerdem einige gut erhaltene historische Bauwerke. Das Leben verläuft hier trotz Spuren der Großstadt recht gemächlich.\nLage\nTempelhof liegt zentral im Süden Berlins und grenzt seinerseits im Süden an das Bundesland Brandenburg. Schnell ist man im angrenzenden Schöneberg, in Neukölln und Kreuzberg.\nÖffentlicher Nahverkehr\nTempelhof ist mit öffentlichen Verkehrsmitteln schnell und leicht erreichbar. Einmal mittendurch fährt die U"
+              },
+              {
+                "url": "https://berlin.de/special/stadtteile/tempelhof/914868-5170848-wohnlagen-infrastruktur.html",
+                "title": "Tempelhof: Wohnlagen & Infrastruktur – Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T10:14:31.301Z",
+                "relevanceScore": 0.6929958,
+                "authorityScore": 1,
+                "excerpt": "Berlin.de\nBerlin.deDas offizielle Hauptstadtportal\nBarrierefreiheit\nWie barrierefrei ist diese Webseite?\nHaben Sie Anmerkungen oder Fragen zur Barrierefreiheit dieser Webseite?\nWo gibt es zusätzliche Informationen zur Barrierefreiheit im Land Berlin?\nSuche\nMenü\nSprache der Webseite ändern\nWeitere Links\nSie befinden sich hier:\nTempelhof: Wohnlagen & Infrastruktur\nDas Stadtbild Tempelhofs wird bestimmt durch Miets- und Einfamilienhaussiedlungen sowie Industrie- und Gewerbeflächen. Gleichzeitig ist Tempelhof recht grün.\nWohnlagen\nSanierte Gründerzeitaltbauten in kleinen Straßen sind in Tempelhof keine Seltenheit. Je weiter man nach Süden kommt, desto dörflicher wird die Umgebung. Mariendorf, Marienfelde und Lichtenrade haben teilweise dörflichen Charakter und außerdem einige gut erhaltene historische Bauwerke. Das Leben verläuft hier trotz Spuren der Großstadt recht gemächlich.\nLage\nTempelhof liegt zentral im Süden Berlins und grenzt seinerseits im Süden an das Bundesland Brandenburg. Schnell ist man im angrenzenden Schöneberg, in Neukölln und Kreuzberg.\nÖffentlicher Nahverkehr\nTempelhof ist mit öffentlichen Verkehrsmitteln schnell und leicht erreichbar. Einmal mittendurch fährt die U"
+              },
+              {
+                "url": "https://www.berlin.de/special/stadtteile/tempelhof/914868-5170848-wohnlagen-infrastruktur.html",
+                "title": "Tempelhof: Wohnlagen & Infrastruktur – Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T10:14:31.301Z",
+                "relevanceScore": 0.6929958,
+                "authorityScore": 1,
+                "excerpt": "### Wohnlagen\n\nSanierte Gründerzeitaltbauten in kleinen Straßen sind in Tempelhof keine Seltenheit. Je weiter man nach Süden kommt, desto dörflicher wird die Umgebung. Mariendorf, Marienfelde und Lichtenrade haben teilweise dörflichen Charakter und außerdem einige gut erhaltene historische Bauwerke. Das Leben verläuft hier trotz Spuren der Großstadt recht gemächlich.\n\n### Lage\n\nTempelhof liegt zentral im Süden Berlins und grenzt seinerseits im Süden an das Bundesland Brandenburg. Schnell ist man im angrenzenden Schöneberg, in Neukölln und Kreuzberg.\n\n### Öffentlicher Nahverkehr [...] ### Verkehrsachsen\n\nDie B96 (Tempelhofer Damm/ Mariendorfer Damm/ Lichtenrader Damm) ist die wichtigste Verkehrsachse.  \nDurch Tempelhof verläuft die Stadtautobahn A100 mit zwei Auffahrten.\n\nAktualisierung: 16. Oktober 2019\n\n## Tempelhof im Portrait\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin\n\n### Hauptstadtportal\n\n### Politik & Verwaltung\n\n### Behörden\n\n### Berlin erleben\n\n### Extras\n\n### In anderen Sprachen\n\nBerlin.de ist ein Angebot des La"
+              },
+              {
+                "url": "https://www.bvg.de/de/verbindungen/stationsuebersicht/s-u-tempelhof",
+                "title": "S+U Tempelhof: Haltestelleninfo | BVG",
+                "domain": "bvg.de",
+                "retrievedAt": "2026-08-21T10:14:31.301Z",
+                "relevanceScore": 0.6191726,
+                "authorityScore": 1,
+                "excerpt": "+ U-Bahn U6U6\n\n    U Kurt-Schumacher-Platz◄►U Alt-Mariendorf\n ### S-Bahn\n\n  + S-Bahn S41S41\n\n    S+U Gesundbrunnen►S+U Gesundbrunnen\n  + S-Bahn S42S42\n\n    S+U Gesundbrunnen►S+U Gesundbrunnen\n  + S-Bahn S46S46\n\n    S Königs Wusterhausen◄►S Westend\n  + S-Bahn S47S47\n\n    S Spindlersfeld◄►S Südkreuz\n ### Bus\n\n  + Bus 140140\n\n    S+U Tempelhof◄►S Ostbahnhof\n  + Bus 184184\n\n    S Südkreuz oder S+U Tempelhof◄►Teltow, Warthestr. oder Saaleckplatz\n  + Bus N6N6 [...] Zum Hauptinhalt springen\n\n# S+U Tempelhof\n\n## Vorhandene Verkehrsmittel\n\nU-BahnS-BahnBus\n\nTarifbereich Berlin Teilbereich A\n\n## Umstiege\n\n### barrierefreier Zugang: U-Bahn U6U6U Seestr.►U Alt-Mariendorf\n\nDer Bahnsteig Richtung Alt Tegel ist mit Aufzug erreichbar.\n\n### Kleine Fahrplanänderung: Bus 101101Bus 122122Bus 140140Bus 221221Bus 322322\n\nVom\n\nAuf dieser Linie kommt es zu Anpassungen am Fahrplan. Abfahrtszeiten können sich ändern.\n\n ### U-Bahn\n\n  + U-Bahn U6U6 [...] U Alt-Tegel◄►U Alt-Mariendorf\n  + Bus N84N84\n\n    S+U Tempelhof◄►Zehlendorf Eiche\n\n## Services\n\n### Mobilitätsservices\n\n Aufzug\n\n## Nächste Abfahrten\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\n‌\n\n‌‌\n\n‌\n\nVerbindungen von hier suchen\n\n## Aufzugstörungen\n\n‌‌‌\n\nStörungsmeldun"
+              },
+              {
+                "url": "https://www.berlin.de/ba-tempelhof-schoeneberg/politik-und-verwaltung/aemter/jugendamt/wir-vor-ort/artikel.395999.php",
+                "title": "Sozialraum Mariendorf - Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T10:14:31.301Z",
+                "relevanceScore": 0.61057013,
+                "authorityScore": 1,
+                "excerpt": "Wir in Mariendorf arbeiten eng mit Trägern, die Leistungen für junge Menschen anbieten, aber auch mit anderen Einrichtungen und Institutionen wie Schulen, Polizei, Gesundheitsdiensten, Ehrenamtlichen etc. zusammen.  \nDurch einen engen Austausch mit unseren lokalen Akteuren wollen wir erreichen, dass die Angebote für Kinder, Jugendliche und Familien kontinuierlich weiterentwickelt werden. [...] In der Bezirksregion Mariendorf gibt es vielfältige Kinder- und Jugendfreizeiteinrichtungen, die vom Jugendamt gefördert werden. Diese bieten Kinder und Jugendlichen – ob nach der Schule oder in der Ferienzeit – Möglichkeiten, sich zu treffen oder an Gruppenangeboten teilzunehmen.  \nHier findet ihr weitere Informationen zu den Einrichtungen\n\nEs folgt eine Kartendarstellung.\nzur Teaserliste mit den enthaltenen Adressen unter der Karte springen\n\n### BEATS42\n\n### Jugendfreizeithaus Bungalow [...] Hier treffen sich regelmäßig Mariendorfer Fachkräfte, die Kinder und Jugendliche betreuen und begleiten.\n\n18.03.2026  \n11:00 bis 13:30 Uhr  \nBungalow, Mariendorfer Damm 117-121, 12109 Berlin\n\n17.06.2026  \n10:00 bis 13:00 Uhr  \nJugendclub Lindenhof, Domnauerstraße 20a\n\n30.09.2026  \n11:00 bis 13:00 Uhr (A"
+              },
+              {
+                "url": "https://www.berlin.de/ba-tempelhof-schoeneberg/ueber-den-bezirk/ortsteile/mariendorf",
+                "title": "Ortsteil Mariendorf - Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T10:14:31.301Z",
+                "relevanceScore": 0.6033015,
+                "authorityScore": 1,
+                "excerpt": "Der Kirchhof der Mariendorfer Dorfkirche wurde 1873 durch den Bau der Berliner Chaussee, dem heutigen Mariendorfer Damm, verkleinert. Kreuzt hier auch die moderne Zeit das historische Ensemble, so trutzt die historische Kirche doch immer noch der Neuzeit.\n\n(Bild: Pressestelle T-S)\n\nGemeindeschule Mariendorf\n\n## Rudolf-Hildebrand-Grundschule [...] Auf dem Grundstück in Alt-Mariendorf 43 befindet sich das Gebäude des alten Mariendorfer Schulhauses. Es wurde 1873 eingeweiht und bot auf zwei Etagen Platz für bis zu 250 Schüler\\_innen.  \nNach nur etwas über 30 Jahren wurde es bereits eng in dem Gebäude und so wurde ein neues Schulgebäude in der Friedenstraße 23 gebaut. Das 1907-1908 von Otto Kerwien errichtete Gebäude beherrscht mit seiner Größe den gesamten ehemaligen Dorfkern. [...] Mariendorf, im Süden des Bezirkes Tempelhof-Schöneberg, besticht durch seine ruhigen Wohnviertel und ist weit über die Landesgrenzen Berlins durch die Trabrennbahn bekannt. Moderne und Geschichte prägen hier das Stadtbild.\n\nGegründet wurde Mariendorf im 13. Jahrhundert als Angerdorf von den Tempelrittern. Dieser geistliche Ritterorden wurde 1312 aufgelöst, danach wurde das Dorf von dem Johanniterorden über"
+              },
+              {
+                "url": "http://www.bvg.de/de/touristen/verkehrsmittel-tarifbereiche",
+                "title": "Verkehrsmittel & Tarifbereiche | BVG",
+                "domain": "bvg.de",
+                "retrievedAt": "2026-08-21T10:14:31.301Z",
+                "relevanceScore": 0.5948579,
+                "authorityScore": 1,
+                "excerpt": "Zum Hauptinhalt springen\n\n# Verkehrsmittel und Tarifbereiche\n\nErfahre hier, wie der öffentliche Personennahverkehr in Berlin und Umkreis funktioniert.\n\n## Welche öffentlichen Verkehrsmittel gibt es?\n\n S-Bahn\n\n  S-Bahn: Betrieben von der Deutschen Bahn, ergänzt sie das BVG-Netz und verbindet Berlin unter anderem mit dem Umland.\n U-Bahn\n\n  U-Bahn: Die schnellste Verbindung in der Stadt, meist fährt sie unterirdisch, aber an einigen Stellen auch oberirdisch.\n TRAM [...] Tram (Straßenbahn): Besonders im Osten Berlins weit verbreitet.\n Bus\n\n  Bus: Ideal für Stadtteile ohne direkte U-Bahn-Anbindung.\n Fähre\n\n  Fähre: 6 Fährlinien, die sich über das Wasser sicher ans Ziel bringen.\n\n## Wo kann ich weitere Verkehrsmittel mieten?\n\n Icon: Jelbi-App\n\n  Mit der BVG Jelbi-App auf deinem Smartphone kannst du verschiedene Verkehrsmittel von Drittanbietern ganz einfach selbst mieten: Autos, Taxis, E-Scooter, Räder und E-Mopeds\n\n## Welche Tarifbereiche gibt es in Berlin? [...] In Berlin gibt es ein einheitliches Tarifsystem für den öffentlichen Personennahverkehr (ÖPNV). Dieses System umfasst verschiedene Tarifbereiche, die nach Entfernung gestaffelt sind. Die Stadt ist in drei Tarifbereiche untertei"
+              },
+              {
+                "url": "https://www.berlin.de/ba-mitte/aktuelles/pressemitteilungen/2021/pressemitteilung.1158157.php",
+                "title": "Bezirksregionenprofile für alle Stadtteile im Bezirk Mitte aktualisiert - Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T10:14:31.301Z",
+                "relevanceScore": 0.55478466,
+                "authorityScore": 1,
+                "excerpt": "Das Bezirksamt Mitte hatte als erster Berliner Bezirk die Profile seiner zehn Bezirksregionen erarbeitet und nun wiederum aktualisiert, um die kommunalen Aufgaben und die kommunale Infrastruktur möglichst passgenau auf die Bedarfe der Bürgerinnen und Bürger auszurichten. Dabei handelt es sich um eine Sammlung und Analyse von statistischen Daten zur Beschreibung der demografischen und sozialen Situation des Bezirks. Es finden sich beispielsweise Aussagen zur Altersstruktur der Einwohnenden, der [...] Einwohnenden, der sozialen und gesundheitlichen Situation von Kindern und Jugendlichen, der Schulen, Kitas, Spielplätze und Sporteinrichtungen im Stadtteil und der Akteure der Bürgerbeteiligung. Ergänzt sind eine Vielzahl von Daten durch eine fachliche Einschätzung. [...] Berlin.de zur Startseite\nweitere Informationen\n\nBezirksamtMitte\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptnavigation\n\nWeiteres\n\n# Bezirksregionenprofile für alle Stadtteile im Bezirk Mitte aktualisiert\n\nPressemitteilung Nr. 460/2021 vom 16.12.2021\n\nDer Bezirksstadtrat für Stadtentwicklung und Facility Management, Ephraim G"
+              },
+              {
+                "url": "http://www.berlin.de/special/sport-und-fitness/schwimmbad/7645797-3302093-sommerbad-mariendorf.html",
+                "title": "Sommerbad Mariendorf – Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T10:14:31.301Z",
+                "relevanceScore": 0.5486983,
+                "authorityScore": 1,
+                "excerpt": "Der große Nichtschwimmerbereich mit Springbrunnen und Wasserrutsche ist für Kinder zum Spielen und Planschen bestens geeignet. Außerdem gibt es einen Kinderspielplatz mit Sandkasten und Wippen, und die Erwachsenen können im 50-Meter-Becken ihre Bahnen ziehen, das 3-Meter-Sprungbrett nutzen oder auf der Liegewiese entspannen. Erwachsene und Kinder werden sich über die zahlreichen Sportmöglichkeiten freuen, die von Tischtennisplatten bis hin zu einem Trampolin reichen.\n\n### Ausstattung [...] Tegeler Forst und Tegeler See (1)\n\n© visitberlin/Foto: Chris Martin Scholl\n\n### Berliner Seen\n\nÜbersicht der beliebtesten Berliner Seen mit Informationen zu den Badestellen, Freizeitangeboten sowie Cafés und Restaurants in unmittelbarer Nähe. \n mehr\n\nAktualisierung: 27. März 2025\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin [...] © dpa\n\nDas am Rande des Volksparks Mariendorf gelegene Sommerbad ist ideal für Familien mit Kindern"
+              },
+              {
+                "url": "https://berlin.de/special/sport-und-fitness/schwimmbad/7645797-3302093-sommerbad-mariendorf.html",
+                "title": "Sommerbad Mariendorf – Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T10:14:31.301Z",
+                "relevanceScore": 0.5486983,
+                "authorityScore": 1,
+                "excerpt": "Der große Nichtschwimmerbereich mit Springbrunnen und Wasserrutsche ist für Kinder zum Spielen und Planschen bestens geeignet. Außerdem gibt es einen Kinderspielplatz mit Sandkasten und Wippen, und die Erwachsenen können im 50-Meter-Becken ihre Bahnen ziehen, das 3-Meter-Sprungbrett nutzen oder auf der Liegewiese entspannen. Erwachsene und Kinder werden sich über die zahlreichen Sportmöglichkeiten freuen, die von Tischtennisplatten bis hin zu einem Trampolin reichen.\n\n### Ausstattung [...] Tegeler Forst und Tegeler See (1)\n\n© visitberlin/Foto: Chris Martin Scholl\n\n### Berliner Seen\n\nÜbersicht der beliebtesten Berliner Seen mit Informationen zu den Badestellen, Freizeitangeboten sowie Cafés und Restaurants in unmittelbarer Nähe. \n mehr\n\nAktualisierung: 27. März 2025\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin [...] © dpa\n\nDas am Rande des Volksparks Mariendorf gelegene Sommerbad ist ideal für Familien mit Kindern"
+              },
+              {
+                "url": "https://www.berlin.de/special/sport-und-fitness/schwimmbad/7645797-3302093-sommerbad-mariendorf.html",
+                "title": "Sommerbad Mariendorf – Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T10:14:31.301Z",
+                "relevanceScore": 0.5486983,
+                "authorityScore": 1,
+                "excerpt": "Der große Nichtschwimmerbereich mit Springbrunnen und Wasserrutsche ist für Kinder zum Spielen und Planschen bestens geeignet. Außerdem gibt es einen Kinderspielplatz mit Sandkasten und Wippen, und die Erwachsenen können im 50-Meter-Becken ihre Bahnen ziehen, das 3-Meter-Sprungbrett nutzen oder auf der Liegewiese entspannen. Erwachsene und Kinder werden sich über die zahlreichen Sportmöglichkeiten freuen, die von Tischtennisplatten bis hin zu einem Trampolin reichen.\n\n### Ausstattung [...] Tegeler Forst und Tegeler See (1)\n\n© visitberlin/Foto: Chris Martin Scholl\n\n### Berliner Seen\n\nÜbersicht der beliebtesten Berliner Seen mit Informationen zu den Badestellen, Freizeitangeboten sowie Cafés und Restaurants in unmittelbarer Nähe. \n mehr\n\nAktualisierung: 27. März 2025\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin [...] © dpa\n\nDas am Rande des Volksparks Mariendorf gelegene Sommerbad ist ideal für Familien mit Kindern"
+              },
+              {
+                "url": "https://www.berlin.de/special/stadtteile/prenzlauer-berg/920605-5170843-wohnlagen-infrastruktur.html",
+                "title": "Prenzlauer Berg: Wohnlagen & Infrastruktur – Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T10:14:31.301Z",
+                "relevanceScore": 0.50007385,
+                "authorityScore": 1,
+                "excerpt": "Der Stadtteil verfügt über eine gute Infrastruktur mit S- und U-Bahn (die Ringbahn im Norden und die U2 vom Alexanderplatz entlang der Schönhauser Alle bis nach Pankow), zahlreichen Tramlinien und ein paar Bussen.  \nMan ist schnell in Mitte oder auch im nördlichen Umland von Berlin.\n\nFestival der Riesendrachen\n\n© Stadt und Land\n\n### 13. Stadt und Land-Festival der Riesendrachen [...] ### Lage\n\nPrenzlauer Berg liegt in unmittelbarer Nähe des Zentrums Ost: Im Westen und Südwesten grenzt der Stadtteil an den Bezirk Mitte, im Süden an Friedrichshain-Kreuzberg. Die größte Erhebung liegt auf einem ehemaligen Trümmerberg mitten im Volkspark Prenzlauer Berg.\n\n### Öffentlicher Nahverkehr [...] © dpa\n\nDer beliebte Stadtteil zeichnet sich durch recht hohe Mieten, aber auch viele Freizeitangebote und eine gute Verkehrsanbindung aus.\n\n### Wohnlagen"
+              },
+              {
+                "url": "https://berlin.de/special/stadtteile/prenzlauer-berg/920605-5170843-wohnlagen-infrastruktur.html",
+                "title": "Prenzlauer Berg: Wohnlagen & Infrastruktur – Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T10:14:31.301Z",
+                "relevanceScore": 0.50007385,
+                "authorityScore": 1,
+                "excerpt": "Der Stadtteil verfügt über eine gute Infrastruktur mit S- und U-Bahn (die Ringbahn im Norden und die U2 vom Alexanderplatz entlang der Schönhauser Alle bis nach Pankow), zahlreichen Tramlinien und ein paar Bussen.  \nMan ist schnell in Mitte oder auch im nördlichen Umland von Berlin.\n\nFestival der Riesendrachen\n\n© Stadt und Land\n\n### 13. Stadt und Land-Festival der Riesendrachen [...] ### Lage\n\nPrenzlauer Berg liegt in unmittelbarer Nähe des Zentrums Ost: Im Westen und Südwesten grenzt der Stadtteil an den Bezirk Mitte, im Süden an Friedrichshain-Kreuzberg. Die größte Erhebung liegt auf einem ehemaligen Trümmerberg mitten im Volkspark Prenzlauer Berg.\n\n### Öffentlicher Nahverkehr [...] © dpa\n\nDer beliebte Stadtteil zeichnet sich durch recht hohe Mieten, aber auch viele Freizeitangebote und eine gute Verkehrsanbindung aus.\n\n### Wohnlagen"
+              },
+              {
+                "url": "https://www.berlin.de/en/districts/tempelhof/914931-6654133-mariendorf.en.html",
+                "title": "Mariendorf – Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T10:14:31.301Z",
+                "relevanceScore": 0.37476835,
+                "authorityScore": 1,
+                "excerpt": "The Berlin district of Mariendorf is characterized by a closed residential development in the north and around Old Mariendorf. Old buildings from the Wilhelminian period alternate with apartment buildings from the 1930s, 50s and 60s. The south mostly consists of individual houses, with the exception of the two- to four-story apartment buildings along Mariendorfer Damm. Industry and commerce are mainly concentrated in Marienpark and the areas along the Teltow canal. [...] Summer in Tempelhof\n\n© www.enrico-verworner.de\n\nThe Teltow canal forms the border between the districts of Mariendorf and Tempelhof. The Tempelhofer Hafen shopping center is located on the Tempelhof side.\n\nMariendorf, like the surrounding districts, is rather quiet with a suburban flair. The trotting course is known beyond the region. [...] Mariendorf is known nationwide for its trotting course, which is surrounded by the new buildings on Mariendorfer Damm. It was inaugurated in 1913 as the most modern horse racing facility in Germany at the time. Here, a rural ambience mixes with remnants of the Gründerzeit and modern functional buildings."
+              },
+              {
+                "url": "http://www.berlin.de/ba-tempelhof-schoeneberg/ueber-den-bezirk/ortsteile/mariendorf",
+                "title": "Ortsteil Mariendorf - Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T10:14:31.301Z",
+                "relevanceScore": 0.36330852,
+                "authorityScore": 1,
+                "excerpt": "## Gewerbegebiet [...] Mariendorf ist vielfältig, beschaulich und doch modern und mit seinen Industrieansiedlungen ein wichtiger Wirtschaftsmotor von Tempelhof-Schöneberg und Berlin.\n\n## Statistik\n\nEinwohner\\_innen: 53.553 (Stand: 31.12.2023)  \nFläche: 9,3 km²\n\nWeitere statistische Informationen zu Mariendorf und dem Bezirk Tempelhof-Schöneberg finden Sie unter “Zahlen und Fakten”\n\n## Bezirksamt Tempelhof-Schöneberg von Berlin\n\nPostanschrift  \n10820 Berlin [...] Mariendorf, im Süden des Bezirkes Tempelhof-Schöneberg, besticht durch seine ruhigen Wohnviertel und ist weit über die Landesgrenzen Berlins durch die Trabrennbahn bekannt. Moderne und Geschichte prägen hier das Stadtbild.\n\nGegründet wurde Mariendorf im 13. Jahrhundert als Angerdorf von den Tempelrittern. Dieser geistliche Ritterorden wurde 1312 aufgelöst, danach wurde das Dorf von dem Johanniterorden übernommen. Die erste urkundliche Erwähnung ist aus dem Jahre 1373."
+              },
+              {
+                "url": "https://www.berlin.de/sen/bildung/schule",
+                "title": "Schule - Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T10:14:31.301Z",
+                "relevanceScore": 0.2477512,
+                "authorityScore": 1,
+                "excerpt": "## Ganztagsschulen\n\nGanztagsschulen sind Lebens- und Lernorte, an denen sich Kinder und Jugendliche wohlfühlen sollen und die vielfältige Bildungsprozesse ermöglichen. In Berlin zählen dazu alle Grundschulen und die Mehrheit der weiterführenden Schulen. \n Weitere Informationen\n\nGute Schule\n\nBild: Janette Kneisel\n\n## Gute Schule [...] Im Schulverzeichnis finden Sie alle Berliner Schulen nach Bezirk, Schulart oder Fremdsprachenangebot. Außerdem können Sie sich über einen Schulwechsel nach Berlin erkundigen oder Schulen und Kitas in Ihrer Wohnnähe finden. \n Weitere Informationen\n\nDas Berliner Schulsystem\n\nBild: Senatsverwaltung für Bildung, Jugend und Familie\n\n## Bildungswege [...] Berlin.de zur Startseite\n\nSenatsverwaltung fürBildung, Jugend und Familie\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptnavigation\n\nWeiteres\n\n# Schule\n\nSchulgebäude\n\nBild: SenBJF\n\n## Berliner Schulen"
+              }
+            ],
+            "confidence": 0.7786376849999999
+          }
         },
         "images": [],
         "floorPlans": [],
@@ -120,7 +646,7 @@
       },
       "expose": null,
       "createdAt": "2026-08-21T09:27:20.069Z",
-      "updatedAt": "2026-08-21T09:35:57.639Z",
+      "updatedAt": "2026-08-21T10:14:38.282Z",
       "constructionYear": 2018,
       "address": "Großbeerenstraße 83",
       "zipCode": "12107",

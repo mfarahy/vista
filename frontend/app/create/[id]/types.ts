@@ -225,6 +225,32 @@ export type BorisEnrichment = {
   bodenrichtwert?: { value?: number; unit?: string } | null;
 };
 
+export type ExternalFacility = {
+  id?: string;
+  name?: string;
+  category?: string;
+  distanceMeters?: number;
+};
+
+export type ExternalGeocoding = {
+  coordinates?: { latitude: number; longitude: number } | null;
+  address?: StructuredAddress;
+  summary?: string;
+  facilities?: {
+    shopping?: ExternalFacility[];
+    education?: ExternalFacility[];
+    transport?: ExternalFacility[];
+    healthcare?: ExternalFacility[];
+    recreation?: ExternalFacility[];
+    dailyLife?: ExternalFacility[];
+  };
+};
+
+export type ExternalResearch = {
+  mikrolage?: { summary?: string };
+  makrolage?: { summary?: string };
+};
+
 export const PROPERTY_TYPES = [
   ['apartment', 'Apartment'],
   ['house', 'House'],
@@ -335,48 +361,6 @@ export const emptyExposeData = (property: Property): ExposeData => ({
   agent: undefined,
 });
 
-const demoDefaults: Partial<PropertyPayload> = {
-  constructionYear: 2018,
-  address: 'Lychener Straße 18',
-  zipCode: '10437',
-  city: 'Berlin',
-  district: 'Prenzlauer Berg',
-  livingArea: 86,
-  rooms: 3,
-  bathrooms: 1,
-  floor: '3. OG',
-  totalFloors: 5,
-  availableFrom: '01.10.2026',
-  condition: 'good',
-  askingPrice: 645000,
-  additionalCosts: 19350,
-  hausgeld: 385,
-  selectedFeatures: ['balcony', 'elevator', 'fitted-kitchen', 'underfloor-heating', 'basement'],
-  additionalFeatures: 'Oak flooring and triple-glazed windows',
-  surroundings: {
-    transport: 'U2 and several tram lines are just a few minutes away',
-    shopping: 'Weekly market at Kollwitzplatz and everyday shops nearby',
-  },
-  roomsData: [
-    {
-      name: 'Living room',
-      type: 'Living',
-      size: 31,
-      floor: '3. OG',
-      description: 'Bright living area with balcony access and large windows.',
-      sequence: 0,
-    },
-    {
-      name: 'Kitchen',
-      type: 'Kitchen',
-      size: 11,
-      floor: '3. OG',
-      description: 'Open-plan fitted kitchen with generous work surfaces.',
-      sequence: 1,
-    },
-  ],
-};
-
 export const initialPayload = (property: Property): PropertyPayload => {
   const {
     id: _id,
@@ -386,17 +370,9 @@ export const initialPayload = (property: Property): PropertyPayload => {
     updatedAt: _updatedAt,
     ...payload
   } = property;
-  const freshDraft =
-    !property.address &&
-    !property.city &&
-    property.roomsData.length === 0 &&
-    property.selectedFeatures.length === 0;
   return {
-    ...(freshDraft ? demoDefaults : {}),
     ...payload,
-    roomsData: freshDraft
-      ? (demoDefaults.roomsData ?? [])
-      : property.roomsData.map(({ id: _roomId, ...room }) => room),
+    roomsData: property.roomsData.map(({ id: _roomId, ...room }) => room),
     exposeData: property.exposeData ?? emptyExposeData(property),
   };
 };

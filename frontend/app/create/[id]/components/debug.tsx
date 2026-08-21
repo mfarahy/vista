@@ -8,13 +8,24 @@ export function AddressDebugPanel({
   propertyId,
   property,
   address,
+  onData,
 }: {
   propertyId: string;
   property: PropertyPayload;
   address: StructuredAddress;
+  onData?: (results: Record<string, unknown>) => void;
 }) {
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
+  // Only re-query when the parts of the address that affect external lookups change.
+  const addressKey = [
+    address.street,
+    address.houseNumber,
+    address.postalCode,
+    address.city,
+  ]
+    .map((part) => (part ?? '').trim().toLocaleLowerCase())
+    .join('|');
 
   useEffect(() => {
     let cancelled = false;
@@ -53,13 +64,14 @@ export function AddressDebugPanel({
       if (!cancelled) {
         setData(results);
         setLoading(false);
+        onData?.(results);
       }
     }
     run();
     return () => {
       cancelled = true;
     };
-  }, [propertyId, address]);
+  }, [propertyId, addressKey]);
 
   return (
     <div className="mt-6 rounded-xl border border-dashed border-[#d0a35a] bg-[#fdf9f0] p-4">
@@ -75,6 +87,11 @@ export function AddressDebugPanel({
           Clear
         </button>
       </div>
+      {onData && (
+        <p className="mt-2 text-[11px] text-[#8a7a4a]">
+          The wizard is pre-filled automatically from these results wherever a field is still empty.
+        </p>
+      )}
       {loading && <p className="mt-3 text-sm text-[#8a7a4a]">Querying external services…</p>}
       {(() => {
         const geocoding = data?.geocoding as

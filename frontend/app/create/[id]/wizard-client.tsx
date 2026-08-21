@@ -8,6 +8,9 @@ import type {
   BorisEnrichment,
   ExposeContent,
   ExposeData,
+  ExternalFacility,
+  ExternalGeocoding,
+  ExternalResearch,
   Property,
   PropertyPayload,
   StructuredAddress,
@@ -145,6 +148,102 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     } finally {
       setBorisLoading(false);
     }
+  }
+
+  function formatDistance(meters: number) {
+    if (meters < 1000) return `${Math.round(meters / 10) * 10} m`;
+    return `${(meters / 1000).toLocaleString('de-DE', {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    })} km`;
+  }
+
+  function facilityList(items: ExternalFacility[] = []) {
+    return items
+      .slice(0, 3)
+      .map((place) =>
+        place.name ? `${place.name} (${formatDistance(place.distanceMeters ?? 0)})` : '',
+      )
+      .filter(Boolean)
+      .join(', ');
+  }
+
+  function surroundingsFromFacilities(facilities: ExternalGeocoding['facilities']) {
+    const surroundings: Record<string, string> = {};
+    if (facilities?.transport?.length) surroundings.transport = facilityList(facilities.transport);
+    if (facilities?.shopping?.length) surroundings.shopping = facilityList(facilities.shopping);
+    const restaurants = facilities?.dailyLife?.filter(
+      (place) => place.category === 'restaurant' || place.category === 'cafe',
+    );
+    if (restaurants?.length) surroundings.restaurants = facilityList(restaurants);
+    const parks = facilities?.recreation?.filter(
+      (place) => place.category === 'park' || place.category === 'playground',
+    );
+    if (parks?.length) surroundings.parks = facilityList(parks);
+    const schools = facilities?.education?.filter((place) => place.category === 'school');
+    if (schools?.length) surroundings.schools = facilityList(schools);
+    const childcare = facilities?.education?.filter((place) => place.category === 'kindergarten');
+    if (childcare?.length) surroundings.childcare = facilityList(childcare);
+    if (facilities?.healthcare?.length) surroundings.medical = facilityList(facilities.healthcare);
+    return surroundings;
+  }
+
+  function applyExternalData(raw: Record<string, unknown>) {
+    const geocoding = raw.geocoding as ExternalGeocoding | undefined;
+    const research = raw.research as ExternalResearch | undefined;
+    const hasGeocoding = Boolean(geocoding?.coordinates || geocoding?.summary || geocoding?.facilities);
+    if (!hasGeocoding && !research) return;
+    setProperty((current) => {
+      const data = current.exposeData ?? emptyExposeData(initialProperty);
+      const basicAddress = { ...data.basicInformation.address };
+      const location = { ...data.location };
+      const surroundings = { ...current.surroundings };
+      let changed = false;
+
+      if (geocoding?.coordinates) {
+        if (location.latitude == null && Number.isFinite(geocoding.coordinates.latitude)) {
+          location.latitude = geocoding.coordinates.latitude;
+          changed = true;
+        }
+        if (location.longitude == null && Number.isFinite(geocoding.coordinates.longitude)) {
+          location.longitude = geocoding.coordinates.longitude;
+          changed = true;
+        }
+      }
+      if (geocoding?.address?.district && !basicAddress.district) {
+        basicAddress.district = geocoding.address.district;
+        location.district = geocoding.address.district;
+        changed = true;
+      }
+      for (const [key, value] of Object.entries(surroundingsFromFacilities(geocoding?.facilities))) {
+        if (!surroundings[key] && value) {
+          surroundings[key] = value;
+          changed = true;
+        }
+      }
+      if (!current.locationNote) {
+        const researchNote = [research?.mikrolage?.summary, research?.makrolage?.summary]
+          .filter(Boolean)
+          .join(' ');
+        const note = geocoding?.summary || researchNote || location.description;
+        if (note) {
+          location.description = note;
+          changed = true;
+        }
+      }
+      if (!changed) return current;
+      return {
+        ...current,
+        district: basicAddress.district ?? current.district,
+        surroundings,
+        locationNote: location.description ?? current.locationNote,
+        exposeData: {
+          ...data,
+          basicInformation: { ...data.basicInformation, address: basicAddress },
+          location,
+        },
+      };
+    });
   }
 
   function set<K extends keyof PropertyPayload>(key: K, value: PropertyPayload[K]) {
@@ -417,6 +516,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                     propertyId={initialProperty.id}
                     property={property}
                     address={property.exposeData!.basicInformation.address}
+                    onData={applyExternalData}
                   />
                 )}
                 {step === 1 && (
