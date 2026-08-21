@@ -302,7 +302,10 @@ export type DocumentType =
   | 'expose'
   | 'lageplan'
   | 'wohnflaechenberechnung'
+  | 'bauplan'
   | 'kaufvertrag'
+  | 'mietvertrag'
+  | 'property_photo'
   | 'other';
 
 export type DocumentPage = {
@@ -326,6 +329,27 @@ export type DocumentAnalysisResult = {
   metadata?: Record<string, unknown>;
 };
 
+export type UnderstandingWizardField = {
+  field: string;
+  value: string | number | boolean | null;
+  evidence: string | null;
+};
+
+export type UnderstandingAdditionalInfo = {
+  key: string;
+  value: string | number | boolean | null;
+  evidence: string | null;
+};
+
+export type DocumentUnderstandingResult = {
+  documentType: DocumentType;
+  tags: string[];
+  summary: string;
+  keepInLibrary: boolean;
+  wizardFields: UnderstandingWizardField[];
+  additionalInformation: UnderstandingAdditionalInfo[];
+};
+
 export type DocumentRecord = {
   id: string;
   propertyId: string;
@@ -337,6 +361,9 @@ export type DocumentRecord = {
   documentType?: DocumentType | null;
   error?: string | null;
   analysisResult?: DocumentAnalysisResult | null;
+  tags?: string[];
+  understandingResult?: DocumentUnderstandingResult | null;
+  understandingError?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -348,7 +375,10 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   expose: 'Exposé',
   lageplan: 'Lageplan / Flurkarte',
   wohnflaechenberechnung: 'Wohnflächenberechnung',
+  bauplan: 'Bauplan',
   kaufvertrag: 'Kaufvertrag',
+  mietvertrag: 'Mietvertrag',
+  property_photo: 'Property photo',
   other: 'Other',
 };
 

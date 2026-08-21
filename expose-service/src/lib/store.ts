@@ -13,6 +13,7 @@ import type {
   PropertyPayload,
   PropertyRoom,
 } from './types.js';
+import type { DocumentUnderstandingResult } from './document-understanding/types.js';
 import { emptyExposeData } from './expose-data.js';
 import { addressFromLegacy, addressKey } from '../external-services/location.js';
 import type { LocationIntelligence } from './expose-data.js';
@@ -382,6 +383,9 @@ export async function createDocument(
     documentType: null,
     error: null,
     analysisResult: null,
+    tags: [],
+    understandingResult: null,
+    understandingError: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -402,6 +406,9 @@ export async function updateDocument(
     documentType?: DocumentType | null;
     error?: string | null;
     analysisResult?: DocumentAnalysisResult | null;
+    tags?: string[];
+    understandingResult?: DocumentUnderstandingResult | null;
+    understandingError?: string | null;
   },
 ): Promise<DocumentRecord | null> {
   const db = await readDB();

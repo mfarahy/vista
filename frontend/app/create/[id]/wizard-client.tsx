@@ -17,7 +17,7 @@ import type {
   PropertyPayload,
   StructuredAddress,
 } from './types';
-import { STEPS, emptyExposeData, initialPayload } from './types';
+import { STEPS, PROPERTY_TYPES, emptyExposeData, initialPayload } from './types';
 import { StepAddress, StepProperty, StepDetails } from './components/basic-steps';
 import { StepFeatures, StepEnergy, StepAgent } from './components/feature-steps';
 import { StepPhotos, StepPlans } from './components/media-steps';
@@ -255,10 +255,23 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     const featureSet = new Set<string>();
     let energyClass: string | null = null;
     let energyConsumption: number | null = null;
+    let energyDemand: number | null = null;
+    let heatingType: string | null = null;
+    let yearOfConstruction: number | null = null;
 
     for (const record of records) {
       if (record.status !== 'completed' || !record.analysisResult) continue;
-      for (const field of record.analysisResult.fields) {
+      // Prefer the AI understanding result; fall back to the rule-based OCR
+      // fields when understanding is unavailable.
+      const understanding = record.understandingResult;
+      const candidates = understanding?.wizardFields?.length
+        ? understanding.wizardFields.map((field) => ({
+            field: field.field,
+            value: field.value,
+            sourceDocumentId: record.id,
+          }))
+        : record.analysisResult.fields;
+      for (const field of candidates) {
         const value = field.value;
         if (value === null || value === undefined || value === '') continue;
         switch (field.field) {
@@ -273,6 +286,20 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
             break;
           case 'city':
             if (!address.city) address.city = String(value);
+            break;
+          case 'district':
+            if (!address.district) address.district = String(value);
+            break;
+          case 'state':
+            if (!address.state) address.state = String(value);
+            break;
+          case 'country':
+            if (!address.country) address.country = String(value);
+            break;
+          case 'propertyType':
+            if (!flat.propertyType && PROPERTY_TYPES.some(([key]) => key === value)) {
+              flat.propertyType = value as PropertyPayload['propertyType'];
+            }
             break;
           case 'livingArea':
             if (flat.livingArea == null) flat.livingArea = Number(value);
@@ -295,17 +322,41 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
           case 'numberOfFloors':
             if (flat.totalFloors == null) flat.totalFloors = Number(value);
             break;
+          case 'floor':
+            if (!flat.floor) flat.floor = String(value);
+            break;
           case 'energyClass':
             if (!energyClass) energyClass = String(value);
             break;
           case 'energyConsumption':
             if (energyConsumption == null) energyConsumption = Number(value);
             break;
+          case 'energyDemand':
+            if (energyDemand == null) energyDemand = Number(value);
+            break;
+          case 'heatingType':
+            if (!heatingType) heatingType = String(value);
+            break;
+          case 'yearOfConstruction':
+            if (yearOfConstruction == null) yearOfConstruction = Number(value);
+            break;
           case 'basement':
             if (value === true) featureSet.add('basement');
             break;
           case 'parking':
             if (value === true) featureSet.add('parking');
+            break;
+          case 'garage':
+            if (value === true) featureSet.add('garage');
+            break;
+          case 'balcony':
+            if (value === true) featureSet.add('balcony');
+            break;
+          case 'terrace':
+            if (value === true) featureSet.add('terrace');
+            break;
+          case 'garden':
+            if (value === true) featureSet.add('garden');
             break;
           default:
             break;
@@ -318,7 +369,10 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       Object.keys(flat).length ||
       featureSet.size ||
       energyClass ||
-      energyConsumption != null;
+      energyConsumption != null ||
+      energyDemand != null ||
+      heatingType ||
+      yearOfConstruction != null;
     if (!hasData) return;
 
     setProperty((current) => {
@@ -332,9 +386,14 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       }
       if (address.city && !next.city) next.city = address.city;
       if (address.postalCode && !next.zipCode) next.zipCode = address.postalCode;
+      if (address.district && !next.district) next.district = address.district;
       if (address.street && !next.address)
         next.address = [address.street, address.houseNumber].filter(Boolean).join(' ');
 
+      if (flat.propertyType && next.propertyType !== flat.propertyType) {
+        next.propertyType = flat.propertyType;
+        data.basicInformation = { ...data.basicInformation, propertyType: flat.propertyType };
+      }
       if (flat.livingArea != null && next.livingArea == null) next.livingArea = flat.livingArea;
       if (flat.plotArea != null && next.plotArea == null) next.plotArea = flat.plotArea;
       if (flat.rooms != null && next.rooms == null) next.rooms = flat.rooms;
@@ -344,17 +403,30 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         next.constructionYear = flat.constructionYear;
       if (flat.totalFloors != null && next.totalFloors == null)
         next.totalFloors = flat.totalFloors;
+      if (flat.floor && !next.floor) next.floor = flat.floor;
 
       for (const feature of featureSet) {
         if (!next.selectedFeatures.includes(feature))
           next.selectedFeatures = [...next.selectedFeatures, feature];
       }
 
-      if (energyClass || energyConsumption != null) {
+      if (
+        energyClass ||
+        energyConsumption != null ||
+        energyDemand != null ||
+        heatingType ||
+        yearOfConstruction != null
+      ) {
+        const primaryEnergySource = heatingType
+          ? (heatingType.toLowerCase().replace('heizung', '').trim() as EnergyData['primaryEnergySource'])
+          : undefined;
         data.energy = {
           ...data.energy,
           ...(energyClass ? { efficiencyClass: energyClass } : {}),
           ...(energyConsumption != null ? { finalEnergyConsumption: energyConsumption } : {}),
+          ...(energyDemand != null ? { finalEnergyDemand: energyDemand } : {}),
+          ...(yearOfConstruction != null ? { yearOfConstruction } : {}),
+          ...(primaryEnergySource ? { primaryEnergySource } : {}),
         } as EnergyData;
       }
 
@@ -365,6 +437,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         rooms: next.rooms,
         bathrooms: next.bathrooms,
         yearBuilt: next.constructionYear,
+        floor: next.floor ?? data.propertyDetails.floor,
         numberOfFloors: next.totalFloors,
       };
 

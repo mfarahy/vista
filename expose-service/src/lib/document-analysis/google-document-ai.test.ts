@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { afterEach, describe, it } from 'node:test';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
-import { GoogleDocumentAIProvider, normalizeDocumentAIResponse } from './google-document-ai.js';
+import {
+  GoogleDocumentAIProvider,
+  loadGoogleAuthOptions,
+  normalizeDocumentAIResponse,
+} from './google-document-ai.js';
 
 function makeInput(
   overrides: Partial<Parameters<GoogleDocumentAIProvider['analyzeDocument']>[0]> = {},
@@ -84,5 +91,65 @@ describe('GoogleDocumentAIProvider', () => {
       () => provider.analyzeDocument(makeInput({ mimeType: 'application/x-unknown' })),
       /Unsupported file type/,
     );
+  });
+});
+
+describe('loadGoogleAuthOptions', () => {
+  const original = process.env.GOOGLE_DOCUMENT_AI_CREDENTIALS;
+  afterEach(() => {
+    process.env.GOOGLE_DOCUMENT_AI_CREDENTIALS = original;
+  });
+
+  it('returns empty options when no credentials are configured', async () => {
+    process.env.GOOGLE_DOCUMENT_AI_CREDENTIALS = '';
+    assert.deepEqual(await loadGoogleAuthOptions(), {});
+  });
+
+  it('parses inline JSON credentials', async () => {
+    process.env.GOOGLE_DOCUMENT_AI_CREDENTIALS = JSON.stringify({
+      type: 'service_account',
+      project_id: 'vista-506118',
+      client_email: 'docai@vista-506118.iam.gserviceaccount.com',
+      private_key: '-----BEGIN PRIVATE KEY-----\nABC\n-----END PRIVATE KEY-----\n',
+    });
+    const options = await loadGoogleAuthOptions();
+    assert.equal(options.projectId, 'vista-506118');
+    assert.equal(options.credentials?.client_email, 'docai@vista-506118.iam.gserviceaccount.com');
+    assert.match(options.credentials?.private_key ?? '', /BEGIN PRIVATE KEY/);
+  });
+
+  it('reads credentials from a JSON file path', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'vista-docai-'));
+    const filePath = path.join(dir, 'service-account.json');
+    try {
+      await writeFile(
+        filePath,
+        JSON.stringify({
+          type: 'service_account',
+          client_email: 'docai@example.com',
+          private_key: '-----BEGIN PRIVATE KEY-----\nABC\n-----END PRIVATE KEY-----\n',
+        }),
+      );
+      process.env.GOOGLE_DOCUMENT_AI_CREDENTIALS = filePath;
+      const options = await loadGoogleAuthOptions();
+      assert.equal(options.credentials?.client_email, 'docai@example.com');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects when the credentials file cannot be read', async () => {
+    process.env.GOOGLE_DOCUMENT_AI_CREDENTIALS = 'C:/does/not/exist.json';
+    await assert.rejects(() => loadGoogleAuthOptions(), /could not read/i);
+  });
+
+  it('rejects malformed credentials', async () => {
+    process.env.GOOGLE_DOCUMENT_AI_CREDENTIALS = '{not-json';
+    await assert.rejects(() => loadGoogleAuthOptions(), /inline JSON/i);
+  });
+
+  it('rejects credentials without a private key', async () => {
+    process.env.GOOGLE_DOCUMENT_AI_CREDENTIALS = JSON.stringify({ client_email: 'a@b.c' });
+    await assert.rejects(() => loadGoogleAuthOptions(), /private_key/i);
   });
 });

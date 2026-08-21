@@ -1,4 +1,5 @@
 import type { DocumentProcessorServiceClient } from '@google-cloud/documentai';
+import { readFile } from 'node:fs/promises';
 import type {
   DocumentAnalysisInput,
   DocumentAnalysisResult,
@@ -85,9 +86,48 @@ export function normalizeDocumentAIResponse(
 }
 
 /**
- * Default processing function that talks to the real Google Document AI API
- * using Application Default Credentials. Kept behind a function so tests can
- * inject a fake and no Google call is ever made from unit tests.
+ * Loads explicit Google credentials when GOOGLE_DOCUMENT_AI_CREDENTIALS is
+ * set. The value can be a path to a service-account JSON file or the JSON
+ * itself. When unset, the client falls back to Application Default
+ * Credentials (gcloud / GOOGLE_APPLICATION_CREDENTIALS).
+ */
+export async function loadGoogleAuthOptions(): Promise<{
+  projectId?: string;
+  credentials?: { client_email: string; private_key: string };
+}> {
+  const raw = process.env.GOOGLE_DOCUMENT_AI_CREDENTIALS;
+  if (!raw) return {};
+  let contents = raw;
+  if (!raw.trim().startsWith('{')) {
+    try {
+      contents = await readFile(raw, 'utf8');
+    } catch {
+      throw new Error(`Could not read the Google Document AI credentials file "${raw}".`);
+    }
+  }
+  let parsed: { client_email?: string; private_key?: string; project_id?: string };
+  try {
+    parsed = JSON.parse(contents);
+  } catch {
+    throw new Error(
+      'GOOGLE_DOCUMENT_AI_CREDENTIALS must be a path to a service-account JSON file or inline JSON.',
+    );
+  }
+  if (!parsed.client_email || !parsed.private_key) {
+    throw new Error('The Google Document AI credentials must contain client_email and private_key.');
+  }
+  return {
+    projectId: parsed.project_id,
+    credentials: { client_email: parsed.client_email, private_key: parsed.private_key },
+  };
+}
+
+/**
+ * Default processing function that talks to the real Google Document AI API.
+ * Uses explicit credentials from GOOGLE_DOCUMENT_AI_CREDENTIALS when provided,
+ * otherwise falls back to Application Default Credentials. Kept behind a
+ * function so tests can inject a fake and no Google call is ever made from
+ * unit tests.
  */
 async function defaultProcessFn(input: ProcessDocumentInput): Promise<unknown> {
   const { DocumentProcessorServiceClient } = await import('@google-cloud/documentai');
@@ -98,7 +138,9 @@ async function defaultProcessFn(input: ProcessDocumentInput): Promise<unknown> {
     throw new Error('Google Document AI configuration is incomplete.');
   }
 
-  const client: DocumentProcessorServiceClient = new DocumentProcessorServiceClient();
+  const client: DocumentProcessorServiceClient = new DocumentProcessorServiceClient(
+    await loadGoogleAuthOptions(),
+  );
   const name = `projects/${projectId}/locations/${location}/processors/${processorId}`;
   const [result] = await client.processDocument({
     name,

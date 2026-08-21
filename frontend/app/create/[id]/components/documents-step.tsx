@@ -72,7 +72,8 @@ export function StepDocuments({
           setError(result.error || 'The document could not be uploaded.');
           continue;
         }
-        added.push((await response.json()) as DocumentRecord);
+        const uploaded = (await response.json()) as DocumentRecord[];
+        if (Array.isArray(uploaded)) added.push(...uploaded);
       } catch {
         setError('The document could not be uploaded.');
       }
@@ -198,9 +199,14 @@ export function StepDocuments({
                     {DOCUMENT_TYPE_LABELS[document.documentType]}
                   </span>
                 )}
-                {document.status === 'completed' && (
+                {document.status === 'completed' && document.understandingResult && (
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#2f7d46]">
                     <Check size={13} /> Analyzed
+                  </span>
+                )}
+                {document.status === 'completed' && !document.understandingResult && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#718078]">
+                    <Check size={13} /> OCR only
                   </span>
                 )}
                 {document.status === 'failed' && (
@@ -213,13 +219,32 @@ export function StepDocuments({
                 )}
               </div>
 
-              {document.status === 'failed' && (
+              {document.understandingResult?.tags?.length ? (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {document.understandingResult.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full bg-[#fdf3e3] px-2 py-0.5 text-[10px] font-semibold text-[#9a7a2f]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              {document.understandingResult?.summary ? (
+                <p className="mt-2 text-[11px] leading-4 text-[#7a877e]">
+                  {document.understandingResult.summary}
+                </p>
+              ) : null}
+
+              {(document.status === 'failed' || document.understandingError) && (
                 <button
                   type="button"
                   onClick={() => retry(document.id)}
                   className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-[#607b68] underline"
                 >
-                  <RefreshCw size={13} /> Retry
+                  <RefreshCw size={13} /> Retry analysis
                 </button>
               )}
             </div>

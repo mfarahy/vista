@@ -1,6 +1,160 @@
 {
   "properties": [
     {
+      "id": "194ff9c2-72e0-4bd3-8848-f6bf9141577f",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": null,
+          "title": null,
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null
+        },
+        "propertyDetails": {
+          "livingArea": null,
+          "plotArea": null,
+          "rooms": null,
+          "bathrooms": null,
+          "yearBuilt": null,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "bodenrichtwert": null
+        },
+        "energy": null,
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null,
+          "notes": {}
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-21T12:05:12.734Z",
+      "updatedAt": "2026-08-21T12:05:12.734Z"
+    },
+    {
+      "id": "b8f3d87f-97ac-40d5-928f-b49b5d189205",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": null,
+          "title": null,
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null
+        },
+        "propertyDetails": {
+          "livingArea": null,
+          "plotArea": null,
+          "rooms": null,
+          "bathrooms": null,
+          "yearBuilt": null,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "bodenrichtwert": null
+        },
+        "energy": null,
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null,
+          "notes": {}
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-21T12:05:12.727Z",
+      "updatedAt": "2026-08-21T12:05:12.727Z"
+    },
+    {
       "id": "636aab5c-6ce2-4b6e-9c86-d47de96f4639",
       "propertyType": "house",
       "transactionType": "sale",
@@ -2009,5 +2163,331 @@
       "updatedAt": "2026-08-20T21:01:20.510Z"
     }
   ],
-  "documents": []
+  "documents": [
+    {
+      "id": "550548a8-73fd-4ece-88e3-ccd612e8e6cd",
+      "propertyId": "636aab5c-6ce2-4b6e-9c86-d47de96f4639",
+      "filename": "Lageplan Furkastr. 88a, 12107.pdf",
+      "mimeType": "application/pdf",
+      "size": 3545381,
+      "url": "/uploads/1c397cc8-c32d-4bbd-97a1-8d8cb86e15e3-LageplanFurkastr.88a12107.pdf",
+      "status": "failed",
+      "documentType": null,
+      "error": "The document could not be analyzed.",
+      "analysisResult": null,
+      "tags": [],
+      "understandingResult": null,
+      "understandingError": null,
+      "createdAt": "2026-08-21T12:00:29.573Z",
+      "updatedAt": "2026-08-21T12:00:31.609Z"
+    },
+    {
+      "id": "b1a2cdbf-1d80-4003-9e43-89a949cb671d",
+      "propertyId": "194ff9c2-72e0-4bd3-8848-f6bf9141577f",
+      "filename": "Lageplan Furkastr. 88a, 12107.pdf",
+      "mimeType": "application/pdf",
+      "size": 3545381,
+      "url": "/uploads/d450f0c0-7f66-46bb-b923-6e6795d17ded-LageplanFurkastr.88a12107.pdf",
+      "status": "completed",
+      "documentType": "lageplan",
+      "error": "The document could not be analyzed.",
+      "analysisResult": {
+        "text": "SIEDLUNG SVEREIN\n5万\nDAHEIM\nEGMBH\nIN\n5/20\n80\nBERLIN\nRAAB, Carol, Kaufmann und Ehefrau Elisabeth, geb. Sengstock.\n2660\n5\nLB.Nr. 2028 Grdb. Bd. 36 Bd. 1981\nROTHMANN, Herbert, Mixer und Ehefrau Ursula\n5\nלו\nL.B.Nr. 2799 Grdb. Bd. 61 BI. 2852\nWohnhaus\n1 Gesch\nausgeb Dachg.\nSatteldach\n86\nf.f. Baufluchtlinie\n4.00\nLB.Nr. 2126 Grbd. Bd. 90 BI. 3927\n50\n26.06\n25 68\n+\n12.592\n23.50\nproj. Wohnhaus\n1 Gesch\nWalmdach\nOKEF\n+0,80\n10.332\n4.00\n5\n366\n24.42\n88 a\n54,00\n51.96\nOTTERSTÄTTER, Margaretha\ngeb. Haendschke.\nL.B. Nr 2027 Grdb. Bd. 36 BL.1980\nWohnhaus\n2 Gesch\nSatteldach\n5\n365\n39.10\n38.70\nCLASS, Irmhild, geb. Schmidt\nL.B.Nr. 2026 Grdb Bd. 35 BI. 1979\n1 Gesch. Flachdach\nWahnhaus\n2 Gesch.\nWalmdach\nMaßstab 1:200\nesct\n300\ngepi. Baugrenze\n88\nff. Straßenfluchtlinie\n8.00\ngepl. Straßenbegrenzungslinie\nabzutr\nStraßent\nEinkehrt\nca. 78qm\n17.00\n-25,00-\nFurkastraße\n., BERLIN\"\nabzutr\nStraßent elwes\nca. 12 qm\nüberfallt 2169\nBordkante\nBerdkante\ngepi Straßenbegrenzungslinie\nff. Straßenfluchtlinie\nKATASTERNACHWEIS\nBerlin, Verwaltungsbezirk: Tempelhof\nGemarkung Mariendorf\nFlur: 40120\nGrundbuch\nFlurstück\n5/366\nFläche Lg. B. Nr. Band Blatt\n784 qm 4058\n141\nEigentümer\n5081 Brosching, Kurt, Kaufm. Ange-\nstellter und Ehefrau Jutta geb.\nNaumann, Lehrerin\nLAGEPLAN\nBerlin - Mariendorf\nFurkastraße 88a\nGenehmigt\nArch Brugenehmigung Nr. 76\nvazir samt Tempe hof von Bertin\nAbt. Bau- und Wohnungswesen\nDie Anfertigung nach amtlichen RabABartlicher Messung sowie die Richtigkeit des Planes\nbescheinigt:\nBerlin (Lichterfelde), den 5. April 1968\nHildburghouser Straße 204, Telefon 737873\nrojekteintragung vom 26.9.1968\nDipl. Ing. Leo Kola\nGrenzbescheinigung ist nicht erforderlich!\nFLACHENNACHWEIS\nTwlaur\nDiplomingenieur\nOffentlich bestellter Vermessungsingenieur\nGrundstücksgröße\nn. d. Kataster\n= 784,00 qm\nabzüglich Vorgarten 3,00 x 4,00\n= -12,00 qm\nabzüglich abzutr. Straßenland\n= -12,00 qm\nBaugrundstück\n= 760,00 qm\nbebaubar în Baust. 11/2\n2\n0,2\n= 152,00 qm bzw.\n= 304,00 qm\n0,4-0\nproj. Bebauung\nWohnhaus, 1 Gesch.\n10,332 x 12,592\ngesamte Bebauung\nnoch bebaubar\nGeschoßflächenzahl\n130,10\n= 130,10 qm x 1 G.\n= 130,10 qm\n= 130,10 qm\n= 130,10 qm\n=\n21,90 gm\n0,17\n760,00\nGeprüft\nBerlin-Tempelhol, den 4. 102 1968\nBezirksamt Tempelhof von Barlin\nAbt. Bau- u. Wohnungswesen\nBauauisichtsoml\nchube\n90",
+        "documentType": "grundbuchauszug",
+        "pages": [
+          {
+            "pageNumber": 1,
+            "text": "SIEDLUNG SVEREIN\n\n5万\n\nDAHEIM\n\nEGMBH\n\nIN\n\n5/20\n\n80\n\nBERLIN\n\nRAAB, Carol, Kaufmann und Ehefrau Elisabeth, geb. Sengstock.\n\n2660\n5\n\nLB.Nr. 2028 Grdb. Bd. 36 Bd. 1981\n\nROTHMANN, Herbert, Mixer und Ehefrau Ursula\n\n5\n\nלו\n\nL.B.Nr. 2799 Grdb. Bd. 61 BI. 2852\n\nWohnhaus\n1 Gesch\nausgeb Dachg.\nSatteldach\n\n86\n\nf.f. Baufluchtlinie\n\n4.00\n\nLB.Nr. 2126 Grbd. Bd. 90 BI. 3927\n\n50\n\n26.06\n\n25 68\n\n+\n\n12.592\n\n23.50\n\nproj. Wohnhaus\n\n1 Gesch\n\nWalmdach\n\nOKEF\n+0,80\n\n10.332\n\n4.00\n\n5\n366\n\n24.42\n\n88 a\n\n54,00\n\n51.96\n\nOTTERSTÄTTER, Margaretha\ngeb. Haendschke.\nL.B. Nr 2027 Grdb. Bd. 36 BL.1980\n\nWohnhaus\n2 Gesch\nSatteldach\n\n5\n365\n\n39.10\n\n38.70\n\nCLASS, Irmhild, geb. Schmidt\n\nL.B.Nr. 2026 Grdb Bd. 35 BI. 1979\n\n1 Gesch. Flachdach\n\nWahnhaus\n\n2 Gesch.\nWalmdach\n\nMaßstab 1:200\n\nesct\n\n300\n\ngepi. Baugrenze\n\n88\n\nff. Straßenfluchtlinie\n\n8.00\n\ngepl. Straßenbegrenzungslinie\n\nabzutr\n\nStraßent\n\nEinkehrt\n\nca. 78qm\n\n17.00\n\n-25,00-\n\nFurkastraße\n\n., BERLIN\"\n\nabzutr\n\nStraßent elwes\n\nca. 12 qm\n\nüberfallt 2169\n\nBordkante\n\nBerdkante\n\ngepi Straßenbegrenzungslinie\n\nff. Straßenfluchtlinie\n\nKATASTERNACHWEIS\nBerlin, Verwaltungsbezirk: Tempelhof\nGemarkung Mariendorf\n\nFlur: 40120\n\nGrundbuch\n\nFlurstück\n5/366\n\nFläche Lg. B. Nr. Band Blatt\n784 qm 4058\n\n141\n\nEigentümer\n\n5081 Brosching, Kurt, Kaufm. Ange-\nstellter und Ehefrau Jutta geb.\nNaumann, Lehrerin\n\nLAGEPLAN\n\nBerlin - Mariendorf\n\nFurkastraße 88a\n\nGenehmigt\n\nArch Brugenehmigung Nr. 76\nvazir samt Tempe hof von Bertin\nAbt. Bau- und Wohnungswesen\n\nDie Anfertigung nach amtlichen RabABartlicher Messung sowie die Richtigkeit des Planes\nbescheinigt:\n\nBerlin (Lichterfelde), den 5. April 1968\nHildburghouser Straße 204, Telefon 737873\nrojekteintragung vom 26.9.1968\n\nDipl. Ing. Leo Kola\n\nGrenzbescheinigung ist nicht erforderlich!\n\nFLACHENNACHWEIS\n\nTwlaur\n\nDiplomingenieur\n\nOffentlich bestellter Vermessungsingenieur\n\nGrundstücksgröße\n\nn. d. Kataster\n\n= 784,00 qm\n\nabzüglich Vorgarten 3,00 x 4,00\n\n= -12,00 qm\n\nabzüglich abzutr. Straßenland\n\n= -12,00 qm\n\nBaugrundstück\n\n= 760,00 qm\n\nbebaubar în Baust. 11/2\n\n2\n\n0,2\n\n= 152,00 qm bzw.\n\n= 304,00 qm\n\n0,4-0\n\nproj. Bebauung\nWohnhaus, 1 Gesch.\n10,332 x 12,592\n\ngesamte Bebauung\n\nnoch bebaubar\n\nGeschoßflächenzahl\n\n130,10\n\n= 130,10 qm x 1 G.\n\n= 130,10 qm\n\n= 130,10 qm\n\n= 130,10 qm\n\n=\n\n21,90 gm\n\n0,17\n\n760,00\n\nGeprüft\n\nBerlin-Tempelhol, den 4. 102 1968\n\nBezirksamt Tempelhof von Barlin\nAbt. Bau- u. Wohnungswesen\nBauauisichtsoml\n\nchube\n\n90\n"
+          }
+        ],
+        "fields": [
+          {
+            "field": "parcelNumber",
+            "value": "5/366",
+            "sourceDocumentId": "b1a2cdbf-1d80-4003-9e43-89a949cb671d",
+            "evidence": "iendorf Flur: 40120 Grundbuch Flurstück 5/366 Fläche Lg. B. Nr. Band Blatt",
+            "confidence": null
+          },
+          {
+            "field": "postalCode",
+            "value": "40120",
+            "sourceDocumentId": "b1a2cdbf-1d80-4003-9e43-89a949cb671d",
+            "evidence": "of Gemarkung Mariendorf Flur: 40120 Grundbuch Flurstück 5/366 Flä",
+            "confidence": null
+          },
+          {
+            "field": "city",
+            "value": "Grundbuch",
+            "sourceDocumentId": "b1a2cdbf-1d80-4003-9e43-89a949cb671d",
+            "evidence": "of Gemarkung Mariendorf Flur: 40120 Grundbuch Flurstück 5/366 Fläche Lg. B.",
+            "confidence": null
+          },
+          {
+            "field": "street",
+            "value": "Furkastraße",
+            "sourceDocumentId": "b1a2cdbf-1d80-4003-9e43-89a949cb671d",
+            "evidence": "LAGEPLAN Berlin - Mariendorf Furkastraße 88a Genehmigt Arch Brugenehmigung",
+            "confidence": null
+          },
+          {
+            "field": "houseNumber",
+            "value": "88a",
+            "sourceDocumentId": "b1a2cdbf-1d80-4003-9e43-89a949cb671d",
+            "evidence": "LAGEPLAN Berlin - Mariendorf Furkastraße 88a Genehmigt Arch Brugenehmigung",
+            "confidence": null
+          }
+        ]
+      },
+      "tags": [
+        "address",
+        "property-identification",
+        "site-plan",
+        "plot-area",
+        "land",
+        "building"
+      ],
+      "understandingResult": {
+        "documentType": "lageplan",
+        "tags": [
+          "address",
+          "property-identification",
+          "site-plan",
+          "plot-area",
+          "land",
+          "building"
+        ],
+        "summary": "Amtlicher Lage- und Flächennachweis für das Grundstück Furkastraße 88a in Berlin-Mariendorf. Er enthält Katasterangaben, Grundstücksflächen sowie Angaben zu einem geplanten eingeschossigen Wohnhaus.",
+        "keepInLibrary": true,
+        "wizardFields": [
+          {
+            "field": "street",
+            "value": "Furkastraße",
+            "evidence": "Furkastraße 88a"
+          },
+          {
+            "field": "houseNumber",
+            "value": "88a",
+            "evidence": "Furkastraße 88a"
+          },
+          {
+            "field": "city",
+            "value": "Berlin",
+            "evidence": "Berlin - Mariendorf"
+          },
+          {
+            "field": "district",
+            "value": "Mariendorf",
+            "evidence": "Berlin - Mariendorf"
+          },
+          {
+            "field": "state",
+            "value": "Berlin",
+            "evidence": "Berlin, Verwaltungsbezirk: Tempelhof"
+          },
+          {
+            "field": "propertyType",
+            "value": "Wohnhaus",
+            "evidence": "proj. Wohnhaus"
+          },
+          {
+            "field": "plotArea",
+            "value": 784,
+            "evidence": "Grundstücksgröße n. d. Kataster = 784,00 qm"
+          },
+          {
+            "field": "numberOfFloors",
+            "value": 1,
+            "evidence": "Wohnhaus, 1 Gesch."
+          },
+          {
+            "field": "parcelNumber",
+            "value": "5/366",
+            "evidence": "Flurstück 5/366"
+          }
+        ],
+        "additionalInformation": [
+          {
+            "key": "municipal_district",
+            "value": "Tempelhof",
+            "evidence": "Berlin, Verwaltungsbezirk: Tempelhof"
+          },
+          {
+            "key": "cadastral_flur",
+            "value": "40120",
+            "evidence": "Flur: 40120"
+          },
+          {
+            "key": "building_plot_area",
+            "value": 760,
+            "evidence": "Baugrundstück = 760,00 qm"
+          },
+          {
+            "key": "projected_building_footprint",
+            "value": 130.1,
+            "evidence": "proj. Bebauung ... = 130,10 qm"
+          },
+          {
+            "key": "projected_building_dimensions",
+            "value": "10,332 x 12,592 m",
+            "evidence": "Wohnhaus, 1 Gesch. 10,332 x 12,592"
+          },
+          {
+            "key": "document_date",
+            "value": "5. April 1968",
+            "evidence": "Berlin (Lichterfelde), den 5. April 1968"
+          },
+          {
+            "key": "owner_name",
+            "value": "Brosching, Kurt, Kaufm. Angestellter und Ehefrau Jutta geb. Naumann, Lehrerin",
+            "evidence": "Eigentümer ... Brosching, Kurt, Kaufm. Angestellter und Ehefrau Jutta geb. Naumann, Lehrerin"
+          }
+        ]
+      },
+      "understandingError": null,
+      "createdAt": "2026-08-21T12:16:39.966Z",
+      "updatedAt": "2026-08-21T12:26:03.990Z"
+    },
+    {
+      "id": "99577930-b2c8-4977-9c2a-aba7011865a3",
+      "propertyId": "194ff9c2-72e0-4bd3-8848-f6bf9141577f",
+      "filename": "Grundbuchauszug Furkastr. 88a vom 27.03.2026.PDF",
+      "mimeType": "application/pdf",
+      "size": 1080504,
+      "url": "/uploads/eb5238b2-9e93-482c-b81d-6213669f6e15-GrundbuchauszugFurkastr.88avom27.03.2026.PDF",
+      "status": "completed",
+      "documentType": "grundbuchauszug",
+      "error": null,
+      "analysisResult": {
+        "text": "Amtsgericht Kreuzberg\nGrundbuch\nvon\nMariendorf\nBlatt 5081\nDieses Blatt ist zur Fortführung auf EDV neu ge-\nfaßt worden und dabei an die Stelle des bisherigen\nBlattes getreten. Freigegeben am 17.08.1999.\nSchmitz\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 1 von 9 Seiten\nLfd. Nr.\nder\nGrund-\nstücke\nBisherige\nIfd. Nr. d.\nGrund-\nstücke\nGrundbuch von Mariendorf\nBestandsverzeichnis\nBlatt 5081\nBezeichnung der Grundstücke und der mit dem Eigentum verbundenen Rechte\nGemarkung *\nWirtschaftsart und Lage\nFlur\nFlurstück\n1\n2\n3 a/b\n3c\n1\n3\n5/366\nGebäude- und\nFurkastraße\nFreifläche\n88 A\n* Wenn die Angabe der Gemarkung fehlt, stimmt Ihre Bezeichnung mit der des Grundbuchbezirks überein.\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 2 von 9 Seiten\nBogen B-E 1\nGröße\nm²\n4\n784\n786\nGrundbuch von Mariendorf\nBlatt 5081\nBestandsverzeichnis\nBestand und Zuschreibungen\nZur Ifd.\nNr. der\nGrund-\nstücke\n1\n5\n6\nBei Neufassung des Bestandsverzeichnisses\n-unter gleichzeitiger Berichtigung der\nAngaben nach dem Liegenschaftsbuch- als\nBestand eingetragen am 17.08.1999.\n1\nDie Bestandsangaben sind nach der Fort-\nführungsmitteilung B Nr. 217/2000 berich-\ntigt am 14.08.2000.\nSchmidt\nZur Ifd.\nNr. der\nGrund-\nstücke\n7\nBogen B-ZA 1\nAbschreibungen\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 3 von 9 Seiten\n8\nGrundbuch von Mariendorf\nErste Abteilung\nLfd. Nr.\nder\nEintra-\nEigentümer\ngungen\n1\n2\n1 a) Kaufmännischer Angestellter\nKurt Bresching in Berlin\nb) Lehrerin Jutta Bresching geb.\nNaumann in Berlin\nje zur Hälfte\nLfd. Nr. der\nGrundstücke\nim Bestands-\nverzeichnis\n3\n1\n2\nKurt Bresching, geb.\n1\n27.09.1927\nBlatt 5081\nBogen\nI-E 1\nGrundlage der Eintragung\n4\nBei Neufassung der Abteilung\nohne Eigentumswechsel einge-\ntragen am 17.08.1999.\nAnstelle 1 b):\nTestament vom 06.05.1969\n(Amtsgericht Kreuzberg, 60 VI\n153/21); im Übrigen ohne Ei-\ngentumswechsel eingetragen am\n21.12.2021.\nBöltes\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 4 von 9 Seiten\nGrundbuch von Mariendorf\nZweite Abteilung\nLfd. Nr.\nder\nLfd. Nr. der\nbetroffenen\nGrundstücke\nEintra-\nIm Bestands-\ngungen verzeichnis\n1\n2\n1\n1\na)\n2\n1\nBlatt 5081\nBogen\nII-E 1\nLasten und Beschränkungen\n3\nEin Vorkaufsrecht für alle Verkaufsfälle,\nb) Eine Auflassungsvormerkung wegen des Wiederkaufsrechts,\nC)\nEine Bau-, Benutzungs-, Wohnungs- und Gewerbebeschränkung\ngemäß dem Kaufvertrage vom 12.10.1920 und der notariellen\nVerhandlung vom 08.07.1924 für den Gemeinnützigen Siedlungs-\nverein \"Daheim\", Eingetragene Genossenschaft mit beschränk-\nter Haftpflicht in Berlin. Die Vormerkung zu b) aus der Ver-\nhandlung vom 08.07 1924 geht bei Auflösung des \"Daheim\" gege-\nbenenfalls auf die Stadtgemeinde Berlin (Siedlungsamt) über.\nEingetragen am 09.01.1925 auf Mariendorf Blatt 1980, hierher\nmitübertragen am 21.08.1968.\nvon\nVormerkung zur Sicherung des Anspruchs auf Auflassung der\ndem Grundstück nach dem Fluchtlinienplan fur die Straße 149\nals Straßenland ausgewiesenen Flächen für die Stadt Berlin\n(Verwaltungsbezirk Tempelhof) gemäß Vertrag vom 04.10.1929.\nEingetragen am 07.10.1929 auf Mariendorf Blatt 1980, hierher\nmitübertragen am 21.08.1968.\nBei Neufassung der Abteilung eingetragen am 17.08.1999.\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 5 von 9 Seiten\nGrundbuch von Mariendorf\nLfd. Nr.\nder\nSpalte 1\n4\n1 a)\nb)\nc)\nZweite Abteilung\nVeränderungen\nBlatt 5081\n5\nNebenstehende Lasten haben der Post III/2 den\nVorrang eingeräumt. Eingetragen am 18.06.1969.\nLfd. Nr.\nder\nSpalte 1\nLöschungen\nBogen II-VL 1\n6\n7\n1,2\nJe gelöscht am 16.01.2012.\nRahner\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 6 von 9 Seiten\nGrundbuch von Mariendorf\nLfd. Nr.\nder\nLfd. Nr. der\nbelasteten\nGrundstücke\nEintra-\nIm Bestands-\ngungen verzeichnis\nDritte Abteilung\nBetrag\nBlatt 5081\nHypotheken, Grundschulden, Rentenschulden\n1\n2\n3\n4\n1\n59.500,00 DM Neunundfünfzigtausendfünfhundert\n2\n1\nBogen III-E 1\nDeutsche Mark\nGrundschuld mit 6 % jährlichen Zinsen zugunsten\ndes Beamtenheimstättenwerks, Gemeinnützige Bau-\nsparkasse für den öffentlichen Dienst, Gesell-\nschaft mit beschränkter Haftung, Hauptverwaltung\nfür die Bundesrepublik Deutschland, Hameln. Gemäß\nBewilligung vom 06.05.1969 (UR 336/69 des Notars\nDopatka in Berlin) eingetragen am 29.05.1969.\n32.100,00 DM Zweiunddreißigtausendeinhundert Deutsche Mark Til-\ngungsdarlehen mit 1 unter Umständen jedoch 10 %\njährlichen Zinsen, einem jährlichen Verwaltungs-\nkostenbeitrag von 0,5 % für die Wohnungsbau-Kre-\nditanstalt Berlin in Berlin-Wilmersdorf. Voll-\nstreckbar nach § 800 ZPO. Gemäß Bewilligung vom\n18.04.1969 -UR 278/69 des Notars Kurt Dopatka in\nBerlin- mit dem Range vor den Lasten Abteilung II\nNr. 1 a), 1 b) und 1 c) brieflos eingetragen am\n18.06.1969.\nBei Neufassung der Abteilung eingetragen am\n17.08.1999.\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 7 von 9 Seiten\nGrundbuch von Mariendorf\nLfd. Nr.\nder\nSpalte 1\n5\n2\nBetrag\n6\nDritte Abteilung\nVeränderungen\nBlatt 5081\nBogen III-V 1\n7\n32.100,00 DM Löschungsvormerkung gemäß Bewilligung vom 18.04.1969\nfür die Wohnungsbau-Kreditanstalt Berlin als Gläubiger\nder Post Nr. 2. Eingetragen am 18.06.1969.\n1\n59.500,00 DM Löschungsvormerkung gemäß Bewilligung vom 18.04.1969\nfür die Wohnungsbau-Kreditanstalt Berlin in Berlin als\nGläubigerin der Post Nr. 2. Eingetragen am 17.07.1969.\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 8 von 9 Seiten\nGrundbuch von Mariendorf\nLfd. Nr.\nder\nSpalte 1\n8\n1\n2\nDritte Abteilung\nBetrag\n9\nLöschungen\nBlatt 5081\nBogen III-L 1\n10\n59.500,00 DM Je gelöscht am 16.01.2012.\n32.100,00 DM\nRahner\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 9 von 9 Seiten",
+        "documentType": "grundbuchauszug",
+        "pages": [
+          {
+            "pageNumber": 1,
+            "text": "Amtsgericht Kreuzberg\n\nGrundbuch\n\nvon\n\nMariendorf\n\nBlatt 5081\n\nDieses Blatt ist zur Fortführung auf EDV neu ge-\nfaßt worden und dabei an die Stelle des bisherigen\nBlattes getreten. Freigegeben am 17.08.1999.\n\nSchmitz\n\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 1 von 9 Seiten\n"
+          },
+          {
+            "pageNumber": 2,
+            "text": "Lfd. Nr.\nder\n\nGrund-\n\nstücke\n\nBisherige\nIfd. Nr. d.\nGrund-\nstücke\n\nGrundbuch von Mariendorf\n\nBestandsverzeichnis\n\nBlatt 5081\n\nBezeichnung der Grundstücke und der mit dem Eigentum verbundenen Rechte\n\nGemarkung *\n\nWirtschaftsart und Lage\n\nFlur\n\nFlurstück\n\n1\n\n2\n\n3 a/b\n\n3c\n\n1\n\n3\n\n5/366\n\nGebäude- und\nFurkastraße\n\nFreifläche\n\n88 A\n\n* Wenn die Angabe der Gemarkung fehlt, stimmt Ihre Bezeichnung mit der des Grundbuchbezirks überein.\n\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 2 von 9 Seiten\n\nBogen B-E 1\n\nGröße\n\nm²\n\n4\n\n784\n786\n"
+          },
+          {
+            "pageNumber": 3,
+            "text": "Grundbuch von Mariendorf\n\nBlatt 5081\n\nBestandsverzeichnis\n\nBestand und Zuschreibungen\n\nZur Ifd.\nNr. der\nGrund-\nstücke\n\n1\n\n5\n\n6\n\nBei Neufassung des Bestandsverzeichnisses\n-unter gleichzeitiger Berichtigung der\nAngaben nach dem Liegenschaftsbuch- als\nBestand eingetragen am 17.08.1999.\n\n1\n\nDie Bestandsangaben sind nach der Fort-\nführungsmitteilung B Nr. 217/2000 berich-\ntigt am 14.08.2000.\n\nSchmidt\n\nZur Ifd.\nNr. der\nGrund-\nstücke\n\n7\n\nBogen B-ZA 1\n\nAbschreibungen\n\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 3 von 9 Seiten\n\n8\n"
+          },
+          {
+            "pageNumber": 4,
+            "text": "Grundbuch von Mariendorf\n\nErste Abteilung\n\nLfd. Nr.\nder\nEintra-\n\nEigentümer\n\ngungen\n\n1\n\n2\n\n1 a) Kaufmännischer Angestellter\nKurt Bresching in Berlin\n\nb) Lehrerin Jutta Bresching geb.\n\nNaumann in Berlin\n\nje zur Hälfte\n\nLfd. Nr. der\nGrundstücke\nim Bestands-\nverzeichnis\n\n3\n\n1\n\n2\n\nKurt Bresching, geb.\n\n1\n\n27.09.1927\n\nBlatt 5081\n\nBogen\n\nI-E 1\n\nGrundlage der Eintragung\n\n4\n\nBei Neufassung der Abteilung\nohne Eigentumswechsel einge-\ntragen am 17.08.1999.\n\nAnstelle 1 b):\n\nTestament vom 06.05.1969\n\n(Amtsgericht Kreuzberg, 60 VI\n153/21); im Übrigen ohne Ei-\n\ngentumswechsel eingetragen am\n21.12.2021.\n\nBöltes\n\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 4 von 9 Seiten\n"
+          },
+          {
+            "pageNumber": 5,
+            "text": "Grundbuch von Mariendorf\n\nZweite Abteilung\n\nLfd. Nr.\nder\n\nLfd. Nr. der\nbetroffenen\nGrundstücke\n\nEintra-\n\nIm Bestands-\n\ngungen verzeichnis\n\n1\n\n2\n\n1\n\n1\n\na)\n\n2\n\n1\n\nBlatt 5081\n\nBogen\n\nII-E 1\n\nLasten und Beschränkungen\n\n3\n\nEin Vorkaufsrecht für alle Verkaufsfälle,\n\nb) Eine Auflassungsvormerkung wegen des Wiederkaufsrechts,\nC)\n\nEine Bau-, Benutzungs-, Wohnungs- und Gewerbebeschränkung\ngemäß dem Kaufvertrage vom 12.10.1920 und der notariellen\nVerhandlung vom 08.07.1924 für den Gemeinnützigen Siedlungs-\nverein \"Daheim\", Eingetragene Genossenschaft mit beschränk-\nter Haftpflicht in Berlin. Die Vormerkung zu b) aus der Ver-\nhandlung vom 08.07 1924 geht bei Auflösung des \"Daheim\" gege-\nbenenfalls auf die Stadtgemeinde Berlin (Siedlungsamt) über.\nEingetragen am 09.01.1925 auf Mariendorf Blatt 1980, hierher\nmitübertragen am 21.08.1968.\n\nvon\n\nVormerkung zur Sicherung des Anspruchs auf Auflassung der\ndem Grundstück nach dem Fluchtlinienplan fur die Straße 149\n\nals Straßenland ausgewiesenen Flächen für die Stadt Berlin\n(Verwaltungsbezirk Tempelhof) gemäß Vertrag vom 04.10.1929.\nEingetragen am 07.10.1929 auf Mariendorf Blatt 1980, hierher\n\nmitübertragen am 21.08.1968.\n\nBei Neufassung der Abteilung eingetragen am 17.08.1999.\n\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 5 von 9 Seiten\n"
+          },
+          {
+            "pageNumber": 6,
+            "text": "Grundbuch von Mariendorf\n\nLfd. Nr.\nder\nSpalte 1\n\n4\n\n1 a)\n\nb)\n\nc)\n\nZweite Abteilung\n\nVeränderungen\n\nBlatt 5081\n\n5\n\nNebenstehende Lasten haben der Post III/2 den\nVorrang eingeräumt. Eingetragen am 18.06.1969.\n\nLfd. Nr.\nder\nSpalte 1\n\nLöschungen\n\nBogen II-VL 1\n\n6\n\n7\n\n1,2\n\nJe gelöscht am 16.01.2012.\n\nRahner\n\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 6 von 9 Seiten\n"
+          },
+          {
+            "pageNumber": 7,
+            "text": "Grundbuch von Mariendorf\n\nLfd. Nr.\nder\n\nLfd. Nr. der\nbelasteten\nGrundstücke\n\nEintra-\n\nIm Bestands-\n\ngungen verzeichnis\n\nDritte Abteilung\n\nBetrag\n\nBlatt 5081\n\nHypotheken, Grundschulden, Rentenschulden\n\n1\n\n2\n\n3\n\n4\n\n1\n\n59.500,00 DM Neunundfünfzigtausendfünfhundert\n\n2\n\n1\n\nBogen III-E 1\n\nDeutsche Mark\n\nGrundschuld mit 6 % jährlichen Zinsen zugunsten\ndes Beamtenheimstättenwerks, Gemeinnützige Bau-\nsparkasse für den öffentlichen Dienst, Gesell-\nschaft mit beschränkter Haftung, Hauptverwaltung\nfür die Bundesrepublik Deutschland, Hameln. Gemäß\nBewilligung vom 06.05.1969 (UR 336/69 des Notars\nDopatka in Berlin) eingetragen am 29.05.1969.\n\n32.100,00 DM Zweiunddreißigtausendeinhundert Deutsche Mark Til-\ngungsdarlehen mit 1 unter Umständen jedoch 10 %\njährlichen Zinsen, einem jährlichen Verwaltungs-\nkostenbeitrag von 0,5 % für die Wohnungsbau-Kre-\nditanstalt Berlin in Berlin-Wilmersdorf. Voll-\nstreckbar nach § 800 ZPO. Gemäß Bewilligung vom\n18.04.1969 -UR 278/69 des Notars Kurt Dopatka in\nBerlin- mit dem Range vor den Lasten Abteilung II\nNr. 1 a), 1 b) und 1 c) brieflos eingetragen am\n18.06.1969.\n\nBei Neufassung der Abteilung eingetragen am\n\n17.08.1999.\n\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 7 von 9 Seiten\n"
+          },
+          {
+            "pageNumber": 8,
+            "text": "Grundbuch von Mariendorf\n\nLfd. Nr.\nder\nSpalte 1\n\n5\n\n2\n\nBetrag\n\n6\n\nDritte Abteilung\n\nVeränderungen\n\nBlatt 5081\n\nBogen III-V 1\n\n7\n\n32.100,00 DM Löschungsvormerkung gemäß Bewilligung vom 18.04.1969\n\nfür die Wohnungsbau-Kreditanstalt Berlin als Gläubiger\nder Post Nr. 2. Eingetragen am 18.06.1969.\n\n1\n\n59.500,00 DM Löschungsvormerkung gemäß Bewilligung vom 18.04.1969\n\nfür die Wohnungsbau-Kreditanstalt Berlin in Berlin als\nGläubigerin der Post Nr. 2. Eingetragen am 17.07.1969.\n\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 8 von 9 Seiten\n"
+          },
+          {
+            "pageNumber": 9,
+            "text": "Grundbuch von Mariendorf\n\nLfd. Nr.\nder\nSpalte 1\n\n8\n\n1\n\n2\n\nDritte Abteilung\n\nBetrag\n\n9\n\nLöschungen\n\nBlatt 5081\n\nBogen III-L 1\n\n10\n\n59.500,00 DM Je gelöscht am 16.01.2012.\n32.100,00 DM\n\nRahner\n\nKreuzberg Mariendorf 5081 Geändert am 21.12.2021 Abdruck vom 27.03.2026 Seite 9 von 9 Seiten\n"
+          }
+        ],
+        "fields": [
+          {
+            "field": "parcelNumber",
+            "value": "1",
+            "sourceDocumentId": "99577930-b2c8-4977-9c2a-aba7011865a3",
+            "evidence": "Wirtschaftsart und Lage Flur Flurstück 1 2 3 a/b 3c 1 3 5/366 Gebäude-",
+            "confidence": null
+          },
+          {
+            "field": "street",
+            "value": "dem Grundstück nach dem Fluchtlinienplan fur die Straße",
+            "sourceDocumentId": "99577930-b2c8-4977-9c2a-aba7011865a3",
+            "evidence": "Anspruchs auf Auflassung der dem Grundstück nach dem Fluchtlinienplan fur die Straße 149 als Straßenland ausgewiesenen",
+            "confidence": null
+          },
+          {
+            "field": "houseNumber",
+            "value": "149",
+            "sourceDocumentId": "99577930-b2c8-4977-9c2a-aba7011865a3",
+            "evidence": "Anspruchs auf Auflassung der dem Grundstück nach dem Fluchtlinienplan fur die Straße 149 als Straßenland ausgewiesenen",
+            "confidence": null
+          }
+        ]
+      },
+      "tags": [
+        "address",
+        "property-identification",
+        "ownership",
+        "legal",
+        "land"
+      ],
+      "understandingResult": {
+        "documentType": "grundbuchauszug",
+        "tags": [
+          "address",
+          "property-identification",
+          "ownership",
+          "legal",
+          "land"
+        ],
+        "summary": "Grundbuchauszug für ein Grundstück in der Furkastraße 88 A, Grundbuch von Mariendorf, Blatt 5081. Der Auszug enthält Grundstücks- und Flurstücksdaten, Eigentumsverhältnisse sowie eingetragene Lasten und Grundpfandrechte.",
+        "keepInLibrary": true,
+        "wizardFields": [
+          {
+            "field": "street",
+            "value": "Furkastraße",
+            "evidence": "Furkastraße"
+          },
+          {
+            "field": "houseNumber",
+            "value": "88 A",
+            "evidence": "Furkastraße 88 A"
+          },
+          {
+            "field": "parcelNumber",
+            "value": "5/366",
+            "evidence": "Flurstück 5/366"
+          }
+        ],
+        "additionalInformation": [
+          {
+            "key": "landRegisterDistrict",
+            "value": "Mariendorf",
+            "evidence": "Grundbuch von Mariendorf"
+          },
+          {
+            "key": "landRegisterSheet",
+            "value": "5081",
+            "evidence": "Blatt 5081"
+          },
+          {
+            "key": "registeredOwners",
+            "value": "Kurt Bresching und Jutta Bresching, je zur Hälfte",
+            "evidence": "Kurt Bresching ... Jutta Bresching ... je zur Hälfte"
+          },
+          {
+            "key": "registeredEncumbrances",
+            "value": "Vorkaufsrecht, Auflassungsvormerkung sowie Bau-, Benutzungs-, Wohnungs- und Gewerbebeschränkung",
+            "evidence": "Ein Vorkaufsrecht für alle Verkaufsfälle ... Eine Bau-, Benutzungs-, Wohnungs- und Gewerbebeschränkung"
+          },
+          {
+            "key": "registeredLandCharges",
+            "value": "Grundschulden über 59.500,00 DM und 32.100,00 DM",
+            "evidence": "59.500,00 DM ... Grundschuld ... 32.100,00 DM ... Tilgungsdarlehen"
+          }
+        ]
+      },
+      "understandingError": null,
+      "createdAt": "2026-08-21T12:27:23.835Z",
+      "updatedAt": "2026-08-21T12:27:40.666Z"
+    }
+  ]
 }

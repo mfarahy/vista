@@ -1,8 +1,18 @@
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Search } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import type { ExposeData, PropertyPayload, StructuredAddress } from '../types';
-import { DebugMap } from './map';
+
+// Leaflet touches the DOM at module evaluation time, so it must never be
+// evaluated on the server. Loading the map client-side only keeps the
+// /create/[id] page from crashing during SSR.
+const DebugMap = dynamic(() => import('./map').then((m) => m.DebugMap), {
+  ssr: false,
+  loading: () => (
+    <div className="h-80 w-full rounded-lg border border-[#e4d9b8] bg-[#eef1ec]" />
+  ),
+});
 
 export function AddressDebugPanel({
   propertyId,

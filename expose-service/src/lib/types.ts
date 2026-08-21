@@ -5,6 +5,7 @@ import type {
   LocationIntelligence,
 } from './expose-data.js';
 import type { LocationResearch } from '../mastra/schemas/location-research.js';
+import type { DocumentUnderstandingResult } from './document-understanding/types.js';
 
 export { emptyExposeData, propertyExposeDataSchema } from './expose-data.js';
 export type {
@@ -225,7 +226,10 @@ export type DocumentType =
   | 'expose'
   | 'lageplan'
   | 'wohnflaechenberechnung'
+  | 'bauplan'
   | 'kaufvertrag'
+  | 'mietvertrag'
+  | 'property_photo'
   | 'other';
 
 export interface DocumentPage {
@@ -260,6 +264,9 @@ export interface DocumentRecord {
   documentType?: DocumentType | null;
   error?: string | null;
   analysisResult?: DocumentAnalysisResult | null;
+  tags?: string[];
+  understandingResult?: DocumentUnderstandingResult | null;
+  understandingError?: string | null;
   createdAt: string;
   updatedAt: string;
 }

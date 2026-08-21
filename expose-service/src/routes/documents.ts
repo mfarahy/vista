@@ -12,8 +12,10 @@ import {
   updateDocument,
   removeDocument,
 } from '../lib/store.js';
-import { getParam, sendError, errorMessage, asyncHandler, loadProperty } from '../lib/http.js';
+import { getParam, sendError, asyncHandler, loadProperty } from '../lib/http.js';
 import { createDocumentAnalysisProvider } from '../lib/document-analysis/index.js';
+import { createDocumentUnderstandingProvider } from '../lib/document-understanding/index.js';
+import { runDocumentPipeline } from '../lib/document-understanding/pipeline.js';
 import type { DocumentRecord } from '../lib/types.js';
 
 export const documentsRouter = Router();
@@ -23,29 +25,19 @@ function sanitizeFileName(name: string): string {
 }
 
 async function analyzeRecord(record: DocumentRecord, content: Buffer, mimeType: string) {
-  const provider = createDocumentAnalysisProvider();
-  try {
-    const result = await provider.analyzeDocument({
-      documentId: record.id,
-      filename: record.filename,
-      mimeType,
-      content,
-    });
-    return await updateDocument(record.id, {
-      status: 'completed',
-      documentType: result.documentType ?? null,
-      analysisResult: result,
-    });
-  } catch (error) {
-    console.warn('[documents] analysis failed', {
-      documentId: record.id,
-      error: errorMessage(error, 'Analysis failed'),
-    });
-    return await updateDocument(record.id, {
-      status: 'failed',
-      error: 'The document could not be analyzed.',
-    });
-  }
+  const analysisProvider = createDocumentAnalysisProvider();
+  const understandingProvider = createDocumentUnderstandingProvider();
+  return runDocumentPipeline(record, content, mimeType, {
+    analyze: (buffer, type) =>
+      analysisProvider.analyzeDocument({
+        documentId: record.id,
+        filename: record.filename,
+        mimeType: type,
+        content: buffer,
+      }),
+    understand: (input) => understandingProvider.analyzeDocument(input),
+    update: (documentId, patch) => updateDocument(documentId, patch),
+  });
 }
 
 documentsRouter.get(
