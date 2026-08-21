@@ -18,6 +18,7 @@ export const propertySchema = z.object({
   bathrooms: z.number().int().nonnegative().nullable().optional(),
   floor: z.string().max(30).optional().nullable(),
   totalFloors: z.number().int().nonnegative().nullable().optional(),
+  bodenrichtwert: nullableNumber,
   availableFrom: z.string().max(40).optional().nullable(),
   condition: z.string().max(50).optional().nullable(),
   askingPrice: nullableNumber,

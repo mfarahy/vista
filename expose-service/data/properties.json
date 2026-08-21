@@ -94,7 +94,535 @@
           },
           "latitude": 52.3883659,
           "longitude": 13.5004693,
-          "district": null
+          "district": null,
+          "intelligence": {
+            "address": {
+              "street": "Aldebaranstraße",
+              "houseNumber": "6",
+              "postalCode": "12529",
+              "city": "Schönefeld",
+              "district": null,
+              "state": "Brandenburg",
+              "country": "Deutschland",
+              "formattedAddress": "6, Aldebaranstraße, Schönefeld, Schenkendorf-Krummensee, Dahme-Spreewald, Brandenburg, 12529, Deutschland",
+              "latitude": 52.3883659,
+              "longitude": 13.5004693
+            },
+            "coordinates": {
+              "latitude": 52.3883659,
+              "longitude": 13.5004693
+            },
+            "formattedAddress": "6, Aldebaranstraße, Schönefeld, Schenkendorf-Krummensee, Dahme-Spreewald, Brandenburg, 12529, Deutschland",
+            "source": "geocoded",
+            "geocodingProvider": "nominatim",
+            "confidence": 0.0000520401312275428,
+            "matchType": "house",
+            "verificationRequired": false,
+            "facilities": {
+              "shopping": [],
+              "education": [],
+              "transport": [],
+              "healthcare": [],
+              "recreation": [],
+              "dailyLife": []
+            },
+            "radiusMeters": 1000,
+            "mapAsset": {
+              "assetId": "location-map",
+              "url": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5MDAiIGhlaWdodD0iNTIwIiB2aWV3Qm94PSIwIDAgOTAwIDUyMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2U3ZWVlOCIvPjxnIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2MxZDBjNCIgc3Ryb2tlLXdpZHRoPSIxNCIgb3BhY2l0eT0iLjc1Ij48cGF0aCBkPSJNMCA2NSBDIDIyNSAyOSA2MzAgMTAxIDkwMCA1NyIvPjxwYXRoIGQ9Ik0wIDEzMCBDIDIyNSA5NCA2MzAgMTY2IDkwMCAxMjIiLz48cGF0aCBkPSJNMCAxOTUgQyAyMjUgMTU5IDYzMCAyMzEgOTAwIDE4NyIvPjxwYXRoIGQ9Ik0wIDI2MCBDIDIyNSAyMjQgNjMwIDI5NiA5MDAgMjUyIi8+PHBhdGggZD0iTTAgMzI1IEMgMjI1IDI4OSA2MzAgMzYxIDkwMCAzMTciLz48cGF0aCBkPSJNMCAzOTAgQyAyMjUgMzU0IDYzMCA0MjYgOTAwIDM4MiIvPjxwYXRoIGQ9Ik0wIDQ1NSBDIDIyNSA0MTkgNjMwIDQ5MSA5MDAgNDQ3Ii8+PC9nPjxnIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2Y4ZjhmNCIgc3Ryb2tlLXdpZHRoPSI0Ij48cGF0aCBkPSJNMCA2NSBDIDIyNSAyOSA2MzAgMTAxIDkwMCA1NyIvPjxwYXRoIGQ9Ik0wIDEzMCBDIDIyNSA5NCA2MzAgMTY2IDkwMCAxMjIiLz48cGF0aCBkPSJNMCAxOTUgQyAyMjUgMTU5IDYzMCAyMzEgOTAwIDE4NyIvPjxwYXRoIGQ9Ik0wIDI2MCBDIDIyNSAyMjQgNjMwIDI5NiA5MDAgMjUyIi8+PHBhdGggZD0iTTAgMzI1IEMgMjI1IDI4OSA2MzAgMzYxIDkwMCAzMTciLz48cGF0aCBkPSJNMCAzOTAgQyAyMjUgMzU0IDYzMCA0MjYgOTAwIDM4MiIvPjxwYXRoIGQ9Ik0wIDQ1NSBDIDIyNSA0MTkgNjMwIDQ5MSA5MDAgNDQ3Ii8+PC9nPjxjaXJjbGUgY3g9IjQ1MCIgY3k9IjI2MCIgcj0iMTcxLjYiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzkxYWE5NyIgc3Ryb2tlLWRhc2hhcnJheT0iNSA5Ii8+PGcgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE2IiBmaWxsPSIjMjYzNTJiIj48Zz48Y2lyY2xlIGN4PSI0NTAiIGN5PSIyNjAiIHI9IjEzIiBmaWxsPSIjMjYzNTJiIiBzdHJva2U9IiNmOGY4ZjQiIHN0cm9rZS13aWR0aD0iNCIvPjx0ZXh0IHg9IjQ2NCIgeT0iMjY0IiBjbGFzcz0ibGFiZWwiPkltbW9iaWxpZTwvdGV4dD48L2c+PC9nPjx0ZXh0IHg9IjI4IiB5PSI0OTQiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzcxODA3OCI+U3RhbmRvcnTDvGJlcnNpY2h0IMK3IFZpc3RhPC90ZXh0Pjwvc3ZnPg==",
+              "mimeType": "image/svg+xml",
+              "caption": "Lage und Umgebung"
+            },
+            "summary": "Die Immobilie befindet sich in Schönefeld.",
+            "generatedAt": "2026-08-21T07:31:41.762Z",
+            "expiresAt": "2026-09-20T07:31:41.762Z"
+          },
+          "research": {
+            "researchedAt": "2026-08-21T07:31:41.875Z",
+            "mikrolage": {
+              "summary": "3 belegte Rechercheaussage(n).",
+              "claims": [
+                {
+                  "statement": "Zur Startseite - S-Bahn Berlin\nS85  S9\nS Schönefeld (bei Berlin)\n ## Bahnhofseigenschaften\nC Tarifbereich C\n ## Umstiege\n+ S-Bahn\n+ Bus\nAusstattung\nBahnhofsausstattung\n Park & Ride: Mittelstraße 20\n Fahrradabstellplatz\n Fahrkartenautomat: 1x\n Fahrscheinentwerter: 2x\nMobilitätshilfen\nWeitere Mobilitätshilfen\n Rampe\nAbfahrtszeiten\nAktuelle Abfahrtszeiten\nAushänge\nÜber mehrere Monate gültiger Fahrplan ohne Berücksichtigung von Baumaßnahmen.\nMontag bis Freitag\n 04.12.2025 (325 KB)  Richtung Stadteinwärts\n 04.12.2025 (323 KB)  Richtung BER T1-2\nWochenende & Feiertage\n 04.12.2025 (400 KB)  Richtung Stadteinwärts\n 04.12.2025 (363 KB)  Richtung BER T1-2\nBetreiber Kontakt\nBetreiber dieser Station\nGeschäftsbereich Personenbahnhöfe:  \nDB InfraGO AG  \nEuropaplatz 1  \n10557 Berlin\n Bahnhofsordnung\n Webseite\nHilfe / Kontakt: Die 3-S-Zentrale\nFür Fragen oder Hinweise zu Service, Sicherheit oder Sauberkeit am Bahnhof, ist die 3-S-Zentrale Berlin 24 Stunden für Sie erreichbar:\n Tel.: +49 30 297-1055\n Webseite\nSicherheit am Bahnhof\nWenn Sie oder ein anderer Fahrgast Hilfe benötigen,  Zeuge einer Straftat werden oder Sachbeschädigungen jeglicher Art entdecken, wenden Sie sich bitte an:\n Personen vor",
+                  "category": "mikrolage",
+                  "factType": "hard_fact",
+                  "confidence": 0.67211175,
+                  "sources": [
+                    {
+                      "url": "https://sbahn.berlin/fahren/bahnhofsuebersicht/flughafen-ber-terminal-5",
+                      "title": "Schönefeld (bei Berlin) | S-Bahn Berlin GmbH",
+                      "domain": "sbahn.berlin",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0.3442235,
+                      "authorityScore": 1,
+                      "excerpt": "Zur Startseite - S-Bahn Berlin\nS85  S9\nS Schönefeld (bei Berlin)\n ## Bahnhofseigenschaften\nC Tarifbereich C\n ## Umstiege\n+ S-Bahn\n+ Bus\nAusstattung\nBahnhofsausstattung\n Park & Ride: Mittelstraße 20\n Fahrradabstellplatz\n Fahrkartenautomat: 1x\n Fahrscheinentwerter: 2x\nMobilitätshilfen\nWeitere Mobilitätshilfen\n Rampe\nAbfahrtszeiten\nAktuelle Abfahrtszeiten\nAushänge\nÜber mehrere Monate gültiger Fahrplan ohne Berücksichtigung von Baumaßnahmen.\nMontag bis Freitag\n 04.12.2025 (325 KB)  Richtung Stadteinwärts\n 04.12.2025 (323 KB)  Richtung BER T1-2\nWochenende & Feiertage\n 04.12.2025 (400 KB)  Richtung Stadteinwärts\n 04.12.2025 (363 KB)  Richtung BER T1-2\nBetreiber Kontakt\nBetreiber dieser Station\nGeschäftsbereich Personenbahnhöfe:  \nDB InfraGO AG  \nEuropaplatz 1  \n10557 Berlin\n Bahnhofsordnung\n Webseite\nHilfe / Kontakt: Die 3-S-Zentrale\nFür Fragen oder Hinweise zu Service, Sicherheit oder Sauberkeit am Bahnhof, ist die 3-S-Zentrale Berlin 24 Stunden für Sie erreichbar:\n Tel.: +49 30 297-1055\n Webseite\nSicherheit am Bahnhof\nWenn Sie oder ein anderer Fahrgast Hilfe benötigen,  Zeuge einer Straftat werden oder Sachbeschädigungen jeglicher Art entdecken, wenden Sie sich bitte an:\n Personen vor"
+                    }
+                  ]
+                },
+                {
+                  "statement": "Zur Startseite - S-Bahn Berlin\nFahren\nNächste Haltestelle... Waßmannsdorf!\nMit Eröffnung des neuen Flughafens geht ein weiterer S-Bahnhof in Betrieb.\n©\n:   Lionel Kreglinger\nNeuer Halt in Schönefeld: Waßmannsdorf ist jetzt per S-Bahn erreichbar.\nDie Schönefelder Gemeinde Waßmannsdorf ist nun auch an das S-Bahnnetz angebunden. Mit der Streckenverlängerung der S45 und S9 liegt der neue S-Bahnhof Waßmannsdorf zwischen der Station „Flughafen BER – Terminal 5“ (ehemals „Flughafen Berlin-Schönefeld“) und dem neuen Flughafenbahnhof „Flughafen BER – Terminal 1-2“.\nTurmbahnhof mit Kurvenlage\nDas Bahnhofsbauwerk an sich ist dabei schon etwas Besonderes: der Turmbahnhof hat zwei separate Seitenbahnsteige und liegt in einer Kurve, was spezielle Herausforderungen beim Bau bedeutete. Dennoch wurde der Bahnhof bereits 2011 (zum ersten Eröffnungstermin des BER) fertiggestellt. Kein Wunder also, dass sich zur feierlichen Eröffnungsfahrt am 25. Oktober zahlreiche Menschen an der neuen Station versammelten und die S-Bahn herzlich willkommen hießen.\nWichtig für die Gemeinde Schönefeld\nGanz besonders freuen konnte sich auch Udo Haase, Schönefelds Bürgermeister bis 2019, der schon 1991 den Beschluss zum",
+                  "category": "mikrolage",
+                  "factType": "hard_fact",
+                  "confidence": 0.66135395,
+                  "sources": [
+                    {
+                      "url": "https://sbahn.berlin/aktuelles/artikel/naechste-haltestelle-wassmannsdorf",
+                      "title": "Nächste Haltestelle... Waßmannsdorf! | S-Bahn Berlin GmbH",
+                      "domain": "sbahn.berlin",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0.3227079,
+                      "authorityScore": 1,
+                      "excerpt": "Zur Startseite - S-Bahn Berlin\nFahren\nNächste Haltestelle... Waßmannsdorf!\nMit Eröffnung des neuen Flughafens geht ein weiterer S-Bahnhof in Betrieb.\n©\n:   Lionel Kreglinger\nNeuer Halt in Schönefeld: Waßmannsdorf ist jetzt per S-Bahn erreichbar.\nDie Schönefelder Gemeinde Waßmannsdorf ist nun auch an das S-Bahnnetz angebunden. Mit der Streckenverlängerung der S45 und S9 liegt der neue S-Bahnhof Waßmannsdorf zwischen der Station „Flughafen BER – Terminal 5“ (ehemals „Flughafen Berlin-Schönefeld“) und dem neuen Flughafenbahnhof „Flughafen BER – Terminal 1-2“.\nTurmbahnhof mit Kurvenlage\nDas Bahnhofsbauwerk an sich ist dabei schon etwas Besonderes: der Turmbahnhof hat zwei separate Seitenbahnsteige und liegt in einer Kurve, was spezielle Herausforderungen beim Bau bedeutete. Dennoch wurde der Bahnhof bereits 2011 (zum ersten Eröffnungstermin des BER) fertiggestellt. Kein Wunder also, dass sich zur feierlichen Eröffnungsfahrt am 25. Oktober zahlreiche Menschen an der neuen Station versammelten und die S-Bahn herzlich willkommen hießen.\nWichtig für die Gemeinde Schönefeld\nGanz besonders freuen konnte sich auch Udo Haase, Schönefelds Bürgermeister bis 2019, der schon 1991 den Beschluss zum"
+                    }
+                  ]
+                },
+                {
+                  "statement": "Das sind Gebiete exklusiver Lage mit sehr gepflegtem Wohnumfeld, einem hohen Anteil privater und öffentlicher Frei- und Grünflächen, sehr guter baulicher",
+                  "category": "mikrolage",
+                  "factType": "hard_fact",
+                  "confidence": 0.62646654,
+                  "sources": [
+                    {
+                      "url": "https://www.berlin.de/gutachterausschuss/_assets/amarktinformationen/amarktanalyse/04-03-010-1800.pdf",
+                      "title": "Immobilienmarktbericht Berlin 2018/2019",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0.25293308,
+                      "authorityScore": 1,
+                      "excerpt": "Das sind Gebiete exklusiver Lage mit sehr gepflegtem Wohnumfeld, einem hohen Anteil privater und öffentlicher Frei- und Grünflächen, sehr guter baulicher"
+                    }
+                  ]
+                }
+              ]
+            },
+            "makrolage": {
+              "summary": "3 belegte Rechercheaussage(n).",
+              "claims": [
+                {
+                  "statement": "Einwohnenden, der sozialen und gesundheitlichen Situation von Kindern und Jugendlichen, der Schulen, Kitas, Spielplätze und Sporteinrichtungen im Stadtteil und der Akteure der Bürgerbeteiligung. Ergänzt sind eine Vielzahl von Daten durch eine fachliche Einschätzung. [...] Wer also einen breiten Überblick über den Stadtteil bekommen möchte, findet hier eine interessante Lektüre.\n\nMedienkontakt:  \nBezirksamt Mitte, Bezirksstadtrat Ephraim Gothe, Tel.: (030) 9018-44600\n\n## Presse-, Öffentlichkeitsarbeit & Digitale Kommunikation\n\n## Weitere Informationen zu diesem Auftritt\n\n### Rechtliches\n\nBerlin.de zur Startseite\n\n## Weitere Informationen zu Berlin.de\n\n### Service\n\n### Behörden\n\n### Politik & Verwaltung\n\n### Aktuelles\n\n### Themen\n\n### Weitere Informationen [...] Berlin.de ist ein Angebot des Landes Berlin.",
+                  "category": "makrolage",
+                  "factType": "hard_fact",
+                  "confidence": 0.9009270918379193,
+                  "sources": [
+                    {
+                      "url": "https://www.berlin.de/ba-mitte/aktuelles/pressemitteilungen/2021/pressemitteilung.1158157.php",
+                      "title": "Bezirksregionenprofile für alle Stadtteile im Bezirk Mitte aktualisiert - Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0.8018541836758387,
+                      "authorityScore": 1,
+                      "excerpt": "Einwohnenden, der sozialen und gesundheitlichen Situation von Kindern und Jugendlichen, der Schulen, Kitas, Spielplätze und Sporteinrichtungen im Stadtteil und der Akteure der Bürgerbeteiligung. Ergänzt sind eine Vielzahl von Daten durch eine fachliche Einschätzung. [...] Wer also einen breiten Überblick über den Stadtteil bekommen möchte, findet hier eine interessante Lektüre.\n\nMedienkontakt:  \nBezirksamt Mitte, Bezirksstadtrat Ephraim Gothe, Tel.: (030) 9018-44600\n\n## Presse-, Öffentlichkeitsarbeit & Digitale Kommunikation\n\n## Weitere Informationen zu diesem Auftritt\n\n### Rechtliches\n\nBerlin.de zur Startseite\n\n## Weitere Informationen zu Berlin.de\n\n### Service\n\n### Behörden\n\n### Politik & Verwaltung\n\n### Aktuelles\n\n### Themen\n\n### Weitere Informationen [...] Berlin.de ist ein Angebot des Landes Berlin."
+                    }
+                  ]
+                },
+                {
+                  "statement": "Der Stadtteil verfügte bis November 2020 über den größten Flughafen Berlins: den Flughafen Tegel \"Otto Lilienthal\", der nach Fertigstellung des Großflughafens BER in Schönefeld geschlossen werden soll.\n\nAktualisierung: 26. November 2020\n\n## Reinickendorf im Portrait\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin\n\n### Hauptstadtportal",
+                  "category": "makrolage",
+                  "factType": "hard_fact",
+                  "confidence": 0.6241283,
+                  "sources": [
+                    {
+                      "url": "https://berlin.de/special/stadtteile/reinickendorf/769150-5170844-wohnlagen-infrastruktur.html",
+                      "title": "Reinickendorf: Wohnlagen & Infrastruktur – Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0.2482566,
+                      "authorityScore": 1,
+                      "excerpt": "Der Stadtteil verfügte bis November 2020 über den größten Flughafen Berlins: den Flughafen Tegel \"Otto Lilienthal\", der nach Fertigstellung des Großflughafens BER in Schönefeld geschlossen werden soll.\n\nAktualisierung: 26. November 2020\n\n## Reinickendorf im Portrait\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin\n\n### Hauptstadtportal"
+                    }
+                  ]
+                },
+                {
+                  "statement": "Der Stadtteil verfügte bis November 2020 über den größten Flughafen Berlins: den Flughafen Tegel \"Otto Lilienthal\", der nach Fertigstellung des Großflughafens BER in Schönefeld geschlossen werden soll.\n\nAktualisierung: 26. November 2020\n\n## Reinickendorf im Portrait\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin\n\n### Hauptstadtportal",
+                  "category": "makrolage",
+                  "factType": "hard_fact",
+                  "confidence": 0.6241283,
+                  "sources": [
+                    {
+                      "url": "https://www.berlin.de/special/stadtteile/reinickendorf/769150-5170844-wohnlagen-infrastruktur.html",
+                      "title": "Reinickendorf: Wohnlagen & Infrastruktur – Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0.2482566,
+                      "authorityScore": 1,
+                      "excerpt": "Der Stadtteil verfügte bis November 2020 über den größten Flughafen Berlins: den Flughafen Tegel \"Otto Lilienthal\", der nach Fertigstellung des Großflughafens BER in Schönefeld geschlossen werden soll.\n\nAktualisierung: 26. November 2020\n\n## Reinickendorf im Portrait\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin\n\n### Hauptstadtportal"
+                    }
+                  ]
+                }
+              ]
+            },
+            "infrastructure": {
+              "transport": [
+                {
+                  "statement": "Um bequem, unkompliziert und günstig die touristischen Attraktionen besuchen zu können, empfehlen sich spezielle Touristentickets, mit denen alle öffentlichen Verkehrsmittel im gewählten Tarifbereich und Zeitraum genutzt werden können.\n\nZu den Touristentickets\n\n## Mit S-Bahn, Bus und Zug weiterfahren\n\n©\n:   S-Bahn Berlin\n\nBahnhöfe\n\n### Bahnhofsübersicht [...] Strecke  \n   S Potsdam Hbf <> S Teltow Stadt <> Teltow, Bahnhof <> S Schönefeld <> Flughafen BER\n Wie oft?  \n   60- bis 90-Minuten-Takt\n\n#### Bus X7\n\n Strecke  \n   U Rudow <> Flughafen BER\n Wie oft?  \n   5-/5-/10-Minutentakt\n\n#### Bus X71\n\n Strecke  \n   U Alt-Mariendorf <> U Rudow <> Flughafen BER\n Wie oft?  \n   20-Minuten-Takt\n\n#### Bus 263\n\n Strecke  \n   S Grünau <> Waltersdorf <> Flughafen BER\n Wie oft?  \n   60-Minuten-Takt\n\n#### Bus 735",
+                  "category": "transport",
+                  "factType": "hard_fact",
+                  "confidence": 0.9528024022277644,
+                  "sources": [
+                    {
+                      "url": "https://sbahn.berlin/fahren/infos-fuer-berlin-besucher/berlins-flughafen-berlin-brandenburg-ber",
+                      "title": "Flughafen Berlin Brandenburg (BER)",
+                      "domain": "sbahn.berlin",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0.9056048044555286,
+                      "authorityScore": 1,
+                      "excerpt": "Um bequem, unkompliziert und günstig die touristischen Attraktionen besuchen zu können, empfehlen sich spezielle Touristentickets, mit denen alle öffentlichen Verkehrsmittel im gewählten Tarifbereich und Zeitraum genutzt werden können.\n\nZu den Touristentickets\n\n## Mit S-Bahn, Bus und Zug weiterfahren\n\n©\n:   S-Bahn Berlin\n\nBahnhöfe\n\n### Bahnhofsübersicht [...] Strecke  \n   S Potsdam Hbf <> S Teltow Stadt <> Teltow, Bahnhof <> S Schönefeld <> Flughafen BER\n Wie oft?  \n   60- bis 90-Minuten-Takt\n\n#### Bus X7\n\n Strecke  \n   U Rudow <> Flughafen BER\n Wie oft?  \n   5-/5-/10-Minutentakt\n\n#### Bus X71\n\n Strecke  \n   U Alt-Mariendorf <> U Rudow <> Flughafen BER\n Wie oft?  \n   20-Minuten-Takt\n\n#### Bus 263\n\n Strecke  \n   S Grünau <> Waltersdorf <> Flughafen BER\n Wie oft?  \n   60-Minuten-Takt\n\n#### Bus 735"
+                    }
+                  ]
+                },
+                {
+                  "statement": "Um bequem, unkompliziert und günstig die touristischen Attraktionen besuchen zu können, empfehlen sich spezielle Touristentickets, mit denen alle öffentlichen Verkehrsmittel im gewählten Tarifbereich und Zeitraum genutzt werden können.\n\nZu den Touristentickets\n\n## Mit S-Bahn, Bus und Zug weiterfahren\n\n©\n:   S-Bahn Berlin\n\nBahnhöfe\n\n### Bahnhofsübersicht [...] Strecke  \n   S Potsdam Hbf <> S Teltow Stadt <> Teltow, Bahnhof <> S Schönefeld <> Flughafen BER\n Wie oft?  \n   60- bis 90-Minuten-Takt\n\n#### Bus X7\n\n Strecke  \n   U Rudow <> Flughafen BER\n Wie oft?  \n   5-/5-/10-Minutentakt\n\n#### Bus X71\n\n Strecke  \n   U Alt-Mariendorf <> U Rudow <> Flughafen BER\n Wie oft?  \n   20-Minuten-Takt\n\n#### Bus 263\n\n Strecke  \n   S Grünau <> Waltersdorf <> Flughafen BER\n Wie oft?  \n   60-Minuten-Takt\n\n#### Bus 735 [...] #### Bus 735\n\n Strecke  \n   Königs Wusterhausen <> A10 Center <> Wildau <> Miersdorf <> Schulzendorf <> Flughafen BER\n Wie oft?  \n   60-Minuten-Takt (Wochenende: 120-Minuten-Takt)\n\n#### Bus 736\n\n Strecke  \n   Königs Wusterhausen <> S Wildau <> Miersdorf <> Schulzendorf <> Flughafen BER\n Wie oft?  \n   60-Minuten-Takt (Wochenende: 120-Minuten-Takt)\n\n#### Busverbindungen (Nacht):\n\n#### B",
+                  "category": "transport",
+                  "factType": "hard_fact",
+                  "confidence": 0.9524734766435536,
+                  "sources": [
+                    {
+                      "url": "https://www.sbahn.berlin/fahren/infos-fuer-berlin-besucher/berlins-flughafen-berlin-brandenburg-ber",
+                      "title": "Flughafen BER | S-Bahn Berlin GmbH",
+                      "domain": "sbahn.berlin",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0.9049469532871074,
+                      "authorityScore": 1,
+                      "excerpt": "Um bequem, unkompliziert und günstig die touristischen Attraktionen besuchen zu können, empfehlen sich spezielle Touristentickets, mit denen alle öffentlichen Verkehrsmittel im gewählten Tarifbereich und Zeitraum genutzt werden können.\n\nZu den Touristentickets\n\n## Mit S-Bahn, Bus und Zug weiterfahren\n\n©\n:   S-Bahn Berlin\n\nBahnhöfe\n\n### Bahnhofsübersicht [...] Strecke  \n   S Potsdam Hbf <> S Teltow Stadt <> Teltow, Bahnhof <> S Schönefeld <> Flughafen BER\n Wie oft?  \n   60- bis 90-Minuten-Takt\n\n#### Bus X7\n\n Strecke  \n   U Rudow <> Flughafen BER\n Wie oft?  \n   5-/5-/10-Minutentakt\n\n#### Bus X71\n\n Strecke  \n   U Alt-Mariendorf <> U Rudow <> Flughafen BER\n Wie oft?  \n   20-Minuten-Takt\n\n#### Bus 263\n\n Strecke  \n   S Grünau <> Waltersdorf <> Flughafen BER\n Wie oft?  \n   60-Minuten-Takt\n\n#### Bus 735 [...] #### Bus 735\n\n Strecke  \n   Königs Wusterhausen <> A10 Center <> Wildau <> Miersdorf <> Schulzendorf <> Flughafen BER\n Wie oft?  \n   60-Minuten-Takt (Wochenende: 120-Minuten-Takt)\n\n#### Bus 736\n\n Strecke  \n   Königs Wusterhausen <> S Wildau <> Miersdorf <> Schulzendorf <> Flughafen BER\n Wie oft?  \n   60-Minuten-Takt (Wochenende: 120-Minuten-Takt)\n\n#### Busverbindungen (Nacht):\n\n#### B"
+                    }
+                  ]
+                },
+                {
+                  "statement": "Homepage - S-Bahn Berlin\n\nS2  S26  S8  S85\n\n# S+U Pankow\n\n ## Station properties\n\n  B Fare zone B\n ## Switches\n\n  + S-Bahn\n  + U-Bahn\n  + Tram\n  + Bus\n\n## Facilities\n\n### Equipment\n\n Taxi: Florastr.\n Park & Ride: Hadlichstr.\n Ticket machine: 2x\n Ticket stamping machine: 2x\n Info point: 1x\n Bike parking: 1x\n\n## Ticket Offices\n\n#### ServiceStore DB\n\n##### Location\n\nS-Bahn station Pankow  \n Florastr. 52  \n 13187 Berlin  \n  \n On the platform  \n  \nOpening hours\n\n## Mobility aids\n\n### Mobility aids",
+                  "category": "transport",
+                  "factType": "hard_fact",
+                  "confidence": 0.9465710157775957,
+                  "sources": [
+                    {
+                      "url": "https://sbahn.berlin/en/plan-a-journey/rail-stations/pankow",
+                      "title": "S-Bahnhof Pankow | S-Bahn Berlin GmbH",
+                      "domain": "sbahn.berlin",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0.8931420315551913,
+                      "authorityScore": 1,
+                      "excerpt": "Homepage - S-Bahn Berlin\n\nS2  S26  S8  S85\n\n# S+U Pankow\n\n ## Station properties\n\n  B Fare zone B\n ## Switches\n\n  + S-Bahn\n  + U-Bahn\n  + Tram\n  + Bus\n\n## Facilities\n\n### Equipment\n\n Taxi: Florastr.\n Park & Ride: Hadlichstr.\n Ticket machine: 2x\n Ticket stamping machine: 2x\n Info point: 1x\n Bike parking: 1x\n\n## Ticket Offices\n\n#### ServiceStore DB\n\n##### Location\n\nS-Bahn station Pankow  \n Florastr. 52  \n 13187 Berlin  \n  \n On the platform  \n  \nOpening hours\n\n## Mobility aids\n\n### Mobility aids"
+                    }
+                  ]
+                }
+              ],
+              "education": [
+                {
+                  "statement": "Berlin.de zur Startseite\n\nBerliner Landeszentralefür politische Bildung\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptnavigation\n\nWeiteres\n\n# Programm „Politische Bildung an Berliner Schulen“ [...] Im Sinne des 2021 etablierten Programms „Politische Bildung an Berliner Schulen“ stehen allen öffentlichen Grund-, weiterführenden und beruflichen Schulen in Berlin im Rahmen ihres flexiblen Schulbudgets Mittel zur Verfügung, um in Kooperation mit außerschulischen Partnerinnen und Partnern Aktivitäten im Feld der politisch-demokratischen Bildung zu realisieren. Ziel ist es, die demokratische Schulkultur zu fördern und die politische Bildung schulweit zu stärken. [...] Auf dieser von der Berliner Landeszentrale für politische Bildung zur Verfügung gestellten Plattform können Schulen nach für sie passenden Angeboten, Projekten oder Kooperationspartnern suchen. Träger können diese Plattform nutzen, um ihre Maßnahmen und Angebote vorzustellen.\n\nVerantwortlich für den Inhalt und die Beschreibung der Angebote ist der jeweilige Träger. Träger mit Interesse an einer Aufnahme ihrer Programmangebote wende",
+                  "category": "education",
+                  "factType": "hard_fact",
+                  "confidence": 0.9642190111328655,
+                  "sources": [
+                    {
+                      "url": "https://berlin.de/politische-bildung/bildungspraxis/programm-politische-bildung-an-berliner-schulen",
+                      "title": "Programm „Politische Bildung an Berliner Schulen“ - Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0.928438022265731,
+                      "authorityScore": 1,
+                      "excerpt": "Berlin.de zur Startseite\n\nBerliner Landeszentralefür politische Bildung\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptnavigation\n\nWeiteres\n\n# Programm „Politische Bildung an Berliner Schulen“ [...] Im Sinne des 2021 etablierten Programms „Politische Bildung an Berliner Schulen“ stehen allen öffentlichen Grund-, weiterführenden und beruflichen Schulen in Berlin im Rahmen ihres flexiblen Schulbudgets Mittel zur Verfügung, um in Kooperation mit außerschulischen Partnerinnen und Partnern Aktivitäten im Feld der politisch-demokratischen Bildung zu realisieren. Ziel ist es, die demokratische Schulkultur zu fördern und die politische Bildung schulweit zu stärken. [...] Auf dieser von der Berliner Landeszentrale für politische Bildung zur Verfügung gestellten Plattform können Schulen nach für sie passenden Angeboten, Projekten oder Kooperationspartnern suchen. Träger können diese Plattform nutzen, um ihre Maßnahmen und Angebote vorzustellen.\n\nVerantwortlich für den Inhalt und die Beschreibung der Angebote ist der jeweilige Träger. Träger mit Interesse an einer Aufnahme ihrer Programmangebote wende"
+                    }
+                  ]
+                },
+                {
+                  "statement": "Berlin.de\n\nBerlin.deThe Official Website of Berlin\n\n## Accessibility\n\n### How accessible is this website?\n\n### Who can you contact if you have questions, comments or feedback regarding digital accessibility?\n\n### Where can I find additional information about accessibility in Berlin?\n\n## Search\n\n## Menu\n\n### Choose language\n\n### More links\n\n### You are here:\n\n# Terminal 5 (Airport Berlin Schönefeld SXF) - Arrivals\n\nSchönefeld Airport\n\nA passenger plane descends on Schönefeld Airport in Berlin. [...] © dpa\n\nThe latest status information for flights arriving at BER Terminal 5 including origin, flight number, and expected time.\n\nPlanning to meet someone at Terminal 5 of the Airport Berlin Brandenburg Wily Brandt and want to check whether their flight is on time or delayed? Here you get live flight updates for arrivals at Terminal 5.\n\n### Arrivals: Live flight information for arrivals at Terminal 5 [...] All flight data are live updates from Terminal 5 at BER and are provided by the Verkehrsinformationszentrale Berlin (VIZ) in cooperation with Flughafen Berlin Brandenburg GmbH.\n\n### Travel into Berlin from BER Terminal 5\n\nPlease find all information on public transport from and to BER T",
+                  "category": "education",
+                  "factType": "hard_fact",
+                  "confidence": 0.5,
+                  "sources": [
+                    {
+                      "url": "https://www.berlin.de/tourismus/infos/4385433-1721039-airport-berlin-schoenefeld-sxf-arrivals.html",
+                      "title": "Terminal 5 (Airport Berlin Schönefeld SXF) - Arrivals – Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0,
+                      "authorityScore": 1,
+                      "excerpt": "Berlin.de\n\nBerlin.deThe Official Website of Berlin\n\n## Accessibility\n\n### How accessible is this website?\n\n### Who can you contact if you have questions, comments or feedback regarding digital accessibility?\n\n### Where can I find additional information about accessibility in Berlin?\n\n## Search\n\n## Menu\n\n### Choose language\n\n### More links\n\n### You are here:\n\n# Terminal 5 (Airport Berlin Schönefeld SXF) - Arrivals\n\nSchönefeld Airport\n\nA passenger plane descends on Schönefeld Airport in Berlin. [...] © dpa\n\nThe latest status information for flights arriving at BER Terminal 5 including origin, flight number, and expected time.\n\nPlanning to meet someone at Terminal 5 of the Airport Berlin Brandenburg Wily Brandt and want to check whether their flight is on time or delayed? Here you get live flight updates for arrivals at Terminal 5.\n\n### Arrivals: Live flight information for arrivals at Terminal 5 [...] All flight data are live updates from Terminal 5 at BER and are provided by the Verkehrsinformationszentrale Berlin (VIZ) in cooperation with Flughafen Berlin Brandenburg GmbH.\n\n### Travel into Berlin from BER Terminal 5\n\nPlease find all information on public transport from and to BER T"
+                    }
+                  ]
+                },
+                {
+                  "statement": "Berlin.de\n\nBerlin.deThe Official Website of Berlin\n\n## Accessibility\n\n### How accessible is this website?\n\n### Who can you contact if you have questions, comments or feedback regarding digital accessibility?\n\n### Where can I find additional information about accessibility in Berlin?\n\n## Search\n\n## Menu\n\n### Choose language\n\n### More links\n\n### You are here:\n\n# Terminal 5 (Airport Berlin Schönefeld SXF) - Arrivals\n\nSchönefeld Airport\n\nA passenger plane descends on Schönefeld Airport in Berlin. [...] © dpa\n\nThe latest status information for flights arriving at BER Terminal 5 including origin, flight number, and expected time.\n\nPlanning to meet someone at Terminal 5 of the Airport Berlin Brandenburg Wily Brandt and want to check whether their flight is on time or delayed? Here you get live flight updates for arrivals at Terminal 5.\n\n### Arrivals: Live flight information for arrivals at Terminal 5 [...] All flight data are live updates from Terminal 5 at BER and are provided by the Verkehrsinformationszentrale Berlin (VIZ) in cooperation with Flughafen Berlin Brandenburg GmbH.\n\n### Travel into Berlin from BER Terminal 5\n\nPlease find all information on public transport from and to BER T",
+                  "category": "education",
+                  "factType": "hard_fact",
+                  "confidence": 0.5,
+                  "sources": [
+                    {
+                      "url": "https://www.berlin.de/tourismus/infos/4385433-1721039-flughafen-berlin-schoenefeld-sxf-ankunft.html",
+                      "title": "Terminal 5 (Airport Berlin Schönefeld SXF) - Arrivals – Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0,
+                      "authorityScore": 1,
+                      "excerpt": "Berlin.de\n\nBerlin.deThe Official Website of Berlin\n\n## Accessibility\n\n### How accessible is this website?\n\n### Who can you contact if you have questions, comments or feedback regarding digital accessibility?\n\n### Where can I find additional information about accessibility in Berlin?\n\n## Search\n\n## Menu\n\n### Choose language\n\n### More links\n\n### You are here:\n\n# Terminal 5 (Airport Berlin Schönefeld SXF) - Arrivals\n\nSchönefeld Airport\n\nA passenger plane descends on Schönefeld Airport in Berlin. [...] © dpa\n\nThe latest status information for flights arriving at BER Terminal 5 including origin, flight number, and expected time.\n\nPlanning to meet someone at Terminal 5 of the Airport Berlin Brandenburg Wily Brandt and want to check whether their flight is on time or delayed? Here you get live flight updates for arrivals at Terminal 5.\n\n### Arrivals: Live flight information for arrivals at Terminal 5 [...] All flight data are live updates from Terminal 5 at BER and are provided by the Verkehrsinformationszentrale Berlin (VIZ) in cooperation with Flughafen Berlin Brandenburg GmbH.\n\n### Travel into Berlin from BER Terminal 5\n\nPlease find all information on public transport from and to BER T"
+                    }
+                  ]
+                }
+              ],
+              "shopping": [
+                {
+                  "statement": "© dpa\n\nDer Supermarkt im Flughafen BER in Schönefeld im Terminal 1 ist an jedem Tag im Jahr geöffnet - und das schon ab 5 Uhr morgens.\n\nSamstags, sonntags und an Feiertagen: Der Rewe-Supermarkt im Terminal 1 des Flughafens BER in Schönefeld bietet an 365 Tagen im Jahr Waren des täglichen Bedarfs, Snacks, Getränke und Backwaren. Der Markt befindet sich auf der Ebene U1 des Terminals.\n\n### Kartenansicht\n\nEs folgt eine Kartendarstellung.\nKarte überspringen\n\nEnde der Kartenansicht",
+                  "category": "shopping",
+                  "factType": "hard_fact",
+                  "confidence": 0.7814369999999999,
+                  "sources": [
+                    {
+                      "url": "https://www.berlin.de/special/shopping/sonntag/supermaerkte/7707906-1761983-rewe-am-flughafen-ber.html",
+                      "title": "Rewe am Flughafen BER – Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0.562874,
+                      "authorityScore": 1,
+                      "excerpt": "© dpa\n\nDer Supermarkt im Flughafen BER in Schönefeld im Terminal 1 ist an jedem Tag im Jahr geöffnet - und das schon ab 5 Uhr morgens.\n\nSamstags, sonntags und an Feiertagen: Der Rewe-Supermarkt im Terminal 1 des Flughafens BER in Schönefeld bietet an 365 Tagen im Jahr Waren des täglichen Bedarfs, Snacks, Getränke und Backwaren. Der Markt befindet sich auf der Ebene U1 des Terminals.\n\n### Kartenansicht\n\nEs folgt eine Kartendarstellung.\nKarte überspringen\n\nEnde der Kartenansicht"
+                    }
+                  ]
+                },
+                {
+                  "statement": "Zur Startseite - S-Bahn Berlin\nS85  S9\nS Schönefeld (bei Berlin)\n ## Bahnhofseigenschaften\nC Tarifbereich C\n ## Umstiege\n+ S-Bahn\n+ Bus\nAusstattung\nBahnhofsausstattung\n Park & Ride: Mittelstraße 20\n Fahrradabstellplatz\n Fahrkartenautomat: 1x\n Fahrscheinentwerter: 2x\nMobilitätshilfen\nWeitere Mobilitätshilfen\n Rampe\nAbfahrtszeiten\nAktuelle Abfahrtszeiten\nAushänge\nÜber mehrere Monate gültiger Fahrplan ohne Berücksichtigung von Baumaßnahmen.\nMontag bis Freitag\n 04.12.2025 (325 KB)  Richtung Stadteinwärts\n 04.12.2025 (323 KB)  Richtung BER T1-2\nWochenende & Feiertage\n 04.12.2025 (400 KB)  Richtung Stadteinwärts\n 04.12.2025 (363 KB)  Richtung BER T1-2\nBetreiber Kontakt\nBetreiber dieser Station\nGeschäftsbereich Personenbahnhöfe:  \nDB InfraGO AG  \nEuropaplatz 1  \n10557 Berlin\n Bahnhofsordnung\n Webseite\nHilfe / Kontakt: Die 3-S-Zentrale\nFür Fragen oder Hinweise zu Service, Sicherheit oder Sauberkeit am Bahnhof, ist die 3-S-Zentrale Berlin 24 Stunden für Sie erreichbar:\n Tel.: +49 30 297-1055\n Webseite\nSicherheit am Bahnhof\nWenn Sie oder ein anderer Fahrgast Hilfe benötigen,  Zeuge einer Straftat werden oder Sachbeschädigungen jeglicher Art entdecken, wenden Sie sich bitte an:\n Personen vor",
+                  "category": "shopping",
+                  "factType": "hard_fact",
+                  "confidence": 0.67211175,
+                  "sources": [
+                    {
+                      "url": "https://sbahn.berlin/fahren/bahnhofsuebersicht/flughafen-ber-terminal-5",
+                      "title": "Schönefeld (bei Berlin) | S-Bahn Berlin GmbH",
+                      "domain": "sbahn.berlin",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0.3442235,
+                      "authorityScore": 1,
+                      "excerpt": "Zur Startseite - S-Bahn Berlin\nS85  S9\nS Schönefeld (bei Berlin)\n ## Bahnhofseigenschaften\nC Tarifbereich C\n ## Umstiege\n+ S-Bahn\n+ Bus\nAusstattung\nBahnhofsausstattung\n Park & Ride: Mittelstraße 20\n Fahrradabstellplatz\n Fahrkartenautomat: 1x\n Fahrscheinentwerter: 2x\nMobilitätshilfen\nWeitere Mobilitätshilfen\n Rampe\nAbfahrtszeiten\nAktuelle Abfahrtszeiten\nAushänge\nÜber mehrere Monate gültiger Fahrplan ohne Berücksichtigung von Baumaßnahmen.\nMontag bis Freitag\n 04.12.2025 (325 KB)  Richtung Stadteinwärts\n 04.12.2025 (323 KB)  Richtung BER T1-2\nWochenende & Feiertage\n 04.12.2025 (400 KB)  Richtung Stadteinwärts\n 04.12.2025 (363 KB)  Richtung BER T1-2\nBetreiber Kontakt\nBetreiber dieser Station\nGeschäftsbereich Personenbahnhöfe:  \nDB InfraGO AG  \nEuropaplatz 1  \n10557 Berlin\n Bahnhofsordnung\n Webseite\nHilfe / Kontakt: Die 3-S-Zentrale\nFür Fragen oder Hinweise zu Service, Sicherheit oder Sauberkeit am Bahnhof, ist die 3-S-Zentrale Berlin 24 Stunden für Sie erreichbar:\n Tel.: +49 30 297-1055\n Webseite\nSicherheit am Bahnhof\nWenn Sie oder ein anderer Fahrgast Hilfe benötigen,  Zeuge einer Straftat werden oder Sachbeschädigungen jeglicher Art entdecken, wenden Sie sich bitte an:\n Personen vor"
+                    }
+                  ]
+                },
+                {
+                  "statement": "### Weitere Onlinedienste:\n\n Zum Online-Shop\n Zur Abo-Bestellung/Verwaltung\n Zum EBE-Portal (Bußgeld bei Fahrt ohne Ticket) [...] Tel.: +49 030 297-1055\n Website\n\n### Safety at the Station\n\nIf you or any other passenger requires assistance, witnessed a crime, or discovered property damage of any kind, please contact:\n\n On-site personnel: supervisory staff, security guards, DB Service Store employees, ticketing staff, or, in extreme cases, train drivers.\n The Federal Police Headquarters, Berlin: Tel .: +49 0800 6 888000\n Any other police department.\n The security control center of S-Bahn Berlin: Tel +49 030 297 51114 [...] Further information on safety\n\n### \n\n### Station cleanliness\n\n Learn more about cleanliness at the stations\n Report garbage or grime directly to our cleaning teams via WhatsApp: +49 157 923 628 36\n Report vandalism at +49 30 297-51114 and receive a reward of up to € 1,000.\n\n### Accessibility On The Go\n\n Elevator and escalator service disruptions\n Complimentary bus and train passenger escort service\n\n### Advertising",
+                  "category": "shopping",
+                  "factType": "hard_fact",
+                  "confidence": 0.574623125,
+                  "sources": [
+                    {
+                      "url": "https://sbahn.berlin/en/plan-a-journey/rail-stations/flughafen-ber-terminal-5?dialog=departures",
+                      "title": "Schönefeld (bei Berlin) | S-Bahn Berlin GmbH",
+                      "domain": "sbahn.berlin",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0.14924625,
+                      "authorityScore": 1,
+                      "excerpt": "### Weitere Onlinedienste:\n\n Zum Online-Shop\n Zur Abo-Bestellung/Verwaltung\n Zum EBE-Portal (Bußgeld bei Fahrt ohne Ticket) [...] Tel.: +49 030 297-1055\n Website\n\n### Safety at the Station\n\nIf you or any other passenger requires assistance, witnessed a crime, or discovered property damage of any kind, please contact:\n\n On-site personnel: supervisory staff, security guards, DB Service Store employees, ticketing staff, or, in extreme cases, train drivers.\n The Federal Police Headquarters, Berlin: Tel .: +49 0800 6 888000\n Any other police department.\n The security control center of S-Bahn Berlin: Tel +49 030 297 51114 [...] Further information on safety\n\n### \n\n### Station cleanliness\n\n Learn more about cleanliness at the stations\n Report garbage or grime directly to our cleaning teams via WhatsApp: +49 157 923 628 36\n Report vandalism at +49 30 297-51114 and receive a reward of up to € 1,000.\n\n### Accessibility On The Go\n\n Elevator and escalator service disruptions\n Complimentary bus and train passenger escort service\n\n### Advertising"
+                    }
+                  ]
+                }
+              ],
+              "healthcare": [],
+              "recreation": [
+                {
+                  "statement": "Hier finden Sie Veranstaltungen, Angebote und Orte für Kultur, Tourismus und Freizeit in Lichtenberg. Sie möchten ein Konzert oder eine Galerie besuchen, Sport machen oder einfach nur angenehm spazieren gehen? Dann schauen Sie mal…\n\nTeaser grünes Lichtenberg 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Grünes Lichtenberg\n\nParks, Radfahren und Wandern, Tierpark Friedrichsfelde, Wildtiere, Wasserspielplätze, Planschen ... \n Weitere Informationen\n\nTeaser Kunst Kultur\n\nBild: Bezirksamt Lichtenberg [...] ## Kunst und Kultur\n\nKulturförderung, Kulturelle Bildung, Kulturadressen wie Museen, Theater, Kulturhaus, Galerien, Kunst im Bezirk, ... \n Weitere Informationen\n\nTeaser Sport 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Sport\n\nSport- und Spielplätze, Vereine, Schwimmbäder, Eislaufen im Sportforum, Sportförderung, Sport für Menschen mit Behinderungen... \n Weitere Informationen\n\n## Touristische Highlights in Lichtenberg\n\nTeaser Kultursommer\n\nBild: Bezirksamt Lichtenberg [...] Berlin.de zur Startseite\nweitere Informationen\n\nBezirksamtLichtenberg von Berlin\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptn",
+                  "category": "recreation",
+                  "factType": "hard_fact",
+                  "confidence": 0.958302224687014,
+                  "sources": [
+                    {
+                      "url": "https://berlin.de/ba-lichtenberg/auf-einen-blick/freizeit",
+                      "title": "Freizeit, Kultur und Tourismus - Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0.916604449374028,
+                      "authorityScore": 1,
+                      "excerpt": "Hier finden Sie Veranstaltungen, Angebote und Orte für Kultur, Tourismus und Freizeit in Lichtenberg. Sie möchten ein Konzert oder eine Galerie besuchen, Sport machen oder einfach nur angenehm spazieren gehen? Dann schauen Sie mal…\n\nTeaser grünes Lichtenberg 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Grünes Lichtenberg\n\nParks, Radfahren und Wandern, Tierpark Friedrichsfelde, Wildtiere, Wasserspielplätze, Planschen ... \n Weitere Informationen\n\nTeaser Kunst Kultur\n\nBild: Bezirksamt Lichtenberg [...] ## Kunst und Kultur\n\nKulturförderung, Kulturelle Bildung, Kulturadressen wie Museen, Theater, Kulturhaus, Galerien, Kunst im Bezirk, ... \n Weitere Informationen\n\nTeaser Sport 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Sport\n\nSport- und Spielplätze, Vereine, Schwimmbäder, Eislaufen im Sportforum, Sportförderung, Sport für Menschen mit Behinderungen... \n Weitere Informationen\n\n## Touristische Highlights in Lichtenberg\n\nTeaser Kultursommer\n\nBild: Bezirksamt Lichtenberg [...] Berlin.de zur Startseite\nweitere Informationen\n\nBezirksamtLichtenberg von Berlin\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptn"
+                    }
+                  ]
+                },
+                {
+                  "statement": "Hier finden Sie Veranstaltungen, Angebote und Orte für Kultur, Tourismus und Freizeit in Lichtenberg. Sie möchten ein Konzert oder eine Galerie besuchen, Sport machen oder einfach nur angenehm spazieren gehen? Dann schauen Sie mal…\n\nTeaser grünes Lichtenberg 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Grünes Lichtenberg\n\nParks, Radfahren und Wandern, Tierpark Friedrichsfelde, Wildtiere, Wasserspielplätze, Planschen ... \n Weitere Informationen\n\nTeaser Kunst Kultur\n\nBild: Bezirksamt Lichtenberg [...] ## Kunst und Kultur\n\nKulturförderung, Kulturelle Bildung, Kulturadressen wie Museen, Theater, Kulturhaus, Galerien, Kunst im Bezirk, ... \n Weitere Informationen\n\nTeaser Sport 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Sport\n\nSport- und Spielplätze, Vereine, Schwimmbäder, Eislaufen im Sportforum, Sportförderung, Sport für Menschen mit Behinderungen... \n Weitere Informationen\n\n## Touristische Highlights in Lichtenberg\n\nTeaser Kultursommer\n\nBild: Bezirksamt Lichtenberg [...] Berlin.de zur Startseite\nweitere Informationen\n\nBezirksamtLichtenberg von Berlin\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptn",
+                  "category": "recreation",
+                  "factType": "hard_fact",
+                  "confidence": 0.958302224687014,
+                  "sources": [
+                    {
+                      "url": "http://www.berlin.de/ba-lichtenberg/auf-einen-blick/freizeit",
+                      "title": "Freizeit, Kultur und Tourismus - Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0.916604449374028,
+                      "authorityScore": 1,
+                      "excerpt": "Hier finden Sie Veranstaltungen, Angebote und Orte für Kultur, Tourismus und Freizeit in Lichtenberg. Sie möchten ein Konzert oder eine Galerie besuchen, Sport machen oder einfach nur angenehm spazieren gehen? Dann schauen Sie mal…\n\nTeaser grünes Lichtenberg 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Grünes Lichtenberg\n\nParks, Radfahren und Wandern, Tierpark Friedrichsfelde, Wildtiere, Wasserspielplätze, Planschen ... \n Weitere Informationen\n\nTeaser Kunst Kultur\n\nBild: Bezirksamt Lichtenberg [...] ## Kunst und Kultur\n\nKulturförderung, Kulturelle Bildung, Kulturadressen wie Museen, Theater, Kulturhaus, Galerien, Kunst im Bezirk, ... \n Weitere Informationen\n\nTeaser Sport 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Sport\n\nSport- und Spielplätze, Vereine, Schwimmbäder, Eislaufen im Sportforum, Sportförderung, Sport für Menschen mit Behinderungen... \n Weitere Informationen\n\n## Touristische Highlights in Lichtenberg\n\nTeaser Kultursommer\n\nBild: Bezirksamt Lichtenberg [...] Berlin.de zur Startseite\nweitere Informationen\n\nBezirksamtLichtenberg von Berlin\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptn"
+                    }
+                  ]
+                },
+                {
+                  "statement": "Hier finden Sie Veranstaltungen, Angebote und Orte für Kultur, Tourismus und Freizeit in Lichtenberg. Sie möchten ein Konzert oder eine Galerie besuchen, Sport machen oder einfach nur angenehm spazieren gehen? Dann schauen Sie mal…\n\nTeaser grünes Lichtenberg 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Grünes Lichtenberg\n\nParks, Radfahren und Wandern, Tierpark Friedrichsfelde, Wildtiere, Wasserspielplätze, Planschen ... \n Weitere Informationen\n\nTeaser Kunst Kultur\n\nBild: Bezirksamt Lichtenberg [...] ## Kunst und Kultur\n\nKulturförderung, Kulturelle Bildung, Kulturadressen wie Museen, Theater, Kulturhaus, Galerien, Kunst im Bezirk, ... \n Weitere Informationen\n\nTeaser Sport 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Sport\n\nSport- und Spielplätze, Vereine, Schwimmbäder, Eislaufen im Sportforum, Sportförderung, Sport für Menschen mit Behinderungen... \n Weitere Informationen\n\n## Touristische Highlights in Lichtenberg\n\nTeaser Kultursommer\n\nBild: Bezirksamt Lichtenberg [...] Berlin.de zur Startseite\nweitere Informationen\n\nBezirksamtLichtenberg von Berlin\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptn",
+                  "category": "recreation",
+                  "factType": "hard_fact",
+                  "confidence": 0.958302224687014,
+                  "sources": [
+                    {
+                      "url": "https://www.berlin.de/ba-lichtenberg/auf-einen-blick/freizeit",
+                      "title": "Freizeit, Kultur und Tourismus - Berlin.de",
+                      "domain": "berlin.de",
+                      "retrievedAt": "2026-08-21T07:31:41.875Z",
+                      "relevanceScore": 0.916604449374028,
+                      "authorityScore": 1,
+                      "excerpt": "Hier finden Sie Veranstaltungen, Angebote und Orte für Kultur, Tourismus und Freizeit in Lichtenberg. Sie möchten ein Konzert oder eine Galerie besuchen, Sport machen oder einfach nur angenehm spazieren gehen? Dann schauen Sie mal…\n\nTeaser grünes Lichtenberg 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Grünes Lichtenberg\n\nParks, Radfahren und Wandern, Tierpark Friedrichsfelde, Wildtiere, Wasserspielplätze, Planschen ... \n Weitere Informationen\n\nTeaser Kunst Kultur\n\nBild: Bezirksamt Lichtenberg [...] ## Kunst und Kultur\n\nKulturförderung, Kulturelle Bildung, Kulturadressen wie Museen, Theater, Kulturhaus, Galerien, Kunst im Bezirk, ... \n Weitere Informationen\n\nTeaser Sport 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Sport\n\nSport- und Spielplätze, Vereine, Schwimmbäder, Eislaufen im Sportforum, Sportförderung, Sport für Menschen mit Behinderungen... \n Weitere Informationen\n\n## Touristische Highlights in Lichtenberg\n\nTeaser Kultursommer\n\nBild: Bezirksamt Lichtenberg [...] Berlin.de zur Startseite\nweitere Informationen\n\nBezirksamtLichtenberg von Berlin\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptn"
+                    }
+                  ]
+                }
+              ]
+            },
+            "sources": [
+              {
+                "url": "https://berlin.de/politische-bildung/bildungspraxis/programm-politische-bildung-an-berliner-schulen",
+                "title": "Programm „Politische Bildung an Berliner Schulen“ - Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T07:31:41.875Z",
+                "relevanceScore": 0.928438022265731,
+                "authorityScore": 1,
+                "excerpt": "Berlin.de zur Startseite\n\nBerliner Landeszentralefür politische Bildung\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptnavigation\n\nWeiteres\n\n# Programm „Politische Bildung an Berliner Schulen“ [...] Im Sinne des 2021 etablierten Programms „Politische Bildung an Berliner Schulen“ stehen allen öffentlichen Grund-, weiterführenden und beruflichen Schulen in Berlin im Rahmen ihres flexiblen Schulbudgets Mittel zur Verfügung, um in Kooperation mit außerschulischen Partnerinnen und Partnern Aktivitäten im Feld der politisch-demokratischen Bildung zu realisieren. Ziel ist es, die demokratische Schulkultur zu fördern und die politische Bildung schulweit zu stärken. [...] Auf dieser von der Berliner Landeszentrale für politische Bildung zur Verfügung gestellten Plattform können Schulen nach für sie passenden Angeboten, Projekten oder Kooperationspartnern suchen. Träger können diese Plattform nutzen, um ihre Maßnahmen und Angebote vorzustellen.\n\nVerantwortlich für den Inhalt und die Beschreibung der Angebote ist der jeweilige Träger. Träger mit Interesse an einer Aufnahme ihrer Programmangebote wende"
+              },
+              {
+                "url": "https://berlin.de/ba-lichtenberg/auf-einen-blick/freizeit",
+                "title": "Freizeit, Kultur und Tourismus - Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T07:31:41.875Z",
+                "relevanceScore": 0.916604449374028,
+                "authorityScore": 1,
+                "excerpt": "Hier finden Sie Veranstaltungen, Angebote und Orte für Kultur, Tourismus und Freizeit in Lichtenberg. Sie möchten ein Konzert oder eine Galerie besuchen, Sport machen oder einfach nur angenehm spazieren gehen? Dann schauen Sie mal…\n\nTeaser grünes Lichtenberg 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Grünes Lichtenberg\n\nParks, Radfahren und Wandern, Tierpark Friedrichsfelde, Wildtiere, Wasserspielplätze, Planschen ... \n Weitere Informationen\n\nTeaser Kunst Kultur\n\nBild: Bezirksamt Lichtenberg [...] ## Kunst und Kultur\n\nKulturförderung, Kulturelle Bildung, Kulturadressen wie Museen, Theater, Kulturhaus, Galerien, Kunst im Bezirk, ... \n Weitere Informationen\n\nTeaser Sport 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Sport\n\nSport- und Spielplätze, Vereine, Schwimmbäder, Eislaufen im Sportforum, Sportförderung, Sport für Menschen mit Behinderungen... \n Weitere Informationen\n\n## Touristische Highlights in Lichtenberg\n\nTeaser Kultursommer\n\nBild: Bezirksamt Lichtenberg [...] Berlin.de zur Startseite\nweitere Informationen\n\nBezirksamtLichtenberg von Berlin\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptn"
+              },
+              {
+                "url": "http://www.berlin.de/ba-lichtenberg/auf-einen-blick/freizeit",
+                "title": "Freizeit, Kultur und Tourismus - Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T07:31:41.875Z",
+                "relevanceScore": 0.916604449374028,
+                "authorityScore": 1,
+                "excerpt": "Hier finden Sie Veranstaltungen, Angebote und Orte für Kultur, Tourismus und Freizeit in Lichtenberg. Sie möchten ein Konzert oder eine Galerie besuchen, Sport machen oder einfach nur angenehm spazieren gehen? Dann schauen Sie mal…\n\nTeaser grünes Lichtenberg 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Grünes Lichtenberg\n\nParks, Radfahren und Wandern, Tierpark Friedrichsfelde, Wildtiere, Wasserspielplätze, Planschen ... \n Weitere Informationen\n\nTeaser Kunst Kultur\n\nBild: Bezirksamt Lichtenberg [...] ## Kunst und Kultur\n\nKulturförderung, Kulturelle Bildung, Kulturadressen wie Museen, Theater, Kulturhaus, Galerien, Kunst im Bezirk, ... \n Weitere Informationen\n\nTeaser Sport 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Sport\n\nSport- und Spielplätze, Vereine, Schwimmbäder, Eislaufen im Sportforum, Sportförderung, Sport für Menschen mit Behinderungen... \n Weitere Informationen\n\n## Touristische Highlights in Lichtenberg\n\nTeaser Kultursommer\n\nBild: Bezirksamt Lichtenberg [...] Berlin.de zur Startseite\nweitere Informationen\n\nBezirksamtLichtenberg von Berlin\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptn"
+              },
+              {
+                "url": "https://www.berlin.de/ba-lichtenberg/auf-einen-blick/freizeit",
+                "title": "Freizeit, Kultur und Tourismus - Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T07:31:41.875Z",
+                "relevanceScore": 0.916604449374028,
+                "authorityScore": 1,
+                "excerpt": "Hier finden Sie Veranstaltungen, Angebote und Orte für Kultur, Tourismus und Freizeit in Lichtenberg. Sie möchten ein Konzert oder eine Galerie besuchen, Sport machen oder einfach nur angenehm spazieren gehen? Dann schauen Sie mal…\n\nTeaser grünes Lichtenberg 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Grünes Lichtenberg\n\nParks, Radfahren und Wandern, Tierpark Friedrichsfelde, Wildtiere, Wasserspielplätze, Planschen ... \n Weitere Informationen\n\nTeaser Kunst Kultur\n\nBild: Bezirksamt Lichtenberg [...] ## Kunst und Kultur\n\nKulturförderung, Kulturelle Bildung, Kulturadressen wie Museen, Theater, Kulturhaus, Galerien, Kunst im Bezirk, ... \n Weitere Informationen\n\nTeaser Sport 480x360\n\nBild: Bezirksamt Lichtenberg\n\n## Sport\n\nSport- und Spielplätze, Vereine, Schwimmbäder, Eislaufen im Sportforum, Sportförderung, Sport für Menschen mit Behinderungen... \n Weitere Informationen\n\n## Touristische Highlights in Lichtenberg\n\nTeaser Kultursommer\n\nBild: Bezirksamt Lichtenberg [...] Berlin.de zur Startseite\nweitere Informationen\n\nBezirksamtLichtenberg von Berlin\n\nBarrierefreiheit\n\nErklärung zur Barrierefreiheit\n\nKontakt zur Ansprechperson\n\nLandesbeauftragte für digitale Barrierefreiheit\n\nSuche\n\nHauptn"
+              },
+              {
+                "url": "https://sbahn.berlin/fahren/infos-fuer-berlin-besucher/berlins-flughafen-berlin-brandenburg-ber",
+                "title": "Flughafen Berlin Brandenburg (BER)",
+                "domain": "sbahn.berlin",
+                "retrievedAt": "2026-08-21T07:31:41.875Z",
+                "relevanceScore": 0.9056048044555286,
+                "authorityScore": 1,
+                "excerpt": "Um bequem, unkompliziert und günstig die touristischen Attraktionen besuchen zu können, empfehlen sich spezielle Touristentickets, mit denen alle öffentlichen Verkehrsmittel im gewählten Tarifbereich und Zeitraum genutzt werden können.\n\nZu den Touristentickets\n\n## Mit S-Bahn, Bus und Zug weiterfahren\n\n©\n:   S-Bahn Berlin\n\nBahnhöfe\n\n### Bahnhofsübersicht [...] Strecke  \n   S Potsdam Hbf <> S Teltow Stadt <> Teltow, Bahnhof <> S Schönefeld <> Flughafen BER\n Wie oft?  \n   60- bis 90-Minuten-Takt\n\n#### Bus X7\n\n Strecke  \n   U Rudow <> Flughafen BER\n Wie oft?  \n   5-/5-/10-Minutentakt\n\n#### Bus X71\n\n Strecke  \n   U Alt-Mariendorf <> U Rudow <> Flughafen BER\n Wie oft?  \n   20-Minuten-Takt\n\n#### Bus 263\n\n Strecke  \n   S Grünau <> Waltersdorf <> Flughafen BER\n Wie oft?  \n   60-Minuten-Takt\n\n#### Bus 735"
+              },
+              {
+                "url": "https://www.sbahn.berlin/fahren/infos-fuer-berlin-besucher/berlins-flughafen-berlin-brandenburg-ber",
+                "title": "Flughafen BER | S-Bahn Berlin GmbH",
+                "domain": "sbahn.berlin",
+                "retrievedAt": "2026-08-21T07:31:41.875Z",
+                "relevanceScore": 0.9049469532871074,
+                "authorityScore": 1,
+                "excerpt": "Um bequem, unkompliziert und günstig die touristischen Attraktionen besuchen zu können, empfehlen sich spezielle Touristentickets, mit denen alle öffentlichen Verkehrsmittel im gewählten Tarifbereich und Zeitraum genutzt werden können.\n\nZu den Touristentickets\n\n## Mit S-Bahn, Bus und Zug weiterfahren\n\n©\n:   S-Bahn Berlin\n\nBahnhöfe\n\n### Bahnhofsübersicht [...] Strecke  \n   S Potsdam Hbf <> S Teltow Stadt <> Teltow, Bahnhof <> S Schönefeld <> Flughafen BER\n Wie oft?  \n   60- bis 90-Minuten-Takt\n\n#### Bus X7\n\n Strecke  \n   U Rudow <> Flughafen BER\n Wie oft?  \n   5-/5-/10-Minutentakt\n\n#### Bus X71\n\n Strecke  \n   U Alt-Mariendorf <> U Rudow <> Flughafen BER\n Wie oft?  \n   20-Minuten-Takt\n\n#### Bus 263\n\n Strecke  \n   S Grünau <> Waltersdorf <> Flughafen BER\n Wie oft?  \n   60-Minuten-Takt\n\n#### Bus 735 [...] #### Bus 735\n\n Strecke  \n   Königs Wusterhausen <> A10 Center <> Wildau <> Miersdorf <> Schulzendorf <> Flughafen BER\n Wie oft?  \n   60-Minuten-Takt (Wochenende: 120-Minuten-Takt)\n\n#### Bus 736\n\n Strecke  \n   Königs Wusterhausen <> S Wildau <> Miersdorf <> Schulzendorf <> Flughafen BER\n Wie oft?  \n   60-Minuten-Takt (Wochenende: 120-Minuten-Takt)\n\n#### Busverbindungen (Nacht):\n\n#### B"
+              },
+              {
+                "url": "https://sbahn.berlin/en/plan-a-journey/rail-stations/pankow",
+                "title": "S-Bahnhof Pankow | S-Bahn Berlin GmbH",
+                "domain": "sbahn.berlin",
+                "retrievedAt": "2026-08-21T07:31:41.875Z",
+                "relevanceScore": 0.8931420315551913,
+                "authorityScore": 1,
+                "excerpt": "Homepage - S-Bahn Berlin\n\nS2  S26  S8  S85\n\n# S+U Pankow\n\n ## Station properties\n\n  B Fare zone B\n ## Switches\n\n  + S-Bahn\n  + U-Bahn\n  + Tram\n  + Bus\n\n## Facilities\n\n### Equipment\n\n Taxi: Florastr.\n Park & Ride: Hadlichstr.\n Ticket machine: 2x\n Ticket stamping machine: 2x\n Info point: 1x\n Bike parking: 1x\n\n## Ticket Offices\n\n#### ServiceStore DB\n\n##### Location\n\nS-Bahn station Pankow  \n Florastr. 52  \n 13187 Berlin  \n  \n On the platform  \n  \nOpening hours\n\n## Mobility aids\n\n### Mobility aids"
+              },
+              {
+                "url": "https://www.berlin.de/ba-mitte/aktuelles/pressemitteilungen/2021/pressemitteilung.1158157.php",
+                "title": "Bezirksregionenprofile für alle Stadtteile im Bezirk Mitte aktualisiert - Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T07:31:41.875Z",
+                "relevanceScore": 0.8018541836758387,
+                "authorityScore": 1,
+                "excerpt": "Einwohnenden, der sozialen und gesundheitlichen Situation von Kindern und Jugendlichen, der Schulen, Kitas, Spielplätze und Sporteinrichtungen im Stadtteil und der Akteure der Bürgerbeteiligung. Ergänzt sind eine Vielzahl von Daten durch eine fachliche Einschätzung. [...] Wer also einen breiten Überblick über den Stadtteil bekommen möchte, findet hier eine interessante Lektüre.\n\nMedienkontakt:  \nBezirksamt Mitte, Bezirksstadtrat Ephraim Gothe, Tel.: (030) 9018-44600\n\n## Presse-, Öffentlichkeitsarbeit & Digitale Kommunikation\n\n## Weitere Informationen zu diesem Auftritt\n\n### Rechtliches\n\nBerlin.de zur Startseite\n\n## Weitere Informationen zu Berlin.de\n\n### Service\n\n### Behörden\n\n### Politik & Verwaltung\n\n### Aktuelles\n\n### Themen\n\n### Weitere Informationen [...] Berlin.de ist ein Angebot des Landes Berlin."
+              },
+              {
+                "url": "https://www.berlin.de/special/shopping/sonntag/supermaerkte/7707906-1761983-rewe-am-flughafen-ber.html",
+                "title": "Rewe am Flughafen BER – Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T07:31:41.875Z",
+                "relevanceScore": 0.562874,
+                "authorityScore": 1,
+                "excerpt": "© dpa\n\nDer Supermarkt im Flughafen BER in Schönefeld im Terminal 1 ist an jedem Tag im Jahr geöffnet - und das schon ab 5 Uhr morgens.\n\nSamstags, sonntags und an Feiertagen: Der Rewe-Supermarkt im Terminal 1 des Flughafens BER in Schönefeld bietet an 365 Tagen im Jahr Waren des täglichen Bedarfs, Snacks, Getränke und Backwaren. Der Markt befindet sich auf der Ebene U1 des Terminals.\n\n### Kartenansicht\n\nEs folgt eine Kartendarstellung.\nKarte überspringen\n\nEnde der Kartenansicht"
+              },
+              {
+                "url": "https://sbahn.berlin/fahren/bahnhofsuebersicht/flughafen-ber-terminal-5",
+                "title": "Schönefeld (bei Berlin) | S-Bahn Berlin GmbH",
+                "domain": "sbahn.berlin",
+                "retrievedAt": "2026-08-21T07:31:41.875Z",
+                "relevanceScore": 0.3442235,
+                "authorityScore": 1,
+                "excerpt": "Zur Startseite - S-Bahn Berlin\nS85  S9\nS Schönefeld (bei Berlin)\n ## Bahnhofseigenschaften\nC Tarifbereich C\n ## Umstiege\n+ S-Bahn\n+ Bus\nAusstattung\nBahnhofsausstattung\n Park & Ride: Mittelstraße 20\n Fahrradabstellplatz\n Fahrkartenautomat: 1x\n Fahrscheinentwerter: 2x\nMobilitätshilfen\nWeitere Mobilitätshilfen\n Rampe\nAbfahrtszeiten\nAktuelle Abfahrtszeiten\nAushänge\nÜber mehrere Monate gültiger Fahrplan ohne Berücksichtigung von Baumaßnahmen.\nMontag bis Freitag\n 04.12.2025 (325 KB)  Richtung Stadteinwärts\n 04.12.2025 (323 KB)  Richtung BER T1-2\nWochenende & Feiertage\n 04.12.2025 (400 KB)  Richtung Stadteinwärts\n 04.12.2025 (363 KB)  Richtung BER T1-2\nBetreiber Kontakt\nBetreiber dieser Station\nGeschäftsbereich Personenbahnhöfe:  \nDB InfraGO AG  \nEuropaplatz 1  \n10557 Berlin\n Bahnhofsordnung\n Webseite\nHilfe / Kontakt: Die 3-S-Zentrale\nFür Fragen oder Hinweise zu Service, Sicherheit oder Sauberkeit am Bahnhof, ist die 3-S-Zentrale Berlin 24 Stunden für Sie erreichbar:\n Tel.: +49 30 297-1055\n Webseite\nSicherheit am Bahnhof\nWenn Sie oder ein anderer Fahrgast Hilfe benötigen,  Zeuge einer Straftat werden oder Sachbeschädigungen jeglicher Art entdecken, wenden Sie sich bitte an:\n Personen vor"
+              },
+              {
+                "url": "https://sbahn.berlin/aktuelles/artikel/naechste-haltestelle-wassmannsdorf",
+                "title": "Nächste Haltestelle... Waßmannsdorf! | S-Bahn Berlin GmbH",
+                "domain": "sbahn.berlin",
+                "retrievedAt": "2026-08-21T07:31:41.875Z",
+                "relevanceScore": 0.3227079,
+                "authorityScore": 1,
+                "excerpt": "Zur Startseite - S-Bahn Berlin\nFahren\nNächste Haltestelle... Waßmannsdorf!\nMit Eröffnung des neuen Flughafens geht ein weiterer S-Bahnhof in Betrieb.\n©\n:   Lionel Kreglinger\nNeuer Halt in Schönefeld: Waßmannsdorf ist jetzt per S-Bahn erreichbar.\nDie Schönefelder Gemeinde Waßmannsdorf ist nun auch an das S-Bahnnetz angebunden. Mit der Streckenverlängerung der S45 und S9 liegt der neue S-Bahnhof Waßmannsdorf zwischen der Station „Flughafen BER – Terminal 5“ (ehemals „Flughafen Berlin-Schönefeld“) und dem neuen Flughafenbahnhof „Flughafen BER – Terminal 1-2“.\nTurmbahnhof mit Kurvenlage\nDas Bahnhofsbauwerk an sich ist dabei schon etwas Besonderes: der Turmbahnhof hat zwei separate Seitenbahnsteige und liegt in einer Kurve, was spezielle Herausforderungen beim Bau bedeutete. Dennoch wurde der Bahnhof bereits 2011 (zum ersten Eröffnungstermin des BER) fertiggestellt. Kein Wunder also, dass sich zur feierlichen Eröffnungsfahrt am 25. Oktober zahlreiche Menschen an der neuen Station versammelten und die S-Bahn herzlich willkommen hießen.\nWichtig für die Gemeinde Schönefeld\nGanz besonders freuen konnte sich auch Udo Haase, Schönefelds Bürgermeister bis 2019, der schon 1991 den Beschluss zum"
+              },
+              {
+                "url": "https://www.berlin.de/gutachterausschuss/_assets/amarktinformationen/amarktanalyse/04-03-010-1800.pdf",
+                "title": "Immobilienmarktbericht Berlin 2018/2019",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T07:31:41.875Z",
+                "relevanceScore": 0.25293308,
+                "authorityScore": 1,
+                "excerpt": "Das sind Gebiete exklusiver Lage mit sehr gepflegtem Wohnumfeld, einem hohen Anteil privater und öffentlicher Frei- und Grünflächen, sehr guter baulicher"
+              },
+              {
+                "url": "https://berlin.de/special/stadtteile/reinickendorf/769150-5170844-wohnlagen-infrastruktur.html",
+                "title": "Reinickendorf: Wohnlagen & Infrastruktur – Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T07:31:41.875Z",
+                "relevanceScore": 0.2482566,
+                "authorityScore": 1,
+                "excerpt": "Der Stadtteil verfügte bis November 2020 über den größten Flughafen Berlins: den Flughafen Tegel \"Otto Lilienthal\", der nach Fertigstellung des Großflughafens BER in Schönefeld geschlossen werden soll.\n\nAktualisierung: 26. November 2020\n\n## Reinickendorf im Portrait\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin\n\n### Hauptstadtportal"
+              },
+              {
+                "url": "https://www.berlin.de/special/stadtteile/reinickendorf/769150-5170844-wohnlagen-infrastruktur.html",
+                "title": "Reinickendorf: Wohnlagen & Infrastruktur – Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T07:31:41.875Z",
+                "relevanceScore": 0.2482566,
+                "authorityScore": 1,
+                "excerpt": "Der Stadtteil verfügte bis November 2020 über den größten Flughafen Berlins: den Flughafen Tegel \"Otto Lilienthal\", der nach Fertigstellung des Großflughafens BER in Schönefeld geschlossen werden soll.\n\nAktualisierung: 26. November 2020\n\n## Reinickendorf im Portrait\n\n## Weitere Informationen zu diesem Auftritt\n\n### Berlin mitgestalten\n\n### Stadtgrün\n\n### Shopping\n\n### Sport & Freizeit\n\n### Stadtteile\n\n### Essen und Trinken\n\n## Weitere Informationen zu Berlin.de\n\nBerlin\n\n### Hauptstadtportal"
+              },
+              {
+                "url": "https://sbahn.berlin/en/plan-a-journey/rail-stations/flughafen-ber-terminal-5?dialog=departures",
+                "title": "Schönefeld (bei Berlin) | S-Bahn Berlin GmbH",
+                "domain": "sbahn.berlin",
+                "retrievedAt": "2026-08-21T07:31:41.875Z",
+                "relevanceScore": 0.14924625,
+                "authorityScore": 1,
+                "excerpt": "### Weitere Onlinedienste:\n\n Zum Online-Shop\n Zur Abo-Bestellung/Verwaltung\n Zum EBE-Portal (Bußgeld bei Fahrt ohne Ticket) [...] Tel.: +49 030 297-1055\n Website\n\n### Safety at the Station\n\nIf you or any other passenger requires assistance, witnessed a crime, or discovered property damage of any kind, please contact:\n\n On-site personnel: supervisory staff, security guards, DB Service Store employees, ticketing staff, or, in extreme cases, train drivers.\n The Federal Police Headquarters, Berlin: Tel .: +49 0800 6 888000\n Any other police department.\n The security control center of S-Bahn Berlin: Tel +49 030 297 51114 [...] Further information on safety\n\n### \n\n### Station cleanliness\n\n Learn more about cleanliness at the stations\n Report garbage or grime directly to our cleaning teams via WhatsApp: +49 157 923 628 36\n Report vandalism at +49 30 297-51114 and receive a reward of up to € 1,000.\n\n### Accessibility On The Go\n\n Elevator and escalator service disruptions\n Complimentary bus and train passenger escort service\n\n### Advertising"
+              },
+              {
+                "url": "https://www.berlin.de/tourismus/infos/4385433-1721039-airport-berlin-schoenefeld-sxf-arrivals.html",
+                "title": "Terminal 5 (Airport Berlin Schönefeld SXF) - Arrivals – Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T07:31:41.875Z",
+                "relevanceScore": 0,
+                "authorityScore": 1,
+                "excerpt": "Berlin.de\n\nBerlin.deThe Official Website of Berlin\n\n## Accessibility\n\n### How accessible is this website?\n\n### Who can you contact if you have questions, comments or feedback regarding digital accessibility?\n\n### Where can I find additional information about accessibility in Berlin?\n\n## Search\n\n## Menu\n\n### Choose language\n\n### More links\n\n### You are here:\n\n# Terminal 5 (Airport Berlin Schönefeld SXF) - Arrivals\n\nSchönefeld Airport\n\nA passenger plane descends on Schönefeld Airport in Berlin. [...] © dpa\n\nThe latest status information for flights arriving at BER Terminal 5 including origin, flight number, and expected time.\n\nPlanning to meet someone at Terminal 5 of the Airport Berlin Brandenburg Wily Brandt and want to check whether their flight is on time or delayed? Here you get live flight updates for arrivals at Terminal 5.\n\n### Arrivals: Live flight information for arrivals at Terminal 5 [...] All flight data are live updates from Terminal 5 at BER and are provided by the Verkehrsinformationszentrale Berlin (VIZ) in cooperation with Flughafen Berlin Brandenburg GmbH.\n\n### Travel into Berlin from BER Terminal 5\n\nPlease find all information on public transport from and to BER T"
+              },
+              {
+                "url": "https://www.berlin.de/tourismus/infos/4385433-1721039-flughafen-berlin-schoenefeld-sxf-ankunft.html",
+                "title": "Terminal 5 (Airport Berlin Schönefeld SXF) - Arrivals – Berlin.de",
+                "domain": "berlin.de",
+                "retrievedAt": "2026-08-21T07:31:41.875Z",
+                "relevanceScore": 0,
+                "authorityScore": 1,
+                "excerpt": "Berlin.de\n\nBerlin.deThe Official Website of Berlin\n\n## Accessibility\n\n### How accessible is this website?\n\n### Who can you contact if you have questions, comments or feedback regarding digital accessibility?\n\n### Where can I find additional information about accessibility in Berlin?\n\n## Search\n\n## Menu\n\n### Choose language\n\n### More links\n\n### You are here:\n\n# Terminal 5 (Airport Berlin Schönefeld SXF) - Arrivals\n\nSchönefeld Airport\n\nA passenger plane descends on Schönefeld Airport in Berlin. [...] © dpa\n\nThe latest status information for flights arriving at BER Terminal 5 including origin, flight number, and expected time.\n\nPlanning to meet someone at Terminal 5 of the Airport Berlin Brandenburg Wily Brandt and want to check whether their flight is on time or delayed? Here you get live flight updates for arrivals at Terminal 5.\n\n### Arrivals: Live flight information for arrivals at Terminal 5 [...] All flight data are live updates from Terminal 5 at BER and are provided by the Verkehrsinformationszentrale Berlin (VIZ) in cooperation with Flughafen Berlin Brandenburg GmbH.\n\n### Travel into Berlin from BER Terminal 5\n\nPlease find all information on public transport from and to BER T"
+              }
+            ],
+            "confidence": 0.7682366881489299
+          }
         },
         "images": [],
         "floorPlans": [],
@@ -113,7 +641,7 @@
       },
       "expose": null,
       "createdAt": "2026-08-20T22:06:45.677Z",
-      "updatedAt": "2026-08-20T22:51:50.667Z",
+      "updatedAt": "2026-08-21T07:31:42.537Z",
       "constructionYear": 2018,
       "address": "Aldebaranstraße 6",
       "zipCode": "12529",

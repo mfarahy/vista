@@ -91,6 +91,7 @@ export interface Property {
   bathrooms?: number | null;
   floor?: string | null;
   totalFloors?: number | null;
+  bodenrichtwert?: number | null;
   availableFrom?: string | null;
   condition?: string | null;
   askingPrice?: number | null;
@@ -211,6 +212,7 @@ export const emptyProperty = (): PropertyPayload => ({
   bathrooms: null,
   floor: "",
   totalFloors: null,
+  bodenrichtwert: null,
   availableFrom: "",
   condition: "",
   askingPrice: null,

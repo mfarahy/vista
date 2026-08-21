@@ -143,6 +143,25 @@ export const exposeImageSchema = z.object({
   size: z.number().int().nonnegative().optional(),
 });
 
+export const borisEnrichmentSchema = z.object({
+  available: z.boolean(),
+  source: z.string().max(200),
+  retrievedAt: z.string(),
+  referenceDate: z.string().nullable().optional(),
+  zone: z.object({
+    id: z.string().nullable().optional(),
+    name: z.string().nullable().optional(),
+  }).nullable().optional(),
+  bodenrichtwert: z.object({
+    value: z.number().finite().nullable().optional(),
+    unit: z.string().max(50).default("EUR/m²"),
+  }).nullable().optional(),
+  landUse: z.string().nullable().optional(),
+  developmentState: z.string().nullable().optional(),
+  valueDeterminingCharacteristics: z.record(z.string(), z.unknown()).default({}),
+  raw: z.record(z.string(), z.unknown()).nullable().optional(),
+});
+
 export const locationDataSchema = z.object({
   address: addressSchema,
   latitude: z.number().finite().min(-90).max(90).nullable().optional(),
@@ -152,6 +171,7 @@ export const locationDataSchema = z.object({
   description: optionalText(2000),
   intelligence: locationIntelligenceSchema.optional(),
   research: locationResearchSchema.optional(),
+  boris: borisEnrichmentSchema.optional(),
 });
 
 export const agentDataSchema = z.object({
@@ -194,6 +214,7 @@ export const propertyDetailsSchema = z.object({
   numberOfFloors: z.number().int().nonnegative().nullable().optional(),
   garageCount: z.number().int().nonnegative().nullable().optional(),
   parkingSpaceCount: z.number().int().nonnegative().nullable().optional(),
+  bodenrichtwert: nonNegativeNumber,
 });
 
 export const parkingSchema = z.object({
@@ -208,6 +229,7 @@ export const additionalInformationSchema = z.object({
   sellerNotes: optionalText(3000),
   commissionNotes: optionalText(1000),
   availability: optionalText(200),
+  notes: z.record(z.string(), z.string().max(2000).nullable().optional()).optional(),
 });
 
 export const propertyExposeDataSchema = z.object({
@@ -242,6 +264,7 @@ export type RoomData = z.infer<typeof roomDataSchema>;
 export type EquipmentData = z.infer<typeof equipmentDataSchema>;
 export type ExposeImage = z.infer<typeof exposeImageSchema>;
 export type LocationData = z.infer<typeof locationDataSchema>;
+export type BorisEnrichment = z.infer<typeof borisEnrichmentSchema>;
 export type StructuredAddress = z.infer<typeof addressSchema>;
 export type PlaceCategory = z.infer<typeof placeCategorySchema>;
 export type Place = z.infer<typeof placeSchema>;
@@ -253,10 +276,10 @@ export type PropertyExposeData = z.infer<typeof propertyExposeDataSchema>;
 export const emptyExposeData = (): PropertyExposeData => ({
   basicInformation: { propertyType: "apartment", propertySubtype: null, title: null, address: { country: "Deutschland" } },
   pricing: { purchasePrice: null, rentPrice: null, additionalCosts: null, buyerCommission: null, sellerCommission: null },
-  propertyDetails: { livingArea: null, plotArea: null, rooms: null, bathrooms: null, yearBuilt: null, completionYear: null, floor: null, numberOfFloors: null, garageCount: null, parkingSpaceCount: null },
+  propertyDetails: { livingArea: null, plotArea: null, rooms: null, bathrooms: null, yearBuilt: null, completionYear: null, floor: null, numberOfFloors: null, garageCount: null, parkingSpaceCount: null, bodenrichtwert: null },
   energy: null,
   rooms: [], equipment: [], outdoorAreas: [], parking: { garageCount: null, parkingSpaceCount: null, description: null },
   description: { short: null, long: null }, location: { address: { country: "Deutschland" } }, images: [], floorPlans: [], maps: [],
-  additionalInformation: { additionalInformation: null, legalNotes: null, sellerNotes: null, commissionNotes: null, availability: null },
+  additionalInformation: { additionalInformation: null, legalNotes: null, sellerNotes: null, commissionNotes: null, availability: null, notes: {} },
   agent: undefined, systemBranding: { companyName: "Vista", processSteps: [] },
 });

@@ -133,6 +133,71 @@ function demoContent(property: Property): ExposeContent {
   };
 }
 
+function demoMetadata(property: Property): { title: string; subtitle: string } {
+  const type = label(property.propertyType);
+  const city = property.city || "";
+  const rooms = property.rooms ? `${property.rooms}-room` : "";
+  const title = [type, rooms, "in", city].filter(Boolean).join(" ");
+  const subtitle = property.exposeData?.basicInformation.propertySubtype || type;
+  return { title, subtitle };
+}
+
+export async function generateMetadata(
+  property: Property,
+): Promise<{ title: string; subtitle: string }> {
+  const input = buildAIInput(property);
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.info("[ai] no API key configured, using demo metadata");
+    return demoMetadata(property);
+  }
+
+  const base = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
+  const prompt = `You are an English real estate listing expert. Return only valid JSON with exactly two short fields: "title" (a catchy listing headline, max 8 words) and "subtitle" (a short descriptor of the property type/subtype, max 6 words). Base both only on the facts in the input; do not invent information. Input: ${JSON.stringify(input)}`;
+
+  try {
+    const response = await fetch(`${base}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        temperature: 0.5,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "Respond in English. The JSON must contain title and subtitle.",
+          },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+    if (!response.ok) {
+      console.warn("[ai] metadata request rejected, using demo metadata", {
+        status: response.status,
+      });
+      return demoMetadata(property);
+    }
+    const result = (await response.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    const parsed = JSON.parse(result.choices?.[0]?.message?.content || "{}");
+    return {
+      title: String(parsed.title ?? "").slice(0, 200),
+      subtitle: String(parsed.subtitle ?? "").slice(0, 100),
+    };
+  } catch (error) {
+    console.warn("[ai] metadata request failed, using demo metadata", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return demoMetadata(property);
+  }
+}
+
 export async function generateExposeContent(
   property: Property,
   instruction = "",

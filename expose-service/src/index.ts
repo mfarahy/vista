@@ -7,10 +7,13 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { chromium } from "playwright";
 
-import { createProperty, listProperties, getProperty, updateProperty, addImage, removeImage, reorderImages, setCover, saveExpose, saveLocationIntelligence, saveLocationResearch, uploadPath } from "./lib/store.js";
+import { createProperty, listProperties, getProperty, updateProperty, addImage, removeImage, reorderImages, setCover, saveExpose, saveLocationIntelligence, saveLocationResearch, saveBorisEnrichment, uploadPath } from "./lib/store.js";
 import { propertySchema, exposeContentSchema } from "./lib/validation.js";
-import { generateExposeContent } from "./external-services/ai.js";
+import { generateExposeContent, generateMetadata } from "./external-services/ai.js";
+import { floorplanTo3D } from "./external-services/floorplan.js";
+import type { Flux2FlexEditInput } from "@fal-ai/client/endpoints";
 import { createManualLocation, resolveLocation } from "./lib/location-service.js";
+import { enrichAddressWithBoris } from "./lib/boris-service.js";
 import { searchAddressSuggestions } from "./external-services/location.js";
 import { exposeHTML } from "./lib/expose-template.js";
 import type { PropertyPayload } from "./lib/types.js";
@@ -83,6 +86,21 @@ app.post("/api/properties/:id/location/research", async (req, res) => {
   }
 });
 
+app.post("/api/properties/:id/location/boris", async (req, res) => {
+  const propertyId = getParamValue(req.params.id);
+  const property = await getProperty(propertyId);
+  if (!property) return res.status(404).json({ error: "Not found" });
+  const body = (req.body || {}) as { latitude?: number; longitude?: number };
+  const latitude = Number.isFinite(body.latitude) ? Number(body.latitude) : property.exposeData?.location.latitude;
+  const longitude = Number.isFinite(body.longitude) ? Number(body.longitude) : property.exposeData?.location.longitude;
+  // BORIS is an optional enrichment source: missing coordinates or any error just
+  // reports "not available" and never blocks the address flow.
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return res.json({ available: false });
+  const enrichment = await enrichAddressWithBoris({ latitude: latitude as number, longitude: longitude as number });
+  const saved = await saveBorisEnrichment(propertyId, enrichment);
+  res.json(saved?.exposeData?.location.boris || enrichment || { available: false });
+});
+
 app.post("/api/properties/:id/location", async (req, res) => {
   const propertyId = getParamValue(req.params.id);
   const property = await getProperty(propertyId);
@@ -151,6 +169,18 @@ app.put("/api/properties/:id", async (req, res) => {
     res.json(property);
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "Invalid request" });
+  }
+});
+
+app.post("/api/properties/:id/ai/metadata", async (req, res) => {
+  const propertyId = getParamValue(req.params.id);
+  const property = await getProperty(propertyId);
+  if (!property) return res.status(404).json({ error: "Not found" });
+  try {
+    const metadata = await generateMetadata(property);
+    res.json(metadata);
+  } catch (error) {
+    res.status(502).json({ error: error instanceof Error ? error.message : "AI could not generate the metadata" });
   }
 });
 
@@ -271,6 +301,40 @@ app.put("/api/properties/:id/images/reorder", async (req, res) => {
   const property = await reorderImages(propertyId, Array.isArray(req.body?.imageIds) ? req.body.imageIds : []);
   if (!property) return res.status(404).json({ error: "Not found" });
   res.json(property.images);
+});
+
+app.post("/api/floorplan/to3d", upload.single("image"), async (req, res) => {
+  const file = req.file;
+  if (!file) return res.status(400).json({ error: "An image file is required" });
+  if (!allowed.has(file.mimetype)) return res.status(400).json({ error: "Only JPG, PNG and WEBP are supported" });
+  if (file.size > 15 * 1024 * 1024) return res.status(400).json({ error: "Images may be up to 15 MB" });
+
+  const body = req.body || {};
+  const num = (value: unknown) => (typeof value === "string" && value.trim() !== "" ? Number(value) : undefined);
+
+  try {
+    const result = await floorplanTo3D({
+      imageBuffer: file.buffer,
+      mimeType: file.mimetype,
+      systemPrompt: typeof body.systemPrompt === "string" ? body.systemPrompt : undefined,
+      userPrompt: typeof body.userPrompt === "string" ? body.userPrompt : undefined,
+      imageSize: typeof body.imageSize === "string" && body.imageSize ? (body.imageSize as Flux2FlexEditInput["image_size"]) : undefined,
+      guidanceScale: num(body.guidanceScale),
+      numInferenceSteps: num(body.numInferenceSteps),
+      seed: num(body.seed),
+    });
+
+    await fs.mkdir(uploadPath, { recursive: true });
+    const name = `floorplan-3d-${randomUUID()}.png`;
+    const download = await fetch(result.imageUrl);
+    if (!download.ok) throw new Error(`Failed to download generated image (HTTP ${download.status})`);
+    await fs.writeFile(path.join(uploadPath, name), Buffer.from(await download.arrayBuffer()));
+
+    res.json({ url: `/uploads/${name}`, falUrl: result.imageUrl, seed: result.seed });
+  } catch (error) {
+    console.error("[floorplan] conversion failed", { error: error instanceof Error ? error.message : String(error) });
+    res.status(502).json({ error: error instanceof Error ? error.message : "Floor plan conversion could not be completed." });
+  }
 });
 
 app.get("/api/properties/:id/html", async (req, res) => {
