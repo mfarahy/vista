@@ -1,0 +1,41 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 599 >>
+stream
+BT /F1 11 Tf 50 750 Td (VERMESSUNGSBUERO SCHMIDT & PARTNER) Tj ET
+BT /F1 11 Tf 50 733 Td (Lageplan zum Grundstueck) Tj ET
+BT /F1 11 Tf 50 716 Td (Gemarkung: Berlin-Neukoelln) Tj ET
+BT /F1 11 Tf 50 699 Td (Flur 3, Flurstueck 88a) Tj ET
+BT /F1 11 Tf 50 682 Td (Grundstuecksgroesse: 512 m²) Tj ET
+BT /F1 11 Tf 50 665 Td (Weserstrasse 42, 12045 Berlin) Tj ET
+BT /F1 11 Tf 50 648 Td (Massstab 1:500) Tj ET
+BT /F1 11 Tf 50 631 Td (Nordpfeil: siehe Planzeichnung) Tj ET
+BT /F1 11 Tf 50 614 Td (Bestehendes Wohngebaeude mit Garage und Garten) Tj ET
+BT /F1 11 Tf 50 597 Td (Plan erstellt am 15.01.2025) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000891 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+961
+%%EOF

@@ -4,8 +4,37 @@ import { Button } from '@/components/ui/button';
 import { Input as ShadInput } from '@/components/ui/input';
 import { Textarea as ShadTextarea } from '@/components/ui/textarea';
 import type { ExposeContent, ExposeData, PropertyImage, PropertyPayload } from '../types';
-import { money, pretty } from '../types';
+import {
+  money,
+  pretty,
+  PROPERTY_SUBTYPES,
+  PROPERTY_TYPES,
+  PROPERTY_USAGE_TYPES,
+  BUILDING_STATUSES,
+  ENERGY_CERTIFICATE_TYPES,
+  ENERGY_SOURCES,
+  FEATURE_OPTIONS,
+  conditionLabel,
+  subtypeLabel,
+} from '../types';
 import { Section } from './ui';
+
+/** Renders the subtype only when it belongs to the chosen property type. */
+function subtypeDisplay(propertyType: string, value?: string | null): string | undefined {
+  if (!value) return undefined;
+  const options = PROPERTY_SUBTYPES[propertyType] ?? [];
+  return options.some(([key, label]) => key === value || label === value)
+    ? subtypeLabel(propertyType, value)
+    : undefined;
+}
+
+function enumLabel(
+  options: ReadonlyArray<readonly [string, string]>,
+  value?: string | null,
+): string | undefined {
+  const option = options.find(([key, label]) => key === value || label === value);
+  return option ? option[1] : undefined;
+}
 
 export function Review({
   property,
@@ -55,7 +84,9 @@ export function Review({
       </div>
     ) : null;
   const features = [
-    ...property.selectedFeatures,
+    ...property.selectedFeatures.map(
+      (feature) => FEATURE_OPTIONS.find(([key]) => key === feature)?.[1] ?? feature,
+    ),
     ...(property.additionalFeatures ? [property.additionalFeatures] : []),
   ];
   const energy = data.energy ?? {};
@@ -148,10 +179,13 @@ export function Review({
           'Objekt',
           1,
           <dl className="divide-y">
-            {row('Objektart', property.propertyType)}
-            {row('Unterart', data.basicInformation.propertySubtype)}
-            {row('Verwendungszweck', data.basicInformation.usageType)}
-            {row('Kauf / Miete', property.transactionType)}
+            {row('Objektart', enumLabel(PROPERTY_TYPES, property.propertyType))}
+            {row(
+              'Unterart',
+              subtypeDisplay(property.propertyType, data.basicInformation.propertySubtype),
+            )}
+            {row('Verwendungszweck', enumLabel(PROPERTY_USAGE_TYPES, data.basicInformation.usageType))}
+            {row('Kauf / Miete', property.transactionType === 'rent' ? 'Mieten' : 'Kaufen')}
             {row('Wohnfläche (m²)', data.propertyDetails.livingArea ?? property.livingArea)}
             {row('Nutzfläche (m²)', data.propertyDetails.usableArea)}
             {row('Grundstücksfläche (m²)', data.propertyDetails.plotArea ?? property.plotArea)}
@@ -166,8 +200,11 @@ export function Review({
           2,
           <dl className="divide-y">
             {row('Baujahr', data.propertyDetails.yearBuilt ?? property.constructionYear)}
-            {row('Objektstatus', data.propertyDetails.buildingStatus)}
-            {row('Zustand', property.condition)}
+            {row(
+              'Objektstatus',
+              enumLabel(BUILDING_STATUSES, data.propertyDetails.buildingStatus),
+            )}
+            {row('Zustand', conditionLabel(property.condition))}
             {row('Sanierungsstatus', data.propertyDetails.renovationStatus)}
             {row('Letzte Modernisierung', data.propertyDetails.lastModernizationYear)}
             {row('Etagen', data.propertyDetails.numberOfFloors ?? property.totalFloors)}
@@ -199,12 +236,12 @@ export function Review({
           'Energie',
           4,
           <dl className="divide-y">
-            {row('Ausweistyp', energy.certificateType)}
+            {row('Ausweistyp', enumLabel(ENERGY_CERTIFICATE_TYPES, energy.certificateType))}
             {row('Ausgestellt am', energy.certificateDate)}
             {row('Gültig bis', energy.certificateValidUntil)}
             {row('Baujahr laut Ausweis', energy.yearOfConstruction)}
             {row('Heizungsart', energy.heatingType)}
-            {row('Energieträger', energy.primaryEnergySource)}
+            {row('Energieträger', enumLabel(ENERGY_SOURCES, energy.primaryEnergySource))}
             {row('Endenergiebedarf', energy.finalEnergyDemand)}
             {row('Endenergieverbrauch', energy.finalEnergyConsumption)}
             {row('Effizienzklasse', energy.efficiencyClass)}

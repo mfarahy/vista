@@ -297,12 +297,12 @@ export function SectionNotes({
   return (
     <div className="mt-7 rounded-lg border border-dashed bg-muted/40 p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Your notes / highlights
+        Ihre Notizen / Highlights
       </p>
       <ShadTextarea
         className="mt-3 w-full resize-y bg-card"
         value={value ?? ''}
-        placeholder={placeholder ?? 'Add any extra information or highlights for this section…'}
+        placeholder={placeholder ?? 'Zusätzliche Angaben oder Highlights zu diesem Abschnitt…'}
         onChange={(event) => onChange(event.target.value)}
       />
     </div>
@@ -530,7 +530,7 @@ export function PhotoSection({
           size="sm"
           onClick={() => fileRef.current?.click()}
         >
-          Upload
+          Hochladen
         </Button>
         <input
           ref={fileRef}
@@ -550,7 +550,7 @@ export function PhotoSection({
             <div key={image.id} className="overflow-hidden rounded-lg border border-border bg-background">
               <img
                 src={apiAssetUrl(image.url)}
-                alt={image.caption || subcategory || 'Property photo'}
+                alt={image.caption || subcategory || 'Objektfoto'}
                 className="h-32 w-full object-cover"
               />
               <div className="flex flex-wrap gap-1.5 p-2">
@@ -560,7 +560,7 @@ export function PhotoSection({
                   size="xs"
                   onClick={() => cover(image.id)}
                 >
-                  {image.isCover ? 'Cover ✓' : 'Cover'}
+                  {image.isCover ? 'Titelfoto ✓' : 'Als Titelfoto'}
                 </Button>
                 <Button
                   type="button"
@@ -569,13 +569,13 @@ export function PhotoSection({
                   className="text-destructive hover:text-destructive"
                   onClick={() => removeImage(image.id)}
                 >
-                  Delete
+                  Entfernen
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-xs"
-                  aria-label="Move up"
+                  aria-label="Nach oben verschieben"
                   onClick={() => moveImage(globalIndex(image.id), -1)}
                 >
                   <ChevronLeft className="size-3" />
@@ -584,7 +584,7 @@ export function PhotoSection({
                   type="button"
                   variant="ghost"
                   size="icon-xs"
-                  aria-label="Move down"
+                  aria-label="Nach unten verschieben"
                   onClick={() => moveImage(globalIndex(image.id), 1)}
                 >
                   <ChevronRight className="size-3" />
@@ -594,7 +594,7 @@ export function PhotoSection({
           ))}
         </div>
       ) : (
-        <p className="py-2 text-sm text-muted-foreground">No photos in this section yet.</p>
+        <p className="py-2 text-sm text-muted-foreground">Noch keine Fotos in diesem Abschnitt.</p>
       )}
     </div>
   );

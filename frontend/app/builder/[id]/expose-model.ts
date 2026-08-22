@@ -3,6 +3,7 @@ import {
   ENERGY_CERTIFICATE_TYPES,
   ENERGY_SOURCES,
   FEATURE_OPTIONS,
+  PROPERTY_SUBTYPES,
   PROPERTY_TYPES,
   conditionLabel,
   subtypeLabel,
@@ -190,7 +191,15 @@ export function propertyTypeLabel(property: Property): string {
 
 export function subtypeOrTypeLabel(property: Property): string {
   const subtype = property.exposeData?.basicInformation.propertySubtype;
-  return subtype
+  if (!subtype) return propertyTypeLabel(property);
+  // Only render the subtype when it actually belongs to the chosen property
+  // type. A leftover house subtype on an apartment (or vice versa) would
+  // otherwise leak raw identifiers into the Exposé.
+  const validSubtypes = PROPERTY_SUBTYPES[property.propertyType] ?? [];
+  const known = validSubtypes.some(
+    ([key, label]: readonly [string, string]) => key === subtype || label === subtype,
+  );
+  return known
     ? subtypeLabel(property.propertyType, subtype)
     : propertyTypeLabel(property);
 }
@@ -310,7 +319,10 @@ export function energyFacts(property: Property): ExposeFact[] {
     });
   if (energy.efficiencyClass)
     facts.push({ label: 'Effizienzklasse', value: energy.efficiencyClass });
-  if (energy.primaryEnergySource) {
+  if (
+    energy.primaryEnergySource &&
+    energy.primaryEnergySource !== 'other'
+  ) {
     const label = ENERGY_SOURCES.find(
       ([key]) => key === energy.primaryEnergySource,
     )?.[1];

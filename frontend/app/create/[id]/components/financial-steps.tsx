@@ -10,7 +10,7 @@ import type { AdditionalInfoCandidate, WizardFieldCandidate } from '../document-
 import { shouldShowInvestment } from '../wizard-steps';
 import { GroupCard, DateInput, Input, Section, SectionNotes, Select, Textarea, Toggle, UnitInput } from './ui';
 import { DocumentSources } from './document-sources';
-import { AddressDebugPanel } from './debug';
+import { AddressIntelligencePanel } from './debug';
 
 function formatEuro(value?: number | null): string {
   if (value == null) return '';
@@ -512,7 +512,7 @@ export function StepLocation({
         </GroupCard>
 
         {addressSelected && (
-          <AddressDebugPanel
+          <AddressIntelligencePanel
             propertyId={propertyId}
             property={property}
             address={address}

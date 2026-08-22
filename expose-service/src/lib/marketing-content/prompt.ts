@@ -21,6 +21,7 @@ Regeln:
 - Erfinde niemals: Raumgrößen, Renovierungsdaten, Baumaterialien, Bauqualität, Ausblicke, Entfernungen, Fahrtzeiten, Schulen, Nachbarschaftseigenschaften, Renditen, Rechtsstatus, Energiewerte, Parkmöglichkeiten, Ausstattungsmerkmale oder emotionale Behauptungen als Tatsachen.
 - Erfinde niemals Entfernungen oder Wegezeiten (z. B. "in 5 Minuten zu Fuß erreichbar"), es sei denn, das Faktenblatt enthält eine konkrete Angabe.
 - Unbekannt ist nicht falsch: Erwähne niemals fehlende Merkmale als negativ. Steht im Faktenblatt "Einbauküche: nicht angegeben", schreibe NICHT "Die Immobilie verfügt über keine Einbauküche".
+- Interne Platzhalterwerte (z. B. "other", "unknown", "not_available") sind keine Fakten und dürfen niemals wörtlich erscheinen. Wenn der Energieträger oder ein anderer Wert als Platzhalter angegeben ist, lasse ihn einfach weg — erwähne den Platzhalter weder als Fakt noch als Negativbehauptung.
 - Formuliere keine Behauptungen als Tatsache, die nicht durch das Faktenblatt gedeckt sind. Auch wenn Werte wie Lage, Ausblick oder Zustand im Faktenblatt fehlen, füge sie nicht hinzu.
 - Angaben des Verkäufers bzw. Nutzers sind persönliche Perspektiven ("Die bisherigen Eigentümer haben den Garten besonders geschätzt"), keine objektiven Fakten. Wandle sie niemals in sachliche Behauptungen um (z. B. "Der Garten ist außergewöhnlich groß").
 - Die Zielgruppe ist eine Marketing-Anweisung, kein Faktenattribut. Passe bei Bedarf Gewichtung und Wortwahl an (z. B. bei "Familien" die Zimmeranzahl, den Garten oder ein Gäste-WC betonen), aber erfinde keine zielgruppenspezifischen Fakten.
@@ -37,6 +38,9 @@ Das Ergebnis muss exakt dem vorgegebenen JSON-Schema entsprechen.`;
 function clean(value: string | null | undefined): string {
   return value?.trim() || '';
 }
+
+/** Energy-source placeholder values that carry no factual meaning. */
+const PLACEHOLDER_ENERGY_SOURCES = new Set(['other', 'unknown', 'not_available', 'none']);
 
 /** Extracts the user-provided "Ihre Angaben" as marketing context. */
 export function marketingUserInformationOf(property: Property): MarketingUserInformation {
@@ -118,7 +122,9 @@ function factsOf(input: MarketingContentInput): string {
     property.bathtub === true ? 'Badewanne: vorhanden' : '',
     property.guestToilet === true ? 'Gäste-WC: vorhanden' : '',
     property.heatingType ? `Heizungsart: ${property.heatingType}` : '',
-    property.heatingEnergySource ? `Energieträger (Heizung): ${property.heatingEnergySource}` : '',
+    property.heatingEnergySource && !PLACEHOLDER_ENERGY_SOURCES.has(property.heatingEnergySource)
+      ? `Energieträger (Heizung): ${property.heatingEnergySource}`
+      : '',
     property.parkingSpaces != null ? `Stellplätze: ${property.parkingSpaces}` : '',
     property.garage === true ? 'Garage: vorhanden' : '',
     property.carport === true ? 'Carport: vorhanden' : '',
@@ -134,7 +140,9 @@ function factsOf(input: MarketingContentInput): string {
     property.energyConsumptionKwhPerM2A != null
       ? `Endenergieverbrauch: ${property.energyConsumptionKwhPerM2A} kWh/(m²·a)`
       : '',
-    property.primaryEnergySource ? `Primärenergieträger: ${property.primaryEnergySource}` : '',
+    property.primaryEnergySource && !PLACEHOLDER_ENERGY_SOURCES.has(property.primaryEnergySource)
+      ? `Primärenergieträger: ${property.primaryEnergySource}`
+      : '',
     property.askingPriceEur != null ? `Kaufpreis: ${property.askingPriceEur} €` : '',
     property.rentPriceEur != null ? `Kaltmiete: ${property.rentPriceEur} €/Monat` : '',
     property.address.district ? `Stadtteil: ${property.address.district}` : '',

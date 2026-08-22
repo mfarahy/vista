@@ -10,9 +10,11 @@ import {
   collectAdditionalInformation,
   collectWizardFieldCandidates,
   computeWizardPrefills,
+  formatExtractedValue,
   groupAdditionalByKey,
   groupCandidatesByField,
   pickDefault,
+  wizardFieldLabel,
 } from './document-prefill';
 
 function recordWithUnderstanding(
@@ -133,6 +135,56 @@ describe('computeWizardPrefills', () => {
     assert.equal(sourcesByField.livingArea.length, 2, 'both sources preserved');
     assert.equal(sourcesByField.livingArea[0].sourceFilename, 'Expose.pdf');
     assert.equal(defaults.livingArea, 107, 'deterministic default');
+  });
+
+  it('treats the initial property-type default as empty so documents can prefill it', () => {
+    const records = [
+      recordWithUnderstanding('expose', 'Expose.pdf', understanding([
+        { field: 'propertyType', value: 'house', evidence: 'Einfamilienhaus' },
+      ])),
+    ];
+    // The wizard maps the implicit default ("apartment") to "" before asking
+    // for defaults — see applyExtractedDocuments in wizard-client.
+    const { defaults } = computeWizardPrefills(records, { propertyType: '' });
+    assert.equal(defaults.propertyType, 'house');
+  });
+
+  it('treats the initial transaction-type default as empty for rental documents', () => {
+    const records = [
+      recordWithUnderstanding('mietvertrag', 'Mietvertrag.pdf', understanding([
+        { field: 'transactionType', value: 'rent', evidence: 'Kaltmiete: 890 EUR' },
+      ])),
+    ];
+    const { defaults } = computeWizardPrefills(records, { transactionType: '' });
+    assert.equal(defaults.transactionType, 'rent');
+  });
+
+  it('never overwrites a non-default property or transaction choice', () => {
+    const records = [
+      recordWithUnderstanding('expose', 'Expose.pdf', understanding([
+        { field: 'propertyType', value: 'house', evidence: 'Einfamilienhaus' },
+        { field: 'transactionType', value: 'rent', evidence: 'Mietvertrag' },
+      ])),
+    ];
+    const { defaults } = computeWizardPrefills(records, {
+      propertyType: 'villa',
+      transactionType: 'sale',
+    });
+    assert.equal(defaults.propertyType, undefined, 'explicit choice must win');
+    assert.equal(defaults.transactionType, undefined, 'explicit choice must win');
+  });
+
+  it('resolves internal wizard-field keys to German labels for the UI', () => {
+    assert.equal(wizardFieldLabel('livingArea'), 'Wohnfläche');
+    assert.equal(wizardFieldLabel('parcelNumber'), 'Flurstück');
+    assert.equal(wizardFieldLabel('monthlyRent'), 'Kaltmiete');
+  });
+
+  it('formats extracted values without internal jargon', () => {
+    assert.equal(formatExtractedValue(true), 'Ja');
+    assert.equal(formatExtractedValue(false), 'Nein');
+    assert.equal(formatExtractedValue(null), '—');
+    assert.equal(formatExtractedValue(145), '145');
   });
 });
 

@@ -226,10 +226,16 @@ export function StepProperty({
   const setDetails = (patch: Partial<ExposeData['propertyDetails']>) =>
     updateExposeData({ propertyDetails: { ...details, ...patch } });
 
+  const hasDocumentSources = sources && Object.keys(sources).length > 0;
+
   return (
     <Section
       title="Objekt"
-      description="Vista hat die wichtigsten Angaben aus Ihren Dokumenten bereits übernommen. Prüfen und ergänzen Sie hier nur, was fehlt."
+      description={
+        hasDocumentSources
+          ? 'Vista hat die wichtigsten Angaben aus Ihren Dokumenten bereits übernommen. Prüfen und ergänzen Sie hier nur, was fehlt.'
+          : 'Hier erfassen Sie die grundlegenden Angaben zur Immobilie. Mit hochgeladenen Dokumenten füllt Vista die Felder automatisch vor.'
+      }
     >
       <div className="space-y-6">
         <GroupCard title="Objektart">

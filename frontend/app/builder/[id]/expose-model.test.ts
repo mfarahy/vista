@@ -475,6 +475,23 @@ describe('missing data', () => {
     assert.deepEqual(galleryImagesOf(property, configuration), []);
     assert.equal(coverImageOf(property, configuration), undefined);
   });
+
+  it('falls back to the property-type label for an invalid subtype', () => {
+    // A leftover house subtype on an apartment must never leak raw identifiers.
+    const property = makeProperty({
+      propertyType: 'apartment',
+      exposeData: {
+        ...makeProperty().exposeData!,
+        basicInformation: {
+          ...makeProperty().exposeData!.basicInformation,
+          propertySubtype: 'singleFamilyHouse',
+        },
+      },
+    });
+    const facts = summaryFacts(property);
+    assert.equal(facts[0].label, 'Objektart');
+    assert.equal(facts[0].value, 'Wohnung');
+  });
 });
 
 describe('persistence', () => {

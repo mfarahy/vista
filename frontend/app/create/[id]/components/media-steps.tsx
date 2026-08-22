@@ -24,31 +24,31 @@ export function StepPhotos({
   const interiorSections = [
     ...Array.from({ length: roomCount }, (_, index) => ({
       key: `room_${index + 1}`,
-      label: `Room ${index + 1}`,
+      label: `Raum ${index + 1}`,
     })),
-    { key: 'kitchen', label: 'Kitchen' },
-    { key: 'bathroom', label: 'Bathroom' },
-    { key: 'other', label: 'Other interior' },
+    { key: 'kitchen', label: 'Küche' },
+    { key: 'bathroom', label: 'Bad' },
+    { key: 'other', label: 'Sonstige Innenräume' },
   ];
   const exteriorSections = [
-    { key: 'front', label: 'Front / facade' },
-    { key: 'garden', label: 'Garden' },
-    { key: 'terrace', label: 'Terrace' },
-    { key: 'balcony', label: 'Balcony' },
-    { key: 'entrance', label: 'Entrance' },
+    { key: 'front', label: 'Vorderansicht / Fassade' },
+    { key: 'garden', label: 'Garten' },
+    { key: 'terrace', label: 'Terrasse' },
+    { key: 'balcony', label: 'Balkon' },
+    { key: 'entrance', label: 'Eingang' },
     { key: 'garage', label: 'Garage' },
-    { key: 'parking', label: 'Parking' },
-    { key: 'other', label: 'Other exterior' },
+    { key: 'parking', label: 'Stellplatz' },
+    { key: 'other', label: 'Sonstige Außenbereiche' },
   ];
   return (
     <Section
-      title="Photos"
-      description="Upload photos for each room and area. Based on the number of rooms, every room has its own section."
+      title="Fotos"
+      description="Laden Sie Fotos für die einzelnen Räume und Bereiche hoch. Je nach Zimmeranzahl erhält jeder Raum einen eigenen Abschnitt."
     >
       <div className="space-y-6">
         <div>
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Exterior
+            Außenbereich
           </h3>
           <div className="grid gap-4 lg:grid-cols-2">
             {exteriorSections.map((section) => (
@@ -68,7 +68,7 @@ export function StepPhotos({
         </div>
         <div>
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Interior
+            Innenbereich
           </h3>
           <div className="grid gap-4 lg:grid-cols-2">
             {interiorSections.map((section) => (
@@ -89,7 +89,7 @@ export function StepPhotos({
         <SectionNotes
           value={noteValue('photos')}
           onChange={(value) => setNote('photos', value)}
-          placeholder="Add notes about the photos…"
+          placeholder="Anmerkungen zu den Fotos notieren…"
         />
       </div>
     </Section>
@@ -119,20 +119,20 @@ export function StepPlans({
     category: 'floor_plan' | 'document';
     subcategory: string;
   }> = [
-    { key: 'floor_plan', label: 'Floor plan', category: 'floor_plan', subcategory: 'ground_floor' },
-    { key: 'site_plan', label: 'Site plan', category: 'floor_plan', subcategory: 'site_plan' },
+    { key: 'floor_plan', label: 'Grundriss', category: 'floor_plan', subcategory: 'ground_floor' },
+    { key: 'site_plan', label: 'Lageplan', category: 'floor_plan', subcategory: 'site_plan' },
     {
       key: 'energy_certificate',
-      label: 'Energy certificate',
+      label: 'Energieausweis',
       category: 'document',
       subcategory: 'energy_certificate',
     },
-    { key: 'other', label: 'Other document', category: 'document', subcategory: 'other' },
+    { key: 'other', label: 'Sonstiges Dokument', category: 'document', subcategory: 'other' },
   ];
   return (
     <Section
-      title="Plans & documents"
-      description="Upload a dedicated file for each type of document."
+      title="Pläne & Dokumente"
+      description="Laden Sie für jeden Dokumenttyp eine eigene Datei hoch."
     >
       <div className="grid gap-4 lg:grid-cols-2">
         {planTypes.map((doc) => (
@@ -152,7 +152,7 @@ export function StepPlans({
       <SectionNotes
         value={noteValue('plans')}
         onChange={(value) => setNote('plans', value)}
-        placeholder="Add notes about the plans or documents…"
+        placeholder="Anmerkungen zu Plänen und Dokumenten notieren…"
       />
     </Section>
   );

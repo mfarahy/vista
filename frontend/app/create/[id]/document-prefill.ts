@@ -33,6 +33,88 @@ export type AdditionalInfoCandidate = {
   evidence: string | null;
 };
 
+/**
+ * German labels for the AI-extracted wizard fields (the raw field keys are
+ * internal identifiers and must never be shown to the user).
+ */
+export const WIZARD_FIELD_LABELS: Record<string, string> = {
+  street: 'Straße',
+  houseNumber: 'Hausnummer',
+  postalCode: 'PLZ',
+  city: 'Ort',
+  district: 'Stadtteil',
+  state: 'Bundesland',
+  country: 'Land',
+  propertyType: 'Objektart',
+  propertySubtype: 'Objektunterart',
+  usageType: 'Verwendungszweck',
+  livingArea: 'Wohnfläche',
+  usableArea: 'Nutzfläche',
+  plotArea: 'Grundstücksfläche',
+  rooms: 'Zimmer',
+  bedrooms: 'Schlafzimmer',
+  bathrooms: 'Badezimmer',
+  guestToilets: 'Gäste-WCs',
+  yearBuilt: 'Baujahr',
+  buildingStatus: 'Objektstatus',
+  condition: 'Zustand',
+  numberOfFloors: 'Etagen',
+  floor: 'Etage',
+  basement: 'Keller',
+  attic: 'Dachgeschoss',
+  renovationStatus: 'Sanierungsstatus',
+  lastModernizationYear: 'Letzte Modernisierung',
+  parking: 'Stellplatz',
+  garage: 'Garage',
+  balcony: 'Balkon',
+  terrace: 'Terrasse',
+  garden: 'Garten',
+  gardenArea: 'Gartenfläche',
+  orientation: 'Ausrichtung',
+  energyClass: 'Effizienzklasse',
+  energyDemand: 'Endenergiebedarf',
+  energyConsumption: 'Endenergieverbrauch',
+  heatingType: 'Heizungsart',
+  yearOfConstruction: 'Baujahr laut Ausweis',
+  certificateType: 'Ausweistyp',
+  certificateDate: 'Ausgestellt am',
+  certificateValidUntil: 'Gültig bis',
+  primaryEnergySource: 'Energieträger',
+  hotWaterIncluded: 'Warmwasser enthalten',
+  askingPrice: 'Kaufpreis',
+  pricePerM2: 'Kaufpreis / m²',
+  commissionRate: 'Provisionssatz',
+  commissionPayer: 'Provisionszahler',
+  isRented: 'Vermietet',
+  monthlyRent: 'Kaltmiete',
+  annualRent: 'Jahresmiete',
+  additionalCosts: 'Nebenkosten',
+  furnished: 'Möbliert',
+  availableFrom: 'Verfügbar ab',
+  grossYieldTarget: 'Bruttorendite (Soll)',
+  grossYieldActual: 'Bruttorendite (Ist)',
+  usufruct: 'Nießbrauch',
+  leasehold: 'Erbbaurecht',
+  foreclosure: 'Zwangsversteigerung',
+  heritageProtection: 'Denkmalschutz',
+  transactionType: 'Kauf / Miete',
+  parcelNumber: 'Flurstück',
+  plotNumber: 'Flur',
+};
+
+/** Resolves a wizard-field key to its German label, falling back to the key. */
+export function wizardFieldLabel(field: string): string {
+  return WIZARD_FIELD_LABELS[field] ?? field;
+}
+
+/** Formats an extracted value for display without internal jargon. */
+export function formatExtractedValue(value: string | number | boolean | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '—';
+  if (value === true) return 'Ja';
+  if (value === false) return 'Nein';
+  return String(value);
+}
+
 function isEmpty(value: unknown): boolean {
   return value === null || value === undefined || value === '';
 }

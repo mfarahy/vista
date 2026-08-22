@@ -351,8 +351,12 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         lastModernizationYear: details.lastModernizationYear,
         usageType: data.basicInformation.usageType,
         propertySubtype: data.basicInformation.propertySubtype,
-        propertyType: current.propertyType,
-        transactionType: current.transactionType,
+        // The wizard boots with propertyType "apartment" and transactionType
+        // "sale" as implicit defaults, not user input. Treat them as empty so a
+        // document that states "Haus" or "Miete" can prefill them (see the
+        // matching guard in applyPrefillToProperty).
+        propertyType: current.propertyType === 'apartment' ? '' : current.propertyType,
+        transactionType: current.transactionType === 'sale' ? '' : current.transactionType,
         energyClass: data.energy?.efficiencyClass,
         energyConsumption: data.energy?.finalEnergyConsumption,
         energyDemand: data.energy?.finalEnergyDemand,
@@ -405,7 +409,10 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
   ): PropertyPayload {
     if (!Object.keys(defaults).length) return current;
     const next = { ...current };
-    const data = next.exposeData ?? emptyExposeData(initialProperty);
+    // Never mutate the incoming state: updater functions must stay pure
+    // (React StrictMode invokes them twice in development). The prefill below
+    // assigns into exposeData, so it needs a fresh copy.
+    const data = next.exposeData ? { ...next.exposeData } : emptyExposeData(initialProperty);
     const address = { ...data.basicInformation.address };
     const basicInfo = { ...data.basicInformation };
     const details = { ...data.propertyDetails };
@@ -667,7 +674,13 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
           if (value === true) setLegalFlag('heritageProtection', true);
           break;
         case 'transactionType':
-          // The default is always 'sale'; never overwrite an explicit choice.
+          // The default is always 'sale'; treat it as unset and only switch to
+          // an explicit document statement (e.g. a rental agreement → "rent").
+          // An explicitly chosen non-default value is never overwritten.
+          if (next.transactionType === 'sale' && value === 'rent') {
+            next.transactionType = 'rent';
+            basicChanged = true;
+          }
           break;
         case 'basement':
           if (value === true) features.push('basement');
@@ -742,16 +755,36 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       numberOfFloors: next.totalFloors ?? data.propertyDetails.numberOfFloors ?? null,
     };
 
+    data.pricing = {
+      ...data.pricing,
+      purchasePrice:
+        next.transactionType === 'sale'
+          ? (next.askingPrice ?? data.pricing.purchasePrice ?? null)
+          : (data.pricing.purchasePrice ?? null),
+      rentPrice:
+        next.transactionType === 'rent'
+          ? (next.coldRent ?? data.pricing.rentPrice ?? null)
+          : (data.pricing.rentPrice ?? null),
+      additionalCosts: next.additionalCosts ?? data.pricing.additionalCosts ?? null,
+      buyerCommission: next.commission ?? data.pricing.buyerCommission ?? null,
+    };
+    if (next.availableFrom) data.additionalInformation = {
+      ...data.additionalInformation,
+      availability: next.availableFrom,
+    };
+
     return { ...next, exposeData: data };
   }
 
   function set<K extends keyof PropertyPayload>(key: K, value: PropertyPayload[K]) {
     setProperty((current) => {
       const next = { ...current, [key]: value };
-      const data = next.exposeData ?? emptyExposeData(initialProperty);
       // Keep the canonical exposeData in sync with the legacy flat fields edited
       // here. Values are coerced to null so JSON serialization never drops a
-      // known key (JSON.stringify omits undefined properties).
+      // known key (JSON.stringify omits undefined properties). exposeData is
+      // copied before mutation so the updater stays pure (StrictMode double
+      // invocation in development must observe identical input state).
+      const data = next.exposeData ? { ...next.exposeData } : emptyExposeData(initialProperty);
       if (key === 'address' || key === 'zipCode' || key === 'city' || key === 'district') {
         const address = {
           ...data.basicInformation.address,
@@ -765,13 +798,13 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       }
       data.propertyDetails = {
         ...data.propertyDetails,
-        livingArea: next.livingArea ?? null,
-        plotArea: next.plotArea ?? null,
-        rooms: next.rooms ?? null,
-        bathrooms: next.bathrooms ?? null,
-        yearBuilt: next.constructionYear ?? null,
-        floor: next.floor ?? null,
-        numberOfFloors: next.totalFloors ?? null,
+        livingArea: next.livingArea ?? data.propertyDetails.livingArea ?? null,
+        plotArea: next.plotArea ?? data.propertyDetails.plotArea ?? null,
+        rooms: next.rooms ?? data.propertyDetails.rooms ?? null,
+        bathrooms: next.bathrooms ?? data.propertyDetails.bathrooms ?? null,
+        yearBuilt: next.constructionYear ?? data.propertyDetails.yearBuilt ?? null,
+        floor: next.floor ?? data.propertyDetails.floor ?? null,
+        numberOfFloors: next.totalFloors ?? data.propertyDetails.numberOfFloors ?? null,
         bodenrichtwert: next.bodenrichtwert ?? null,
       };
       data.pricing = {
@@ -1027,6 +1060,8 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
 
   const currentStep = Math.min(step, REVIEW_STEP);
   const currentStatus = stepStatuses[currentStep];
+  const completedSteps = stepStatuses.filter((status) => status === 'complete').length;
+  const progressPercent = Math.round((completedSteps / STEPS.length) * 100);
 
   return (
     <main className="min-h-screen bg-background">
@@ -1065,11 +1100,11 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
             </p>
           </div>
           <span className="hidden text-sm font-medium text-muted-foreground sm:block">
-            {Math.round(((currentStep + 1) / STEPS.length) * 100)}% fertig
+            {progressPercent}% fertig
           </span>
         </div>
 
-        <Progress value={((currentStep + 1) / STEPS.length) * 100} className="mb-8 h-1.5" />
+        <Progress value={progressPercent} className="mb-8 h-1.5" />
 
         <div className="lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-8">
           <nav

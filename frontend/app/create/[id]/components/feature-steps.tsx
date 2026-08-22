@@ -17,7 +17,6 @@ import {
   UnitInput,
 } from './ui';
 import { DocumentSources } from './document-sources';
-import { AgentDebugPanel } from './debug';
 
 const FEATURE_WIZARD_FIELDS = [
   'basement',
@@ -533,7 +532,6 @@ export function StepAgent({
             }
           />
         </div>
-        <AgentDebugPanel agent={agent} />
         <SectionNotes
           value={noteValue('agent')}
           onChange={(value) => setNote('agent', value)}

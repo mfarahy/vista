@@ -63,6 +63,11 @@ export const EXPOSE_CSS = `
     color: var(--expose-muted);
     font-size: 13px;
   }
+  .expose-cover-noimage {
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+  }
   .expose-cover-brand {
     position: absolute;
     top: 26px;

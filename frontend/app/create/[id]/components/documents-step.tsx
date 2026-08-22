@@ -22,42 +22,39 @@ import { Section } from './ui';
 import {
   collectWizardFieldCandidates,
   groupCandidatesByField,
+  formatExtractedValue,
+  wizardFieldLabel,
   type WizardFieldCandidate,
 } from '../document-prefill';
 
 const ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
 
 const ADDRESS_FIELDS: Array<[string, string]> = [
-  ['street', 'Street'],
-  ['houseNumber', 'House number'],
-  ['postalCode', 'Postal code'],
-  ['city', 'City'],
-  ['district', 'District'],
-  ['state', 'State'],
-  ['country', 'Country'],
+  ['street', 'Straße'],
+  ['houseNumber', 'Hausnummer'],
+  ['postalCode', 'PLZ'],
+  ['city', 'Ort'],
+  ['district', 'Stadtteil'],
+  ['state', 'Bundesland'],
+  ['country', 'Land'],
 ];
 
 const PROPERTY_FIELDS: Array<[string, string]> = [
-  ['livingArea', 'Living area'],
-  ['plotArea', 'Plot area'],
-  ['rooms', 'Rooms'],
-  ['bedrooms', 'Bedrooms'],
-  ['bathrooms', 'Bathrooms'],
-  ['yearBuilt', 'Year built'],
-  ['floor', 'Floor'],
-  ['numberOfFloors', 'Number of floors'],
-  ['propertyType', 'Property type'],
+  ['livingArea', 'Wohnfläche'],
+  ['plotArea', 'Grundstücksfläche'],
+  ['rooms', 'Zimmer'],
+  ['bedrooms', 'Schlafzimmer'],
+  ['bathrooms', 'Badezimmer'],
+  ['yearBuilt', 'Baujahr'],
+  ['floor', 'Etage'],
+  ['numberOfFloors', 'Etagen'],
+  ['propertyType', 'Objektart'],
 ];
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatValue(value: string | number | boolean | null | undefined): string {
-  if (value === null || value === undefined || value === '') return '—';
-  return String(value);
 }
 
 function isImage(mimeType: string): boolean {
@@ -99,7 +96,7 @@ export function StepDocuments({
         const list = (await response.json()) as DocumentRecord[];
         if (!cancelled) notify(list);
       } catch {
-        setError('The uploaded documents could not be loaded.');
+        setError('Die Dokumente konnten nicht geladen werden.');
       }
     }
     load();
@@ -126,7 +123,8 @@ export function StepDocuments({
   }, [sourcesByField]);
 
   const conflictLabel = (field: string) =>
-    [...ADDRESS_FIELDS, ...PROPERTY_FIELDS].find(([key]) => key === field)?.[1] ?? field;
+    [...ADDRESS_FIELDS, ...PROPERTY_FIELDS].find(([key]) => key === field)?.[1] ??
+    wizardFieldLabel(field);
 
   async function uploadFiles(files: FileList | null) {
     if (!files?.length) return;
@@ -143,13 +141,13 @@ export function StepDocuments({
         });
         if (!response.ok) {
           const result = await response.json().catch(() => ({}));
-          setError(result.error || 'The document could not be uploaded.');
+          setError(result.error || 'Das Dokument konnte nicht hochgeladen werden.');
           continue;
         }
         const uploaded = (await response.json()) as DocumentRecord[];
         if (Array.isArray(uploaded)) added.push(...uploaded);
       } catch {
-        setError('The document could not be uploaded.');
+        setError('Das Dokument konnte nicht hochgeladen werden.');
       }
     }
     setUploading(false);
@@ -166,7 +164,7 @@ export function StepDocuments({
       const updated = (await response.json()) as DocumentRecord;
       notify(documents.map((document) => (document.id === updated.id ? updated : document)));
     } catch {
-      setError('The document could not be analyzed again.');
+      setError('Das Dokument konnte nicht erneut analysiert werden.');
     }
   }
 
@@ -178,10 +176,10 @@ export function StepDocuments({
       if (response.ok) {
         setConfirmingId(null);
         notify(documents.filter((document) => document.id !== documentId));
-        toast.success('Document removed');
-      } else setError('The document could not be removed.');
+        toast.success('Dokument entfernt');
+      } else setError('Das Dokument konnte nicht entfernt werden.');
     } catch {
-      setError('The document could not be removed.');
+      setError('Das Dokument konnte nicht entfernt werden.');
     }
   }
 
@@ -195,8 +193,8 @@ export function StepDocuments({
 
   return (
     <Section
-      title="Property documents"
-      description="Upload any documents, plans or photos you have. Vista analyzes them and prefills the property details for you."
+      title="Dokumente"
+      description="Laden Sie alle Unterlagen, Pläne oder Fotos hoch, die Sie zur Immobilie haben. Vista analysiert sie und übernimmt die gefundenen Angaben in den Assistenten."
     >
       <div className="space-y-6">
         <div
@@ -221,10 +219,10 @@ export function StepDocuments({
             <UploadCloud className="size-6" aria-hidden />
           </span>
           <p className="mt-4 text-sm font-semibold text-foreground">
-            Upload everything you have about this property
+            Laden Sie alles hoch, was Sie zu dieser Immobilie haben
           </p>
           <p className="mt-1 max-w-md text-sm text-muted-foreground">
-            Vista organizes the documents and uses the information to prefill the rest of the wizard.
+            Vista ordnet die Dokumente und füllt die restlichen Schritte im Assistenten damit vor.
           </p>
           <Button
             type="button"
@@ -233,7 +231,7 @@ export function StepDocuments({
             onClick={() => fileRef.current?.click()}
           >
             {uploading ? <LoaderCircle className="size-4 animate-spin" /> : <UploadCloud className="size-4" />}
-            {uploading ? 'Uploading…' : 'Upload documents'}
+            {uploading ? 'Wird hochgeladen…' : 'Dokumente hochladen'}
           </Button>
           <input
             ref={fileRef}
@@ -247,7 +245,8 @@ export function StepDocuments({
             }}
           />
           <p className="mt-3 text-xs text-muted-foreground">
-            Drag &amp; drop or choose files · PDF, JPG, PNG or WEBP · up to 25 MB each
+            Per Drag &amp; Drop oder Auswahl hinzufügen · PDF, JPG, PNG oder WEBP · max. 25 MB pro
+            Datei
           </p>
         </div>
 
@@ -259,20 +258,20 @@ export function StepDocuments({
 
         {uploading && documents.length > 0 && (
           <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-            <LoaderCircle className="size-4 animate-spin" /> Analyzing…
+            <LoaderCircle className="size-4 animate-spin" /> Wird analysiert…
           </p>
         )}
 
         {!documents.length && !uploading ? (
           <div className="flex flex-col items-center justify-center rounded-xl border bg-muted/20 px-6 py-12 text-center">
             <FileText className="size-6 text-muted-foreground" aria-hidden />
-            <p className="mt-3 text-sm font-semibold text-foreground">No documents yet</p>
+            <p className="mt-3 text-sm font-semibold text-foreground">Noch keine Dokumente</p>
             <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-              Upload your property documents, plans or photos. Vista will organize them and use them
-              to help complete the wizard.
+              Laden Sie Ihre Unterlagen, Pläne oder Fotos zur Immobilie hoch. Vista ordnet sie und
+              nutzt die Informationen zum Ausfüllen des Assistenten.
             </p>
             <Button type="button" className="mt-5" onClick={() => fileRef.current?.click()}>
-              <UploadCloud className="size-4" /> Upload documents
+              <UploadCloud className="size-4" /> Dokumente hochladen
             </Button>
           </div>
         ) : null}
@@ -298,17 +297,18 @@ export function StepDocuments({
               <span className="grid size-6 place-items-center rounded-full bg-primary text-primary-foreground">
                 <Check className="size-3.5" aria-hidden />
               </span>
-              <p className="font-semibold text-foreground">Information found</p>
+              <p className="font-semibold text-foreground">Informationen gefunden</p>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Vista understood your documents and found useful information across {analyzedCount}{' '}
-              {analyzedCount === 1 ? 'document' : 'documents'}.
+              Vista hat Ihre Dokumente verstanden und in {analyzedCount}{' '}
+              {analyzedCount === 1 ? 'Dokument' : 'Dokumenten'} verwertbare Informationen
+              gefunden.
             </p>
             <div className="mt-4 grid gap-6 sm:grid-cols-2">
               {foundAddress.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Address
+                    Adresse
                   </p>
                   <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
                     {ADDRESS_FIELDS.map(([field, label]) => {
@@ -327,7 +327,7 @@ export function StepDocuments({
               {foundProperty.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Property
+                    Objekt
                   </p>
                   <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
                     {PROPERTY_FIELDS.map(([field, label]) => {
@@ -350,11 +350,12 @@ export function StepDocuments({
         {conflicts.length > 0 && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-5">
             <p className="inline-flex items-center gap-2 font-semibold text-amber-800">
-              <AlertTriangle className="size-4" /> Different values found in your documents
+              <AlertTriangle className="size-4" /> Unterschiedliche Werte in Ihren Dokumenten
+              gefunden
             </p>
             <p className="mt-1 text-sm text-amber-700">
-              Some fields were found with different values. You can review and adjust them later in
-              the wizard.
+              Zu einigen Angaben finden sich unterschiedliche Werte. Sie können sie später im
+              Assistenten prüfen und anpassen.
             </p>
             <ul className="mt-4 space-y-3">
               {conflicts.map(({ field, sources }) => {
@@ -369,19 +370,20 @@ export function StepDocuments({
                     <p className="text-sm font-semibold text-foreground">
                       {conflictLabel(field)}{' '}
                       <span className="font-normal text-muted-foreground">
-                        · {formatValue(sources[0].value)}
+                        · {formatExtractedValue(sources[0].value)}
                       </span>
                     </p>
                     {differing.length > 1 && (
-                      <p className="mt-0.5 text-xs text-amber-700">
-                        Different value also found in:{' '}
-                        <span className="font-semibold text-amber-800">
-                          {differing
-                            .slice(1)
-                            .map((source) => source.sourceFilename)
-                            .join(', ')}
-                        </span>
-                      </p>
+                      <ul className="mt-1 space-y-0.5">
+                        {differing.slice(1).map((source, index) => (
+                          <li key={`${source.sourceDocumentId}-${index}`} className="text-xs text-amber-700">
+                            <span className="font-semibold text-amber-800">
+                              {formatExtractedValue(source.value)}
+                            </span>{' '}
+                            · {source.sourceFilename}
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </li>
                 );
@@ -440,7 +442,7 @@ function DocumentCard({
               {document.filename}
             </p>
             <p className="text-xs text-muted-foreground">
-              {image ? 'Image' : 'Document'} · {formatSize(document.size)}
+              {image ? 'Bild' : 'Dokument'} · {formatSize(document.size)}
             </p>
           </div>
         </div>
@@ -449,7 +451,7 @@ function DocumentCard({
             type="button"
             variant="ghost"
             size="icon-xs"
-            aria-label={`Remove ${document.filename}`}
+            aria-label={`${document.filename} entfernen`}
             className="text-muted-foreground hover:text-destructive"
             onClick={onToggleConfirm}
           >
@@ -460,7 +462,7 @@ function DocumentCard({
               type="button"
               variant="ghost"
               size="icon-xs"
-              aria-label={`Inspect ${document.filename}`}
+              aria-label={`${document.filename} ansehen`}
               aria-expanded={open}
               className="text-muted-foreground"
               onClick={() => setOpen((current) => !current)}
@@ -473,13 +475,13 @@ function DocumentCard({
 
       {confirming && (
         <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-          <p className="text-sm text-destructive">Remove this document from the property?</p>
+          <p className="text-sm text-destructive">Dieses Dokument von der Immobilie entfernen?</p>
           <div className="mt-2 flex gap-2">
             <Button type="button" variant="destructive" size="sm" onClick={onRemove}>
-              Remove
+              Entfernen
             </Button>
             <Button type="button" variant="outline" size="sm" onClick={onToggleConfirm}>
-              Cancel
+              Abbrechen
             </Button>
           </div>
         </div>
@@ -491,22 +493,22 @@ function DocumentCard({
         )}
         {analyzed && (
           <Badge variant="outline" className="border-transparent bg-primary/10 font-medium text-primary">
-            <Check className="size-3" /> Analyzed
+            <Check className="size-3" /> Analysiert
           </Badge>
         )}
         {document.status === 'completed' && !document.understandingResult && (
           <Badge variant="outline" className="text-muted-foreground">
-            <Check className="size-3" /> Analyzed
+            <Check className="size-3" /> Analysiert
           </Badge>
         )}
         {failed && (
           <Badge variant="outline" className="border-transparent bg-destructive/10 font-medium text-destructive">
-            Analysis failed
+            Analyse fehlgeschlagen
           </Badge>
         )}
         {analyzing && (
           <Badge variant="outline" className="text-muted-foreground">
-            <LoaderCircle className="size-3 animate-spin" /> Analyzing…
+            <LoaderCircle className="size-3 animate-spin" /> Wird analysiert…
           </Badge>
         )}
       </div>
@@ -532,7 +534,7 @@ function DocumentCard({
           {document.understandingResult.summary ? (
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Summary
+                Zusammenfassung
               </p>
               <p className="mt-1 text-xs leading-4 text-foreground">
                 {document.understandingResult.summary}
@@ -542,15 +544,22 @@ function DocumentCard({
           {document.understandingResult.wizardFields?.length ? (
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Extracted information
+                Gefundene Informationen
               </p>
               <ul className="mt-1 space-y-1">
                 {document.understandingResult.wizardFields.map((field, index) => (
                   <li key={`${field.field}-${index}`} className="text-xs leading-5">
-                    <span className="font-medium text-foreground">{field.field}</span>
-                    <span className="text-muted-foreground"> → {formatValue(field.value)}</span>
+                    <span className="font-medium text-foreground">
+                      {wizardFieldLabel(field.field)}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {' '}
+                      → {formatExtractedValue(field.value)}
+                    </span>
                     {field.evidence && (
-                      <span className="block text-muted-foreground">Evidence: “{field.evidence}”</span>
+                      <span className="block text-muted-foreground">
+                        Quelle: “{field.evidence}”
+                      </span>
                     )}
                   </li>
                 ))}
@@ -560,13 +569,16 @@ function DocumentCard({
           {document.understandingResult.additionalInformation?.length ? (
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Additional information
+                Zusätzliche Informationen
               </p>
               <ul className="mt-1 space-y-1">
                 {document.understandingResult.additionalInformation.map((info, index) => (
                   <li key={`${info.key}-${index}`} className="text-xs leading-5">
                     <span className="font-medium text-foreground">{info.key}</span>
-                    <span className="text-muted-foreground"> → {formatValue(info.value)}</span>
+                    <span className="text-muted-foreground">
+                      {' '}
+                      → {formatExtractedValue(info.value)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -583,7 +595,7 @@ function DocumentCard({
           className="mt-2 h-auto justify-start p-0 text-primary"
           onClick={onRetry}
         >
-          <RefreshCw className="size-3.5" /> Try analysis again
+          <RefreshCw className="size-3.5" /> Erneut analysieren
         </Button>
       )}
     </div>

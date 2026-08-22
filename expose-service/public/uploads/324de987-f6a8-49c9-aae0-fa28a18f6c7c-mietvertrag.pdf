@@ -1,0 +1,47 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 1097 >>
+stream
+BT /F1 11 Tf 50 750 Td (MIETVERTRAG) Tj ET
+BT /F1 11 Tf 50 733 Td (Vermieter: Max Mustermann, Weserstrasse 42, 12045 Berlin) Tj ET
+BT /F1 11 Tf 50 716 Td (Mieter: Anna Beispiel, Lindenstrasse 5, 10115 Berlin) Tj ET
+BT /F1 11 Tf 50 699 Td (Mietobjekt: 3-Zimmer-Wohnung, 2. Obergeschoss links) Tj ET
+BT /F1 11 Tf 50 682 Td (Weserstrasse 42, 12045 Berlin) Tj ET
+BT /F1 11 Tf 50 665 Td (Wohnflaeche: 72 m²) Tj ET
+BT /F1 11 Tf 50 648 Td (Kaltmiete: 890,00 EUR monatlich) Tj ET
+BT /F1 11 Tf 50 631 Td (Nebenkosten \(Vorauszahlung\): 210,00 EUR monatlich) Tj ET
+BT /F1 11 Tf 50 614 Td (Heizkosten \(Vorauszahlung\): 95,00 EUR monatlich) Tj ET
+BT /F1 11 Tf 50 597 Td (Kaution: 2.670,00 EUR \(3 Monatsmieten\)) Tj ET
+BT /F1 11 Tf 50 580 Td (Mietbeginn: 01.09.2025) Tj ET
+BT /F1 11 Tf 50 563 Td (Befristung: unbefristet) Tj ET
+BT /F1 11 Tf 50 546 Td (Balkon: vorhanden, nach Suedwesten ausgerichtet) Tj ET
+BT /F1 11 Tf 50 529 Td (Einbaukueche: vorhanden, wird unentgeltlich ueberlassen) Tj ET
+BT /F1 11 Tf 50 512 Td (Untergeschoss: Kellerabteil Nr. 12) Tj ET
+BT /F1 11 Tf 50 495 Td (Aufzug: vorhanden) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000001390 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1460
+%%EOF

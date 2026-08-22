@@ -1,6 +1,2295 @@
 {
   "properties": [
     {
+      "id": "8d4affa8-dd23-4b0d-8650-5b2ef247e466",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [
+        "balcony",
+        "elevator",
+        "fitted-kitchen",
+        "underfloor-heating",
+        "basement",
+        "energy-efficient"
+      ],
+      "surroundings": {
+        "transport": "U7 und mehrere Buslinien in der Umgebung",
+        "shopping": "Vielfältige Geschäfte und Wochenmarkt",
+        "restaurants": "Cafés und Restaurants fußläufig erreichbar",
+        "parks": "Volkspark Hasenheide für Freizeit und Erholung"
+      },
+      "tone": "modern",
+      "language": "de",
+      "images": [
+        {
+          "url": "/demo/room-1.svg",
+          "fileName": "demo-room-1.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 0,
+          "isCover": true,
+          "category": "exterior",
+          "caption": "Hausansicht",
+          "id": "60e70519-04fc-4bbd-ade8-f5a902a6fb6b",
+          "assetId": "281a737a-1df3-400d-8e94-6e163a01720a"
+        },
+        {
+          "url": "/demo/room-2.svg",
+          "fileName": "demo-room-2.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 1,
+          "isCover": false,
+          "category": "interior",
+          "caption": "Raum 2",
+          "id": "018b7a61-a247-49ff-8876-bb68cbc6e5fb",
+          "assetId": "45324570-34e8-48af-8bf1-7e3f690028e4"
+        },
+        {
+          "url": "/demo/room-3.svg",
+          "fileName": "demo-room-3.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 2,
+          "isCover": false,
+          "category": "interior",
+          "caption": "Raum 3",
+          "id": "1adfb37f-3183-417f-82d5-8587424f8819",
+          "assetId": "c6b4fedf-5fac-4c73-b7d1-01c52548279a"
+        },
+        {
+          "url": "/demo/room-4.svg",
+          "fileName": "demo-room-4.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 3,
+          "isCover": false,
+          "category": "interior",
+          "caption": "Raum 4",
+          "id": "0ffc487f-83c6-4c86-9cc8-cbc9e4409bff",
+          "assetId": "cabbfda3-f9af-486d-a26d-01ecef475a04"
+        },
+        {
+          "url": "/demo/room-5.svg",
+          "fileName": "demo-room-5.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 4,
+          "isCover": false,
+          "category": "interior",
+          "caption": "Raum 5",
+          "id": "37d2caa7-ef03-49c0-814d-ef5c4b9f51f3",
+          "assetId": "648e1a48-38b9-423d-8862-263c14487a8f"
+        },
+        {
+          "url": "/demo/room-6.svg",
+          "fileName": "demo-room-6.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 5,
+          "isCover": false,
+          "category": "interior",
+          "caption": "Raum 6",
+          "id": "26bdce35-ee9c-4da3-8ed0-19e1fdf048bb",
+          "assetId": "b51b5efb-14df-481d-bc81-260743545a3c"
+        },
+        {
+          "url": "/demo/floorplan.svg",
+          "fileName": "demo-floorplan.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 6,
+          "isCover": false,
+          "category": "floor_plan",
+          "caption": "Grundriss 2. Obergeschoss",
+          "id": "1e96e7f0-1d89-4753-b67b-64cee833d835",
+          "assetId": "df49635f-5d71-4ae4-9d22-46a697624369"
+        }
+      ],
+      "roomsData": [
+        {
+          "name": "Wohnbereich",
+          "type": "Wohnen",
+          "size": 32,
+          "floor": "2. OG",
+          "description": "Große Fenster und direkter Zugang zum Südwest-Balkon.",
+          "sequence": 0,
+          "id": "51d8334e-ffb2-423c-9a5f-3bc617d50a1b"
+        },
+        {
+          "name": "Schlafzimmer",
+          "type": "Schlafen",
+          "size": 15,
+          "floor": "2. OG",
+          "description": "Ruhiger Rückzugsort mit Platz für ein Doppelbett.",
+          "sequence": 1,
+          "id": "740c3e20-ec8a-4fb5-90b4-a478d0dcca33"
+        },
+        {
+          "name": "Arbeitszimmer",
+          "type": "Arbeiten",
+          "size": 11,
+          "floor": "2. OG",
+          "description": "Flexibel nutzbarer Raum für Homeoffice oder Gäste.",
+          "sequence": 2,
+          "id": "95aa8c8b-7027-45cf-b1cd-a3f0eb56f06c"
+        },
+        {
+          "name": "Küche",
+          "type": "Kochen",
+          "size": 9,
+          "floor": "2. OG",
+          "description": "Moderne Einbauküche mit klarer Linienführung.",
+          "sequence": 3,
+          "id": "7d0f1ebb-bc3e-47c8-b078-d8451c4cd75b"
+        }
+      ],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": "condominium",
+          "usageType": "ownerOccupied",
+          "title": "Eigentumswohnung mit Balkon in Berlin-Neukölln",
+          "address": {
+            "street": "Weserstraße",
+            "houseNumber": "42",
+            "postalCode": "12045",
+            "city": "Berlin",
+            "district": "Neukölln",
+            "country": "Deutschland"
+          }
+        },
+        "pricing": {
+          "purchasePrice": 449000,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": "3,57 % inkl. MwSt.",
+          "sellerCommission": null,
+          "pricePerM2": null,
+          "commissionRate": null,
+          "commissionPayer": null,
+          "commissionVatIncluded": null
+        },
+        "propertyDetails": {
+          "livingArea": 92,
+          "plotArea": null,
+          "usableArea": null,
+          "rooms": 3,
+          "bedrooms": 2,
+          "bathrooms": 1,
+          "guestToilets": null,
+          "yearBuilt": 2018,
+          "completionYear": null,
+          "floor": "2. OG",
+          "numberOfFloors": 5,
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "bodenrichtwert": null,
+          "buildingStatus": "existing",
+          "renovationStatus": null,
+          "lastModernizationYear": null
+        },
+        "energy": {
+          "certificateType": "needs_based",
+          "certificateDate": "2024-03-01",
+          "certificateValidUntil": "2034-03-01",
+          "yearOfConstruction": 2018,
+          "primaryEnergySource": "district_heating",
+          "heatingType": "Zentralheizung",
+          "hotWaterIncluded": true,
+          "finalEnergyDemand": 78.5,
+          "finalEnergyConsumption": null,
+          "efficiencyClass": "B"
+        },
+        "rental": {
+          "isRented": false,
+          "furnished": false,
+          "annualRent": null
+        },
+        "investment": {
+          "grossYieldTargetPercent": null,
+          "grossYieldActualPercent": null
+        },
+        "rooms": [
+          {
+            "type": "living_room",
+            "name": "Wohnbereich",
+            "area": 32,
+            "description": "Große Fenster und direkter Zugang zum Südwest-Balkon.",
+            "features": [],
+            "floor": "2. OG",
+            "order": 0
+          },
+          {
+            "type": "bedroom",
+            "name": "Schlafzimmer",
+            "area": 15,
+            "description": "Ruhiger Rückzugsort mit Platz für ein Doppelbett.",
+            "features": [],
+            "floor": "2. OG",
+            "order": 1
+          },
+          {
+            "type": "office",
+            "name": "Arbeitszimmer",
+            "area": 11,
+            "description": "Flexibel nutzbarer Raum für Homeoffice oder Gäste.",
+            "features": [],
+            "floor": "2. OG",
+            "order": 2
+          },
+          {
+            "type": "kitchen",
+            "name": "Küche",
+            "area": 9,
+            "description": "Moderne Einbauküche mit klarer Linienführung.",
+            "features": [],
+            "floor": "2. OG",
+            "order": 3
+          }
+        ],
+        "equipment": [
+          {
+            "category": "outdoor",
+            "name": "Balkon",
+            "description": "Südwest-Ausrichtung mit Weitblick"
+          },
+          {
+            "category": "kitchen",
+            "name": "Einbauküche",
+            "description": null
+          },
+          {
+            "category": "heating",
+            "name": "Fußbodenheizung",
+            "description": null
+          },
+          {
+            "category": "technology",
+            "name": "Aufzug",
+            "description": null
+          },
+          {
+            "category": "storage",
+            "name": "Keller",
+            "description": null
+          }
+        ],
+        "outdoorAreas": [
+          {
+            "type": "balcony",
+            "area": 6,
+            "orientation": "Südwest",
+            "description": "Mit Weitblick"
+          }
+        ],
+        "location": {
+          "address": {
+            "street": "Weserstraße",
+            "houseNumber": "42",
+            "postalCode": "12045",
+            "city": "Berlin",
+            "district": "Neukölln",
+            "country": "Deutschland"
+          },
+          "latitude": null,
+          "longitude": null,
+          "district": "Neukölln",
+          "neighborhood": null,
+          "description": "Lebendiges Umfeld mit Cafés, kleinen Läden und kurzen Wegen zu den täglichen Zielen."
+        },
+        "images": [
+          {
+            "url": "/demo/room-1.svg",
+            "fileName": "demo-room-1.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 0,
+            "isCover": true,
+            "category": "exterior",
+            "caption": "Hausansicht",
+            "id": "60e70519-04fc-4bbd-ade8-f5a902a6fb6b",
+            "assetId": "281a737a-1df3-400d-8e94-6e163a01720a",
+            "order": 0,
+            "isHeroCandidate": true
+          },
+          {
+            "url": "/demo/room-2.svg",
+            "fileName": "demo-room-2.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 1,
+            "isCover": false,
+            "category": "interior",
+            "caption": "Raum 2",
+            "id": "018b7a61-a247-49ff-8876-bb68cbc6e5fb",
+            "assetId": "45324570-34e8-48af-8bf1-7e3f690028e4",
+            "order": 1,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/room-3.svg",
+            "fileName": "demo-room-3.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 2,
+            "isCover": false,
+            "category": "interior",
+            "caption": "Raum 3",
+            "id": "1adfb37f-3183-417f-82d5-8587424f8819",
+            "assetId": "c6b4fedf-5fac-4c73-b7d1-01c52548279a",
+            "order": 2,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/room-4.svg",
+            "fileName": "demo-room-4.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 3,
+            "isCover": false,
+            "category": "interior",
+            "caption": "Raum 4",
+            "id": "0ffc487f-83c6-4c86-9cc8-cbc9e4409bff",
+            "assetId": "cabbfda3-f9af-486d-a26d-01ecef475a04",
+            "order": 3,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/room-5.svg",
+            "fileName": "demo-room-5.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 4,
+            "isCover": false,
+            "category": "interior",
+            "caption": "Raum 5",
+            "id": "37d2caa7-ef03-49c0-814d-ef5c4b9f51f3",
+            "assetId": "648e1a48-38b9-423d-8862-263c14487a8f",
+            "order": 4,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/room-6.svg",
+            "fileName": "demo-room-6.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 5,
+            "isCover": false,
+            "category": "interior",
+            "caption": "Raum 6",
+            "id": "26bdce35-ee9c-4da3-8ed0-19e1fdf048bb",
+            "assetId": "b51b5efb-14df-481d-bc81-260743545a3c",
+            "order": 5,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/floorplan.svg",
+            "fileName": "demo-floorplan.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 6,
+            "isCover": false,
+            "category": "floor_plan",
+            "caption": "Grundriss 2. Obergeschoss",
+            "id": "1e96e7f0-1d89-4753-b67b-64cee833d835",
+            "assetId": "df49635f-5d71-4ae4-9d22-46a697624369",
+            "order": 6,
+            "isHeroCandidate": false
+          }
+        ],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": "DEMO / TESTDATEN",
+          "commissionNotes": null,
+          "availability": "sofort",
+          "notes": {},
+          "legalFlags": {
+            "usufruct": null,
+            "leasehold": null,
+            "foreclosure": null,
+            "heritageProtection": null
+          }
+        },
+        "agent": {
+          "name": "Max Mustermann",
+          "company": "Muster Immobilien GmbH",
+          "address": {
+            "street": "Musterstraße",
+            "houseNumber": "1",
+            "postalCode": "10115",
+            "city": "Berlin",
+            "district": "Mitte",
+            "country": "Deutschland"
+          },
+          "phone": "+49 30 1234567",
+          "email": "kontakt@muster-immobilien.de",
+          "website": "https://www.muster-immobilien.de",
+          "photo": null,
+          "logo": null
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-22T13:44:49.898Z",
+      "updatedAt": "2026-08-22T13:44:49.972Z",
+      "constructionYear": 2018,
+      "address": "Weserstraße 42",
+      "zipCode": "12045",
+      "city": "Berlin",
+      "district": "Neukölln",
+      "livingArea": 92,
+      "plotArea": null,
+      "rooms": 3,
+      "bedrooms": 2,
+      "bathrooms": 1,
+      "floor": "2. OG",
+      "totalFloors": 5,
+      "availableFrom": "sofort",
+      "condition": "new",
+      "askingPrice": 449000,
+      "additionalCosts": null,
+      "commission": "3,57 % inkl. MwSt.",
+      "hausgeld": 390,
+      "coldRent": null,
+      "deposit": null,
+      "additionalFeatures": "Südwest-Balkon mit Weitblick",
+      "locationNote": "Lebendiges Umfeld mit Cafés, kleinen Läden und kurzen Wegen zu den täglichen Zielen.",
+      "sellerDescription": "Eine helle Wohnung mit offenem Grundriss und sorgfältig ausgewählten Materialien.",
+      "specialNotes": "DEMO / TESTDATEN",
+      "targetAudience": "Paare und anspruchsvolle Eigennutzer",
+      "marketingContent": {
+        "title": {
+          "value": "Gepflegte Eigentumswohnung mit Balkon und Weitblick",
+          "source": "ai"
+        },
+        "subtitle": {
+          "value": "3 Zimmer · 92 m² · Berlin-Neukölln",
+          "source": "ai"
+        },
+        "highlights": {
+          "value": [
+            "92 m² Wohnfläche auf 3 Zimmern",
+            "Südwest-Balkon mit Weitblick",
+            "Baujahr 2018 mit Fußbodenheizung",
+            "Moderne Einbauküche",
+            "Aufzug im Haus",
+            "Eigener Kellerraum"
+          ],
+          "source": "ai"
+        },
+        "propertyDescription": {
+          "value": "Helle 3-Zimmer-Wohnung im 2. Obergeschoss eines gepflegten Mehrfamilienhauses in Berlin-Neukölln. Der offene Grundriss verbindet Wohnbereich, Küche und den Südwest-Balkon zu einem großzügigen Raumgefühl. Fußbodenheizung, Einbauküche und ein eigener Kellerraum ergänzen das Angebot. Das Haus wurde 2018 errichtet und befindet sich in einem sehr guten Zustand. Die Wohnung ist sofort verfügbar.",
+          "source": "ai"
+        },
+        "equipmentDescription": {
+          "value": "Südwest-Balkon mit Weitblick, moderne Einbauküche, Fußbodenheizung, Aufzug und ein eigener Kellerraum.",
+          "source": "ai"
+        },
+        "locationDescription": {
+          "value": "Die Wohnung liegt im lebendigen Neukölln mit Cafés, kleinen Läden und kurzen Wegen zu den täglichen Zielen. Die U7 und mehrere Buslinien sind in der Umgebung erreichbar, der Volkspark Hasenheide lädt zu Freizeit und Erholung ein.",
+          "source": "ai"
+        }
+      }
+    },
+    {
+      "id": "5de829ec-ff37-441e-92d4-47ca6a044733",
+      "propertyType": "apartment",
+      "transactionType": "rent",
+      "selectedFeatures": [
+        "balcony",
+        "basement"
+      ],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": "singleFamilyHouse",
+          "title": null,
+          "address": {
+            "street": "Weserstraße",
+            "houseNumber": "42",
+            "postalCode": "12045",
+            "city": "Berlin",
+            "district": "Neukölln",
+            "state": null,
+            "country": "Deutschland",
+            "formattedAddress": "Sindbad Speisen&Café, 42, Weserstraße, Donaukiez, Neukölln, Berlin, 12045, Deutschland",
+            "latitude": 52.4848151,
+            "longitude": 13.437705
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": 890,
+          "additionalCosts": 210,
+          "buyerCommission": null,
+          "sellerCommission": null,
+          "pricePerM2": null,
+          "commissionRate": null,
+          "commissionPayer": null,
+          "commissionVatIncluded": null
+        },
+        "propertyDetails": {
+          "livingArea": 80,
+          "plotArea": null,
+          "usableArea": null,
+          "rooms": 3,
+          "bedrooms": null,
+          "bathrooms": null,
+          "guestToilets": null,
+          "yearBuilt": 1998,
+          "completionYear": null,
+          "floor": "2",
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "bodenrichtwert": null,
+          "buildingStatus": null,
+          "renovationStatus": null,
+          "lastModernizationYear": null
+        },
+        "energy": {
+          "certificateType": "needs_based",
+          "certificateDate": "2025-03-15",
+          "certificateValidUntil": "2035-03-14",
+          "primaryEnergySource": "gas",
+          "heatingType": "central heating",
+          "finalEnergyDemand": 112,
+          "efficiencyClass": "C"
+        },
+        "rental": {
+          "isRented": true,
+          "furnished": null,
+          "annualRent": null
+        },
+        "investment": {
+          "grossYieldTargetPercent": null,
+          "grossYieldActualPercent": null
+        },
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "street": "Weserstraße",
+            "houseNumber": "42",
+            "postalCode": "12045",
+            "city": "Berlin",
+            "district": "Neukölln",
+            "state": null,
+            "country": "Deutschland",
+            "formattedAddress": "Sindbad Speisen&Café, 42, Weserstraße, Donaukiez, Neukölln, Berlin, 12045, Deutschland",
+            "latitude": 52.4848151,
+            "longitude": 13.437705
+          },
+          "latitude": 52.4848151,
+          "longitude": 13.437705,
+          "district": "Neukölln",
+          "description": "3 belegte Rechercheaussage(n). 3 belegte Rechercheaussage(n)."
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": "2025-09-01",
+          "notes": {},
+          "legalFlags": {
+            "usufruct": null,
+            "leasehold": null,
+            "foreclosure": null,
+            "heritageProtection": null
+          }
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": {
+        "id": "658f680a-92c3-4a6c-9636-2c19536e18a4",
+        "propertyId": "5de829ec-ff37-441e-92d4-47ca6a044733",
+        "template": "modern",
+        "content": null,
+        "configuration": {
+          "template": "modern",
+          "sections": [
+            {
+              "id": "cover",
+              "type": "cover",
+              "visible": true
+            },
+            {
+              "id": "facts",
+              "type": "facts",
+              "visible": true
+            },
+            {
+              "id": "highlights",
+              "type": "highlights",
+              "visible": true
+            },
+            {
+              "id": "property",
+              "type": "property",
+              "visible": true
+            },
+            {
+              "id": "equipment",
+              "type": "equipment",
+              "visible": true
+            },
+            {
+              "id": "location",
+              "type": "location",
+              "visible": true
+            },
+            {
+              "id": "energy",
+              "type": "energy",
+              "visible": true
+            },
+            {
+              "id": "gallery",
+              "type": "gallery",
+              "visible": true
+            },
+            {
+              "id": "floorplans",
+              "type": "floorplans",
+              "visible": true
+            },
+            {
+              "id": "documents",
+              "type": "documents",
+              "visible": true
+            },
+            {
+              "id": "contact",
+              "type": "contact",
+              "visible": true
+            }
+          ]
+        },
+        "generatedAt": "2026-08-22T13:34:05.005Z"
+      },
+      "createdAt": "2026-08-22T13:03:49.738Z",
+      "updatedAt": "2026-08-22T13:48:44.271Z",
+      "constructionYear": 1998,
+      "address": "Weserstraße 42",
+      "zipCode": "12045",
+      "city": "Berlin",
+      "livingArea": 80,
+      "rooms": 3,
+      "floor": "2",
+      "availableFrom": "2025-09-01",
+      "condition": null,
+      "additionalCosts": 210,
+      "coldRent": 890,
+      "marketingContent": {
+        "title": {
+          "value": "3-Zimmer-Apartment mit Balkon und Keller in Berlin-Neukölln",
+          "source": "ai"
+        },
+        "subtitle": {
+          "value": "Apartment zur Miete in Berlin-Neukölln",
+          "source": "ai"
+        },
+        "highlights": {
+          "value": [
+            "72 m² Wohnfläche",
+            "3 Zimmer",
+            "Baujahr 1998",
+            "Balkon vorhanden",
+            "Keller vorhanden",
+            "Energieeffizienzklasse C"
+          ],
+          "source": "ai"
+        },
+        "propertyDescription": {
+          "value": "Zur Vermietung steht ein 3-Zimmer-Apartment mit einer Wohnfläche von 72 m² in Berlin-Neukölln. Das Gebäude wurde 1998 errichtet und verfügt über einen Keller. Die Wohnung ist ab dem 1. September 2025 verfügbar. Die monatliche Kaltmiete beträgt 890 €.",
+          "source": "ai"
+        },
+        "equipmentDescription": {
+          "value": "Das Apartment verfügt über einen Balkon. Die Beheizung erfolgt über eine Zentralheizung mit dem Energieträger Gas. Der Endenergiebedarf beträgt 112 kWh/(m²·a); die Energieeffizienzklasse ist C.",
+          "source": "ai"
+        },
+        "locationDescription": null
+      },
+      "district": "Neukölln",
+      "locationNote": "3 belegte Rechercheaussage(n). 3 belegte Rechercheaussage(n)."
+    },
+    {
+      "id": "83a42dc7-8d4d-43f5-a7b2-c277276e3936",
+      "propertyType": "house",
+      "transactionType": "sale",
+      "selectedFeatures": [
+        "basement",
+        "attic"
+      ],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": "singleFamilyHouse",
+          "title": null,
+          "address": {
+            "street": "Weserstrasse",
+            "houseNumber": "42",
+            "postalCode": "12045",
+            "city": "Berlin",
+            "country": "Deutschland"
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null,
+          "pricePerM2": null,
+          "commissionRate": null,
+          "commissionPayer": null,
+          "commissionVatIncluded": null
+        },
+        "propertyDetails": {
+          "livingArea": 145,
+          "plotArea": null,
+          "usableArea": null,
+          "rooms": null,
+          "bedrooms": null,
+          "bathrooms": null,
+          "guestToilets": null,
+          "yearBuilt": 1998,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "bodenrichtwert": null,
+          "buildingStatus": null,
+          "renovationStatus": null,
+          "lastModernizationYear": null
+        },
+        "energy": {
+          "certificateType": "needs_based",
+          "certificateDate": "2025-03-15",
+          "certificateValidUntil": "2035-03-14",
+          "primaryEnergySource": "gas",
+          "heatingType": "centralHeating",
+          "finalEnergyDemand": 112,
+          "efficiencyClass": "C"
+        },
+        "rental": {
+          "isRented": null,
+          "furnished": null,
+          "annualRent": null
+        },
+        "investment": {
+          "grossYieldTargetPercent": null,
+          "grossYieldActualPercent": null
+        },
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "street": "Weserstrasse",
+            "houseNumber": "42",
+            "postalCode": "12045",
+            "city": "Berlin",
+            "country": "Deutschland"
+          },
+          "latitude": null,
+          "longitude": null
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null,
+          "notes": {},
+          "legalFlags": {
+            "usufruct": null,
+            "leasehold": null,
+            "foreclosure": null,
+            "heritageProtection": null
+          }
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-22T12:55:10.817Z",
+      "updatedAt": "2026-08-22T13:44:34.788Z",
+      "constructionYear": 1998,
+      "address": "Weserstrasse 42",
+      "zipCode": "12045",
+      "city": "Berlin",
+      "livingArea": 145,
+      "condition": null,
+      "marketingContent": null
+    },
+    {
+      "id": "4516f72c-5241-4073-8982-d32231ae6e88",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [
+        "basement",
+        "attic"
+      ],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": "singleFamilyHouse",
+          "title": null,
+          "address": {
+            "street": "Weserstraße",
+            "houseNumber": "42",
+            "postalCode": "12045",
+            "city": "Berlin",
+            "district": "Neukölln",
+            "state": null,
+            "country": "Deutschland",
+            "formattedAddress": "Sindbad Speisen&Café, 42, Weserstraße, Donaukiez, Neukölln, Berlin, 12045, Deutschland",
+            "latitude": 52.4848151,
+            "longitude": 13.437705
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null,
+          "pricePerM2": null,
+          "commissionRate": null,
+          "commissionPayer": null,
+          "commissionVatIncluded": null
+        },
+        "propertyDetails": {
+          "livingArea": 145,
+          "plotArea": null,
+          "usableArea": null,
+          "rooms": null,
+          "bedrooms": null,
+          "bathrooms": null,
+          "guestToilets": null,
+          "yearBuilt": 1998,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "bodenrichtwert": null,
+          "buildingStatus": null,
+          "renovationStatus": null,
+          "lastModernizationYear": null
+        },
+        "energy": {
+          "certificateType": "needs_based",
+          "certificateDate": "2025-03-15",
+          "certificateValidUntil": "2035-03-14",
+          "primaryEnergySource": "gas",
+          "heatingType": "centralHeating",
+          "finalEnergyDemand": 112,
+          "efficiencyClass": "C"
+        },
+        "rental": {
+          "isRented": null,
+          "furnished": null,
+          "annualRent": null
+        },
+        "investment": {
+          "grossYieldTargetPercent": null,
+          "grossYieldActualPercent": null
+        },
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "street": "Weserstraße",
+            "houseNumber": "42",
+            "postalCode": "12045",
+            "city": "Berlin",
+            "district": "Neukölln",
+            "state": null,
+            "country": "Deutschland",
+            "formattedAddress": "Sindbad Speisen&Café, 42, Weserstraße, Donaukiez, Neukölln, Berlin, 12045, Deutschland",
+            "latitude": 52.4848151,
+            "longitude": 13.437705
+          },
+          "latitude": 52.4848151,
+          "longitude": 13.437705,
+          "district": "Neukölln"
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null,
+          "notes": {},
+          "legalFlags": {
+            "usufruct": null,
+            "leasehold": null,
+            "foreclosure": null,
+            "heritageProtection": null
+          }
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-22T12:48:00.940Z",
+      "updatedAt": "2026-08-22T12:52:21.303Z",
+      "condition": null,
+      "marketingContent": null,
+      "address": "Weserstraße 42",
+      "zipCode": "12045",
+      "city": "Berlin",
+      "district": "Neukölln"
+    },
+    {
+      "id": "ec1ab723-e7d3-4091-9421-00c1bdb8db53",
+      "propertyType": "house",
+      "transactionType": "sale",
+      "selectedFeatures": [
+        "garage",
+        "garden",
+        "basement",
+        "attic"
+      ],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "house",
+          "propertySubtype": "singleFamilyHouse",
+          "title": null,
+          "address": {
+            "street": "Weserstraße",
+            "houseNumber": "42",
+            "postalCode": "12045",
+            "city": "Berlin",
+            "district": "Neukölln",
+            "state": null,
+            "country": "Deutschland",
+            "formattedAddress": "42, Weserstraße, Donaukiez, Neukölln, Berlin, 12045, Deutschland",
+            "latitude": 52.4848216,
+            "longitude": 13.4376555
+          }
+        },
+        "pricing": {
+          "purchasePrice": 549000,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null,
+          "pricePerM2": null,
+          "commissionRate": 0,
+          "commissionPayer": "buyer",
+          "commissionVatIncluded": null
+        },
+        "propertyDetails": {
+          "livingArea": 145,
+          "plotArea": 512,
+          "usableArea": null,
+          "rooms": 5,
+          "bedrooms": null,
+          "bathrooms": 2,
+          "guestToilets": 1,
+          "yearBuilt": 1998,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "bodenrichtwert": null,
+          "buildingStatus": null,
+          "renovationStatus": null,
+          "lastModernizationYear": 2015
+        },
+        "energy": {
+          "certificateType": "needs_based",
+          "certificateDate": "2025-03-15",
+          "certificateValidUntil": "2035-03-14",
+          "primaryEnergySource": "other",
+          "heatingType": "Zentralheizung",
+          "finalEnergyDemand": 112,
+          "efficiencyClass": "C"
+        },
+        "rental": {
+          "isRented": null,
+          "furnished": null,
+          "annualRent": null
+        },
+        "investment": {
+          "grossYieldTargetPercent": null,
+          "grossYieldActualPercent": null
+        },
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "street": "Weserstraße",
+            "houseNumber": "42",
+            "postalCode": "12045",
+            "city": "Berlin",
+            "district": "Neukölln",
+            "state": null,
+            "country": "Deutschland",
+            "formattedAddress": "42, Weserstraße, Donaukiez, Neukölln, Berlin, 12045, Deutschland",
+            "latitude": 52.4848216,
+            "longitude": 13.4376555
+          },
+          "latitude": 52.4848216,
+          "longitude": 13.4376555,
+          "district": "Neukölln"
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null,
+          "notes": {},
+          "legalFlags": {
+            "usufruct": null,
+            "leasehold": null,
+            "foreclosure": null,
+            "heritageProtection": null
+          }
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-22T12:36:25.620Z",
+      "updatedAt": "2026-08-22T13:41:47.234Z",
+      "condition": "modernized",
+      "askingPrice": 549000,
+      "marketingContent": {
+        "title": {
+          "value": "Modernisiertes Einfamilienhaus mit Garten und Garage in Berlin-Neukölln",
+          "source": "ai"
+        },
+        "subtitle": {
+          "value": "Einfamilienhaus in Berlin-Neukölln",
+          "source": "ai"
+        },
+        "highlights": {
+          "value": [
+            "145 m² Wohnfläche",
+            "512 m² Grundstücksfläche",
+            "5 Zimmer",
+            "2 Badezimmer und 1 Gäste-WC",
+            "Eigener Garten",
+            "Garage"
+          ],
+          "source": "ai"
+        },
+        "propertyDescription": {
+          "value": "Zum Verkauf steht ein Einfamilienhaus in Berlin-Neukölln mit einer Wohnfläche von 145 m² auf einem 512 m² großen Grundstück. Das 1998 errichtete Gebäude verfügt über 5 Zimmer, 2 Badezimmer und ein Gäste-WC. Ein Keller sowie ein Dachgeschoss sind vorhanden. Das Haus wurde modernisiert; die letzte Modernisierung erfolgte 2015. Zum Außenbereich gehören ein Garten und eine Garage.",
+          "source": "ai"
+        },
+        "equipmentDescription": {
+          "value": "Das Einfamilienhaus verfügt über eine Zentralheizung, 2 Badezimmer, ein Gäste-WC, einen Keller, ein Dachgeschoss, einen Garten und eine Garage. Die Energieeffizienzklasse beträgt C, der Endenergiebedarf 112 kWh/(m²·a).",
+          "source": "ai"
+        },
+        "locationDescription": {
+          "value": "Das Einfamilienhaus befindet sich im Berliner Stadtteil Neukölln.",
+          "source": "ai"
+        }
+      },
+      "address": "Weserstraße 42",
+      "zipCode": "12045",
+      "city": "Berlin",
+      "district": "Neukölln",
+      "constructionYear": 1998,
+      "livingArea": 145,
+      "plotArea": 512,
+      "rooms": 5
+    },
+    {
+      "id": "de8e2f8e-e2d0-4b84-b821-6c64c51591fb",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [
+        "balcony",
+        "elevator",
+        "fitted-kitchen",
+        "underfloor-heating",
+        "basement",
+        "energy-efficient"
+      ],
+      "surroundings": {
+        "transport": "U7 und mehrere Buslinien in der Umgebung",
+        "shopping": "Vielfältige Geschäfte und Wochenmarkt",
+        "restaurants": "Cafés und Restaurants fußläufig erreichbar",
+        "parks": "Volkspark Hasenheide für Freizeit und Erholung"
+      },
+      "tone": "modern",
+      "language": "de",
+      "images": [
+        {
+          "url": "/demo/room-1.svg",
+          "fileName": "demo-room-1.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 0,
+          "isCover": true,
+          "category": "exterior",
+          "caption": "Hausansicht",
+          "id": "789778b2-f6cf-485d-9336-a1a275fd136e",
+          "assetId": "ce4fe297-41d6-40be-b0d4-fac25798eeef"
+        },
+        {
+          "url": "/demo/room-2.svg",
+          "fileName": "demo-room-2.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 1,
+          "isCover": false,
+          "category": "interior",
+          "caption": "Raum 2",
+          "id": "cdcbb737-77a4-49aa-b2e4-14d2a9ab30a3",
+          "assetId": "41125ea9-a592-4b57-b89e-0478b000b482"
+        },
+        {
+          "url": "/demo/room-3.svg",
+          "fileName": "demo-room-3.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 2,
+          "isCover": false,
+          "category": "interior",
+          "caption": "Raum 3",
+          "id": "46720ff0-b67a-4c37-9a3c-165ad6dbe1f6",
+          "assetId": "aaac1bb9-aa9b-4564-8149-66ccc8f15e75"
+        },
+        {
+          "url": "/demo/room-4.svg",
+          "fileName": "demo-room-4.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 3,
+          "isCover": false,
+          "category": "interior",
+          "caption": "Raum 4",
+          "id": "a0f6890f-43af-4ff5-ba51-f951d633537d",
+          "assetId": "38ddc35a-0569-4b88-8402-bcafd7824441"
+        },
+        {
+          "url": "/demo/room-5.svg",
+          "fileName": "demo-room-5.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 4,
+          "isCover": false,
+          "category": "interior",
+          "caption": "Raum 5",
+          "id": "ca9778ec-e6a8-4388-ae90-11c19887787f",
+          "assetId": "4e9e8ea9-6d42-41dc-8102-376039f4729d"
+        },
+        {
+          "url": "/demo/room-6.svg",
+          "fileName": "demo-room-6.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 5,
+          "isCover": false,
+          "category": "interior",
+          "caption": "Raum 6",
+          "id": "0d762b5a-518c-453f-8b18-87a579c3144b",
+          "assetId": "292f9dc6-e49e-4402-9b2c-0ee512892f21"
+        },
+        {
+          "url": "/demo/floorplan.svg",
+          "fileName": "demo-floorplan.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 6,
+          "isCover": false,
+          "category": "floor_plan",
+          "caption": "Grundriss 2. Obergeschoss",
+          "id": "935449a4-97d7-46d4-a4d3-9e57673acd99",
+          "assetId": "55b32102-fe62-4244-a360-50e86fb9abe0"
+        }
+      ],
+      "roomsData": [
+        {
+          "name": "Wohnbereich",
+          "type": "Wohnen",
+          "size": 32,
+          "floor": "2. OG",
+          "description": "Große Fenster und direkter Zugang zum Südwest-Balkon.",
+          "sequence": 0,
+          "id": "58e85111-ab2a-43a2-8682-4843b6a2da3e"
+        },
+        {
+          "name": "Schlafzimmer",
+          "type": "Schlafen",
+          "size": 15,
+          "floor": "2. OG",
+          "description": "Ruhiger Rückzugsort mit Platz für ein Doppelbett.",
+          "sequence": 1,
+          "id": "e9232dc2-7608-4916-8d29-db22d3ad1eec"
+        },
+        {
+          "name": "Arbeitszimmer",
+          "type": "Arbeiten",
+          "size": 11,
+          "floor": "2. OG",
+          "description": "Flexibel nutzbarer Raum für Homeoffice oder Gäste.",
+          "sequence": 2,
+          "id": "7133dc85-04ec-48d6-9f8b-33cf2de2fffb"
+        },
+        {
+          "name": "Küche",
+          "type": "Kochen",
+          "size": 9,
+          "floor": "2. OG",
+          "description": "Moderne Einbauküche mit klarer Linienführung.",
+          "sequence": 3,
+          "id": "69e4ffb7-5c67-4273-a961-1b8ce3af5ed3"
+        }
+      ],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": "condominium",
+          "usageType": "ownerOccupied",
+          "title": "Eigentumswohnung mit Balkon in Berlin-Neukölln",
+          "address": {
+            "street": "Weserstraße",
+            "houseNumber": "42",
+            "postalCode": "12045",
+            "city": "Berlin",
+            "district": "Neukölln",
+            "country": "Deutschland"
+          }
+        },
+        "pricing": {
+          "purchasePrice": 449000,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": "3,57 % inkl. MwSt.",
+          "sellerCommission": null,
+          "pricePerM2": null,
+          "commissionRate": null,
+          "commissionPayer": null,
+          "commissionVatIncluded": null
+        },
+        "propertyDetails": {
+          "livingArea": 92,
+          "plotArea": null,
+          "usableArea": null,
+          "rooms": 3,
+          "bedrooms": 2,
+          "bathrooms": 1,
+          "guestToilets": null,
+          "yearBuilt": 2018,
+          "completionYear": null,
+          "floor": "2. OG",
+          "numberOfFloors": 5,
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "bodenrichtwert": null,
+          "buildingStatus": "existing",
+          "renovationStatus": null,
+          "lastModernizationYear": null
+        },
+        "energy": {
+          "certificateType": "needs_based",
+          "certificateDate": "2024-03-01",
+          "certificateValidUntil": "2034-03-01",
+          "yearOfConstruction": 2018,
+          "primaryEnergySource": "district_heating",
+          "heatingType": "Zentralheizung",
+          "hotWaterIncluded": true,
+          "finalEnergyDemand": 78.5,
+          "finalEnergyConsumption": null,
+          "efficiencyClass": "B"
+        },
+        "rental": {
+          "isRented": false,
+          "furnished": false,
+          "annualRent": null
+        },
+        "investment": {
+          "grossYieldTargetPercent": null,
+          "grossYieldActualPercent": null
+        },
+        "rooms": [
+          {
+            "type": "living_room",
+            "name": "Wohnbereich",
+            "area": 32,
+            "description": "Große Fenster und direkter Zugang zum Südwest-Balkon.",
+            "features": [],
+            "floor": "2. OG",
+            "order": 0
+          },
+          {
+            "type": "bedroom",
+            "name": "Schlafzimmer",
+            "area": 15,
+            "description": "Ruhiger Rückzugsort mit Platz für ein Doppelbett.",
+            "features": [],
+            "floor": "2. OG",
+            "order": 1
+          },
+          {
+            "type": "office",
+            "name": "Arbeitszimmer",
+            "area": 11,
+            "description": "Flexibel nutzbarer Raum für Homeoffice oder Gäste.",
+            "features": [],
+            "floor": "2. OG",
+            "order": 2
+          },
+          {
+            "type": "kitchen",
+            "name": "Küche",
+            "area": 9,
+            "description": "Moderne Einbauküche mit klarer Linienführung.",
+            "features": [],
+            "floor": "2. OG",
+            "order": 3
+          }
+        ],
+        "equipment": [
+          {
+            "category": "outdoor",
+            "name": "Balkon",
+            "description": "Südwest-Ausrichtung mit Weitblick"
+          },
+          {
+            "category": "kitchen",
+            "name": "Einbauküche",
+            "description": null
+          },
+          {
+            "category": "heating",
+            "name": "Fußbodenheizung",
+            "description": null
+          },
+          {
+            "category": "technology",
+            "name": "Aufzug",
+            "description": null
+          },
+          {
+            "category": "storage",
+            "name": "Keller",
+            "description": null
+          }
+        ],
+        "outdoorAreas": [
+          {
+            "type": "balcony",
+            "area": 6,
+            "orientation": "Südwest",
+            "description": "Mit Weitblick"
+          }
+        ],
+        "location": {
+          "address": {
+            "street": "Weserstraße",
+            "houseNumber": "42",
+            "postalCode": "12045",
+            "city": "Berlin",
+            "district": "Neukölln",
+            "country": "Deutschland"
+          },
+          "latitude": null,
+          "longitude": null,
+          "district": "Neukölln",
+          "neighborhood": null,
+          "description": "Lebendiges Umfeld mit Cafés, kleinen Läden und kurzen Wegen zu den täglichen Zielen."
+        },
+        "images": [
+          {
+            "url": "/demo/room-1.svg",
+            "fileName": "demo-room-1.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 0,
+            "isCover": true,
+            "category": "exterior",
+            "caption": "Hausansicht",
+            "id": "789778b2-f6cf-485d-9336-a1a275fd136e",
+            "assetId": "ce4fe297-41d6-40be-b0d4-fac25798eeef",
+            "order": 0,
+            "isHeroCandidate": true
+          },
+          {
+            "url": "/demo/room-2.svg",
+            "fileName": "demo-room-2.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 1,
+            "isCover": false,
+            "category": "interior",
+            "caption": "Raum 2",
+            "id": "cdcbb737-77a4-49aa-b2e4-14d2a9ab30a3",
+            "assetId": "41125ea9-a592-4b57-b89e-0478b000b482",
+            "order": 1,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/room-3.svg",
+            "fileName": "demo-room-3.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 2,
+            "isCover": false,
+            "category": "interior",
+            "caption": "Raum 3",
+            "id": "46720ff0-b67a-4c37-9a3c-165ad6dbe1f6",
+            "assetId": "aaac1bb9-aa9b-4564-8149-66ccc8f15e75",
+            "order": 2,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/room-4.svg",
+            "fileName": "demo-room-4.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 3,
+            "isCover": false,
+            "category": "interior",
+            "caption": "Raum 4",
+            "id": "a0f6890f-43af-4ff5-ba51-f951d633537d",
+            "assetId": "38ddc35a-0569-4b88-8402-bcafd7824441",
+            "order": 3,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/room-5.svg",
+            "fileName": "demo-room-5.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 4,
+            "isCover": false,
+            "category": "interior",
+            "caption": "Raum 5",
+            "id": "ca9778ec-e6a8-4388-ae90-11c19887787f",
+            "assetId": "4e9e8ea9-6d42-41dc-8102-376039f4729d",
+            "order": 4,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/room-6.svg",
+            "fileName": "demo-room-6.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 5,
+            "isCover": false,
+            "category": "interior",
+            "caption": "Raum 6",
+            "id": "0d762b5a-518c-453f-8b18-87a579c3144b",
+            "assetId": "292f9dc6-e49e-4402-9b2c-0ee512892f21",
+            "order": 5,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/floorplan.svg",
+            "fileName": "demo-floorplan.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 6,
+            "isCover": false,
+            "category": "floor_plan",
+            "caption": "Grundriss 2. Obergeschoss",
+            "id": "935449a4-97d7-46d4-a4d3-9e57673acd99",
+            "assetId": "55b32102-fe62-4244-a360-50e86fb9abe0",
+            "order": 6,
+            "isHeroCandidate": false
+          }
+        ],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": "DEMO / TESTDATEN",
+          "commissionNotes": null,
+          "availability": "sofort",
+          "notes": {},
+          "legalFlags": {
+            "usufruct": null,
+            "leasehold": null,
+            "foreclosure": null,
+            "heritageProtection": null
+          }
+        },
+        "agent": {
+          "name": "Max Mustermann",
+          "company": "Muster Immobilien GmbH",
+          "address": {
+            "street": "Musterstraße",
+            "houseNumber": "1",
+            "postalCode": "10115",
+            "city": "Berlin",
+            "district": "Mitte",
+            "country": "Deutschland"
+          },
+          "phone": "+49 30 1234567",
+          "email": "kontakt@muster-immobilien.de",
+          "website": "https://www.muster-immobilien.de",
+          "photo": null,
+          "logo": null
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-22T12:35:26.576Z",
+      "updatedAt": "2026-08-22T12:35:26.681Z",
+      "constructionYear": 2018,
+      "address": "Weserstraße 42",
+      "zipCode": "12045",
+      "city": "Berlin",
+      "district": "Neukölln",
+      "livingArea": 92,
+      "plotArea": null,
+      "rooms": 3,
+      "bedrooms": 2,
+      "bathrooms": 1,
+      "floor": "2. OG",
+      "totalFloors": 5,
+      "availableFrom": "sofort",
+      "condition": "new",
+      "askingPrice": 449000,
+      "additionalCosts": null,
+      "commission": "3,57 % inkl. MwSt.",
+      "hausgeld": 390,
+      "coldRent": null,
+      "deposit": null,
+      "additionalFeatures": "Südwest-Balkon mit Weitblick",
+      "locationNote": "Lebendiges Umfeld mit Cafés, kleinen Läden und kurzen Wegen zu den täglichen Zielen.",
+      "sellerDescription": "Eine helle Wohnung mit offenem Grundriss und sorgfältig ausgewählten Materialien.",
+      "specialNotes": "DEMO / TESTDATEN",
+      "targetAudience": "Paare und anspruchsvolle Eigennutzer",
+      "marketingContent": {
+        "title": {
+          "value": "Gepflegte Eigentumswohnung mit Balkon und Weitblick",
+          "source": "ai"
+        },
+        "subtitle": {
+          "value": "3 Zimmer · 92 m² · Berlin-Neukölln",
+          "source": "ai"
+        },
+        "highlights": {
+          "value": [
+            "92 m² Wohnfläche auf 3 Zimmern",
+            "Südwest-Balkon mit Weitblick",
+            "Baujahr 2018 mit Fußbodenheizung",
+            "Moderne Einbauküche",
+            "Aufzug im Haus",
+            "Eigener Kellerraum"
+          ],
+          "source": "ai"
+        },
+        "propertyDescription": {
+          "value": "Helle 3-Zimmer-Wohnung im 2. Obergeschoss eines gepflegten Mehrfamilienhauses in Berlin-Neukölln. Der offene Grundriss verbindet Wohnbereich, Küche und den Südwest-Balkon zu einem großzügigen Raumgefühl. Fußbodenheizung, Einbauküche und ein eigener Kellerraum ergänzen das Angebot. Das Haus wurde 2018 errichtet und befindet sich in einem sehr guten Zustand. Die Wohnung ist sofort verfügbar.",
+          "source": "ai"
+        },
+        "equipmentDescription": {
+          "value": "Südwest-Balkon mit Weitblick, moderne Einbauküche, Fußbodenheizung, Aufzug und ein eigener Kellerraum.",
+          "source": "ai"
+        },
+        "locationDescription": {
+          "value": "Die Wohnung liegt im lebendigen Neukölln mit Cafés, kleinen Läden und kurzen Wegen zu den täglichen Zielen. Die U7 und mehrere Buslinien sind in der Umgebung erreichbar, der Volkspark Hasenheide lädt zu Freizeit und Erholung ein.",
+          "source": "ai"
+        }
+      }
+    },
+    {
+      "id": "ae6f31bb-61b8-4b45-afaf-e92cb0c1a049",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": null,
+          "title": null,
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null,
+          "pricePerM2": null,
+          "commissionRate": null,
+          "commissionPayer": null,
+          "commissionVatIncluded": null
+        },
+        "propertyDetails": {
+          "livingArea": null,
+          "plotArea": null,
+          "usableArea": null,
+          "rooms": null,
+          "bedrooms": null,
+          "bathrooms": null,
+          "guestToilets": null,
+          "yearBuilt": null,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "bodenrichtwert": null,
+          "buildingStatus": null,
+          "renovationStatus": null,
+          "lastModernizationYear": null
+        },
+        "energy": null,
+        "rental": {
+          "isRented": null,
+          "furnished": null,
+          "annualRent": null
+        },
+        "investment": {
+          "grossYieldTargetPercent": null,
+          "grossYieldActualPercent": null
+        },
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null,
+          "notes": {},
+          "legalFlags": {
+            "usufruct": null,
+            "leasehold": null,
+            "foreclosure": null,
+            "heritageProtection": null
+          }
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-22T12:34:02.203Z",
+      "updatedAt": "2026-08-22T12:34:02.203Z"
+    },
+    {
+      "id": "ef4b07de-7bb6-425d-a64a-61adf5c5ea75",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [
+        "balcony",
+        "elevator",
+        "fitted-kitchen",
+        "underfloor-heating",
+        "basement",
+        "energy-efficient"
+      ],
+      "surroundings": {
+        "transport": "U7 und mehrere Buslinien in der Umgebung",
+        "shopping": "Vielfältige Geschäfte und Wochenmarkt",
+        "restaurants": "Cafés und Restaurants fußläufig erreichbar",
+        "parks": "Volkspark Hasenheide für Freizeit und Erholung"
+      },
+      "tone": "modern",
+      "language": "de",
+      "images": [
+        {
+          "url": "/demo/room-1.svg",
+          "fileName": "demo-room-1.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 0,
+          "isCover": true,
+          "category": "exterior",
+          "caption": "Hausansicht",
+          "id": "2c9db534-1913-42c7-a1ad-c5c5fb591f8c",
+          "assetId": "53523f9b-a772-4b00-bc87-bdc2b25b452c"
+        },
+        {
+          "url": "/demo/room-2.svg",
+          "fileName": "demo-room-2.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 1,
+          "isCover": false,
+          "category": "interior",
+          "caption": "Raum 2",
+          "id": "555e0ebf-2bd0-49a8-b750-bd4116ed024d",
+          "assetId": "882f2903-b8b2-4f7e-b60c-300301637395"
+        },
+        {
+          "url": "/demo/room-3.svg",
+          "fileName": "demo-room-3.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 2,
+          "isCover": false,
+          "category": "interior",
+          "caption": "Raum 3",
+          "id": "58dcbc9e-3c0b-4ec9-bd5f-4b6ad4832b12",
+          "assetId": "73a06a73-95c0-47a2-91f4-e0b0ee5618bb"
+        },
+        {
+          "url": "/demo/room-4.svg",
+          "fileName": "demo-room-4.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 3,
+          "isCover": false,
+          "category": "interior",
+          "caption": "Raum 4",
+          "id": "222bc49e-1804-448b-b1c8-fcdfc5c953ae",
+          "assetId": "1596801e-ab45-4571-9b3a-aa3140a265d0"
+        },
+        {
+          "url": "/demo/room-5.svg",
+          "fileName": "demo-room-5.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 4,
+          "isCover": false,
+          "category": "interior",
+          "caption": "Raum 5",
+          "id": "579ec98e-c2c7-466e-b55b-af174db85825",
+          "assetId": "7dc81ec4-4eab-4bed-9bbd-2d384aad9be4"
+        },
+        {
+          "url": "/demo/room-6.svg",
+          "fileName": "demo-room-6.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 5,
+          "isCover": false,
+          "category": "interior",
+          "caption": "Raum 6",
+          "id": "9fb3e5a1-4311-4250-a76e-81ecc9abfe0d",
+          "assetId": "7e3290d9-8df8-4391-a775-76eaa82cacbe"
+        },
+        {
+          "url": "/demo/floorplan.svg",
+          "fileName": "demo-floorplan.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 6,
+          "isCover": false,
+          "category": "floor_plan",
+          "caption": "Grundriss 2. Obergeschoss",
+          "id": "eb20c5f5-87d7-49a2-b749-e4f04a5eab16",
+          "assetId": "2abaaa6a-95fb-405b-b348-e18ecbf9cc63"
+        }
+      ],
+      "roomsData": [
+        {
+          "name": "Wohnbereich",
+          "type": "Wohnen",
+          "size": 32,
+          "floor": "2. OG",
+          "description": "Große Fenster und direkter Zugang zum Südwest-Balkon.",
+          "sequence": 0,
+          "id": "4aa82c5a-43f3-4f8a-b6a7-10b6900ef6dc"
+        },
+        {
+          "name": "Schlafzimmer",
+          "type": "Schlafen",
+          "size": 15,
+          "floor": "2. OG",
+          "description": "Ruhiger Rückzugsort mit Platz für ein Doppelbett.",
+          "sequence": 1,
+          "id": "a126eafd-997b-43fe-89e8-da0f7002d36b"
+        },
+        {
+          "name": "Arbeitszimmer",
+          "type": "Arbeiten",
+          "size": 11,
+          "floor": "2. OG",
+          "description": "Flexibel nutzbarer Raum für Homeoffice oder Gäste.",
+          "sequence": 2,
+          "id": "2d655eb0-b165-4cb5-bc1c-8bb464de760d"
+        },
+        {
+          "name": "Küche",
+          "type": "Kochen",
+          "size": 9,
+          "floor": "2. OG",
+          "description": "Moderne Einbauküche mit klarer Linienführung.",
+          "sequence": 3,
+          "id": "701765b3-00a0-4c1d-a470-97e87eb6bbba"
+        }
+      ],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": "condominium",
+          "usageType": "ownerOccupied",
+          "title": "Eigentumswohnung mit Balkon in Berlin-Neukölln",
+          "address": {
+            "street": "Weserstraße",
+            "houseNumber": "42",
+            "postalCode": "12045",
+            "city": "Berlin",
+            "district": "Neukölln",
+            "country": "Deutschland"
+          }
+        },
+        "pricing": {
+          "purchasePrice": 449000,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": "3,57 % inkl. MwSt.",
+          "sellerCommission": null,
+          "pricePerM2": null,
+          "commissionRate": null,
+          "commissionPayer": null,
+          "commissionVatIncluded": null
+        },
+        "propertyDetails": {
+          "livingArea": 92,
+          "plotArea": null,
+          "usableArea": null,
+          "rooms": 3,
+          "bedrooms": 2,
+          "bathrooms": 1,
+          "guestToilets": null,
+          "yearBuilt": 2018,
+          "completionYear": null,
+          "floor": "2. OG",
+          "numberOfFloors": 5,
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "bodenrichtwert": null,
+          "buildingStatus": "existing",
+          "renovationStatus": null,
+          "lastModernizationYear": null
+        },
+        "energy": {
+          "certificateType": "needs_based",
+          "certificateDate": "2024-03-01",
+          "certificateValidUntil": "2034-03-01",
+          "yearOfConstruction": 2018,
+          "primaryEnergySource": "district_heating",
+          "heatingType": "Zentralheizung",
+          "hotWaterIncluded": true,
+          "finalEnergyDemand": 78.5,
+          "finalEnergyConsumption": null,
+          "efficiencyClass": "B"
+        },
+        "rental": {
+          "isRented": false,
+          "furnished": false,
+          "annualRent": null
+        },
+        "investment": {
+          "grossYieldTargetPercent": null,
+          "grossYieldActualPercent": null
+        },
+        "rooms": [
+          {
+            "type": "living_room",
+            "name": "Wohnbereich",
+            "area": 32,
+            "description": "Große Fenster und direkter Zugang zum Südwest-Balkon.",
+            "features": [],
+            "floor": "2. OG",
+            "order": 0
+          },
+          {
+            "type": "bedroom",
+            "name": "Schlafzimmer",
+            "area": 15,
+            "description": "Ruhiger Rückzugsort mit Platz für ein Doppelbett.",
+            "features": [],
+            "floor": "2. OG",
+            "order": 1
+          },
+          {
+            "type": "office",
+            "name": "Arbeitszimmer",
+            "area": 11,
+            "description": "Flexibel nutzbarer Raum für Homeoffice oder Gäste.",
+            "features": [],
+            "floor": "2. OG",
+            "order": 2
+          },
+          {
+            "type": "kitchen",
+            "name": "Küche",
+            "area": 9,
+            "description": "Moderne Einbauküche mit klarer Linienführung.",
+            "features": [],
+            "floor": "2. OG",
+            "order": 3
+          }
+        ],
+        "equipment": [
+          {
+            "category": "outdoor",
+            "name": "Balkon",
+            "description": "Südwest-Ausrichtung mit Weitblick"
+          },
+          {
+            "category": "kitchen",
+            "name": "Einbauküche",
+            "description": null
+          },
+          {
+            "category": "heating",
+            "name": "Fußbodenheizung",
+            "description": null
+          },
+          {
+            "category": "technology",
+            "name": "Aufzug",
+            "description": null
+          },
+          {
+            "category": "storage",
+            "name": "Keller",
+            "description": null
+          }
+        ],
+        "outdoorAreas": [
+          {
+            "type": "balcony",
+            "area": 6,
+            "orientation": "Südwest",
+            "description": "Mit Weitblick"
+          }
+        ],
+        "location": {
+          "address": {
+            "street": "Weserstraße",
+            "houseNumber": "42",
+            "postalCode": "12045",
+            "city": "Berlin",
+            "district": "Neukölln",
+            "country": "Deutschland"
+          },
+          "latitude": null,
+          "longitude": null,
+          "district": "Neukölln",
+          "neighborhood": null,
+          "description": "Lebendiges Umfeld mit Cafés, kleinen Läden und kurzen Wegen zu den täglichen Zielen."
+        },
+        "images": [
+          {
+            "url": "/demo/room-1.svg",
+            "fileName": "demo-room-1.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 0,
+            "isCover": true,
+            "category": "exterior",
+            "caption": "Hausansicht",
+            "id": "2c9db534-1913-42c7-a1ad-c5c5fb591f8c",
+            "assetId": "53523f9b-a772-4b00-bc87-bdc2b25b452c",
+            "order": 0,
+            "isHeroCandidate": true
+          },
+          {
+            "url": "/demo/room-2.svg",
+            "fileName": "demo-room-2.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 1,
+            "isCover": false,
+            "category": "interior",
+            "caption": "Raum 2",
+            "id": "555e0ebf-2bd0-49a8-b750-bd4116ed024d",
+            "assetId": "882f2903-b8b2-4f7e-b60c-300301637395",
+            "order": 1,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/room-3.svg",
+            "fileName": "demo-room-3.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 2,
+            "isCover": false,
+            "category": "interior",
+            "caption": "Raum 3",
+            "id": "58dcbc9e-3c0b-4ec9-bd5f-4b6ad4832b12",
+            "assetId": "73a06a73-95c0-47a2-91f4-e0b0ee5618bb",
+            "order": 2,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/room-4.svg",
+            "fileName": "demo-room-4.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 3,
+            "isCover": false,
+            "category": "interior",
+            "caption": "Raum 4",
+            "id": "222bc49e-1804-448b-b1c8-fcdfc5c953ae",
+            "assetId": "1596801e-ab45-4571-9b3a-aa3140a265d0",
+            "order": 3,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/room-5.svg",
+            "fileName": "demo-room-5.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 4,
+            "isCover": false,
+            "category": "interior",
+            "caption": "Raum 5",
+            "id": "579ec98e-c2c7-466e-b55b-af174db85825",
+            "assetId": "7dc81ec4-4eab-4bed-9bbd-2d384aad9be4",
+            "order": 4,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/room-6.svg",
+            "fileName": "demo-room-6.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 5,
+            "isCover": false,
+            "category": "interior",
+            "caption": "Raum 6",
+            "id": "9fb3e5a1-4311-4250-a76e-81ecc9abfe0d",
+            "assetId": "7e3290d9-8df8-4391-a775-76eaa82cacbe",
+            "order": 5,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/floorplan.svg",
+            "fileName": "demo-floorplan.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 6,
+            "isCover": false,
+            "category": "floor_plan",
+            "caption": "Grundriss 2. Obergeschoss",
+            "id": "eb20c5f5-87d7-49a2-b749-e4f04a5eab16",
+            "assetId": "2abaaa6a-95fb-405b-b348-e18ecbf9cc63",
+            "order": 6,
+            "isHeroCandidate": false
+          }
+        ],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": "DEMO / TESTDATEN",
+          "commissionNotes": null,
+          "availability": "sofort",
+          "notes": {},
+          "legalFlags": {
+            "usufruct": null,
+            "leasehold": null,
+            "foreclosure": null,
+            "heritageProtection": null
+          }
+        },
+        "agent": {
+          "name": "Max Mustermann",
+          "company": "Muster Immobilien GmbH",
+          "address": {
+            "street": "Musterstraße",
+            "houseNumber": "1",
+            "postalCode": "10115",
+            "city": "Berlin",
+            "district": "Mitte",
+            "country": "Deutschland"
+          },
+          "phone": "+49 30 1234567",
+          "email": "kontakt@muster-immobilien.de",
+          "website": "https://www.muster-immobilien.de",
+          "photo": null,
+          "logo": null
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-22T12:16:31.372Z",
+      "updatedAt": "2026-08-22T12:16:31.484Z",
+      "constructionYear": 2018,
+      "address": "Weserstraße 42",
+      "zipCode": "12045",
+      "city": "Berlin",
+      "district": "Neukölln",
+      "livingArea": 92,
+      "plotArea": null,
+      "rooms": 3,
+      "bedrooms": 2,
+      "bathrooms": 1,
+      "floor": "2. OG",
+      "totalFloors": 5,
+      "availableFrom": "sofort",
+      "condition": "new",
+      "askingPrice": 449000,
+      "additionalCosts": null,
+      "commission": "3,57 % inkl. MwSt.",
+      "hausgeld": 390,
+      "coldRent": null,
+      "deposit": null,
+      "additionalFeatures": "Südwest-Balkon mit Weitblick",
+      "locationNote": "Lebendiges Umfeld mit Cafés, kleinen Läden und kurzen Wegen zu den täglichen Zielen.",
+      "sellerDescription": "Eine helle Wohnung mit offenem Grundriss und sorgfältig ausgewählten Materialien.",
+      "specialNotes": "DEMO / TESTDATEN",
+      "targetAudience": "Paare und anspruchsvolle Eigennutzer",
+      "marketingContent": {
+        "title": {
+          "value": "Gepflegte Eigentumswohnung mit Balkon und Weitblick",
+          "source": "ai"
+        },
+        "subtitle": {
+          "value": "3 Zimmer · 92 m² · Berlin-Neukölln",
+          "source": "ai"
+        },
+        "highlights": {
+          "value": [
+            "92 m² Wohnfläche auf 3 Zimmern",
+            "Südwest-Balkon mit Weitblick",
+            "Baujahr 2018 mit Fußbodenheizung",
+            "Moderne Einbauküche",
+            "Aufzug im Haus",
+            "Eigener Kellerraum"
+          ],
+          "source": "ai"
+        },
+        "propertyDescription": {
+          "value": "Helle 3-Zimmer-Wohnung im 2. Obergeschoss eines gepflegten Mehrfamilienhauses in Berlin-Neukölln. Der offene Grundriss verbindet Wohnbereich, Küche und den Südwest-Balkon zu einem großzügigen Raumgefühl. Fußbodenheizung, Einbauküche und ein eigener Kellerraum ergänzen das Angebot. Das Haus wurde 2018 errichtet und befindet sich in einem sehr guten Zustand. Die Wohnung ist sofort verfügbar.",
+          "source": "ai"
+        },
+        "equipmentDescription": {
+          "value": "Südwest-Balkon mit Weitblick, moderne Einbauküche, Fußbodenheizung, Aufzug und ein eigener Kellerraum.",
+          "source": "ai"
+        },
+        "locationDescription": {
+          "value": "Die Wohnung liegt im lebendigen Neukölln mit Cafés, kleinen Läden und kurzen Wegen zu den täglichen Zielen. Die U7 und mehrere Buslinien sind in der Umgebung erreichbar, der Volkspark Hasenheide lädt zu Freizeit und Erholung ein.",
+          "source": "ai"
+        }
+      }
+    },
+    {
       "id": "26ea5ad9-2e43-4cd8-9c77-57395183804b",
       "propertyType": "apartment",
       "transactionType": "sale",
@@ -14,9 +2303,9 @@
       ],
       "surroundings": {
         "transport": "U7 und mehrere Buslinien in der Umgebung",
-        "shopping": "Vielf?ltige Gesch?fte und Wochenmarkt",
-        "restaurants": "Caf?s und Restaurants fu?l?ufig erreichbar",
-        "parks": "Volkspark Hasenheide f?r Freizeit und Erholung"
+        "shopping": "Vielfältige Geschäfte und Wochenmarkt",
+        "restaurants": "Cafés und Restaurants fußläufig erreichbar",
+        "parks": "Volkspark Hasenheide für Freizeit und Erholung"
       },
       "tone": "modern",
       "language": "de",
@@ -103,7 +2392,7 @@
           "type": "Wohnen",
           "size": 32,
           "floor": "2. OG",
-          "description": "Gro?e Fenster und direkter Zugang zum S?dwest-Balkon.",
+          "description": "Gro?e Fenster und direkter Zugang zum Südwest-Balkon.",
           "sequence": 0,
           "id": "a092de8d-d314-4038-bfc7-5580b33554b3"
         },
@@ -112,7 +2401,7 @@
           "type": "Schlafen",
           "size": 15,
           "floor": "2. OG",
-          "description": "Ruhiger R?ckzugsort mit Platz f?r ein Doppelbett.",
+          "description": "Ruhiger R?ckzugsort mit Platz für ein Doppelbett.",
           "sequence": 1,
           "id": "bfac332a-97fd-4c15-9b17-9804b484d0bd"
         },
@@ -121,7 +2410,7 @@
           "type": "Arbeiten",
           "size": 11,
           "floor": "2. OG",
-          "description": "Flexibel nutzbarer Raum f?r Homeoffice oder G?ste.",
+          "description": "Flexibel nutzbarer Raum für Homeoffice oder G?ste.",
           "sequence": 2,
           "id": "54014fcf-9ee8-4b2c-94fb-399c4df835d3"
         },
@@ -130,7 +2419,7 @@
           "type": "Kochen",
           "size": 9,
           "floor": "2. OG",
-          "description": "Moderne Einbauk?che mit klarer Linienf?hrung.",
+          "description": "Moderne Einbauküche mit klarer Linienf?hrung.",
           "sequence": 3,
           "id": "3310f7d7-d623-4c4b-8434-cb63a2d458ca"
         }
@@ -141,11 +2430,11 @@
           "propertySubtype": null,
           "title": null,
           "address": {
-            "street": "Weserstra?e",
+            "street": "Weserstraße",
             "houseNumber": "42",
             "postalCode": "12045",
             "city": "Berlin",
-            "district": "Neuk?lln",
+            "district": "Neukölln",
             "country": "Deutschland"
           }
         },
@@ -214,11 +2503,11 @@
         },
         "location": {
           "address": {
-            "street": "Weserstra?e",
+            "street": "Weserstraße",
             "houseNumber": "42",
             "postalCode": "12045",
             "city": "Berlin",
-            "district": "Neuk?lln",
+            "district": "Neukölln",
             "country": "Deutschland"
           },
           "latitude": null,
@@ -226,98 +2515,84 @@
         },
         "images": [
           {
-            "url": "/demo/room-1.svg",
-            "fileName": "demo-room-1.svg",
-            "mimeType": "image/svg+xml",
-            "size": 0,
-            "sequence": 0,
-            "isCover": true,
             "id": "3f8b9b1a-14a0-45b0-857b-0f49c9370c8a",
             "assetId": "21ae446d-199c-4056-b478-bca2c1b89dd5",
             "category": "document",
             "order": 0,
-            "isHeroCandidate": true
+            "isHeroCandidate": true,
+            "url": "/demo/room-1.svg",
+            "fileName": "demo-room-1.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0
           },
           {
-            "url": "/demo/room-2.svg",
-            "fileName": "demo-room-2.svg",
-            "mimeType": "image/svg+xml",
-            "size": 0,
-            "sequence": 1,
-            "isCover": false,
             "id": "1121ecb3-0ed3-4383-975d-9c972383d413",
             "assetId": "62225b2f-0172-4707-9b55-5c6c7c71481e",
             "category": "document",
             "order": 1,
-            "isHeroCandidate": false
+            "isHeroCandidate": false,
+            "url": "/demo/room-2.svg",
+            "fileName": "demo-room-2.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0
           },
           {
-            "url": "/demo/room-3.svg",
-            "fileName": "demo-room-3.svg",
-            "mimeType": "image/svg+xml",
-            "size": 0,
-            "sequence": 2,
-            "isCover": false,
             "id": "ecbcc865-d863-487f-a579-22fbc82c230b",
             "assetId": "396239f9-af25-4f40-bf40-2d0098e653b4",
             "category": "document",
             "order": 2,
-            "isHeroCandidate": false
+            "isHeroCandidate": false,
+            "url": "/demo/room-3.svg",
+            "fileName": "demo-room-3.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0
           },
           {
-            "url": "/demo/room-4.svg",
-            "fileName": "demo-room-4.svg",
-            "mimeType": "image/svg+xml",
-            "size": 0,
-            "sequence": 3,
-            "isCover": false,
             "id": "ab15fc73-93bc-43f2-bcc9-8054f6a5cd5a",
             "assetId": "06ac78ba-9c69-4d66-a7f6-75129ca7e313",
             "category": "document",
             "order": 3,
-            "isHeroCandidate": false
+            "isHeroCandidate": false,
+            "url": "/demo/room-4.svg",
+            "fileName": "demo-room-4.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0
           },
           {
-            "url": "/demo/room-5.svg",
-            "fileName": "demo-room-5.svg",
-            "mimeType": "image/svg+xml",
-            "size": 0,
-            "sequence": 4,
-            "isCover": false,
             "id": "6446fe53-607d-4a13-bdc9-30304a1a91e1",
             "assetId": "3dbbd020-4c50-4bd9-83d3-b1436d6f3c35",
             "category": "document",
             "order": 4,
-            "isHeroCandidate": false
+            "isHeroCandidate": false,
+            "url": "/demo/room-5.svg",
+            "fileName": "demo-room-5.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0
           },
           {
-            "url": "/demo/room-6.svg",
-            "fileName": "demo-room-6.svg",
-            "mimeType": "image/svg+xml",
-            "size": 0,
-            "sequence": 5,
-            "isCover": false,
             "id": "c2976a29-c863-4a32-9e45-62ba12848e85",
             "assetId": "66fcbf55-b8ba-4cf4-89be-88f71183836a",
             "category": "document",
             "order": 5,
-            "isHeroCandidate": false
+            "isHeroCandidate": false,
+            "url": "/demo/room-6.svg",
+            "fileName": "demo-room-6.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0
           },
           {
-            "url": "/uploads/fea8b22a-3d38-4ed0-af35-0f7b3906dc96-floorplan-3d-41207c49-dcd0-4d7c-90e4-f547125c2930.png",
-            "fileName": "floorplan-3d-41207c49-dcd0-4d7c-90e4-f547125c2930.png",
-            "mimeType": "image/png",
-            "size": 1073503,
-            "sequence": 6,
-            "isCover": false,
+            "id": "90a80898-4b18-4194-b487-e2f9e044f09e",
             "assetId": "1c2e620e-0519-41b2-88b1-5833cf9a7bf9",
             "category": "floor_plan",
             "subcategory": null,
             "caption": null,
             "description": null,
+            "order": 6,
             "isHeroCandidate": false,
-            "id": "90a80898-4b18-4194-b487-e2f9e044f09e",
-            "order": 6
+            "url": "/uploads/fea8b22a-3d38-4ed0-af35-0f7b3906dc96-floorplan-3d-41207c49-dcd0-4d7c-90e4-f547125c2930.png",
+            "fileName": "floorplan-3d-41207c49-dcd0-4d7c-90e4-f547125c2930.png",
+            "mimeType": "image/png",
+            "size": 1073503
           }
         ],
         "floorPlans": [],
@@ -426,7 +2701,7 @@
               "105 m² großzügige Wohnfläche",
               "3 Zimmer, davon 2 Schlafzimmer",
               "Baujahr 2018",
-              "Einbauk?che vorhanden",
+              "Einbauküche vorhanden",
               "Balkon vorhanden",
               "Keller vorhanden"
             ],
@@ -436,12 +2711,12 @@
         "generatedAt": "2026-08-21T22:17:26.661Z"
       },
       "createdAt": "2026-08-21T22:16:20.789Z",
-      "updatedAt": "2026-08-21T22:25:01.088Z",
+      "updatedAt": "2026-08-22T12:29:15.837Z",
       "constructionYear": 2018,
-      "address": "Weserstra?e 42",
+      "address": "Weserstraße 42",
       "zipCode": "12045",
       "city": "Berlin",
-      "district": "Neuk?lln",
+      "district": "Neukölln",
       "livingArea": 92,
       "plotArea": null,
       "rooms": 3,
@@ -450,48 +2725,48 @@
       "floor": "2. OG",
       "totalFloors": 5,
       "availableFrom": "sofort",
-      "condition": "new",
+      "condition": "firstOccupancy",
       "askingPrice": 449000,
       "additionalCosts": null,
       "commission": "3,57 % inkl. MwSt.",
       "hausgeld": 390,
       "coldRent": null,
       "deposit": null,
-      "additionalFeatures": "S?dwest-Balkon mit Weitblick",
-      "locationNote": "Lebendiges Umfeld mit Caf?s, kleinen L?den und kurzen Wegen zu den t?glichen Zielen.",
-      "sellerDescription": "Eine helle Wohnung mit offenem Grundriss und sorgf?ltig ausgew?hlten Materialien.",
+      "additionalFeatures": "Südwest-Balkon mit Weitblick",
+      "locationNote": "Lebendiges Umfeld mit Cafés, kleinen Läden und kurzen Wegen zu den täglichen Zielen.",
+      "sellerDescription": "Eine helle Wohnung mit offenem Grundriss und sorgfältig ausgewählten Materialien.",
       "specialNotes": "DEMO / TESTDATEN",
       "targetAudience": "Paare und anspruchsvolle Eigennutzer",
       "marketingContent": {
         "title": {
-          "value": "3-Zimmer-Apartment mit Balkon und Einbauk?che in Neuk?lln",
+          "value": "3-Zimmer-Apartment mit Balkon und Einbauküche in Neukölln",
           "source": "ai"
         },
         "subtitle": {
-          "value": "Apartment mit 92 m? Wohnfl?che in Berlin-Neuk?lln",
+          "value": "Apartment mit 92 m² Wohnfläche in Berlin-Neukölln",
           "source": "ai"
         },
         "highlights": {
           "value": [
-            "92 m? Wohnfl?che",
+            "92 m² Wohnfläche",
             "3 Zimmer, davon 2 Schlafzimmer",
             "Baujahr 2018",
-            "Einbauk?che vorhanden",
+            "Einbauküche vorhanden",
             "Balkon vorhanden",
             "Keller vorhanden"
           ],
           "source": "ai"
         },
         "propertyDescription": {
-          "value": "Das Apartment verf?gt ?ber 92 m? Wohnfl?che, verteilt auf drei Zimmer mit zwei Schlafzimmern und einem Badezimmer. Das im Jahr 2018 errichtete Geb?ude umfasst f?nf Etagen. Ein Balkon, eine Einbauk?che und ein eigener Kellerbereich erg?nzen das Angebot. Die Wohnung ist sofort verf?gbar und wird zum Kauf angeboten.",
+          "value": "Das Apartment verf?gt ?ber 92 m² Wohnfläche, verteilt auf drei Zimmer mit zwei Schlafzimmern und einem Badezimmer. Das im Jahr 2018 errichtete Geb?ude umfasst f?nf Etagen. Ein Balkon, eine Einbauküche und ein eigener Kellerbereich erg?nzen das Angebot. Die Wohnung ist sofort verf?gbar und wird zum Kauf angeboten.",
           "source": "ai"
         },
         "equipmentDescription": {
-          "value": "Zur Ausstattung geh?ren eine Einbauk?che, ein Balkon und ein Badezimmer. Ein Keller ist vorhanden.",
+          "value": "Zur Ausstattung geh?ren eine Einbauküche, ein Balkon und ein Badezimmer. Ein Keller ist vorhanden.",
           "source": "ai"
         },
         "locationDescription": {
-          "value": "Das Apartment befindet sich in Berlin-Neuk?lln. In der Umgebung verkehren die U7 und mehrere Buslinien. Vielf?ltige Gesch?fte und ein Wochenmarkt bieten Einkaufsm?glichkeiten. Der Volkspark Hasenheide steht f?r Freizeit und Erholung zur Verf?gung; Caf?s und Restaurants sind fu?l?ufig erreichbar. Das Umfeld ist durch Caf?s, kleine L?den und kurze Wege zu den t?glichen Zielen gepr?gt.",
+          "value": "Das Apartment befindet sich in Berlin-Neukölln. In der Umgebung verkehren die U7 und mehrere Buslinien. Vielfältige Geschäfte und ein Wochenmarkt bieten Einkaufsm²glichkeiten. Der Volkspark Hasenheide steht für Freizeit und Erholung zur Verfügung; Cafés und Restaurants sind fußläufig erreichbar. Das Umfeld ist durch Cafés, kleine Läden und kurze Wege zu den täglichen Zielen geprägt.",
           "source": "ai"
         }
       }
@@ -2984,6 +5259,1587 @@
       "understandingError": null,
       "createdAt": "2026-08-21T12:27:23.835Z",
       "updatedAt": "2026-08-21T12:27:40.666Z"
+    },
+    {
+      "id": "f53608d8-1f1e-4aa7-9b12-fefd5e2a2232",
+      "propertyId": "ec1ab723-e7d3-4091-9421-00c1bdb8db53",
+      "filename": "grundbuchauszug.pdf",
+      "mimeType": "application/pdf",
+      "size": 1636,
+      "url": "/uploads/66ec0c19-5252-4083-96da-f08d7465dbaf-grundbuchauszug.pdf",
+      "status": "completed",
+      "documentType": "grundbuchauszug",
+      "error": null,
+      "analysisResult": {
+        "text": "AMTSGERICHT CHARLOTTENBURG\nGrundbuch von Berlin-Neuköln\nGrundbuchblatt: 4821\nAmtsgerichtsbezirk: Charlottenburg\nBestandsverzeichnis\nLfd. Nr. 1: Flur 3, Flurstueck 88 A\nWirtschaftsart: Gebaeude- und Freiflaeche\nGrundstuecksgroesse: 512 qm\nAbteilung I: Eigentuemer\nMax Mustermann, geboren am 01.01.1970, wohnhaft in Berlin\nAnteil: 1/1\nAbteilung II: Lasten und Beschraenkungen\nKeine Eintragungen\nAbteilung III: Hypotheken, Grundschulden, Rentenschulden\nAbteilung III Ifd. Nr. 1: Grundschuld 180.000,00 EUR\nGlaeubiger: Sparkasse Berlin\nAuszug erstellt am 01.03.2025",
+        "pages": [
+          {
+            "pageNumber": 1,
+            "text": "AMTSGERICHT CHARLOTTENBURG\n\nGrundbuch von Berlin-Neuköln\n\nGrundbuchblatt: 4821\n\nAmtsgerichtsbezirk: Charlottenburg\n\nBestandsverzeichnis\n\nLfd. Nr. 1: Flur 3, Flurstueck 88 A\n\nWirtschaftsart: Gebaeude- und Freiflaeche\n\nGrundstuecksgroesse: 512 qm\n\nAbteilung I: Eigentuemer\n\nMax Mustermann, geboren am 01.01.1970, wohnhaft in Berlin\n\nAnteil: 1/1\n\nAbteilung II: Lasten und Beschraenkungen\n\nKeine Eintragungen\n\nAbteilung III: Hypotheken, Grundschulden, Rentenschulden\nAbteilung III Ifd. Nr. 1: Grundschuld 180.000,00 EUR\n\nGlaeubiger: Sparkasse Berlin\n\nAuszug erstellt am 01.03.2025\n"
+          }
+        ],
+        "fields": []
+      },
+      "tags": [
+        "property-identification",
+        "land",
+        "plot-area",
+        "ownership",
+        "legal"
+      ],
+      "understandingResult": {
+        "documentType": "grundbuchauszug",
+        "tags": [
+          "property-identification",
+          "land",
+          "plot-area",
+          "ownership",
+          "legal"
+        ],
+        "summary": "Ein einseitiger Grundbuchauszug mit Angaben zum Grundbuchblatt, Flurstück und zur Grundstücksgröße. Außerdem werden der Eigentümer sowie eine eingetragene Grundschuld ausgewiesen.",
+        "keepInLibrary": true,
+        "wizardFields": [
+          {
+            "field": "plotArea",
+            "value": 512,
+            "evidence": "Grundstuecksgroesse: 512 qm"
+          },
+          {
+            "field": "parcelNumber",
+            "value": "88 A",
+            "evidence": "Flur 3, Flurstueck 88 A"
+          }
+        ],
+        "additionalInformation": [
+          {
+            "key": "landRegisterCourt",
+            "value": "Charlottenburg",
+            "evidence": "AMTSGERICHT CHARLOTTENBURG"
+          },
+          {
+            "key": "landRegisterDistrict",
+            "value": "Berlin-Neuköln",
+            "evidence": "Grundbuch von Berlin-Neuköln"
+          },
+          {
+            "key": "landRegisterSheet",
+            "value": 4821,
+            "evidence": "Grundbuchblatt: 4821"
+          },
+          {
+            "key": "parcelFlur",
+            "value": "3",
+            "evidence": "Flur 3, Flurstueck 88 A"
+          },
+          {
+            "key": "landUseType",
+            "value": "Gebaeude- und Freiflaeche",
+            "evidence": "Wirtschaftsart: Gebaeude- und Freiflaeche"
+          },
+          {
+            "key": "registeredOwner",
+            "value": "Max Mustermann",
+            "evidence": "Max Mustermann, geboren am 01.01.1970, wohnhaft in Berlin"
+          },
+          {
+            "key": "ownershipShare",
+            "value": "1/1",
+            "evidence": "Anteil: 1/1"
+          },
+          {
+            "key": "registeredRestrictions",
+            "value": "Keine Eintragungen",
+            "evidence": "Abteilung II: Lasten und Beschraenkungen\nKeine Eintragungen"
+          },
+          {
+            "key": "registeredLandCharge",
+            "value": "Grundschuld 180.000,00 EUR",
+            "evidence": "Abteilung III Ifd. Nr. 1: Grundschuld 180.000,00 EUR"
+          },
+          {
+            "key": "landChargeCreditor",
+            "value": "Sparkasse Berlin",
+            "evidence": "Glaeubiger: Sparkasse Berlin"
+          },
+          {
+            "key": "documentDate",
+            "value": "2025-03-01",
+            "evidence": "Auszug erstellt am 01.03.2025"
+          }
+        ]
+      },
+      "understandingError": null,
+      "createdAt": "2026-08-22T12:37:17.431Z",
+      "updatedAt": "2026-08-22T12:37:27.953Z"
+    },
+    {
+      "id": "a2198917-d04a-4bb1-945a-a0f0abd04274",
+      "propertyId": "ec1ab723-e7d3-4091-9421-00c1bdb8db53",
+      "filename": "lageplan.pdf",
+      "mimeType": "application/pdf",
+      "size": 1144,
+      "url": "/uploads/e57c1070-1d06-4fce-aacb-3de34870c9c3-lageplan.pdf",
+      "status": "completed",
+      "documentType": "lageplan",
+      "error": null,
+      "analysisResult": {
+        "text": "VERMESSUNGSBUERO SCHMIDT & PARTNER\nLageplan zum Grundstueck\nGemarkung: Berlin-Neukoelln\nFlur 3, Flurstueck 88a\nGrundstuecksgroesse: 512 m†\nWeserstrasse 42, 12045 Berlin\nMassstab 1:500\nNordpfeil: siehe Planzeichnung\nBestehendes Wohngebaeude mit Garage und Garten\nPlan erstellt am 15.01.2025",
+        "pages": [
+          {
+            "pageNumber": 1,
+            "text": "VERMESSUNGSBUERO SCHMIDT & PARTNER\n\nLageplan zum Grundstueck\n\nGemarkung: Berlin-Neukoelln\n\nFlur 3, Flurstueck 88a\n\nGrundstuecksgroesse: 512 m†\n\nWeserstrasse 42, 12045 Berlin\n\nMassstab 1:500\n\nNordpfeil: siehe Planzeichnung\n\nBestehendes Wohngebaeude mit Garage und Garten\n\nPlan erstellt am 15.01.2025\n"
+          }
+        ],
+        "fields": []
+      },
+      "tags": [
+        "site-plan",
+        "land",
+        "address",
+        "property-identification",
+        "garage",
+        "garden"
+      ],
+      "understandingResult": {
+        "documentType": "lageplan",
+        "tags": [
+          "site-plan",
+          "land",
+          "address",
+          "property-identification",
+          "garage",
+          "garden"
+        ],
+        "summary": "Lageplan zum Grundstück in Berlin-Neukölln mit Flur- und Flurstücksangabe, Grundstücksgröße sowie Darstellung eines bestehenden Wohngebäudes mit Garage und Garten.",
+        "keepInLibrary": true,
+        "wizardFields": [
+          {
+            "field": "street",
+            "value": "Weserstrasse",
+            "evidence": "Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "houseNumber",
+            "value": "42",
+            "evidence": "Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "postalCode",
+            "value": "12045",
+            "evidence": "Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "city",
+            "value": "Berlin",
+            "evidence": "Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "district",
+            "value": "Berlin-Neukoelln",
+            "evidence": "Gemarkung: Berlin-Neukoelln"
+          },
+          {
+            "field": "plotArea",
+            "value": 512,
+            "evidence": "Grundstuecksgroesse: 512 m†"
+          },
+          {
+            "field": "garage",
+            "value": true,
+            "evidence": "Bestehendes Wohngebaeude mit Garage und Garten"
+          },
+          {
+            "field": "garden",
+            "value": true,
+            "evidence": "Bestehendes Wohngebaeude mit Garage und Garten"
+          },
+          {
+            "field": "parcelNumber",
+            "value": "88a",
+            "evidence": "Flur 3, Flurstueck 88a"
+          }
+        ],
+        "additionalInformation": [
+          {
+            "key": "cadastralDistrict",
+            "value": "Berlin-Neukoelln",
+            "evidence": "Gemarkung: Berlin-Neukoelln"
+          },
+          {
+            "key": "cadastralSection",
+            "value": "3",
+            "evidence": "Flur 3, Flurstueck 88a"
+          },
+          {
+            "key": "mapScale",
+            "value": "1:500",
+            "evidence": "Massstab 1:500"
+          },
+          {
+            "key": "planDate",
+            "value": "15.01.2025",
+            "evidence": "Plan erstellt am 15.01.2025"
+          },
+          {
+            "key": "existingBuildingDescription",
+            "value": "Wohngebaeude mit Garage und Garten",
+            "evidence": "Bestehendes Wohngebaeude mit Garage und Garten"
+          }
+        ]
+      },
+      "understandingError": null,
+      "createdAt": "2026-08-22T12:37:27.965Z",
+      "updatedAt": "2026-08-22T12:37:35.371Z"
+    },
+    {
+      "id": "bdfbbf2d-2b14-401a-b181-df3a3a24fc80",
+      "propertyId": "ec1ab723-e7d3-4091-9421-00c1bdb8db53",
+      "filename": "wohnflaechenberechnung.pdf",
+      "mimeType": "application/pdf",
+      "size": 1275,
+      "url": "/uploads/d059bb41-51fa-48fd-a954-822e12bab07f-wohnflaechenberechnung.pdf",
+      "status": "completed",
+      "documentType": "wohnflaechenberechnung",
+      "error": null,
+      "analysisResult": {
+        "text": "WOHNFL CHENBERECHNUNG nach DIN 277 und WoFIV\nObjekt: Weserstrasse 42, 12045 Berlin\nEinfamilienhaus mit Einliegerwohnung\nErdgeschoss: Wohnzimmer 32 m†, Esszimmer 14 m†, Kueche 12 m†, Diele 8 m†\nObergeschoss: Schlafzimmer 16 m†, Kinderzimmer 12 m†, Arbeitszimmer 11 m†, Bad 7 m†\nDachgeschoss: Gästezimmer 10 m†, Abstellraum 5 m†\nKeller: Heizungsraum, Waschkueche, Vorratsraum\nGesamtwohnflaeche: 145 m†\nBerechnet am 10.02.2025 von Architekturbuero Weber",
+        "pages": [
+          {
+            "pageNumber": 1,
+            "text": "WOHNFL CHENBERECHNUNG nach DIN 277 und WoFIV\n\nObjekt: Weserstrasse 42, 12045 Berlin\n\nEinfamilienhaus mit Einliegerwohnung\n\nErdgeschoss: Wohnzimmer 32 m†, Esszimmer 14 m†, Kueche 12 m†, Diele 8 m†\n\nObergeschoss: Schlafzimmer 16 m†, Kinderzimmer 12 m†, Arbeitszimmer 11 m†, Bad 7 m†\nDachgeschoss: Gästezimmer 10 m†, Abstellraum 5 m†\n\nKeller: Heizungsraum, Waschkueche, Vorratsraum\n\nGesamtwohnflaeche: 145 m†\n\nBerechnet am 10.02.2025 von Architekturbuero Weber\n"
+          }
+        ],
+        "fields": []
+      },
+      "tags": [
+        "address",
+        "property-identification",
+        "living-area",
+        "rooms",
+        "basement"
+      ],
+      "understandingResult": {
+        "documentType": "wohnflaechenberechnung",
+        "tags": [
+          "address",
+          "property-identification",
+          "living-area",
+          "rooms",
+          "basement"
+        ],
+        "summary": "Wohnflächenberechnung nach DIN 277 und WoFlV für ein Einfamilienhaus mit Einliegerwohnung in Berlin. Die Gesamtwohnfläche beträgt 145 m²; außerdem werden Räume in Erdgeschoss, Obergeschoss, Dachgeschoss und Keller aufgeführt.",
+        "keepInLibrary": true,
+        "wizardFields": [
+          {
+            "field": "street",
+            "value": "Weserstrasse",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "houseNumber",
+            "value": "42",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "postalCode",
+            "value": "12045",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "city",
+            "value": "Berlin",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "propertyType",
+            "value": "house",
+            "evidence": "Einfamilienhaus mit Einliegerwohnung"
+          },
+          {
+            "field": "propertySubtype",
+            "value": "singleFamilyHouse",
+            "evidence": "Einfamilienhaus mit Einliegerwohnung"
+          },
+          {
+            "field": "livingArea",
+            "value": 145,
+            "evidence": "Gesamtwohnflaeche: 145 m†"
+          },
+          {
+            "field": "basement",
+            "value": true,
+            "evidence": "Keller: Heizungsraum, Waschkueche, Vorratsraum"
+          },
+          {
+            "field": "attic",
+            "value": true,
+            "evidence": "Dachgeschoss: Gästezimmer 10 m†, Abstellraum 5 m†"
+          }
+        ],
+        "additionalInformation": [
+          {
+            "key": "calculationStandard",
+            "value": "DIN 277 und WoFIV",
+            "evidence": "WOHNFL CHENBERECHNUNG nach DIN 277 und WoFIV"
+          },
+          {
+            "key": "calculatedOn",
+            "value": "2025-02-10",
+            "evidence": "Berechnet am 10.02.2025"
+          },
+          {
+            "key": "calculatedBy",
+            "value": "Architekturbuero Weber",
+            "evidence": "von Architekturbuero Weber"
+          },
+          {
+            "key": "listedRooms",
+            "value": "Wohnzimmer, Esszimmer, Kueche, Diele, Schlafzimmer, Kinderzimmer, Arbeitszimmer, Bad, Gästezimmer, Abstellraum",
+            "evidence": "Erdgeschoss: Wohnzimmer ..., Esszimmer ..., Kueche ..., Diele ...; Obergeschoss: Schlafzimmer ..., Kinderzimmer ..., Arbeitszimmer ..., Bad ...; Dachgeschoss: Gästezimmer ..., Abstellraum ..."
+          }
+        ]
+      },
+      "understandingError": null,
+      "createdAt": "2026-08-22T12:37:35.390Z",
+      "updatedAt": "2026-08-22T12:37:45.077Z"
+    },
+    {
+      "id": "f8c98ffd-2ff3-4077-a44a-902a020492f3",
+      "propertyId": "ec1ab723-e7d3-4091-9421-00c1bdb8db53",
+      "filename": "energieausweis.pdf",
+      "mimeType": "application/pdf",
+      "size": 1514,
+      "url": "/uploads/f0b089a7-fb33-414c-a587-e223260fe518-energieausweis.pdf",
+      "status": "completed",
+      "documentType": "energieausweis",
+      "error": null,
+      "analysisResult": {
+        "text": "ENERGIEAUSWEIS gemäßEnEV 2014\nBedarfsausweis\nObjekt: Weserstrasse 42, 12045 Berlin\nGebaeudetyp: Einfamilienhaus, freistehend\nBaujahr: 1998\nAnzahl Wohnungen: 1\nWohnflaeche: 145 m†\nWesentliche Energietraeger: Gas\nHeizungsart: Zentralheizung\nEndenergiebedarf: 112 kWh/(m†•a)\nPrimaerenergiebedarf: 130 kWh/(m†•a)\nEffizienzklasse: C\nAusgestellt am: 15.03.2025\nGueltig bis: 14.03.2035\nAussteller: Energieberaterin Dipl.-Ing. Sabine Krause\nRegistriernummer: DE-2025-00123456",
+        "pages": [
+          {
+            "pageNumber": 1,
+            "text": "ENERGIEAUSWEIS gemäßEnEV 2014\n\nBedarfsausweis\n\nObjekt: Weserstrasse 42, 12045 Berlin\n\nGebaeudetyp: Einfamilienhaus, freistehend\n\nBaujahr: 1998\n\nAnzahl Wohnungen: 1\n\nWohnflaeche: 145 m†\n\nWesentliche Energietraeger: Gas\n\nHeizungsart: Zentralheizung\n\nEndenergiebedarf: 112 kWh/(m†•a)\n\nPrimaerenergiebedarf: 130 kWh/(m†•a)\n\nEffizienzklasse: C\n\nAusgestellt am: 15.03.2025\n\nGueltig bis: 14.03.2035\n\nAussteller: Energieberaterin Dipl.-Ing. Sabine Krause\n\nRegistriernummer: DE-2025-00123456\n"
+          }
+        ],
+        "fields": []
+      },
+      "tags": [
+        "energy",
+        "heating",
+        "address",
+        "building"
+      ],
+      "understandingResult": {
+        "documentType": "energieausweis",
+        "tags": [
+          "energy",
+          "heating",
+          "address",
+          "building"
+        ],
+        "summary": "Energieausweis als Bedarfsausweis für ein freistehendes Einfamilienhaus in Berlin. Enthält Wohnfläche, Baujahr, Energieträger, Heizungsart, Energiekennwerte, Effizienzklasse sowie Ausstellungs- und Gültigkeitsdaten.",
+        "keepInLibrary": true,
+        "wizardFields": [
+          {
+            "field": "street",
+            "value": "Weserstrasse",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "houseNumber",
+            "value": "42",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "postalCode",
+            "value": "12045",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "city",
+            "value": "Berlin",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "propertyType",
+            "value": "house",
+            "evidence": "Gebaeudetyp: Einfamilienhaus, freistehend"
+          },
+          {
+            "field": "propertySubtype",
+            "value": "singleFamilyHouse",
+            "evidence": "Gebaeudetyp: Einfamilienhaus, freistehend"
+          },
+          {
+            "field": "livingArea",
+            "value": 145,
+            "evidence": "Wohnflaeche: 145 m†"
+          },
+          {
+            "field": "yearBuilt",
+            "value": 1998,
+            "evidence": "Baujahr: 1998"
+          },
+          {
+            "field": "energyClass",
+            "value": "C",
+            "evidence": "Effizienzklasse: C"
+          },
+          {
+            "field": "energyDemand",
+            "value": 112,
+            "evidence": "Endenergiebedarf: 112 kWh/(m†•a)"
+          },
+          {
+            "field": "heatingType",
+            "value": "Zentralheizung",
+            "evidence": "Heizungsart: Zentralheizung"
+          },
+          {
+            "field": "certificateType",
+            "value": "needs_based",
+            "evidence": "Bedarfsausweis"
+          },
+          {
+            "field": "certificateDate",
+            "value": "2025-03-15",
+            "evidence": "Ausgestellt am: 15.03.2025"
+          },
+          {
+            "field": "certificateValidUntil",
+            "value": "2035-03-14",
+            "evidence": "Gueltig bis: 14.03.2035"
+          },
+          {
+            "field": "primaryEnergySource",
+            "value": "Gas",
+            "evidence": "Wesentliche Energietraeger: Gas"
+          }
+        ],
+        "additionalInformation": [
+          {
+            "key": "numberOfApartments",
+            "value": 1,
+            "evidence": "Anzahl Wohnungen: 1"
+          },
+          {
+            "key": "primaryEnergyDemand",
+            "value": 130,
+            "evidence": "Primaerenergiebedarf: 130 kWh/(m†•a)"
+          },
+          {
+            "key": "issuer",
+            "value": "Energieberaterin Dipl.-Ing. Sabine Krause",
+            "evidence": "Aussteller: Energieberaterin Dipl.-Ing. Sabine Krause"
+          },
+          {
+            "key": "registrationNumber",
+            "value": "DE-2025-00123456",
+            "evidence": "Registriernummer: DE-2025-00123456"
+          }
+        ]
+      },
+      "understandingError": null,
+      "createdAt": "2026-08-22T12:37:45.088Z",
+      "updatedAt": "2026-08-22T12:37:53.709Z"
+    },
+    {
+      "id": "1aaae138-f59b-4f98-9964-9f3f073a295b",
+      "propertyId": "ec1ab723-e7d3-4091-9421-00c1bdb8db53",
+      "filename": "kaufvertrag.pdf",
+      "mimeType": "application/pdf",
+      "size": 1315,
+      "url": "/uploads/593cdcb5-fce7-4bed-b0e6-0eebfb7221dd-kaufvertrag.pdf",
+      "status": "completed",
+      "documentType": "kaufvertrag",
+      "error": null,
+      "analysisResult": {
+        "text": "NOTAR DR. JENS BERGER\nEntwurf eines Kaufvertrages\nKaufgegenstand: Grundstueck Berlin-Neukoelln, Flur 3, Flurstueck 88 A\nWeserstrasse 42, 12045 Berlin\nEinfamilienhaus, Baujahr 1998, Wohnflaeche ca. 145 m†\nKaufpreis: 549.000,00 EUR\nKaeufer und Verkaeufer vereinbaren einen Kaufpreis von 549.000 Euro\nEigentumsuebertragung zum 30.06.2025\nDie Parteien verpflichten sich, die Auflassung zu erklaeren\nHaftungsausschluss: Die Verkaeufer haften nicht fuer Sachmaengel",
+        "pages": [
+          {
+            "pageNumber": 1,
+            "text": "NOTAR DR. JENS BERGER\n\nEntwurf eines Kaufvertrages\n\nKaufgegenstand: Grundstueck Berlin-Neukoelln, Flur 3, Flurstueck 88 A\n\nWeserstrasse 42, 12045 Berlin\n\nEinfamilienhaus, Baujahr 1998, Wohnflaeche ca. 145 m†\n\nKaufpreis: 549.000,00 EUR\n\nKaeufer und Verkaeufer vereinbaren einen Kaufpreis von 549.000 Euro\nEigentumsuebertragung zum 30.06.2025\n\nDie Parteien verpflichten sich, die Auflassung zu erklaeren\n\nHaftungsausschluss: Die Verkaeufer haften nicht fuer Sachmaengel\n"
+          }
+        ],
+        "fields": []
+      },
+      "tags": [
+        "address",
+        "property-identification",
+        "building",
+        "legal"
+      ],
+      "understandingResult": {
+        "documentType": "kaufvertrag",
+        "tags": [
+          "address",
+          "property-identification",
+          "building",
+          "legal"
+        ],
+        "summary": "Entwurf eines Kaufvertrages über ein Grundstück mit Einfamilienhaus in Berlin-Neukölln. Der Vertrag nennt die Adresse, Flurstücksangabe, Baujahr, Wohnfläche und den Kaufpreis.",
+        "keepInLibrary": true,
+        "wizardFields": [
+          {
+            "field": "street",
+            "value": "Weserstrasse",
+            "evidence": "Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "houseNumber",
+            "value": "42",
+            "evidence": "Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "postalCode",
+            "value": "12045",
+            "evidence": "Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "city",
+            "value": "Berlin",
+            "evidence": "Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "district",
+            "value": "Berlin-Neukoelln",
+            "evidence": "Kaufgegenstand: Grundstueck Berlin-Neukoelln"
+          },
+          {
+            "field": "propertyType",
+            "value": "house",
+            "evidence": "Einfamilienhaus, Baujahr 1998"
+          },
+          {
+            "field": "propertySubtype",
+            "value": "singleFamilyHouse",
+            "evidence": "Einfamilienhaus, Baujahr 1998"
+          },
+          {
+            "field": "livingArea",
+            "value": 145,
+            "evidence": "Wohnflaeche ca. 145 m†"
+          },
+          {
+            "field": "yearBuilt",
+            "value": 1998,
+            "evidence": "Einfamilienhaus, Baujahr 1998"
+          },
+          {
+            "field": "askingPrice",
+            "value": 549000,
+            "evidence": "Kaufpreis: 549.000,00 EUR"
+          },
+          {
+            "field": "transactionType",
+            "value": "sale",
+            "evidence": "Entwurf eines Kaufvertrages"
+          },
+          {
+            "field": "parcelNumber",
+            "value": "88 A",
+            "evidence": "Flur 3, Flurstueck 88 A"
+          }
+        ],
+        "additionalInformation": [
+          {
+            "key": "flur",
+            "value": "3",
+            "evidence": "Flur 3, Flurstueck 88 A"
+          },
+          {
+            "key": "ownershipTransferDate",
+            "value": "2025-06-30",
+            "evidence": "Eigentumsuebertragung zum 30.06.2025"
+          },
+          {
+            "key": "documentStatus",
+            "value": "Entwurf",
+            "evidence": "Entwurf eines Kaufvertrages"
+          },
+          {
+            "key": "defectLiability",
+            "value": "Die Verkaeufer haften nicht fuer Sachmaengel",
+            "evidence": "Haftungsausschluss: Die Verkaeufer haften nicht fuer Sachmaengel"
+          }
+        ]
+      },
+      "understandingError": null,
+      "createdAt": "2026-08-22T12:37:53.755Z",
+      "updatedAt": "2026-08-22T12:38:02.221Z"
+    },
+    {
+      "id": "ec6eae17-f220-4243-b8c0-4213856795cd",
+      "propertyId": "ec1ab723-e7d3-4091-9421-00c1bdb8db53",
+      "filename": "expose_alt.pdf",
+      "mimeType": "application/pdf",
+      "size": 1319,
+      "url": "/uploads/97b33255-e90a-494b-891d-d576a3cd8113-expose_alt.pdf",
+      "status": "completed",
+      "documentType": "expose",
+      "error": null,
+      "analysisResult": {
+        "text": "FAMILIENHAUS MIT GARTEN IN BERLIN-NEUKÖLN\nLichtdurchflutetes Einfamilienhaus mit gepflegtem Garten\nDie Immobilie bietet 145 m† Wohnflaeche auf einem 512 m† grossen Grundstueck\n5 Zimmer, 2 Badezimmer und ein Gaeste-WC\nEingebaut im Jahr 1998, 2015 umfassend modernisiert\nGarage mit direktem Zugang zum Haus\nKaufpreis: 549.000 Euro inklusive Garage\nProvisionsfrei fuer Kaeufer\nGeeignet fuer Familien, die Ruhe und Stadtnaehe verbinden\nBesichtigung nach Vereinbarung",
+        "pages": [
+          {
+            "pageNumber": 1,
+            "text": "FAMILIENHAUS MIT GARTEN IN BERLIN-NEUKÖLN\n\nLichtdurchflutetes Einfamilienhaus mit gepflegtem Garten\n\nDie Immobilie bietet 145 m† Wohnflaeche auf einem 512 m† grossen Grundstueck\n\n5 Zimmer, 2 Badezimmer und ein Gaeste-WC\n\nEingebaut im Jahr 1998, 2015 umfassend modernisiert\n\nGarage mit direktem Zugang zum Haus\n\nKaufpreis: 549.000 Euro inklusive Garage\n\nProvisionsfrei fuer Kaeufer\n\nGeeignet fuer Familien, die Ruhe und Stadtnaehe verbinden\nBesichtigung nach Vereinbarung\n"
+          }
+        ],
+        "fields": []
+      },
+      "tags": [
+        "property-identification",
+        "address",
+        "building",
+        "garden",
+        "garage"
+      ],
+      "understandingResult": {
+        "documentType": "expose",
+        "tags": [
+          "property-identification",
+          "address",
+          "building",
+          "garden",
+          "garage"
+        ],
+        "summary": "Exposé für ein Einfamilienhaus mit Garten in Berlin-Neukölln. Es nennt Wohn- und Grundstücksfläche, Raumanzahl, Baujahr, Modernisierung, Garage, Kaufpreis und Provisionsfreiheit für Käufer.",
+        "keepInLibrary": true,
+        "wizardFields": [
+          {
+            "field": "city",
+            "value": "Berlin",
+            "evidence": "FAMILIENHAUS MIT GARTEN IN BERLIN-NEUKÖLN"
+          },
+          {
+            "field": "district",
+            "value": "Neukölln",
+            "evidence": "FAMILIENHAUS MIT GARTEN IN BERLIN-NEUKÖLN"
+          },
+          {
+            "field": "propertyType",
+            "value": "house",
+            "evidence": "Lichtdurchflutetes Einfamilienhaus mit gepflegtem Garten"
+          },
+          {
+            "field": "propertySubtype",
+            "value": "singleFamilyHouse",
+            "evidence": "Lichtdurchflutetes Einfamilienhaus mit gepflegtem Garten"
+          },
+          {
+            "field": "livingArea",
+            "value": 145,
+            "evidence": "Die Immobilie bietet 145 m† Wohnflaeche"
+          },
+          {
+            "field": "plotArea",
+            "value": 512,
+            "evidence": "auf einem 512 m† grossen Grundstueck"
+          },
+          {
+            "field": "rooms",
+            "value": 5,
+            "evidence": "5 Zimmer, 2 Badezimmer und ein Gaeste-WC"
+          },
+          {
+            "field": "bathrooms",
+            "value": 2,
+            "evidence": "5 Zimmer, 2 Badezimmer und ein Gaeste-WC"
+          },
+          {
+            "field": "guestToilets",
+            "value": 1,
+            "evidence": "5 Zimmer, 2 Badezimmer und ein Gaeste-WC"
+          },
+          {
+            "field": "yearBuilt",
+            "value": 1998,
+            "evidence": "Eingebaut im Jahr 1998"
+          },
+          {
+            "field": "condition",
+            "value": "modernized",
+            "evidence": "2015 umfassend modernisiert"
+          },
+          {
+            "field": "lastModernizationYear",
+            "value": 2015,
+            "evidence": "2015 umfassend modernisiert"
+          },
+          {
+            "field": "garage",
+            "value": true,
+            "evidence": "Garage mit direktem Zugang zum Haus"
+          },
+          {
+            "field": "garden",
+            "value": true,
+            "evidence": "Lichtdurchflutetes Einfamilienhaus mit gepflegtem Garten"
+          },
+          {
+            "field": "askingPrice",
+            "value": 549000,
+            "evidence": "Kaufpreis: 549.000 Euro inklusive Garage"
+          },
+          {
+            "field": "commissionRate",
+            "value": 0,
+            "evidence": "Provisionsfrei fuer Kaeufer"
+          },
+          {
+            "field": "commissionPayer",
+            "value": "buyer",
+            "evidence": "Provisionsfrei fuer Kaeufer"
+          },
+          {
+            "field": "transactionType",
+            "value": "sale",
+            "evidence": "Kaufpreis: 549.000 Euro inklusive Garage"
+          }
+        ],
+        "additionalInformation": []
+      },
+      "understandingError": null,
+      "createdAt": "2026-08-22T12:38:02.245Z",
+      "updatedAt": "2026-08-22T12:38:12.499Z"
+    },
+    {
+      "id": "227eec3a-7e3b-4285-b072-cc2dce0522f3",
+      "propertyId": "4516f72c-5241-4073-8982-d32231ae6e88",
+      "filename": "energieausweis.pdf",
+      "mimeType": "application/pdf",
+      "size": 1514,
+      "url": "/uploads/212e465d-bd84-4483-bf16-a9af4f5ec9b4-energieausweis.pdf",
+      "status": "completed",
+      "documentType": "energieausweis",
+      "error": null,
+      "analysisResult": {
+        "text": "ENERGIEAUSWEIS gemäßEnEV 2014\nBedarfsausweis\nObjekt: Weserstrasse 42, 12045 Berlin\nGebaeudetyp: Einfamilienhaus, freistehend\nBaujahr: 1998\nAnzahl Wohnungen: 1\nWohnflaeche: 145 m†\nWesentliche Energietraeger: Gas\nHeizungsart: Zentralheizung\nEndenergiebedarf: 112 kWh/(m†•a)\nPrimaerenergiebedarf: 130 kWh/(m†•a)\nEffizienzklasse: C\nAusgestellt am: 15.03.2025\nGueltig bis: 14.03.2035\nAussteller: Energieberaterin Dipl.-Ing. Sabine Krause\nRegistriernummer: DE-2025-00123456",
+        "pages": [
+          {
+            "pageNumber": 1,
+            "text": "ENERGIEAUSWEIS gemäßEnEV 2014\n\nBedarfsausweis\n\nObjekt: Weserstrasse 42, 12045 Berlin\n\nGebaeudetyp: Einfamilienhaus, freistehend\n\nBaujahr: 1998\n\nAnzahl Wohnungen: 1\n\nWohnflaeche: 145 m†\n\nWesentliche Energietraeger: Gas\n\nHeizungsart: Zentralheizung\n\nEndenergiebedarf: 112 kWh/(m†•a)\n\nPrimaerenergiebedarf: 130 kWh/(m†•a)\n\nEffizienzklasse: C\n\nAusgestellt am: 15.03.2025\n\nGueltig bis: 14.03.2035\n\nAussteller: Energieberaterin Dipl.-Ing. Sabine Krause\n\nRegistriernummer: DE-2025-00123456\n"
+          }
+        ],
+        "fields": []
+      },
+      "tags": [
+        "address",
+        "energy",
+        "heating",
+        "building",
+        "property-identification"
+      ],
+      "understandingResult": {
+        "documentType": "energieausweis",
+        "tags": [
+          "address",
+          "energy",
+          "heating",
+          "building",
+          "property-identification"
+        ],
+        "summary": "Energieausweis für ein freistehendes Einfamilienhaus in Berlin mit Angaben zu Energiebedarf, Energieträger, Heizung, Baujahr und Gültigkeit.",
+        "keepInLibrary": true,
+        "wizardFields": [
+          {
+            "field": "street",
+            "value": "Weserstrasse",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "houseNumber",
+            "value": "42",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "postalCode",
+            "value": "12045",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "city",
+            "value": "Berlin",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "propertyType",
+            "value": "house",
+            "evidence": "Gebaeudetyp: Einfamilienhaus, freistehend"
+          },
+          {
+            "field": "propertySubtype",
+            "value": "singleFamilyHouse",
+            "evidence": "Gebaeudetyp: Einfamilienhaus, freistehend"
+          },
+          {
+            "field": "livingArea",
+            "value": 145,
+            "evidence": "Wohnflaeche: 145 m†"
+          },
+          {
+            "field": "yearBuilt",
+            "value": 1998,
+            "evidence": "Baujahr: 1998"
+          },
+          {
+            "field": "energyClass",
+            "value": "C",
+            "evidence": "Effizienzklasse: C"
+          },
+          {
+            "field": "energyDemand",
+            "value": 112,
+            "evidence": "Endenergiebedarf: 112 kWh/(m†•a)"
+          },
+          {
+            "field": "heatingType",
+            "value": "centralHeating",
+            "evidence": "Heizungsart: Zentralheizung"
+          },
+          {
+            "field": "certificateType",
+            "value": "needs_based",
+            "evidence": "Bedarfsausweis"
+          },
+          {
+            "field": "certificateDate",
+            "value": "2025-03-15",
+            "evidence": "Ausgestellt am: 15.03.2025"
+          },
+          {
+            "field": "certificateValidUntil",
+            "value": "2035-03-14",
+            "evidence": "Gueltig bis: 14.03.2035"
+          },
+          {
+            "field": "primaryEnergySource",
+            "value": "gas",
+            "evidence": "Wesentliche Energietraeger: Gas"
+          }
+        ],
+        "additionalInformation": [
+          {
+            "key": "numberOfApartments",
+            "value": 1,
+            "evidence": "Anzahl Wohnungen: 1"
+          },
+          {
+            "key": "primaryEnergyDemand",
+            "value": 130,
+            "evidence": "Primaerenergiebedarf: 130 kWh/(m†•a)"
+          },
+          {
+            "key": "buildingForm",
+            "value": "freistehend",
+            "evidence": "Gebaeudetyp: Einfamilienhaus, freistehend"
+          },
+          {
+            "key": "issuer",
+            "value": "Energieberaterin Dipl.-Ing. Sabine Krause",
+            "evidence": "Aussteller: Energieberaterin Dipl.-Ing. Sabine Krause"
+          },
+          {
+            "key": "registrationNumber",
+            "value": "DE-2025-00123456",
+            "evidence": "Registriernummer: DE-2025-00123456"
+          }
+        ]
+      },
+      "understandingError": null,
+      "createdAt": "2026-08-22T12:48:28.702Z",
+      "updatedAt": "2026-08-22T12:48:38.026Z"
+    },
+    {
+      "id": "4c3122cd-065c-4b7f-9197-ca6abac017f6",
+      "propertyId": "4516f72c-5241-4073-8982-d32231ae6e88",
+      "filename": "wohnflaechenberechnung.pdf",
+      "mimeType": "application/pdf",
+      "size": 1275,
+      "url": "/uploads/9c310cd9-65b9-4c73-8906-c871538805d2-wohnflaechenberechnung.pdf",
+      "status": "completed",
+      "documentType": "wohnflaechenberechnung",
+      "error": null,
+      "analysisResult": {
+        "text": "WOHNFL CHENBERECHNUNG nach DIN 277 und WoFIV\nObjekt: Weserstrasse 42, 12045 Berlin\nEinfamilienhaus mit Einliegerwohnung\nErdgeschoss: Wohnzimmer 32 m†, Esszimmer 14 m†, Kueche 12 m†, Diele 8 m†\nObergeschoss: Schlafzimmer 16 m†, Kinderzimmer 12 m†, Arbeitszimmer 11 m†, Bad 7 m†\nDachgeschoss: Gästezimmer 10 m†, Abstellraum 5 m†\nKeller: Heizungsraum, Waschkueche, Vorratsraum\nGesamtwohnflaeche: 145 m†\nBerechnet am 10.02.2025 von Architekturbuero Weber",
+        "pages": [
+          {
+            "pageNumber": 1,
+            "text": "WOHNFL CHENBERECHNUNG nach DIN 277 und WoFIV\n\nObjekt: Weserstrasse 42, 12045 Berlin\n\nEinfamilienhaus mit Einliegerwohnung\n\nErdgeschoss: Wohnzimmer 32 m†, Esszimmer 14 m†, Kueche 12 m†, Diele 8 m†\n\nObergeschoss: Schlafzimmer 16 m†, Kinderzimmer 12 m†, Arbeitszimmer 11 m†, Bad 7 m†\nDachgeschoss: Gästezimmer 10 m†, Abstellraum 5 m†\n\nKeller: Heizungsraum, Waschkueche, Vorratsraum\n\nGesamtwohnflaeche: 145 m†\n\nBerechnet am 10.02.2025 von Architekturbuero Weber\n"
+          }
+        ],
+        "fields": []
+      },
+      "tags": [
+        "address",
+        "property-identification",
+        "living-area",
+        "rooms",
+        "basement"
+      ],
+      "understandingResult": {
+        "documentType": "wohnflaechenberechnung",
+        "tags": [
+          "address",
+          "property-identification",
+          "living-area",
+          "rooms",
+          "basement"
+        ],
+        "summary": "Einseitige Wohnflächenberechnung nach DIN 277 und WoFlV für ein Einfamilienhaus mit Einliegerwohnung in Berlin. Ausgewiesen sind die Gesamtwohnfläche von 145 m² sowie Räume nach Geschossen.",
+        "keepInLibrary": true,
+        "wizardFields": [
+          {
+            "field": "street",
+            "value": "Weserstrasse",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "houseNumber",
+            "value": "42",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "postalCode",
+            "value": "12045",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "city",
+            "value": "Berlin",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "propertyType",
+            "value": "house",
+            "evidence": "Einfamilienhaus mit Einliegerwohnung"
+          },
+          {
+            "field": "propertySubtype",
+            "value": "singleFamilyHouse",
+            "evidence": "Einfamilienhaus mit Einliegerwohnung"
+          },
+          {
+            "field": "livingArea",
+            "value": 145,
+            "evidence": "Gesamtwohnflaeche: 145 m†"
+          },
+          {
+            "field": "basement",
+            "value": true,
+            "evidence": "Keller: Heizungsraum, Waschkueche, Vorratsraum"
+          },
+          {
+            "field": "attic",
+            "value": true,
+            "evidence": "Dachgeschoss: Gästezimmer 10 m†, Abstellraum 5 m†"
+          }
+        ],
+        "additionalInformation": [
+          {
+            "key": "calculationDate",
+            "value": "2025-02-10",
+            "evidence": "Berechnet am 10.02.2025 von Architekturbuero Weber"
+          },
+          {
+            "key": "calculatedBy",
+            "value": "Architekturbuero Weber",
+            "evidence": "Berechnet am 10.02.2025 von Architekturbuero Weber"
+          },
+          {
+            "key": "roomBreakdown",
+            "value": "Erdgeschoss: Wohnzimmer 32 m², Esszimmer 14 m², Kueche 12 m², Diele 8 m²; Obergeschoss: Schlafzimmer 16 m², Kinderzimmer 12 m², Arbeitszimmer 11 m², Bad 7 m²; Dachgeschoss: Gästezimmer 10 m², Abstellraum 5 m²; Keller: Heizungsraum, Waschkueche, Vorratsraum",
+            "evidence": "Erdgeschoss: Wohnzimmer 32 m†, Esszimmer 14 m†, Kueche 12 m†, Diele 8 m†\nObergeschoss: Schlafzimmer 16 m†, Kinderzimmer 12 m†, Arbeitszimmer 11 m†, Bad 7 m†\nDachgeschoss: Gästezimmer 10 m†, Abstellraum 5 m†\nKeller: Heizungsraum, Waschkueche, Vorratsraum"
+          }
+        ]
+      },
+      "understandingError": null,
+      "createdAt": "2026-08-22T12:48:38.039Z",
+      "updatedAt": "2026-08-22T12:48:49.470Z"
+    },
+    {
+      "id": "1e9f9eb7-82a7-47fb-bc8e-edc160888551",
+      "propertyId": "83a42dc7-8d4d-43f5-a7b2-c277276e3936",
+      "filename": "energieausweis.pdf",
+      "mimeType": "application/pdf",
+      "size": 1514,
+      "url": "/uploads/b5381197-c82d-4444-ae8d-4761fdeeb4e6-energieausweis.pdf",
+      "status": "completed",
+      "documentType": "energieausweis",
+      "error": null,
+      "analysisResult": {
+        "text": "ENERGIEAUSWEIS gemäßEnEV 2014\nBedarfsausweis\nObjekt: Weserstrasse 42, 12045 Berlin\nGebaeudetyp: Einfamilienhaus, freistehend\nBaujahr: 1998\nAnzahl Wohnungen: 1\nWohnflaeche: 145 m†\nWesentliche Energietraeger: Gas\nHeizungsart: Zentralheizung\nEndenergiebedarf: 112 kWh/(m†•a)\nPrimaerenergiebedarf: 130 kWh/(m†•a)\nEffizienzklasse: C\nAusgestellt am: 15.03.2025\nGueltig bis: 14.03.2035\nAussteller: Energieberaterin Dipl.-Ing. Sabine Krause\nRegistriernummer: DE-2025-00123456",
+        "pages": [
+          {
+            "pageNumber": 1,
+            "text": "ENERGIEAUSWEIS gemäßEnEV 2014\n\nBedarfsausweis\n\nObjekt: Weserstrasse 42, 12045 Berlin\n\nGebaeudetyp: Einfamilienhaus, freistehend\n\nBaujahr: 1998\n\nAnzahl Wohnungen: 1\n\nWohnflaeche: 145 m†\n\nWesentliche Energietraeger: Gas\n\nHeizungsart: Zentralheizung\n\nEndenergiebedarf: 112 kWh/(m†•a)\n\nPrimaerenergiebedarf: 130 kWh/(m†•a)\n\nEffizienzklasse: C\n\nAusgestellt am: 15.03.2025\n\nGueltig bis: 14.03.2035\n\nAussteller: Energieberaterin Dipl.-Ing. Sabine Krause\n\nRegistriernummer: DE-2025-00123456\n"
+          }
+        ],
+        "fields": []
+      },
+      "tags": [
+        "address",
+        "property-identification",
+        "energy",
+        "heating",
+        "year-built"
+      ],
+      "understandingResult": {
+        "documentType": "energieausweis",
+        "tags": [
+          "address",
+          "property-identification",
+          "energy",
+          "heating",
+          "year-built"
+        ],
+        "summary": "Energieausweis für ein freistehendes Einfamilienhaus in Berlin mit Angaben zu Energiebedarf, Energieträger, Heizung, Baujahr und Gültigkeit.",
+        "keepInLibrary": true,
+        "wizardFields": [
+          {
+            "field": "street",
+            "value": "Weserstrasse",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "houseNumber",
+            "value": "42",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "postalCode",
+            "value": "12045",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "city",
+            "value": "Berlin",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "propertyType",
+            "value": "house",
+            "evidence": "Gebaeudetyp: Einfamilienhaus, freistehend"
+          },
+          {
+            "field": "propertySubtype",
+            "value": "singleFamilyHouse",
+            "evidence": "Gebaeudetyp: Einfamilienhaus, freistehend"
+          },
+          {
+            "field": "livingArea",
+            "value": 145,
+            "evidence": "Wohnflaeche: 145 m†"
+          },
+          {
+            "field": "yearBuilt",
+            "value": 1998,
+            "evidence": "Baujahr: 1998"
+          },
+          {
+            "field": "energyClass",
+            "value": "C",
+            "evidence": "Effizienzklasse: C"
+          },
+          {
+            "field": "energyDemand",
+            "value": 112,
+            "evidence": "Endenergiebedarf: 112 kWh/(m†•a)"
+          },
+          {
+            "field": "heatingType",
+            "value": "centralHeating",
+            "evidence": "Heizungsart: Zentralheizung"
+          },
+          {
+            "field": "certificateType",
+            "value": "needs_based",
+            "evidence": "Bedarfsausweis"
+          },
+          {
+            "field": "certificateDate",
+            "value": "2025-03-15",
+            "evidence": "Ausgestellt am: 15.03.2025"
+          },
+          {
+            "field": "certificateValidUntil",
+            "value": "2035-03-14",
+            "evidence": "Gueltig bis: 14.03.2035"
+          },
+          {
+            "field": "primaryEnergySource",
+            "value": "gas",
+            "evidence": "Wesentliche Energietraeger: Gas"
+          }
+        ],
+        "additionalInformation": [
+          {
+            "key": "numberOfApartments",
+            "value": 1,
+            "evidence": "Anzahl Wohnungen: 1"
+          },
+          {
+            "key": "primaryEnergyDemand",
+            "value": 130,
+            "evidence": "Primaerenergiebedarf: 130 kWh/(m†•a)"
+          },
+          {
+            "key": "buildingTypeDetail",
+            "value": "freistehend",
+            "evidence": "Gebaeudetyp: Einfamilienhaus, freistehend"
+          },
+          {
+            "key": "issuer",
+            "value": "Energieberaterin Dipl.-Ing. Sabine Krause",
+            "evidence": "Aussteller: Energieberaterin Dipl.-Ing. Sabine Krause"
+          },
+          {
+            "key": "registrationNumber",
+            "value": "DE-2025-00123456",
+            "evidence": "Registriernummer: DE-2025-00123456"
+          }
+        ]
+      },
+      "understandingError": null,
+      "createdAt": "2026-08-22T12:55:40.851Z",
+      "updatedAt": "2026-08-22T12:55:49.509Z"
+    },
+    {
+      "id": "787b0adf-5af9-4101-a58f-bbba694b79c4",
+      "propertyId": "83a42dc7-8d4d-43f5-a7b2-c277276e3936",
+      "filename": "wohnflaechenberechnung.pdf",
+      "mimeType": "application/pdf",
+      "size": 1275,
+      "url": "/uploads/9f301b11-ac13-47c6-a55b-4cfcf1c68dac-wohnflaechenberechnung.pdf",
+      "status": "completed",
+      "documentType": "wohnflaechenberechnung",
+      "error": null,
+      "analysisResult": {
+        "text": "WOHNFL CHENBERECHNUNG nach DIN 277 und WoFIV\nObjekt: Weserstrasse 42, 12045 Berlin\nEinfamilienhaus mit Einliegerwohnung\nErdgeschoss: Wohnzimmer 32 m†, Esszimmer 14 m†, Kueche 12 m†, Diele 8 m†\nObergeschoss: Schlafzimmer 16 m†, Kinderzimmer 12 m†, Arbeitszimmer 11 m†, Bad 7 m†\nDachgeschoss: Gästezimmer 10 m†, Abstellraum 5 m†\nKeller: Heizungsraum, Waschkueche, Vorratsraum\nGesamtwohnflaeche: 145 m†\nBerechnet am 10.02.2025 von Architekturbuero Weber",
+        "pages": [
+          {
+            "pageNumber": 1,
+            "text": "WOHNFL CHENBERECHNUNG nach DIN 277 und WoFIV\n\nObjekt: Weserstrasse 42, 12045 Berlin\n\nEinfamilienhaus mit Einliegerwohnung\n\nErdgeschoss: Wohnzimmer 32 m†, Esszimmer 14 m†, Kueche 12 m†, Diele 8 m†\n\nObergeschoss: Schlafzimmer 16 m†, Kinderzimmer 12 m†, Arbeitszimmer 11 m†, Bad 7 m†\nDachgeschoss: Gästezimmer 10 m†, Abstellraum 5 m†\n\nKeller: Heizungsraum, Waschkueche, Vorratsraum\n\nGesamtwohnflaeche: 145 m†\n\nBerechnet am 10.02.2025 von Architekturbuero Weber\n"
+          }
+        ],
+        "fields": []
+      },
+      "tags": [
+        "address",
+        "property-identification",
+        "living-area",
+        "rooms",
+        "basement"
+      ],
+      "understandingResult": {
+        "documentType": "wohnflaechenberechnung",
+        "tags": [
+          "address",
+          "property-identification",
+          "living-area",
+          "rooms",
+          "basement"
+        ],
+        "summary": "Wohnflächenberechnung nach DIN 277 und WoFlV für ein Einfamilienhaus mit Einliegerwohnung in Berlin. Ausgewiesen sind die Gesamtwohnfläche von 145 m² sowie Räume nach Geschossen.",
+        "keepInLibrary": true,
+        "wizardFields": [
+          {
+            "field": "street",
+            "value": "Weserstrasse",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "houseNumber",
+            "value": "42",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "postalCode",
+            "value": "12045",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "city",
+            "value": "Berlin",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "propertyType",
+            "value": "house",
+            "evidence": "Einfamilienhaus mit Einliegerwohnung"
+          },
+          {
+            "field": "propertySubtype",
+            "value": "singleFamilyHouse",
+            "evidence": "Einfamilienhaus mit Einliegerwohnung"
+          },
+          {
+            "field": "livingArea",
+            "value": 145,
+            "evidence": "Gesamtwohnflaeche: 145 m†"
+          },
+          {
+            "field": "basement",
+            "value": true,
+            "evidence": "Keller: Heizungsraum, Waschkueche, Vorratsraum"
+          },
+          {
+            "field": "attic",
+            "value": true,
+            "evidence": "Dachgeschoss: Gästezimmer 10 m†, Abstellraum 5 m†"
+          }
+        ],
+        "additionalInformation": [
+          {
+            "key": "calculationDate",
+            "value": "2025-02-10",
+            "evidence": "Berechnet am 10.02.2025 von Architekturbuero Weber"
+          },
+          {
+            "key": "calculatedBy",
+            "value": "Architekturbuero Weber",
+            "evidence": "Berechnet am 10.02.2025 von Architekturbuero Weber"
+          },
+          {
+            "key": "listedRooms",
+            "value": "Wohnzimmer, Esszimmer, Kueche, Diele, Schlafzimmer, Kinderzimmer, Arbeitszimmer, Bad, Gästezimmer, Abstellraum",
+            "evidence": "Erdgeschoss: Wohnzimmer 32 m†, Esszimmer 14 m†, Kueche 12 m†, Diele 8 m†; Obergeschoss: Schlafzimmer 16 m†, Kinderzimmer 12 m†, Arbeitszimmer 11 m†, Bad 7 m†; Dachgeschoss: Gästezimmer 10 m†, Abstellraum 5 m†"
+          },
+          {
+            "key": "documentBasis",
+            "value": "DIN 277 und WoFIV",
+            "evidence": "WOHNFL CHENBERECHNUNG nach DIN 277 und WoFIV"
+          },
+          {
+            "key": "basementRooms",
+            "value": "Heizungsraum, Waschkueche, Vorratsraum",
+            "evidence": "Keller: Heizungsraum, Waschkueche, Vorratsraum"
+          }
+        ]
+      },
+      "understandingError": null,
+      "createdAt": "2026-08-22T12:55:49.523Z",
+      "updatedAt": "2026-08-22T12:55:59.847Z"
+    },
+    {
+      "id": "35489cdc-2646-4691-bc17-96c875743840",
+      "propertyId": "5de829ec-ff37-441e-92d4-47ca6a044733",
+      "filename": "mietvertrag.pdf",
+      "mimeType": "application/pdf",
+      "size": 1644,
+      "url": "/uploads/324de987-f6a8-49c9-aae0-fa28a18f6c7c-mietvertrag.pdf",
+      "status": "completed",
+      "documentType": "mietvertrag",
+      "error": null,
+      "analysisResult": {
+        "text": "MIETVERTRAG\nVermieter: Max Mustermann, Weserstrasse 42, 12045 Berlin\nMieter: Anna Beispiel, Lindenstrasse 5, 10115 Berlin\nMietobjekt: 3-Zimmer-Wohnung, 2. Obergeschoss links\nWeserstrasse 42, 12045 Berlin\nWohnflaeche: 72 m†\nKaltmiete: 890,00 EUR monatlich\nNebenkosten (Vorauszahlung): 210,00 EUR monatlich\nHeizkosten (Vorauszahlung): 95,00 EUR monatlich\nKaution: 2.670,00 EUR (3 Monatsmieten)\nMietbeginn: 01.09.2025\nBefristung: unbefristet\nBalkon: vorhanden, nach Suedwesten ausgerichtet\nEinbaukueche: vorhanden, wird unentgeltlich ueberlassen\nUntergeschoss: Kellerabteil Nr. 12\nAufzug: vorhanden",
+        "pages": [
+          {
+            "pageNumber": 1,
+            "text": "MIETVERTRAG\n\nVermieter: Max Mustermann, Weserstrasse 42, 12045 Berlin\nMieter: Anna Beispiel, Lindenstrasse 5, 10115 Berlin\nMietobjekt: 3-Zimmer-Wohnung, 2. Obergeschoss links\nWeserstrasse 42, 12045 Berlin\n\nWohnflaeche: 72 m†\n\nKaltmiete: 890,00 EUR monatlich\n\nNebenkosten (Vorauszahlung): 210,00 EUR monatlich\n\nHeizkosten (Vorauszahlung): 95,00 EUR monatlich\n\nKaution: 2.670,00 EUR (3 Monatsmieten)\n\nMietbeginn: 01.09.2025\n\nBefristung: unbefristet\n\nBalkon: vorhanden, nach Suedwesten ausgerichtet\n\nEinbaukueche: vorhanden, wird unentgeltlich ueberlassen\n\nUntergeschoss: Kellerabteil Nr. 12\n\nAufzug: vorhanden\n"
+          }
+        ],
+        "fields": []
+      },
+      "tags": [
+        "address",
+        "property-identification",
+        "building",
+        "balcony",
+        "basement",
+        "interior"
+      ],
+      "understandingResult": {
+        "documentType": "mietvertrag",
+        "tags": [
+          "address",
+          "property-identification",
+          "building",
+          "balcony",
+          "basement",
+          "interior"
+        ],
+        "summary": "Mietvertrag für eine 3-Zimmer-Wohnung in der Weserstrasse 42 in Berlin. Der Vertrag enthält unter anderem Wohnfläche, Mietkosten, Mietbeginn, Balkon, Einbauküche und Kellerabteil.",
+        "keepInLibrary": true,
+        "wizardFields": [
+          {
+            "field": "street",
+            "value": "Weserstrasse",
+            "evidence": "Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "houseNumber",
+            "value": "42",
+            "evidence": "Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "postalCode",
+            "value": "12045",
+            "evidence": "Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "city",
+            "value": "Berlin",
+            "evidence": "Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "propertyType",
+            "value": "apartment",
+            "evidence": "Mietobjekt: 3-Zimmer-Wohnung, 2. Obergeschoss links"
+          },
+          {
+            "field": "livingArea",
+            "value": 72,
+            "evidence": "Wohnflaeche: 72 m†"
+          },
+          {
+            "field": "rooms",
+            "value": 3,
+            "evidence": "Mietobjekt: 3-Zimmer-Wohnung, 2. Obergeschoss links"
+          },
+          {
+            "field": "floor",
+            "value": 2,
+            "evidence": "Mietobjekt: 3-Zimmer-Wohnung, 2. Obergeschoss links"
+          },
+          {
+            "field": "balcony",
+            "value": true,
+            "evidence": "Balkon: vorhanden, nach Suedwesten ausgerichtet"
+          },
+          {
+            "field": "orientation",
+            "value": "Südwesten",
+            "evidence": "Balkon: vorhanden, nach Suedwesten ausgerichtet"
+          },
+          {
+            "field": "basement",
+            "value": true,
+            "evidence": "Untergeschoss: Kellerabteil Nr. 12"
+          },
+          {
+            "field": "askingPrice",
+            "value": null,
+            "evidence": ""
+          },
+          {
+            "field": "transactionType",
+            "value": "rent",
+            "evidence": "Kaltmiete: 890,00 EUR monatlich"
+          },
+          {
+            "field": "isRented",
+            "value": true,
+            "evidence": "MIETVERTRAG"
+          },
+          {
+            "field": "monthlyRent",
+            "value": 890,
+            "evidence": "Kaltmiete: 890,00 EUR monatlich"
+          },
+          {
+            "field": "additionalCosts",
+            "value": 210,
+            "evidence": "Nebenkosten (Vorauszahlung): 210,00 EUR monatlich"
+          },
+          {
+            "field": "availableFrom",
+            "value": "2025-09-01",
+            "evidence": "Mietbeginn: 01.09.2025"
+          }
+        ],
+        "additionalInformation": [
+          {
+            "key": "landlord",
+            "value": "Max Mustermann, Weserstrasse 42, 12045 Berlin",
+            "evidence": "Vermieter: Max Mustermann, Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "key": "tenant",
+            "value": "Anna Beispiel, Lindenstrasse 5, 10115 Berlin",
+            "evidence": "Mieter: Anna Beispiel, Lindenstrasse 5, 10115 Berlin"
+          },
+          {
+            "key": "heatingCostsAdvanceMonthly",
+            "value": 95,
+            "evidence": "Heizkosten (Vorauszahlung): 95,00 EUR monatlich"
+          },
+          {
+            "key": "deposit",
+            "value": 2670,
+            "evidence": "Kaution: 2.670,00 EUR (3 Monatsmieten)"
+          },
+          {
+            "key": "leaseTerm",
+            "value": "unbefristet",
+            "evidence": "Befristung: unbefristet"
+          },
+          {
+            "key": "fittedKitchen",
+            "value": true,
+            "evidence": "Einbaukueche: vorhanden, wird unentgeltlich ueberlassen"
+          },
+          {
+            "key": "cellarCompartment",
+            "value": "Nr. 12",
+            "evidence": "Untergeschoss: Kellerabteil Nr. 12"
+          },
+          {
+            "key": "elevator",
+            "value": true,
+            "evidence": "Aufzug: vorhanden"
+          }
+        ]
+      },
+      "understandingError": null,
+      "createdAt": "2026-08-22T13:04:21.235Z",
+      "updatedAt": "2026-08-22T13:04:34.146Z"
+    },
+    {
+      "id": "bbd21220-2971-4895-99af-d0e59cd2c6a4",
+      "propertyId": "5de829ec-ff37-441e-92d4-47ca6a044733",
+      "filename": "energieausweis.pdf",
+      "mimeType": "application/pdf",
+      "size": 1514,
+      "url": "/uploads/66c97229-64f7-40a6-98fc-4912162ad578-energieausweis.pdf",
+      "status": "completed",
+      "documentType": "energieausweis",
+      "error": null,
+      "analysisResult": {
+        "text": "ENERGIEAUSWEIS gemäßEnEV 2014\nBedarfsausweis\nObjekt: Weserstrasse 42, 12045 Berlin\nGebaeudetyp: Einfamilienhaus, freistehend\nBaujahr: 1998\nAnzahl Wohnungen: 1\nWohnflaeche: 145 m†\nWesentliche Energietraeger: Gas\nHeizungsart: Zentralheizung\nEndenergiebedarf: 112 kWh/(m†•a)\nPrimaerenergiebedarf: 130 kWh/(m†•a)\nEffizienzklasse: C\nAusgestellt am: 15.03.2025\nGueltig bis: 14.03.2035\nAussteller: Energieberaterin Dipl.-Ing. Sabine Krause\nRegistriernummer: DE-2025-00123456",
+        "pages": [
+          {
+            "pageNumber": 1,
+            "text": "ENERGIEAUSWEIS gemäßEnEV 2014\n\nBedarfsausweis\n\nObjekt: Weserstrasse 42, 12045 Berlin\n\nGebaeudetyp: Einfamilienhaus, freistehend\n\nBaujahr: 1998\n\nAnzahl Wohnungen: 1\n\nWohnflaeche: 145 m†\n\nWesentliche Energietraeger: Gas\n\nHeizungsart: Zentralheizung\n\nEndenergiebedarf: 112 kWh/(m†•a)\n\nPrimaerenergiebedarf: 130 kWh/(m†•a)\n\nEffizienzklasse: C\n\nAusgestellt am: 15.03.2025\n\nGueltig bis: 14.03.2035\n\nAussteller: Energieberaterin Dipl.-Ing. Sabine Krause\n\nRegistriernummer: DE-2025-00123456\n"
+          }
+        ],
+        "fields": []
+      },
+      "tags": [
+        "address",
+        "energy",
+        "heating",
+        "building"
+      ],
+      "understandingResult": {
+        "documentType": "energieausweis",
+        "tags": [
+          "address",
+          "energy",
+          "heating",
+          "building"
+        ],
+        "summary": "Energieausweis als Bedarfsausweis für ein freistehendes Einfamilienhaus in Berlin. Enthält Wohnfläche, Baujahr, Energieträger, Heizungsart, Energiekennwerte sowie Ausstellungs- und Gültigkeitsdaten.",
+        "keepInLibrary": true,
+        "wizardFields": [
+          {
+            "field": "street",
+            "value": "Weserstrasse",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "houseNumber",
+            "value": "42",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "postalCode",
+            "value": "12045",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "city",
+            "value": "Berlin",
+            "evidence": "Objekt: Weserstrasse 42, 12045 Berlin"
+          },
+          {
+            "field": "propertyType",
+            "value": "house",
+            "evidence": "Gebaeudetyp: Einfamilienhaus, freistehend"
+          },
+          {
+            "field": "propertySubtype",
+            "value": "singleFamilyHouse",
+            "evidence": "Gebaeudetyp: Einfamilienhaus, freistehend"
+          },
+          {
+            "field": "livingArea",
+            "value": 145,
+            "evidence": "Wohnflaeche: 145 m†"
+          },
+          {
+            "field": "yearBuilt",
+            "value": 1998,
+            "evidence": "Baujahr: 1998"
+          },
+          {
+            "field": "energyDemand",
+            "value": 112,
+            "evidence": "Endenergiebedarf: 112 kWh/(m†•a)"
+          },
+          {
+            "field": "energyClass",
+            "value": "C",
+            "evidence": "Effizienzklasse: C"
+          },
+          {
+            "field": "heatingType",
+            "value": "central heating",
+            "evidence": "Heizungsart: Zentralheizung"
+          },
+          {
+            "field": "certificateType",
+            "value": "needs_based",
+            "evidence": "Bedarfsausweis"
+          },
+          {
+            "field": "certificateDate",
+            "value": "2025-03-15",
+            "evidence": "Ausgestellt am: 15.03.2025"
+          },
+          {
+            "field": "certificateValidUntil",
+            "value": "2035-03-14",
+            "evidence": "Gueltig bis: 14.03.2035"
+          },
+          {
+            "field": "primaryEnergySource",
+            "value": "Gas",
+            "evidence": "Wesentliche Energietraeger: Gas"
+          }
+        ],
+        "additionalInformation": [
+          {
+            "key": "numberOfApartments",
+            "value": 1,
+            "evidence": "Anzahl Wohnungen: 1"
+          },
+          {
+            "key": "primaryEnergyDemand",
+            "value": 130,
+            "evidence": "Primaerenergiebedarf: 130 kWh/(m†•a)"
+          },
+          {
+            "key": "buildingDescription",
+            "value": "freistehend",
+            "evidence": "Gebaeudetyp: Einfamilienhaus, freistehend"
+          },
+          {
+            "key": "issuer",
+            "value": "Energieberaterin Dipl.-Ing. Sabine Krause",
+            "evidence": "Aussteller: Energieberaterin Dipl.-Ing. Sabine Krause"
+          },
+          {
+            "key": "registrationNumber",
+            "value": "DE-2025-00123456",
+            "evidence": "Registriernummer: DE-2025-00123456"
+          }
+        ]
+      },
+      "understandingError": null,
+      "createdAt": "2026-08-22T13:04:34.159Z",
+      "updatedAt": "2026-08-22T13:04:43.972Z"
     }
   ]
 }

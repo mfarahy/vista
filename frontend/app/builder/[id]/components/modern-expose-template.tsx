@@ -212,7 +212,10 @@ function CoverSection({
             <span className="expose-cover-brand">VISTA</span>
           </>
         ) : (
-          'Kein Titelfoto vorhanden'
+          <>
+            <span className="expose-cover-brand">VISTA</span>
+            <span className="expose-cover-noimage">Kein Titelfoto vorhanden</span>
+          </>
         )}
       </div>
       <div className="expose-cover-copy">

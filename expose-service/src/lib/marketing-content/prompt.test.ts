@@ -173,6 +173,44 @@ describe('marketing content prompt', () => {
     assert.match(message, /Garten: vorhanden/);
   });
 
+  it('omits placeholder energy sources instead of passing them as facts', () => {
+    const property = propertyWith({
+      livingArea: 107,
+      exposeData: {
+        ...emptyExposeData(),
+        energy: {
+          ...emptyExposeData().energy,
+          primaryEnergySource: 'other',
+          heatingType: 'Zentralheizung',
+        },
+      },
+    });
+    const message = buildUserMessage(buildMarketingContentInput(property));
+    // The raw enum placeholder must never reach the model as a fact.
+    assert.doesNotMatch(message, /Energieträger \(Heizung\): other/);
+    assert.doesNotMatch(message, /Primärenergieträger: other/);
+    assert.doesNotMatch(message, /„other“/);
+    // A real source is still rendered.
+    const gasProperty = propertyWith({
+      livingArea: 107,
+      exposeData: {
+        ...emptyExposeData(),
+        energy: {
+          ...emptyExposeData().energy,
+          primaryEnergySource: 'gas',
+          heatingType: 'Zentralheizung',
+        },
+      },
+    });
+    const gasMessage = buildUserMessage(buildMarketingContentInput(gasProperty));
+    assert.match(gasMessage, /Primärenergieträger: gas/);
+  });
+
+  it('instructs the model to never surface internal placeholder values', () => {
+    const prompt = buildSystemPrompt();
+    assert.match(prompt, /"other", "unknown", "not_available"/);
+  });
+
   it('omits location facts that are not present', () => {
     const property = propertyWith({ livingArea: 107 });
     const input = buildMarketingContentInput(property);

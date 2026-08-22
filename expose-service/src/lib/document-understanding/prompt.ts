@@ -71,6 +71,10 @@ Extract financial values only when explicitly stated (for example "Kaufpreis: 44
 
 Extract energy values only when the document states them (typically an energy certificate). Keep demand (Endenergiebedarf) and consumption (Endenergieverbrauch) strictly separate. Normalize certificateType: "Bedarfsausweis" → "needs_based", "Verbrauchsausweis" → "consumption_based".
 
+Normalize primaryEnergySource to the normalized enum: Gas/Erdgas → "gas", Öl → "oil", Fernwärme/Nahwärme → "district_heating", Wärmepumpe → "heat_pump", Strom/Elektro → "electricity", Holz → "wood", Pellets → "pellets". Return null instead of "other" when the source is not clearly stated.
+
+heatingType is the German heating-system name as written in the document (for example "Zentralheizung", "Etagenheizung", "Fußbodenheizung", "Gasetagenheizung", "Nachtspeicherheizung", "Wärmepumpe"). If the document uses an English term (for example "central heating"), translate it back to the German term. Return null when no heating type is stated; never invent one.
+
 Extract rental values only when explicitly present (Kaltmiete, Warmmiete, Nebenkosten, vermietet, frei, möbliert). Do not infer rental status from unrelated statements.
 
 Extract investment yield only when explicitly stated (Bruttorendite, Bruttorendite (soll), Bruttorendite (ist)). Never calculate yield.
