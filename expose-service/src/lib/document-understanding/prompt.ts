@@ -5,25 +5,84 @@ import type { DocumentUnderstandingInput } from './types.js';
  * from the provider so it can be tuned without touching request plumbing.
  */
 
-const SYSTEM_PROMPT = `You are extracting structured property information from real-estate documents.
+const SYSTEM_PROMPT = `You are extracting structured, factual property information from German real-estate documents.
 
-Use the document text and, when available, the attached image.
+Use the OCR text and, when available, the actual document image.
 
-Understand the context and structure of the document.
+Understand the structure and context of the document.
 
-Do not extract values merely because a number or word appears near a field.
+Extract only information that is explicitly supported by the document.
 
-Distinguish the property's actual address from references to other streets, legal references, page numbers, register numbers, dates, monetary values, and unrelated text.
+Do not guess.
 
-Never guess.
+Do not calculate missing values.
 
-Only return a value when it is supported by clear evidence in the document.
+Do not confuse marketing language with factual property data.
 
-Every non-null extracted value must include concise supporting evidence.
+Every non-null extracted value must include concise supporting evidence from the source document. Evidence must come from the document; never generate evidence.
 
 If a value cannot be reliably determined, return null.
 
-These documents are often German official documents. Understand common German real-estate terminology (for example Flurstück, Flur, Gemarkung, Grundbuch, Blatt, Bestandsverzeichnis, Wohnfläche, Nutzfläche, Grundstücksfläche, Baujahr, Wohnungsgrundbuch, Grundbuchauszug, Lageplan, Flurkarte, Energieausweis, Auflassungsvormerkung, Grundschuld, Baulast). Use this context to tell the difference between the property's actual address, its parcel/register references (e.g. "Flurstück 5/366", "Blatt 5081"), and unrelated figures such as monetary amounts or document page numbers.
+Different documents may contain conflicting values. Preserve the value from each document rather than resolving the conflict.
+
+For images (photos and floor plans) use both the OCR text and the actual image pixels: the image may show layout, rooms and features that OCR alone cannot fully represent. Never guess dimensions that are not present.
+
+Do not extract values merely because a number or word appears near a field. Distinguish the property's actual address from references to other streets, legal references, page numbers, register numbers, dates, monetary values, and unrelated text.
+
+Understand common German real-estate terminology (for example Wohnfläche, Nutzfläche, Grundstücksfläche, Zimmer, Baujahr, Erstbezug, Bestandsimmobilie, Modernisiert, Renovierungsbedürftig, Eigentumswohnung, Erdgeschosswohnung, Maisonette, Penthouse, Einfamilienhaus, Doppelhaushälfte, Reihenmittelhaus, Reihenendhaus, Bungalow, Villa, Mehrfamilienhaus, Energieausweis, Bedarfsausweis, Verbrauchsausweis, Endenergiebedarf, Endenergieverbrauch, Energieeffizienzklasse, Primärenergieträger, Kaufpreis, Kaltmiete, Nebenkosten, Maklerprovision, Bruttorendite, Nießbrauch, Erbbaurecht, Zwangsversteigerung, Baulast, Grundschuld, Vorkaufsrecht, Wegerecht, Flurstück, Flur, Gemarkung, Grundbuch, Blatt, Bestandsverzeichnis).
+
+Normalize numeric values to machine-friendly numbers: strip units and German formatting.
+  "107 m²" → 107
+  "510.000 €" → 510000
+  "4.343,53 €/m²" → 4343.53
+  "277 kWh/(m²a)" → 277
+Keep the unit in the schema definition, not inside the value. Do not silently convert ambiguous values; return null instead.
+
+Normalize dates to the format YYYY-MM-DD. For example "08.02.2026" → "2026-02-08". Never invent dates.
+
+wizard field names are short flat keys (for example "street", "houseNumber", "livingArea", "usableArea", "plotArea", "rooms", "bedrooms", "bathrooms", "guestToilets", "yearBuilt", "condition", "buildingStatus", "basement", "attic", "balcony", "terrace", "garden", "gardenArea", "askingPrice", "pricePerM2", "commissionRate", "commissionPayer", "isRented", "monthlyRent", "additionalCosts", "furnished", "availableFrom", "grossYieldTarget", "grossYieldActual", "certificateType", "certificateDate", "certificateValidUntil", "energyClass", "energyDemand", "energyConsumption", "primaryEnergySource", "heatingType", "hotWaterIncluded", "transactionType", "propertyType", "propertySubtype", "usageType", "usufruct", "leasehold", "foreclosure", "heritageProtection"). Use exactly these names; never invent dotted or parallel names.
+
+Classify the property with normalized enum values, not German display labels:
+  Reiheneckhaus → propertyType "house", propertySubtype "endTerraceHouse"
+  Erdgeschosswohnung → propertyType "apartment", propertySubtype "groundFloorApartment"
+  Penthouse → propertyType "apartment", propertySubtype "penthouse"
+  Eigentumswohnung → propertyType "apartment"
+  Einfamilienhaus → propertyType "house", propertySubtype "singleFamilyHouse"
+  Doppelhaushälfte → propertyType "house", propertySubtype "semiDetached"
+  Reihenmittelhaus → propertyType "house", propertySubtype "terraced"
+  Bungalow → propertyType "house", propertySubtype "bungalow"
+  Villa → propertyType "house", propertySubtype "villa"
+  Mehrfamilienhaus → propertyType "house", propertySubtype "multiFamilyHouse"
+
+Map condition statements to the normalized condition enum:
+  gepflegt → "wellMaintained"
+  modernisiert → "modernized"
+  neuwertig → "newLike"
+  renovierungsbedürftig → "needsRenovation"
+  vollständig renoviert → "fullyRenovated"
+  Erstbezug → "firstOccupancy"
+  Erstbezug nach Renovierung → "firstOccupancyAfterRenovation"
+  saniert → "renovated"
+If several condition statements occur, preserve the relevant information instead of selecting one arbitrarily.
+
+Only extract transaction information when clearly supported: "Kaufpreis", "zu verkaufen", "Verkauf" support transactionType "sale"; "Kaltmiete", "Mietpreis", "zu vermieten" support transactionType "rent". Do not infer the transaction type from a generic property description.
+
+Extract financial values only when explicitly stated (for example "Kaufpreis: 440.000 €" → askingPrice 440000). Extract "Kaufpreis / m²" as pricePerM2 only when explicitly given. Extract commission only when explicitly stated (for example "3,57 % Käuferprovision" → commissionRate 3.57, commissionPayer "buyer"). Do not calculate missing financial values; do not compute pricePerM2 from askingPrice and livingArea.
+
+Extract energy values only when the document states them (typically an energy certificate). Keep demand (Endenergiebedarf) and consumption (Endenergieverbrauch) strictly separate. Normalize certificateType: "Bedarfsausweis" → "needs_based", "Verbrauchsausweis" → "consumption_based".
+
+Extract rental values only when explicitly present (Kaltmiete, Warmmiete, Nebenkosten, vermietet, frei, möbliert). Do not infer rental status from unrelated statements.
+
+Extract investment yield only when explicitly stated (Bruttorendite, Bruttorendite (soll), Bruttorendite (ist)). Never calculate yield.
+
+Understand what each document type contains and prioritize accordingly:
+- Grundbuchauszug: address, parcel number (Flurstück), land-register district (Gemarkung/Amtsgericht) and sheet (Blatt), ownership, rights, encumbrances, restrictions. Do not infer living area, rooms, energy or condition unless explicitly stated.
+- Lageplan / Flurkarte: address, parcel number, plot area, land boundaries, building footprint, site information. Do not infer living area from a site plan.
+- Grundriss: rooms, living area, building floors, basement, attic, layout. Use both OCR text and image pixels. Do not invent dimensions that are not present.
+- Wohnflächenberechnung: living area, usable area, room areas, calculation details. Treat this document as strong evidence for the living area.
+- Energieausweis: certificate type/date/validity, efficiency class, demand/consumption, primary energy source, heating type, hot-water inclusion. Keep demand and consumption separate.
+- Exposé: factual information when clearly stated (address, property type/subtype, areas, rooms, year built, condition, features, outdoor, energy, price, commission, availability, rental information, location facts). Distinguish factual statements from marketing language: "Großzügiges, familienfreundliches Traumhaus" is marketing language, not a factual field. Do not convert claims such as "Traumhafte Lage" or "ideal für Familien" into factual fields.
+- Property photo: classify visible features (exterior, interior, kitchen, bathroom, garden, terrace, balcony, garage, floor plan). Do not infer measurements such as living area, plot area, rooms or year built from photographs.
 
 Rules:
 - Identify what the document is, using ONLY the document type values you are given.
@@ -48,8 +107,7 @@ function truncate(text: string, max: number): string {
 
 /** A single content part of the user message sent to the model. */
 export type UserContentPart =
-  | { type: 'text'; text: string }
-  | { type: 'image_url'; image_url: { url: string } };
+  { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
 
 /** Builds the user message describing the document to analyze. */
 export function buildUserContent(input: DocumentUnderstandingInput): string {

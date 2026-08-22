@@ -40,7 +40,7 @@ export function Review({
             className="text-muted-foreground"
             onClick={() => onEdit(editStep)}
           >
-            <Pencil className="size-3" /> Edit
+            <Pencil className="size-3" /> Bearbeiten
           </Button>
         )}
       </div>
@@ -64,17 +64,17 @@ export function Review({
   );
   return (
     <Section
-      title="Review"
-      description="Check everything and finish your listing title before generating the AI copy."
+      title="Prüfung"
+      description="Prüfen Sie alles und vervollständigen Sie den Objekttitel, bevor Sie die KI-Texte erzeugen."
     >
       <div className="space-y-5">
         <div className="rounded-xl border border-primary/25 bg-primary/[0.04] p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-            Listing title & subtype
+            Objekttitel & Untertitel
           </p>
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
             <label className="space-y-1.5">
-              <span className="text-sm font-medium text-foreground">Objekttitel (title)</span>
+              <span className="text-sm font-medium text-foreground">Objekttitel (Titel)</span>
               <ShadInput
                 className="w-full bg-card"
                 value={title}
@@ -83,11 +83,13 @@ export function Review({
                     basicInformation: { ...data.basicInformation, title: event.target.value },
                   })
                 }
-                placeholder="e.g. Helle 3-Zimmer-Wohnung"
+                placeholder="z. B. Helle 3-Zimmer-Wohnung"
               />
             </label>
             <label className="space-y-1.5">
-              <span className="text-sm font-medium text-foreground">Unterart (subtype)</span>
+              <span className="text-sm font-medium text-foreground">
+                Objektunterart (Untertitel)
+              </span>
               <ShadInput
                 className="w-full bg-card"
                 value={subtitle}
@@ -99,7 +101,7 @@ export function Review({
                     },
                   })
                 }
-                placeholder="e.g. Altbauwohnung"
+                placeholder="z. B. Altbauwohnung"
               />
             </label>
           </div>
@@ -112,93 +114,75 @@ export function Review({
           >
             {metadataLoading ? (
               <>
-                <LoaderCircle className="size-4 animate-spin" /> Generating…
+                <LoaderCircle className="size-4 animate-spin" /> Wird erzeugt…
               </>
             ) : (
               <>
-                <Sparkles className="size-4" /> Generate title with AI
+                <Sparkles className="size-4" /> Titel mit KI erzeugen
               </>
             )}
           </Button>
         </div>
 
         {block(
-          'Address',
+          'Adresse',
           1,
           <dl className="divide-y">
             {row(
-              'Street',
+              'Straße',
               [data.basicInformation.address.street, data.basicInformation.address.houseNumber]
                 .filter(Boolean)
                 .join(' '),
             )}
             {row(
-              'Postal code / city',
+              'PLZ / Ort',
               [data.basicInformation.address.postalCode, data.basicInformation.address.city]
                 .filter(Boolean)
                 .join(' '),
             )}
-            {row('District', data.basicInformation.address.district)}
-            {row('Country', data.basicInformation.address.country)}
+            {row('Stadtteil', data.basicInformation.address.district)}
+            {row('Land', data.basicInformation.address.country)}
           </dl>,
         )}
         {block(
-          'Property',
+          'Objekt',
+          1,
+          <dl className="divide-y">
+            {row('Objektart', property.propertyType)}
+            {row('Unterart', data.basicInformation.propertySubtype)}
+            {row('Verwendungszweck', data.basicInformation.usageType)}
+            {row('Kauf / Miete', property.transactionType)}
+            {row('Wohnfläche (m²)', data.propertyDetails.livingArea ?? property.livingArea)}
+            {row('Nutzfläche (m²)', data.propertyDetails.usableArea)}
+            {row('Grundstücksfläche (m²)', data.propertyDetails.plotArea ?? property.plotArea)}
+            {row('Zimmer', data.propertyDetails.rooms ?? property.rooms)}
+            {row('Schlafzimmer', property.bedrooms)}
+            {row('Badezimmer', data.propertyDetails.bathrooms ?? property.bathrooms)}
+            {row('Gäste-WCs', data.propertyDetails.guestToilets)}
+          </dl>,
+        )}
+        {block(
+          'Gebäude',
           2,
           <dl className="divide-y">
-            {row('Type', property.propertyType)}
-            {row('Transaction', property.transactionType)}
-            {row('Year built', property.constructionYear)}
+            {row('Baujahr', data.propertyDetails.yearBuilt ?? property.constructionYear)}
+            {row('Objektstatus', data.propertyDetails.buildingStatus)}
+            {row('Zustand', property.condition)}
+            {row('Sanierungsstatus', data.propertyDetails.renovationStatus)}
+            {row('Letzte Modernisierung', data.propertyDetails.lastModernizationYear)}
+            {row('Etagen', data.propertyDetails.numberOfFloors ?? property.totalFloors)}
+            {row('Keller', property.selectedFeatures.includes('basement') ? 'Ja' : null)}
+            {row('Dachgeschoss', property.selectedFeatures.includes('attic') ? 'Ja' : null)}
           </dl>,
         )}
         {block(
-          'Details & price',
+          'Ausstattung',
           3,
-          <dl className="divide-y">
-            {row('Living area (m²)', property.livingArea)}
-            {row('Plot size (m²)', property.plotArea)}
-            {row('Rooms', property.rooms)}
-            {row('Bedrooms', property.bedrooms)}
-            {row('Bathrooms', property.bathrooms)}
-            {row('Floor', property.floor)}
-            {row('Total floors', property.totalFloors)}
-            {row('Available from', property.availableFrom)}
-            {row('Condition', property.condition)}
-            {row('Bodenrichtwert (€/m²)', property.bodenrichtwert)}
-            {sale ? (
-              <>
-                {row('Asking price', property.askingPrice ? money(property.askingPrice) : null)}
-                {row(
-                  'Purchase costs',
-                  property.additionalCosts ? money(property.additionalCosts) : null,
-                )}
-                {row('Commission', property.commission)}
-                {row('Service charge / month', property.hausgeld ? money(property.hausgeld) : null)}
-              </>
-            ) : (
-              <>
-                {row('Cold rent / month', property.coldRent ? money(property.coldRent) : null)}
-                {row(
-                  'Additional costs / month',
-                  property.additionalCosts ? money(property.additionalCosts) : null,
-                )}
-                {row(
-                  'Total rent / month',
-                  property.askingPrice ? money(property.askingPrice) : null,
-                )}
-                {row('Deposit', property.deposit ? money(property.deposit) : null)}
-              </>
-            )}
-          </dl>,
-        )}
-        {block(
-          'Features & equipment',
-          4,
           <>
             {features.length ? (
               <p className="text-sm text-foreground">{features.join(', ')}</p>
             ) : (
-              <p className="text-sm text-muted-foreground">No features selected.</p>
+              <p className="text-sm text-muted-foreground">Keine Ausstattung gewählt.</p>
             )}
             {data.equipment.length ? (
               <div className="mt-2 flex flex-wrap gap-1.5 text-sm text-muted-foreground">
@@ -212,20 +196,110 @@ export function Review({
           </>,
         )}
         {block(
-          'Energy',
-          5,
+          'Energie',
+          4,
           <dl className="divide-y">
-            {row('Certificate type', energy.certificateType)}
-            {row('Construction year', energy.yearOfConstruction)}
-            {row('Primary energy source', energy.primaryEnergySource)}
-            {row('Final energy demand', energy.finalEnergyDemand)}
-            {row('Final energy consumption', energy.finalEnergyConsumption)}
-            {row('Efficiency class', energy.efficiencyClass)}
+            {row('Ausweistyp', energy.certificateType)}
+            {row('Ausgestellt am', energy.certificateDate)}
+            {row('Gültig bis', energy.certificateValidUntil)}
+            {row('Baujahr laut Ausweis', energy.yearOfConstruction)}
+            {row('Heizungsart', energy.heatingType)}
+            {row('Energieträger', energy.primaryEnergySource)}
+            {row('Endenergiebedarf', energy.finalEnergyDemand)}
+            {row('Endenergieverbrauch', energy.finalEnergyConsumption)}
+            {row('Effizienzklasse', energy.efficiencyClass)}
+            {row('Warmwasser enthalten', energy.hotWaterIncluded ? 'Ja' : null)}
           </dl>,
         )}
         {block(
-          'Photos',
+          'Finanzen',
+          5,
+          <dl className="divide-y">
+            {sale ? (
+              <>
+                {row(
+                  'Kaufpreis',
+                  property.askingPrice ? money(property.askingPrice) : null,
+                )}
+                {row('Kaufpreis / m²', data.pricing.pricePerM2 ? money(data.pricing.pricePerM2) : null)}
+                {row('Provision (%)', data.pricing.commissionRate)}
+                {row('Provisionszahler', data.pricing.commissionPayer)}
+                {row('Nebenkosten', property.additionalCosts ? money(property.additionalCosts) : null)}
+              </>
+            ) : (
+              <>
+                {row('Kaltmiete / Monat', property.coldRent ? money(property.coldRent) : null)}
+                {row(
+                  'Nebenkosten / Monat',
+                  property.additionalCosts ? money(property.additionalCosts) : null,
+                )}
+                {row('Kaution', property.deposit ? money(property.deposit) : null)}
+              </>
+            )}
+            {row('Vermietet', data.rental?.isRented ? 'Ja' : null)}
+            {row('Möbliert', data.rental?.furnished ? 'Ja' : null)}
+            {row('Jahresmiete', data.rental?.annualRent ? money(data.rental.annualRent) : null)}
+            {row('Bruttorendite (Soll)', data.investment?.grossYieldTargetPercent)}
+            {row('Bruttorendite (Ist)', data.investment?.grossYieldActualPercent)}
+          </dl>,
+        )}
+        {block(
+          'Recht & Zusätzliches',
           6,
+          <dl className="divide-y">
+            {row('Nießbrauch', data.additionalInformation.legalFlags?.usufruct ? 'Ja' : null)}
+            {row('Erbbaurecht', data.additionalInformation.legalFlags?.leasehold ? 'Ja' : null)}
+            {row(
+              'Zwangsversteigerung',
+              data.additionalInformation.legalFlags?.foreclosure ? 'Ja' : null,
+            )}
+            {row(
+              'Denkmalschutz',
+              data.additionalInformation.legalFlags?.heritageProtection ? 'Ja' : null,
+            )}
+            {row('Rechtliche Notizen', data.additionalInformation.legalNotes)}
+          </dl>,
+        )}
+        {block(
+          'Lage',
+          7,
+          <dl className="divide-y">
+            {row('Stadtteil', data.location.district)}
+            {row('Öffentlicher Nahverkehr', property.surroundings.transport)}
+            {row('Schulen', property.surroundings.schools)}
+            {row('Kindergärten', property.surroundings.childcare)}
+            {row('Einkaufen', property.surroundings.shopping)}
+            {row('Medizin', property.surroundings.medical)}
+            {row('Freizeit', property.surroundings.parks || property.surroundings.restaurants)}
+          </dl>,
+        )}
+        {block(
+          'Ihre Angaben',
+          8,
+          <div className="space-y-3 text-sm text-muted-foreground">
+            {[
+              ['sellerDescription', 'Was die Immobilie besonders macht'],
+              ['specialNotes', 'Was Interessenten wissen sollten'],
+              ['targetAudience', 'Geeignet für'],
+            ].map(([key, label]) =>
+              property[key as keyof PropertyPayload] ? (
+                <p key={key}>
+                  <span className="font-medium text-foreground">{label}: </span>
+                  {String(property[key as keyof PropertyPayload])}
+                </p>
+              ) : null,
+            )}
+            {noteValue('yourInfo') ? (
+              <p>
+                <span className="font-medium text-foreground">Interne Notizen: </span>
+                {noteValue('yourInfo')}
+              </p>
+            ) : null}
+          </div>,
+        )}
+        {block(
+          'Fotos',
+          9,
           images.length ? (
             <div className="grid gap-3 sm:grid-cols-3">
               {images.slice(0, 6).map((image) => (
@@ -238,12 +312,12 @@ export function Review({
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No photos uploaded yet.</p>
+            <p className="text-sm text-muted-foreground">Noch keine Fotos hochgeladen.</p>
           ),
         )}
         {block(
-          'Plans & documents',
-          7,
+          'Pläne & Dokumente',
+          10,
           plans.length ? (
             <div className="grid gap-3 sm:grid-cols-3">
               {plans.slice(0, 6).map((image) => (
@@ -256,27 +330,27 @@ export function Review({
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No plans or documents uploaded yet.</p>
+            <p className="text-sm text-muted-foreground">
+              Noch keine Pläne oder Dokumente hochgeladen.
+            </p>
           ),
         )}
         {block(
-          'Agent / contact',
-          8,
+          'Agent / Kontakt',
+          11,
           <dl className="divide-y">
             {row('Name', data.agent?.name)}
-            {row('Company', data.agent?.company)}
-            {row('Phone', data.agent?.phone)}
-            {row('Email', data.agent?.email)}
+            {row('Unternehmen', data.agent?.company)}
+            {row('Telefon', data.agent?.phone)}
+            {row('E-Mail', data.agent?.email)}
             {row('Website', data.agent?.website)}
           </dl>,
         )}
         {block(
-          'Your notes',
+          'Ihre Notizen',
           -1,
           <div className="space-y-3 text-sm text-muted-foreground">
-            {(
-              ['property', 'details', 'features', 'energy', 'photos', 'plans', 'agent'] as const
-            ).map((key) =>
+            {(['features', 'energy', 'legal', 'photos', 'plans', 'agent'] as const).map((key) =>
               noteValue(key) ? (
                 <p key={key}>
                   <span className="font-medium text-foreground capitalize">{key}: </span>
@@ -285,7 +359,7 @@ export function Review({
               ) : null,
             )}
             <p className="text-muted-foreground">
-              Notes are optional — add highlights or extra information for each section.
+              Notizen sind optional — Highlights und Zusatzinformationen je Abschnitt.
             </p>
           </div>,
         )}
@@ -319,10 +393,10 @@ export function ContentEditor({
     factualSnapshot: [],
   };
   return (
-    <Section title="AI content editor" description="Review or adjust the generated exposé content.">
+    <Section title="KI-Inhaltseditor" description="Erzeugte Exposé-Inhalte prüfen oder anpassen.">
       <div className="space-y-5">
         <label className="space-y-1.5">
-          <span className="text-sm font-medium text-foreground">Title</span>
+          <span className="text-sm font-medium text-foreground">Titel</span>
           <ShadTextarea
             className="w-full resize-y"
             value={draft.title}
@@ -330,7 +404,7 @@ export function ContentEditor({
           />
         </label>
         <label className="space-y-1.5">
-          <span className="text-sm font-medium text-foreground">Portal title</span>
+          <span className="text-sm font-medium text-foreground">Portal-Titel</span>
           <ShadTextarea
             className="w-full resize-y"
             value={draft.portalTitle}
@@ -338,7 +412,7 @@ export function ContentEditor({
           />
         </label>
         <label className="space-y-1.5">
-          <span className="text-sm font-medium text-foreground">Short description</span>
+          <span className="text-sm font-medium text-foreground">Kurzbeschreibung</span>
           <ShadTextarea
             className="w-full resize-y"
             value={draft.shortDescription}
@@ -346,7 +420,7 @@ export function ContentEditor({
           />
         </label>
         <label className="space-y-1.5">
-          <span className="text-sm font-medium text-foreground">Main description</span>
+          <span className="text-sm font-medium text-foreground">Hauptbeschreibung</span>
           <ShadTextarea
             className="w-full resize-y"
             value={draft.mainDescription}
@@ -354,7 +428,7 @@ export function ContentEditor({
           />
         </label>
         <label className="space-y-1.5">
-          <span className="text-sm font-medium text-foreground">Location description</span>
+          <span className="text-sm font-medium text-foreground">Lagebeschreibung</span>
           <ShadTextarea
             className="w-full resize-y"
             value={draft.locationDescription}
@@ -362,7 +436,7 @@ export function ContentEditor({
           />
         </label>
         <label className="space-y-1.5">
-          <span className="text-sm font-medium text-foreground">Target audience</span>
+          <span className="text-sm font-medium text-foreground">Zielgruppe</span>
           <ShadTextarea
             className="w-full resize-y"
             value={draft.targetAudience}
@@ -373,15 +447,15 @@ export function ContentEditor({
           type="button"
           variant="secondary"
           disabled={loading || saving}
-          onClick={() => onGenerate('Make the copy more premium and concise.')}
+          onClick={() => onGenerate('Mach den Text hochwertiger und prägnanter.')}
         >
           {loading ? (
             <>
-              <LoaderCircle className="size-4 animate-spin" /> Generating…
+              <LoaderCircle className="size-4 animate-spin" /> Wird erzeugt…
             </>
           ) : (
             <>
-              <Sparkles className="size-4" /> Regenerate with AI
+              <Sparkles className="size-4" /> Mit KI neu erzeugen
             </>
           )}
         </Button>

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input as ShadInput } from '@/components/ui/input';
 import { Textarea as ShadTextarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import {
   Select as SelectRoot,
   SelectContent,
@@ -36,6 +37,117 @@ export function Section({
       </header>
       <div className="px-5 py-6 sm:px-7">{children}</div>
     </section>
+  );
+}
+
+/** Progressive-disclosure group card used to keep steps compact and scannable. */
+export function GroupCard({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-background/60 p-4 sm:p-5">
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
+      <div className="mt-4">{children}</div>
+    </div>
+  );
+}
+
+/** Labeled toggle row backed by the shadcn Switch. */
+export function Toggle({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-lg border bg-card px-3.5 py-3">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
+      </div>
+      <Switch
+        checked={checked}
+        onCheckedChange={onChange}
+        aria-label={label}
+        className="mt-0.5 shrink-0"
+      />
+    </div>
+  );
+}
+
+/** Numeric/text input with a fixed unit suffix and a label. */
+export function UnitInput({
+  label,
+  value,
+  onChange,
+  unit,
+  placeholder,
+  type = 'number',
+  hint,
+  id,
+}: {
+  label: string;
+  value: string | number | null | undefined;
+  onChange: (value: string) => void;
+  unit: string;
+  placeholder?: string;
+  type?: string;
+  hint?: string;
+  id?: string;
+}) {
+  return (
+    <Field label={label} htmlFor={id} hint={hint}>
+      <div className="relative">
+        <ShadInput
+          id={id}
+          type={type}
+          value={value ?? ''}
+          placeholder={placeholder}
+          onChange={(event) => onChange(event.target.value)}
+          className="w-full pr-14"
+        />
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
+          {unit}
+        </span>
+      </div>
+    </Field>
+  );
+}
+
+/** Simple date input (native picker) bound to an ISO date string. */
+export function DateInput({
+  label,
+  value,
+  onChange,
+  id,
+}: {
+  label: string;
+  value: string | null | undefined;
+  onChange: (value: string) => void;
+  id?: string;
+}) {
+  return (
+    <Field label={label} htmlFor={id}>
+      <ShadInput
+        id={id}
+        type="date"
+        value={value ?? ''}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full"
+      />
+    </Field>
   );
 }
 

@@ -6,6 +6,8 @@ import type {
 } from './expose-data.js';
 import type { LocationResearch } from '../mastra/schemas/location-research.js';
 import type { DocumentUnderstandingResult } from './document-understanding/types.js';
+import type { MarketingContentRecord } from './marketing-content/types.js';
+import type { ExposeConfiguration } from './expose-configuration.js';
 
 export { emptyExposeData, propertyExposeDataSchema } from './expose-data.js';
 export type {
@@ -17,6 +19,7 @@ export type {
   LocationIntelligence,
 } from './expose-data.js';
 export type { LocationResearch } from '../mastra/schemas/location-research.js';
+export type { MarketingContentRecord } from './marketing-content/types.js';
 
 export const PROPERTY_TYPES = [
   ['apartment', 'Apartment'],
@@ -125,6 +128,11 @@ export interface Property {
   images: PropertyImage[];
   roomsData: PropertyRoom[];
   expose?: Expose | null;
+  /**
+   * AI-generated / user-edited Exposé copy (Phase 4). Separated from the
+   * factual Property data: generation never modifies the Property model.
+   */
+  marketingContent?: MarketingContentRecord | null;
   createdAt?: string;
   updatedAt?: string;
   exposeData?: PropertyExposeData;
@@ -207,6 +215,12 @@ export interface Expose {
   propertyId: string;
   template: 'modern';
   content: StoredExposeContent | null;
+  /**
+   * Presentation configuration persisted by the Exposé Builder (Phase 5A):
+   * section visibility/order, selected cover and gallery references, and
+   * content overrides. Contains no Property or MarketingContent copies.
+   */
+  configuration?: ExposeConfiguration | null;
   pdfUrl?: string | null;
   generatedAt?: string | null;
 }

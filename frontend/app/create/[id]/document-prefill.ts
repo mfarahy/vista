@@ -20,6 +20,19 @@ export type WizardFieldCandidate = {
   evidence: string | null;
 };
 
+/**
+ * Document-derived additional information (parcel number, land-register sheet,
+ * owners, encumbrances, restrictions, …). Kept separate from wizard fields so
+ * the Legal step can surface them without forcing them into the main form.
+ */
+export type AdditionalInfoCandidate = {
+  key: string;
+  value: string | number | boolean | null;
+  sourceDocumentId: string;
+  sourceFilename: string;
+  evidence: string | null;
+};
+
 function isEmpty(value: unknown): boolean {
   return value === null || value === undefined || value === '';
 }
@@ -72,6 +85,46 @@ export function pickDefault(
   sources: WizardFieldCandidate[],
 ): WizardFieldCandidate | undefined {
   return sources.find((source) => source.evidence) ?? sources[0];
+}
+
+/**
+ * Collects every non-empty additional-information entry across all persisted
+ * documents, preserving the source document and its AI-provided evidence.
+ */
+export function collectAdditionalInformation(
+  records: DocumentRecord[],
+): AdditionalInfoCandidate[] {
+  const candidates: AdditionalInfoCandidate[] = [];
+  for (const record of records) {
+    if (record.status !== 'completed') continue;
+    const entries = record.understandingResult?.additionalInformation;
+    if (!entries?.length) continue;
+    for (const entry of entries) {
+      if (isEmpty(entry.value)) continue;
+      candidates.push({
+        key: entry.key,
+        value: entry.value,
+        sourceDocumentId: record.id,
+        sourceFilename: record.filename,
+        evidence: entry.evidence,
+      });
+    }
+  }
+  return candidates;
+}
+
+/**
+ * Groups additional-information entries by key so the Legal step can show every
+ * document that contributed a value, including conflicting ones.
+ */
+export function groupAdditionalByKey(
+  candidates: AdditionalInfoCandidate[],
+): Record<string, AdditionalInfoCandidate[]> {
+  const byKey: Record<string, AdditionalInfoCandidate[]> = {};
+  for (const candidate of candidates) {
+    (byKey[candidate.key] ??= []).push(candidate);
+  }
+  return byKey;
 }
 
 export type WizardPrefill = {

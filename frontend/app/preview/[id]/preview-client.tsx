@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { ArrowLeft, Download, Printer } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { downloadPdf } from '@/lib/api';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { VistaLogoLink } from '@/components/vista-logo';
@@ -19,19 +19,11 @@ export default function PreviewClient({
 
   async function pdf() {
     setLoading(true);
-    const response = await apiFetch(`/api/properties/${id}/pdf`, { method: 'POST' });
-    if (!response.ok) {
+    try {
+      await downloadPdf(id);
+    } finally {
       setLoading(false);
-      return;
     }
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `vista-expose-${id}.pdf`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-    setLoading(false);
   }
 
   return (
@@ -40,7 +32,8 @@ export default function PreviewClient({
         <div className="flex items-center gap-4">
           <Button variant="outline" size="sm" asChild>
             <Link href={`/create/${id}`}>
-              <ArrowLeft className="size-4" /> <span className="hidden sm:inline">Back to editor</span>
+              <ArrowLeft className="size-4" />{' '}
+              <span className="hidden sm:inline">Back to editor</span>
             </Link>
           </Button>
           <div className="hidden items-center gap-3 border-l pl-4 sm:flex">

@@ -12,6 +12,7 @@ The `frontend/` package is the only Next.js application. The `expose-service/` E
 - `/create` creates a draft
 - `/create/[id]` wizard, review, AI editor
 - `/preview/[id]` HTML exposé preview and PDF actions
+- `/expose/print/[id]` print route used by PDF export (no Builder UI)
 
 ## API contracts
 
@@ -22,7 +23,8 @@ The `frontend/` package is the only Next.js application. The `expose-service/` E
 - `PUT /api/properties/:id/images/reorder` accepts `{ imageIds: string[] }`
 - `POST /api/properties/:id/ai/improve` accepts `{ action?: string }` and returns `ExposeContent`
 - `GET|PUT /api/properties/:id/expose` reads or updates generated content
-- `POST /api/properties/:id/pdf` renders the same template through Playwright
+- `POST /api/properties/:id/marketing-content/generate` generates the Phase 4 marketing content from reviewed property data and user information
+- `POST /api/properties/:id/pdf` opens the frontend print route `/expose/print/:id` in Chromium and returns the A4 PDF. The same `ModernExposeTemplate` as the Builder preview is rendered; `FRONTEND_URL` points at the Next.js app
 
 Image uploads require `category` (`exterior`, `interior`, `floor_plan`, or `document`) and may include `subcategory` and `caption`. Existing records are normalized with optional canonical data on load.
 
@@ -32,11 +34,17 @@ Image uploads require `category` (`exterior`, `interior`, `floor_plan`, or `docu
 
 ## Template boundary
 
-`expose-service/src/lib/expose-template.ts` is the printable HTML template. The Playwright PDF endpoint consumes it. Gallery layout is selected from the image count, with no empty placeholder cells.
+`frontend/app/builder/[id]/components/modern-expose-template.tsx` is the single source of truth for the Exposé visual content. The Builder preview and the PDF print route (`frontend/app/expose/print/[id]`) render the same component; only print-specific CSS (A4 pagination, page breaks) differs. `POST /api/properties/:id/pdf` opens the print route in Playwright/Chromium, waits for `window.__EXPOSE_READY__`, and returns the A4 PDF. The legacy `expose-service/src/lib/expose-template.ts` HTML template remains only for the older `/preview/[id]` page.
 
 ## Mastra boundary
 
 `expose-service/src/mastra/` contains the registered `property-expose-agent` and `create-expose-workflow`. The initial workflow only validates and prepares canonical property data. Research, image analysis, content generation, document building, and rendering remain future phases.
+
+## Marketing content boundary
+
+`expose-service/src/lib/marketing-content/` is the Phase 4 marketing-copy layer: `types.ts`, `schema.ts`, `prompt.ts`, `openai-provider.ts`, and `service.ts`. It turns the reviewed Property model, the current Listing state, and the user-provided "Ihre Angaben" into a professional German Exposé draft (`POST /api/properties/:id/marketing-content/generate`). The AI receives only the whitelist payload from `buildMarketingContentInput()`; raw OCR and raw Document AI responses never reach the prompt, and the model must not reinterpret documents. The structured output is enforced with Zod via `chat.completions.parse` + `zodResponseFormat`.
+
+Marketing content is persisted as `Property.marketingContent`, fully separate from the factual property data: generation never mutates the Property model. Every field carries a provenance (`source: "ai" | "user"`); user edits survive ordinary page loads and property changes, and an explicit "Regenerate" action replaces only AI-generated fields, preserving user edits field-by-field. If the property contains no meaningful facts, generation returns 422 instead of inventing content; an empty location description is only returned as null.
 
 ## Phase 4 location boundary
 

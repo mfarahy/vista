@@ -2,16 +2,43 @@ import { Check, LoaderCircle, MapPin, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input as ShadInput } from '@/components/ui/input';
 import type {
-  BorisEnrichment,
   ExposeData,
   PropertyPayload,
   SetProperty,
   StructuredAddress,
 } from '../types';
-import { PROPERTY_TYPES } from '../types';
+import {
+  BUILDING_STATUSES,
+  PROPERTY_CONDITIONS,
+  PROPERTY_TYPES,
+  PROPERTY_USAGE_TYPES,
+  RENOVATION_STATUSES,
+  normalizeCondition,
+  propertySubtypeOptions,
+  subtypeKey,
+  subtypeLabel,
+} from '../types';
 import type { WizardFieldCandidate } from '../document-prefill';
-import { DatePicker, Input, Section, SectionNotes, Select } from './ui';
+import {
+  GroupCard,
+  Input,
+  Select,
+  Section,
+  Toggle,
+  UnitInput,
+} from './ui';
 import { DocumentSources } from './document-sources';
+
+export type AddressFieldState = {
+  query: string;
+  suggestions: StructuredAddress[];
+  loading: boolean;
+  lookupError: string;
+  selected: boolean;
+  address: StructuredAddress;
+  onQueryChange: (value: string) => void;
+  onSelect: (address: StructuredAddress) => void;
+};
 
 const ADDRESS_FIELD_KEYS: Array<keyof StructuredAddress> = [
   'street',
@@ -41,51 +68,42 @@ function AddressDocumentSources({
   );
 }
 
-export function StepAddress({
-  query,
-  suggestions,
-  loading,
-  lookupError,
-  selected,
-  onQueryChange,
-  onSelect,
-  address,
+function AddressSection({
+  addressState,
   sources,
 }: {
-  query: string;
-  suggestions: StructuredAddress[];
-  loading: boolean;
-  lookupError: string;
-  selected: boolean;
-  onQueryChange: (value: string) => void;
-  onSelect: (address: StructuredAddress) => void;
-  address: StructuredAddress;
+  addressState: AddressFieldState;
   sources?: Record<string, WizardFieldCandidate[]>;
 }) {
+  const {
+    query,
+    suggestions,
+    loading,
+    lookupError,
+    selected,
+    address,
+    onQueryChange,
+    onSelect,
+  } = addressState;
   const showSuggestions = suggestions.length > 0 && !selected;
   return (
-    <Section
-      title="Property address"
-      description="Start with the exact property address. Vista uses it as the foundation for location and property data."
-    >
-      <div className="space-y-6">
+    <div>
+      {!selected ? (
         <div className="relative">
-          <span className="text-sm font-medium text-foreground">Search address</span>
           <div className="relative mt-1.5">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <ShadInput
-              autoFocus
               className="w-full pl-8"
               value={query}
               onChange={(event) => onQueryChange(event.target.value)}
-              placeholder="Start typing a street, house number or city"
+              placeholder="Straße, Hausnummer oder Stadt eingeben"
               aria-autocomplete="list"
               aria-expanded={showSuggestions}
             />
           </div>
           {loading && (
             <p className="mt-2 inline-flex items-center gap-2 text-sm text-muted-foreground">
-              <LoaderCircle className="size-4 animate-spin" /> Searching addresses…
+              <LoaderCircle className="size-4 animate-spin" /> Adressen werden gesucht…
             </p>
           )}
           {lookupError && <p className="mt-2 text-sm text-destructive">{lookupError}</p>}
@@ -94,7 +112,7 @@ export function StepAddress({
             !suggestions.length &&
             !selected &&
             !lookupError && (
-              <p className="mt-2 text-sm text-muted-foreground">No matching addresses found.</p>
+              <p className="mt-2 text-sm text-muted-foreground">Keine passende Adresse gefunden.</p>
             )}
           {showSuggestions && (
             <div
@@ -126,37 +144,44 @@ export function StepAddress({
             </div>
           )}
         </div>
-
-        {selected && (
-          <div className="rounded-lg border border-primary/25 bg-primary/[0.04] p-4">
+      ) : (
+        <div className="rounded-lg border border-primary/25 bg-primary/[0.04] p-4">
+          <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="grid size-6 place-items-center rounded-full bg-primary text-primary-foreground">
                 <Check className="size-3.5" aria-hidden />
               </span>
-              <p className="text-sm font-semibold text-foreground">Address selected</p>
+              <p className="text-sm font-semibold text-foreground">Adresse ausgewählt</p>
             </div>
-            <p className="mt-3 text-sm font-semibold text-foreground">
-              {[
-                [address.street, address.houseNumber].filter(Boolean).join(' '),
-                [address.postalCode, address.city].filter(Boolean).join(' '),
-              ]
-                .filter(Boolean)
-                .join(', ')}
-            </p>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {[address.street, address.houseNumber].filter(Boolean).join(' ')} ·{' '}
-              {[address.postalCode, address.city, address.state, address.country]
-                .filter(Boolean)
-                .join(', ')}
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Structured address saved — you can continue without entering it again.
-            </p>
-            <AddressDocumentSources sources={sources} />
+            <button
+              type="button"
+              onClick={() => onQueryChange('')}
+              className="text-xs font-semibold text-primary underline-offset-2 hover:underline"
+            >
+              Ändern
+            </button>
           </div>
-        )}
-      </div>
-    </Section>
+          <p className="mt-3 text-sm font-semibold text-foreground">
+            {[
+              [address.street, address.houseNumber].filter(Boolean).join(' '),
+              [address.postalCode, address.city].filter(Boolean).join(' '),
+            ]
+              .filter(Boolean)
+              .join(', ')}
+          </p>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {[address.street, address.houseNumber].filter(Boolean).join(' ')} ·{' '}
+            {[address.postalCode, address.city, address.state, address.country]
+              .filter(Boolean)
+              .join(', ')}
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Die strukturierte Adresse wird für Standort und Exposé weiterverwendet.
+          </p>
+          <AddressDocumentSources sources={sources} />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -165,38 +190,57 @@ export function StepProperty({
   set,
   exposeData,
   updateExposeData,
-  noteValue,
-  setNote,
   sources,
+  addressState,
 }: {
   property: PropertyPayload;
   set: SetProperty;
   exposeData: ExposeData;
   updateExposeData: (patch: Partial<ExposeData>) => void;
-  noteValue: (key: string) => string;
-  setNote: (key: string, value: string) => void;
   sources?: Record<string, WizardFieldCandidate[]>;
+  addressState: AddressFieldState;
 }) {
+  const details = exposeData.propertyDetails;
+  const setType = (type: string) => {
+    const currentSubtype = subtypeLabel(property.propertyType, exposeData.basicInformation.propertySubtype);
+    const subtypeStillValid = propertySubtypeOptions(type).some(
+      ([, label]) => label === currentSubtype,
+    );
+    set('propertyType', type);
+    updateExposeData({
+      basicInformation: {
+        ...exposeData.basicInformation,
+        propertyType: type,
+        propertySubtype: subtypeStillValid
+          ? exposeData.basicInformation.propertySubtype
+          : null,
+      },
+    });
+  };
+  const setSubtype = (value: string) => {
+    const label = subtypeLabel(property.propertyType, value) || value;
+    updateExposeData({
+      basicInformation: { ...exposeData.basicInformation, propertySubtype: label },
+    });
+  };
+  const setDetails = (patch: Partial<ExposeData['propertyDetails']>) =>
+    updateExposeData({ propertyDetails: { ...details, ...patch } });
+
   return (
     <Section
-      title="Property"
-      description="Basic information about the property. The listing title and subtype are generated at the end."
+      title="Objekt"
+      description="Vista hat die wichtigsten Angaben aus Ihren Dokumenten bereits übernommen. Prüfen und ergänzen Sie hier nur, was fehlt."
     >
-      <div className="space-y-7">
-        <div className="space-y-3">
-          <span className="text-sm font-medium text-foreground">Property type</span>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="space-y-6">
+        <GroupCard title="Objektart">
+          <div className="grid gap-2 sm:grid-cols-4">
             {PROPERTY_TYPES.map(([key, name]) => {
               const active = property.propertyType === key;
               return (
                 <button
                   key={key}
-                  onClick={() => {
-                    set('propertyType', key);
-                    updateExposeData({
-                      basicInformation: { ...exposeData.basicInformation, propertyType: key },
-                    });
-                  }}
+                  type="button"
+                  onClick={() => setType(key)}
                   aria-pressed={active}
                   className={cn(
                     'rounded-lg border px-3 py-3 text-left text-sm font-medium transition-colors',
@@ -211,21 +255,53 @@ export function StepProperty({
             })}
           </div>
           <DocumentSources sources={sources?.propertyType} />
-        </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <Select
+                label="Objektunterart"
+                value={subtypeKey(property.propertyType, exposeData.basicInformation.propertySubtype) ?? ''}
+                onChange={setSubtype}
+                placeholder="Unterart auswählen"
+                options={propertySubtypeOptions(property.propertyType).map(([value, label]) => [
+                  value,
+                  label,
+                ])}
+              />
+              <DocumentSources sources={sources?.propertySubtype} />
+            </div>
+            <div>
+              <Select
+                label="Verwendungszweck"
+                value={exposeData.basicInformation.usageType ?? ''}
+                onChange={(value) =>
+                  updateExposeData({
+                    basicInformation: {
+                      ...exposeData.basicInformation,
+                      usageType: value || null,
+                    },
+                  })
+                }
+                placeholder="Auswählen"
+                options={PROPERTY_USAGE_TYPES as unknown as ReadonlyArray<readonly [string, string]>}
+              />
+              <DocumentSources sources={sources?.usageType} />
+            </div>
+          </div>
+        </GroupCard>
 
-        <div className="space-y-3">
-          <span className="text-sm font-medium text-foreground">What are you planning?</span>
-          <div className="grid grid-cols-2 gap-2">
+        <GroupCard title="Kauf oder Miete">
+          <div className="grid grid-cols-2 gap-2 sm:max-w-xs">
             {(
               [
-                ['sale', 'Sell'],
-                ['rent', 'Rent'],
+                ['sale', 'Kaufen'],
+                ['rent', 'Mieten'],
               ] as const
             ).map(([key, label]) => {
               const active = property.transactionType === key;
               return (
                 <button
                   key={key}
+                  type="button"
                   onClick={() => set('transactionType', key)}
                   aria-pressed={active}
                   className={cn(
@@ -240,244 +316,228 @@ export function StepProperty({
               );
             })}
           </div>
-        </div>
+          <DocumentSources sources={sources?.transactionType} />
+        </GroupCard>
 
-        <div className="max-w-xs">
-          <Input
-            label="Year built (optional)"
-            value={property.constructionYear}
-            type="number"
-            onChange={(value) => set('constructionYear', value ? Number(value) : null)}
-            placeholder="e.g. 2018"
-          />
-          <DocumentSources sources={sources?.yearBuilt} />
-        </div>
+        <GroupCard
+          title="Adresse"
+          description="Die Adresse ist die Grundlage für Standort und Exposé."
+        >
+          <AddressSection addressState={addressState} sources={sources} />
+        </GroupCard>
 
-        <SectionNotes
-          value={noteValue('property')}
-          onChange={(value) => setNote('property', value)}
-          placeholder="Anything else about the property you want to highlight?"
-        />
+        <GroupCard title="Flächen und Zimmer">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <UnitInput
+                label="Wohnfläche"
+                unit="m²"
+                value={details.livingArea ?? property.livingArea}
+                onChange={(value) => set('livingArea', value ? Number(value) : null)}
+                placeholder="92"
+              />
+              <DocumentSources sources={sources?.livingArea} />
+            </div>
+            <div>
+              <UnitInput
+                label="Nutzfläche"
+                unit="m²"
+                value={details.usableArea}
+                onChange={(value) => setDetails({ usableArea: value ? Number(value) : null })}
+                placeholder="Optional"
+              />
+              <DocumentSources sources={sources?.usableArea} />
+            </div>
+            <div>
+              <UnitInput
+                label="Grundstücksfläche"
+                unit="m²"
+                value={details.plotArea ?? property.plotArea}
+                onChange={(value) => set('plotArea', value ? Number(value) : null)}
+                placeholder="Optional"
+              />
+              <DocumentSources sources={sources?.plotArea} />
+            </div>
+            <div>
+              <UnitInput
+                label="Zimmer"
+                unit="Zimmer"
+                type="number"
+                value={details.rooms ?? property.rooms}
+                onChange={(value) => set('rooms', value ? Number(value) : null)}
+                placeholder="3"
+              />
+              <DocumentSources sources={sources?.rooms} />
+            </div>
+            <div>
+              <UnitInput
+                label="Schlafzimmer"
+                unit="Zimmer"
+                type="number"
+                value={property.bedrooms}
+                onChange={(value) => set('bedrooms', value ? Number(value) : null)}
+                placeholder="2"
+              />
+              <DocumentSources sources={sources?.bedrooms} />
+            </div>
+            <div>
+              <UnitInput
+                label="Badezimmer"
+                unit="Bäder"
+                type="number"
+                value={details.bathrooms ?? property.bathrooms}
+                onChange={(value) => set('bathrooms', value ? Number(value) : null)}
+                placeholder="1"
+              />
+              <DocumentSources sources={sources?.bathrooms} />
+            </div>
+            <div>
+              <UnitInput
+                label="Gäste-WCs"
+                unit="WCs"
+                type="number"
+                value={details.guestToilets}
+                onChange={(value) => setDetails({ guestToilets: value ? Number(value) : null })}
+                placeholder="Optional"
+              />
+              <DocumentSources sources={sources?.guestToilets} />
+            </div>
+          </div>
+        </GroupCard>
       </div>
     </Section>
   );
 }
 
-export function StepDetails({
+export function StepBuilding({
   property,
   set,
-  boris,
-  borisLoading,
-  noteValue,
-  setNote,
+  exposeData,
+  updateExposeData,
   sources,
 }: {
   property: PropertyPayload;
   set: SetProperty;
-  boris: BorisEnrichment | null;
-  borisLoading: boolean;
-  noteValue: (key: string) => string;
-  setNote: (key: string, value: string) => void;
+  exposeData: ExposeData;
+  updateExposeData: (patch: Partial<ExposeData>) => void;
   sources?: Record<string, WizardFieldCandidate[]>;
 }) {
-  const hasFloor =
-    property.propertyType === 'apartment' ||
-    property.propertyType === 'penthouse' ||
-    property.propertyType === 'other';
-  const sale = property.transactionType === 'sale';
+  const details = exposeData.propertyDetails;
+  const showShell = ['house', 'villa', 'semi-detached', 'terraced'].includes(
+    property.propertyType,
+  );
+  const setDetails = (patch: Partial<ExposeData['propertyDetails']>) =>
+    updateExposeData({ propertyDetails: { ...details, ...patch } });
+  const toggleFeature = (key: string) =>
+    set(
+      'selectedFeatures',
+      property.selectedFeatures.includes(key)
+        ? property.selectedFeatures.filter((value) => value !== key)
+        : [...property.selectedFeatures, key],
+    );
+  const condition = normalizeCondition(property.condition);
+
   return (
     <Section
-      title="Details & price"
-      description="The more precise the details, the better the AI can write."
+      title="Gebäude"
+      description="Angaben zur Bausubstanz. Lassen Sie Felder leer, die Sie nicht kennen."
     >
-      <div className="space-y-7">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <Input
-              label="Living area (m²)"
-              value={property.livingArea}
-              type="number"
-              onChange={(value) => set('livingArea', value ? Number(value) : null)}
-              placeholder="92"
-            />
-            <DocumentSources sources={sources?.livingArea} />
-          </div>
-          <div>
-            <Input
-              label="Plot size (m²)"
-              value={property.plotArea}
-              type="number"
-              onChange={(value) => set('plotArea', value ? Number(value) : null)}
-              placeholder="Optional"
-            />
-            <DocumentSources sources={sources?.plotArea} />
-          </div>
-          <div>
-            <Input
-              label="Rooms"
-              value={property.rooms}
-              type="number"
-              onChange={(value) => set('rooms', value ? Number(value) : null)}
-              placeholder="3"
-            />
-            <DocumentSources sources={sources?.rooms} />
-          </div>
-          <div>
-            <Input
-              label="Bedrooms"
-              value={property.bedrooms}
-              type="number"
-              onChange={(value) => set('bedrooms', value ? Number(value) : null)}
-              placeholder="2"
-            />
-            <DocumentSources sources={sources?.bedrooms} />
-          </div>
-          <div>
-            <Input
-              label="Bathrooms"
-              value={property.bathrooms}
-              type="number"
-              onChange={(value) => set('bathrooms', value ? Number(value) : null)}
-              placeholder="1"
-            />
-            <DocumentSources sources={sources?.bathrooms} />
-          </div>
-          {hasFloor && (
+      <div className="space-y-6">
+        <GroupCard title="Bauweise">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <Input
-                label="Floor"
-                value={property.floor}
-                onChange={(value) => set('floor', value)}
-                placeholder="e.g. 3rd floor"
+                label="Baujahr"
+                type="number"
+                value={details.yearBuilt ?? property.constructionYear}
+                onChange={(value) => set('constructionYear', value ? Number(value) : null)}
+                placeholder="z. B. 2018"
               />
-              <DocumentSources sources={sources?.floor} />
+              <DocumentSources sources={sources?.yearBuilt} />
             </div>
-          )}
-          <div>
-            <Input
-              label="Total floors"
-              value={property.totalFloors}
-              type="number"
-              onChange={(value) => set('totalFloors', value ? Number(value) : null)}
-              placeholder="5"
-            />
-            <DocumentSources sources={sources?.numberOfFloors} />
+            <div>
+              <Select
+                label="Objektstatus"
+                value={details.buildingStatus ?? ''}
+                onChange={(value) => setDetails({ buildingStatus: (value || null) as 'new' | 'existing' | null })}
+                placeholder="Auswählen"
+                options={BUILDING_STATUSES as unknown as ReadonlyArray<readonly [string, string]>}
+              />
+              <DocumentSources sources={sources?.buildingStatus} />
+            </div>
+            <div>
+              <Select
+                label="Zustand"
+                value={condition}
+                onChange={(value) => set('condition', value || null)}
+                placeholder="Auswählen"
+                options={PROPERTY_CONDITIONS as unknown as ReadonlyArray<readonly [string, string]>}
+              />
+              <DocumentSources sources={sources?.condition} />
+            </div>
           </div>
-          <DatePicker
-            value={property.availableFrom}
-            onChange={(value) => set('availableFrom', value)}
-          />
-          <Select
-            label="Condition"
-            value={property.condition}
-            onChange={(value) => set('condition', value)}
-            placeholder="Select an option"
-            options={[
-              ['new', 'Like new'],
-              ['renovated', 'Renovated'],
-              ['good', 'Well maintained'],
-              ['needs-renovation', 'Needs renovation'],
-            ]}
-          />
-          {sale ? (
-            <>
-              <Input
-                label="Asking price (€)"
-                value={property.askingPrice}
-                type="number"
-                onChange={(value) => set('askingPrice', value ? Number(value) : null)}
-                placeholder="449000"
-              />
-              <Input
-                label="Purchase costs (€)"
-                value={property.additionalCosts}
-                type="number"
-                onChange={(value) => set('additionalCosts', value ? Number(value) : null)}
-                placeholder="Optional"
-              />
-              <Input
-                label="Commission"
-                value={property.commission}
-                onChange={(value) => set('commission', value)}
-                placeholder="e.g. 3.57% incl. VAT"
-              />
-              <Input
-                label="Service charge / month (€)"
-                value={property.hausgeld}
-                type="number"
-                onChange={(value) => set('hausgeld', value ? Number(value) : null)}
-                placeholder="Optional"
-              />
-            </>
-          ) : (
-            <>
-              <Input
-                label="Cold rent / month (€)"
-                value={property.coldRent}
-                type="number"
-                onChange={(value) => set('coldRent', value ? Number(value) : null)}
-                placeholder="1800"
-              />
-              <Input
-                label="Additional costs / month (€)"
-                value={property.additionalCosts}
-                type="number"
-                onChange={(value) => set('additionalCosts', value ? Number(value) : null)}
-                placeholder="350"
-              />
-              <Input
-                label="Total rent / month (€)"
-                value={property.askingPrice}
-                type="number"
-                onChange={(value) => set('askingPrice', value ? Number(value) : null)}
-                placeholder="2150"
-              />
-              <Input
-                label="Deposit (€)"
-                value={property.deposit}
-                type="number"
-                onChange={(value) => set('deposit', value ? Number(value) : null)}
-                placeholder="5400"
-              />
-            </>
-          )}
-          <Input
-            label="Bodenrichtwert (€/m²)"
-            value={property.bodenrichtwert}
-            type="number"
-            onChange={(value) => set('bodenrichtwert', value ? Number(value) : null)}
-            placeholder={
-              boris?.bodenrichtwert?.value != null ? String(boris.bodenrichtwert.value) : 'Optional'
-            }
-          />
-        </div>
+        </GroupCard>
 
-        {borisLoading && (
-          <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-            <LoaderCircle className="size-4 animate-spin" /> Checking Bodenrichtwert…
-          </p>
-        )}
-
-        {boris?.available && boris.bodenrichtwert?.value != null && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-            <p className="font-semibold">Bodenrichtwert {boris.bodenrichtwert.value} €/m²</p>
-            <p className="mt-0.5 text-amber-700">
-              Source: {boris.source}
-              {boris.referenceDate
-                ? ` · Reference date: ${new Date(boris.referenceDate).toLocaleDateString('en-GB')}`
-                : ''}
-            </p>
-            <p className="mt-1 text-amber-600">
-              Official value suggested — you can change it at any time.
-            </p>
+        <GroupCard
+          title="Sanierung & Modernisierung"
+          description="Nur relevant, wenn eine Sanierung oder Modernisierung stattgefunden hat."
+        >
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <Select
+                label="Sanierungsstatus"
+                value={details.renovationStatus ?? ''}
+                onChange={(value) => setDetails({ renovationStatus: value || null })}
+                placeholder="Auswählen"
+                options={RENOVATION_STATUSES as unknown as ReadonlyArray<readonly [string, string]>}
+              />
+              <DocumentSources sources={sources?.renovationStatus} />
+            </div>
+            <div>
+              <Input
+                label="Letzte Modernisierung"
+                type="number"
+                value={details.lastModernizationYear}
+                onChange={(value) =>
+                  setDetails({ lastModernizationYear: value ? Number(value) : null })
+                }
+                placeholder="z. B. 2019"
+              />
+              <DocumentSources sources={sources?.lastModernizationYear} />
+            </div>
           </div>
-        )}
+        </GroupCard>
 
-        <SectionNotes
-          value={noteValue('details')}
-          onChange={(value) => setNote('details', value)}
-          placeholder="Add any extra details or highlights about the property…"
-        />
+        {showShell && (
+          <GroupCard
+            title="Geschosse & Keller"
+            description="Angaben zur Geschossstruktur des Hauses."
+          >
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <UnitInput
+                  label="Etagen"
+                  unit="Etagen"
+                  type="number"
+                  value={details.numberOfFloors ?? property.totalFloors}
+                  onChange={(value) => set('totalFloors', value ? Number(value) : null)}
+                  placeholder="2"
+                />
+                <DocumentSources sources={sources?.numberOfFloors} />
+              </div>
+              <Toggle
+                label="Keller"
+                checked={property.selectedFeatures.includes('basement')}
+                onChange={() => toggleFeature('basement')}
+              />
+              <Toggle
+                label="Dachgeschoss"
+                checked={property.selectedFeatures.includes('attic')}
+                onChange={() => toggleFeature('attic')}
+              />
+            </div>
+          </GroupCard>
+        )}
       </div>
     </Section>
   );

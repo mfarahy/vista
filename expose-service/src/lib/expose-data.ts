@@ -104,6 +104,8 @@ export const locationIntelligenceSchema = z.object({
 export const energyDataSchema = z
   .object({
     certificateType: certificateTypeSchema.nullable().optional(),
+    certificateDate: optionalText(20),
+    certificateValidUntil: optionalText(20),
     yearOfConstruction: z
       .number()
       .int()
@@ -112,6 +114,8 @@ export const energyDataSchema = z
       .nullable()
       .optional(),
     primaryEnergySource: primaryEnergySourceSchema.nullable().optional(),
+    heatingType: optionalText(80),
+    hotWaterIncluded: z.boolean().nullable().optional(),
     finalEnergyDemand: nonNegativeNumber,
     finalEnergyConsumption: nonNegativeNumber,
     efficiencyClass: efficiencyClassSchema.nullable().optional(),
@@ -276,13 +280,23 @@ export const pricingSchema = z.object({
   additionalCosts: nonNegativeNumber,
   buyerCommission: optionalText(120),
   sellerCommission: optionalText(120),
+  // Structured price-per-m² captured explicitly. It is never derived from
+  // price / living area by the application (see domain-model.ts for the same
+  // rule); it only holds values that were explicitly provided or extracted.
+  pricePerM2: nonNegativeNumber,
+  commissionRate: nonNegativeNumber,
+  commissionPayer: z.enum(['buyer', 'seller', 'both']).nullable().optional(),
+  commissionVatIncluded: z.boolean().nullable().optional(),
 });
 
 export const propertyDetailsSchema = z.object({
   livingArea: nonNegativeNumber,
   plotArea: nonNegativeNumber,
+  usableArea: nonNegativeNumber,
   rooms: nonNegativeNumber,
+  bedrooms: z.number().int().nonnegative().nullable().optional(),
   bathrooms: nonNegativeNumber,
+  guestToilets: z.number().int().nonnegative().nullable().optional(),
   yearBuilt: z
     .number()
     .int()
@@ -302,6 +316,34 @@ export const propertyDetailsSchema = z.object({
   garageCount: z.number().int().nonnegative().nullable().optional(),
   parkingSpaceCount: z.number().int().nonnegative().nullable().optional(),
   bodenrichtwert: nonNegativeNumber,
+  // Building construction metadata (mirrors the PropertyModel building section).
+  buildingStatus: z.enum(['new', 'existing']).nullable().optional(),
+  renovationStatus: optionalText(60),
+  lastModernizationYear: z
+    .number()
+    .int()
+    .min(1800)
+    .max(new Date().getFullYear() + 1)
+    .nullable()
+    .optional(),
+});
+
+export const rentalDataSchema = z.object({
+  isRented: z.boolean().nullable().optional(),
+  furnished: z.boolean().nullable().optional(),
+  annualRent: nonNegativeNumber,
+});
+
+export const investmentDataSchema = z.object({
+  grossYieldTargetPercent: nonNegativeNumber,
+  grossYieldActualPercent: nonNegativeNumber,
+});
+
+export const legalFlagsSchema = z.object({
+  usufruct: z.boolean().nullable().optional(),
+  leasehold: z.boolean().nullable().optional(),
+  foreclosure: z.boolean().nullable().optional(),
+  heritageProtection: z.boolean().nullable().optional(),
 });
 
 export const parkingSchema = z.object({
@@ -317,18 +359,22 @@ export const additionalInformationSchema = z.object({
   commissionNotes: optionalText(1000),
   availability: optionalText(200),
   notes: z.record(z.string(), z.string().max(2000).nullable().optional()).optional(),
+  legalFlags: legalFlagsSchema.optional(),
 });
 
 export const propertyExposeDataSchema = z.object({
   basicInformation: z.object({
     propertyType: z.string().min(1).max(100),
     propertySubtype: optionalText(100),
+    usageType: optionalText(50),
     title: optionalText(200),
     address: addressSchema,
   }),
   pricing: pricingSchema,
   propertyDetails: propertyDetailsSchema,
   energy: energyDataSchema.nullable().optional(),
+  rental: rentalDataSchema.optional(),
+  investment: investmentDataSchema.optional(),
   rooms: z.array(roomDataSchema).max(100).default([]),
   equipment: z.array(equipmentDataSchema).max(200).default([]),
   outdoorAreas: z.array(outdoorAreaSchema).max(20).default([]),
@@ -360,6 +406,9 @@ export type Place = z.infer<typeof placeSchema>;
 export type LocationIntelligence = z.infer<typeof locationIntelligenceSchema>;
 export type AgentData = z.infer<typeof agentDataSchema>;
 export type SystemBranding = z.infer<typeof systemBrandingSchema>;
+export type RentalData = z.infer<typeof rentalDataSchema>;
+export type InvestmentData = z.infer<typeof investmentDataSchema>;
+export type LegalFlags = z.infer<typeof legalFlagsSchema>;
 export type PropertyExposeData = z.infer<typeof propertyExposeDataSchema>;
 
 export const emptyExposeData = (): PropertyExposeData => ({
@@ -375,12 +424,19 @@ export const emptyExposeData = (): PropertyExposeData => ({
     additionalCosts: null,
     buyerCommission: null,
     sellerCommission: null,
+    pricePerM2: null,
+    commissionRate: null,
+    commissionPayer: null,
+    commissionVatIncluded: null,
   },
   propertyDetails: {
     livingArea: null,
     plotArea: null,
+    usableArea: null,
     rooms: null,
+    bedrooms: null,
     bathrooms: null,
+    guestToilets: null,
     yearBuilt: null,
     completionYear: null,
     floor: null,
@@ -388,8 +444,13 @@ export const emptyExposeData = (): PropertyExposeData => ({
     garageCount: null,
     parkingSpaceCount: null,
     bodenrichtwert: null,
+    buildingStatus: null,
+    renovationStatus: null,
+    lastModernizationYear: null,
   },
   energy: null,
+  rental: { isRented: null, furnished: null, annualRent: null },
+  investment: { grossYieldTargetPercent: null, grossYieldActualPercent: null },
   rooms: [],
   equipment: [],
   outdoorAreas: [],
@@ -406,6 +467,12 @@ export const emptyExposeData = (): PropertyExposeData => ({
     commissionNotes: null,
     availability: null,
     notes: {},
+    legalFlags: {
+      usufruct: null,
+      leasehold: null,
+      foreclosure: null,
+      heritageProtection: null,
+    },
   },
   agent: undefined,
   systemBranding: { companyName: 'Vista', processSteps: [] },

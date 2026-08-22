@@ -1,6 +1,502 @@
 {
   "properties": [
     {
+      "id": "26ea5ad9-2e43-4cd8-9c77-57395183804b",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [
+        "balcony",
+        "elevator",
+        "fitted-kitchen",
+        "underfloor-heating",
+        "basement",
+        "energy-efficient"
+      ],
+      "surroundings": {
+        "transport": "U7 und mehrere Buslinien in der Umgebung",
+        "shopping": "Vielf?ltige Gesch?fte und Wochenmarkt",
+        "restaurants": "Caf?s und Restaurants fu?l?ufig erreichbar",
+        "parks": "Volkspark Hasenheide f?r Freizeit und Erholung"
+      },
+      "tone": "modern",
+      "language": "de",
+      "images": [
+        {
+          "url": "/demo/room-1.svg",
+          "fileName": "demo-room-1.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 0,
+          "isCover": true,
+          "id": "3f8b9b1a-14a0-45b0-857b-0f49c9370c8a",
+          "assetId": "21ae446d-199c-4056-b478-bca2c1b89dd5"
+        },
+        {
+          "url": "/demo/room-2.svg",
+          "fileName": "demo-room-2.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 1,
+          "isCover": false,
+          "id": "1121ecb3-0ed3-4383-975d-9c972383d413",
+          "assetId": "62225b2f-0172-4707-9b55-5c6c7c71481e"
+        },
+        {
+          "url": "/demo/room-3.svg",
+          "fileName": "demo-room-3.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 2,
+          "isCover": false,
+          "id": "ecbcc865-d863-487f-a579-22fbc82c230b",
+          "assetId": "396239f9-af25-4f40-bf40-2d0098e653b4"
+        },
+        {
+          "url": "/demo/room-4.svg",
+          "fileName": "demo-room-4.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 3,
+          "isCover": false,
+          "id": "ab15fc73-93bc-43f2-bcc9-8054f6a5cd5a",
+          "assetId": "06ac78ba-9c69-4d66-a7f6-75129ca7e313"
+        },
+        {
+          "url": "/demo/room-5.svg",
+          "fileName": "demo-room-5.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 4,
+          "isCover": false,
+          "id": "6446fe53-607d-4a13-bdc9-30304a1a91e1",
+          "assetId": "3dbbd020-4c50-4bd9-83d3-b1436d6f3c35"
+        },
+        {
+          "url": "/demo/room-6.svg",
+          "fileName": "demo-room-6.svg",
+          "mimeType": "image/svg+xml",
+          "size": 0,
+          "sequence": 5,
+          "isCover": false,
+          "id": "c2976a29-c863-4a32-9e45-62ba12848e85",
+          "assetId": "66fcbf55-b8ba-4cf4-89be-88f71183836a"
+        },
+        {
+          "url": "/uploads/fea8b22a-3d38-4ed0-af35-0f7b3906dc96-floorplan-3d-41207c49-dcd0-4d7c-90e4-f547125c2930.png",
+          "fileName": "floorplan-3d-41207c49-dcd0-4d7c-90e4-f547125c2930.png",
+          "mimeType": "image/png",
+          "size": 1073503,
+          "sequence": 6,
+          "isCover": false,
+          "assetId": "1c2e620e-0519-41b2-88b1-5833cf9a7bf9",
+          "category": "floor_plan",
+          "subcategory": null,
+          "caption": null,
+          "description": null,
+          "isHeroCandidate": false,
+          "id": "90a80898-4b18-4194-b487-e2f9e044f09e"
+        }
+      ],
+      "roomsData": [
+        {
+          "name": "Wohnbereich",
+          "type": "Wohnen",
+          "size": 32,
+          "floor": "2. OG",
+          "description": "Gro?e Fenster und direkter Zugang zum S?dwest-Balkon.",
+          "sequence": 0,
+          "id": "a092de8d-d314-4038-bfc7-5580b33554b3"
+        },
+        {
+          "name": "Schlafzimmer",
+          "type": "Schlafen",
+          "size": 15,
+          "floor": "2. OG",
+          "description": "Ruhiger R?ckzugsort mit Platz f?r ein Doppelbett.",
+          "sequence": 1,
+          "id": "bfac332a-97fd-4c15-9b17-9804b484d0bd"
+        },
+        {
+          "name": "Arbeitszimmer",
+          "type": "Arbeiten",
+          "size": 11,
+          "floor": "2. OG",
+          "description": "Flexibel nutzbarer Raum f?r Homeoffice oder G?ste.",
+          "sequence": 2,
+          "id": "54014fcf-9ee8-4b2c-94fb-399c4df835d3"
+        },
+        {
+          "name": "K?che",
+          "type": "Kochen",
+          "size": 9,
+          "floor": "2. OG",
+          "description": "Moderne Einbauk?che mit klarer Linienf?hrung.",
+          "sequence": 3,
+          "id": "3310f7d7-d623-4c4b-8434-cb63a2d458ca"
+        }
+      ],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": null,
+          "title": null,
+          "address": {
+            "street": "Weserstra?e",
+            "houseNumber": "42",
+            "postalCode": "12045",
+            "city": "Berlin",
+            "district": "Neuk?lln",
+            "country": "Deutschland"
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null,
+          "pricePerM2": null,
+          "commissionRate": null,
+          "commissionPayer": null,
+          "commissionVatIncluded": null
+        },
+        "propertyDetails": {
+          "livingArea": null,
+          "plotArea": null,
+          "usableArea": null,
+          "rooms": null,
+          "bedrooms": null,
+          "bathrooms": null,
+          "guestToilets": null,
+          "yearBuilt": null,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "bodenrichtwert": null,
+          "buildingStatus": null,
+          "renovationStatus": null,
+          "lastModernizationYear": null
+        },
+        "energy": {
+          "certificateType": "needs_based",
+          "certificateDate": "2024-03-01",
+          "certificateValidUntil": "2034-03-01",
+          "yearOfConstruction": 2018,
+          "primaryEnergySource": "district_heating",
+          "heatingType": "Zentralheizung",
+          "hotWaterIncluded": true,
+          "finalEnergyDemand": 78.5,
+          "finalEnergyConsumption": null,
+          "efficiencyClass": "B"
+        },
+        "rental": {
+          "isRented": null,
+          "furnished": null,
+          "annualRent": null
+        },
+        "investment": {
+          "grossYieldTargetPercent": null,
+          "grossYieldActualPercent": null
+        },
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "street": "Weserstra?e",
+            "houseNumber": "42",
+            "postalCode": "12045",
+            "city": "Berlin",
+            "district": "Neuk?lln",
+            "country": "Deutschland"
+          },
+          "latitude": null,
+          "longitude": null
+        },
+        "images": [
+          {
+            "url": "/demo/room-1.svg",
+            "fileName": "demo-room-1.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 0,
+            "isCover": true,
+            "id": "3f8b9b1a-14a0-45b0-857b-0f49c9370c8a",
+            "assetId": "21ae446d-199c-4056-b478-bca2c1b89dd5",
+            "category": "document",
+            "order": 0,
+            "isHeroCandidate": true
+          },
+          {
+            "url": "/demo/room-2.svg",
+            "fileName": "demo-room-2.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 1,
+            "isCover": false,
+            "id": "1121ecb3-0ed3-4383-975d-9c972383d413",
+            "assetId": "62225b2f-0172-4707-9b55-5c6c7c71481e",
+            "category": "document",
+            "order": 1,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/room-3.svg",
+            "fileName": "demo-room-3.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 2,
+            "isCover": false,
+            "id": "ecbcc865-d863-487f-a579-22fbc82c230b",
+            "assetId": "396239f9-af25-4f40-bf40-2d0098e653b4",
+            "category": "document",
+            "order": 2,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/room-4.svg",
+            "fileName": "demo-room-4.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 3,
+            "isCover": false,
+            "id": "ab15fc73-93bc-43f2-bcc9-8054f6a5cd5a",
+            "assetId": "06ac78ba-9c69-4d66-a7f6-75129ca7e313",
+            "category": "document",
+            "order": 3,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/room-5.svg",
+            "fileName": "demo-room-5.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 4,
+            "isCover": false,
+            "id": "6446fe53-607d-4a13-bdc9-30304a1a91e1",
+            "assetId": "3dbbd020-4c50-4bd9-83d3-b1436d6f3c35",
+            "category": "document",
+            "order": 4,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/demo/room-6.svg",
+            "fileName": "demo-room-6.svg",
+            "mimeType": "image/svg+xml",
+            "size": 0,
+            "sequence": 5,
+            "isCover": false,
+            "id": "c2976a29-c863-4a32-9e45-62ba12848e85",
+            "assetId": "66fcbf55-b8ba-4cf4-89be-88f71183836a",
+            "category": "document",
+            "order": 5,
+            "isHeroCandidate": false
+          },
+          {
+            "url": "/uploads/fea8b22a-3d38-4ed0-af35-0f7b3906dc96-floorplan-3d-41207c49-dcd0-4d7c-90e4-f547125c2930.png",
+            "fileName": "floorplan-3d-41207c49-dcd0-4d7c-90e4-f547125c2930.png",
+            "mimeType": "image/png",
+            "size": 1073503,
+            "sequence": 6,
+            "isCover": false,
+            "assetId": "1c2e620e-0519-41b2-88b1-5833cf9a7bf9",
+            "category": "floor_plan",
+            "subcategory": null,
+            "caption": null,
+            "description": null,
+            "isHeroCandidate": false,
+            "id": "90a80898-4b18-4194-b487-e2f9e044f09e",
+            "order": 6
+          }
+        ],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null,
+          "notes": {},
+          "legalFlags": {
+            "usufruct": null,
+            "leasehold": null,
+            "foreclosure": null,
+            "heritageProtection": null
+          }
+        },
+        "agent": {
+          "name": "Max Mustermann",
+          "company": "Muster Immobilien GmbH",
+          "phone": "+49 30 123456",
+          "email": "max@example.com",
+          "website": "https://www.muster-immobilien.de"
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": {
+        "id": "a3613657-9ca0-40e2-8f6e-8f2d8dd9c2db",
+        "propertyId": "26ea5ad9-2e43-4cd8-9c77-57395183804b",
+        "template": "modern",
+        "content": null,
+        "configuration": {
+          "template": "modern",
+          "sections": [
+            {
+              "id": "cover",
+              "type": "cover",
+              "visible": true
+            },
+            {
+              "id": "highlights",
+              "type": "highlights",
+              "visible": true
+            },
+            {
+              "id": "property",
+              "type": "property",
+              "visible": true
+            },
+            {
+              "id": "equipment",
+              "type": "equipment",
+              "visible": true
+            },
+            {
+              "id": "facts",
+              "type": "facts",
+              "visible": true
+            },
+            {
+              "id": "location",
+              "type": "location",
+              "visible": true
+            },
+            {
+              "id": "energy",
+              "type": "energy",
+              "visible": false
+            },
+            {
+              "id": "gallery",
+              "type": "gallery",
+              "visible": true
+            },
+            {
+              "id": "floorplans",
+              "type": "floorplans",
+              "visible": true
+            },
+            {
+              "id": "documents",
+              "type": "documents",
+              "visible": true
+            },
+            {
+              "id": "contact",
+              "type": "contact",
+              "visible": true
+            }
+          ],
+          "selectedCoverImageId": "ecbcc865-d863-487f-a579-22fbc82c230b",
+          "galleryImageIds": [
+            "1121ecb3-0ed3-4383-975d-9c972383d413",
+            "ecbcc865-d863-487f-a579-22fbc82c230b",
+            "ab15fc73-93bc-43f2-bcc9-8054f6a5cd5a",
+            "6446fe53-607d-4a13-bdc9-30304a1a91e1",
+            "c2976a29-c863-4a32-9e45-62ba12848e85"
+          ],
+          "contentOverrides": {
+            "title": "Gepflegtes Apartment mit Weitblick",
+            "highlights": [
+              "105 m² großzügige Wohnfläche",
+              "3 Zimmer, davon 2 Schlafzimmer",
+              "Baujahr 2018",
+              "Einbauk?che vorhanden",
+              "Balkon vorhanden",
+              "Keller vorhanden"
+            ],
+            "propertyDescription": "Eigene Objektbeschreibung für das Exposé: helle Räume, moderner Schnitt."
+          }
+        },
+        "generatedAt": "2026-08-21T22:17:26.661Z"
+      },
+      "createdAt": "2026-08-21T22:16:20.789Z",
+      "updatedAt": "2026-08-21T22:25:01.088Z",
+      "constructionYear": 2018,
+      "address": "Weserstra?e 42",
+      "zipCode": "12045",
+      "city": "Berlin",
+      "district": "Neuk?lln",
+      "livingArea": 92,
+      "plotArea": null,
+      "rooms": 3,
+      "bedrooms": 2,
+      "bathrooms": 1,
+      "floor": "2. OG",
+      "totalFloors": 5,
+      "availableFrom": "sofort",
+      "condition": "new",
+      "askingPrice": 449000,
+      "additionalCosts": null,
+      "commission": "3,57 % inkl. MwSt.",
+      "hausgeld": 390,
+      "coldRent": null,
+      "deposit": null,
+      "additionalFeatures": "S?dwest-Balkon mit Weitblick",
+      "locationNote": "Lebendiges Umfeld mit Caf?s, kleinen L?den und kurzen Wegen zu den t?glichen Zielen.",
+      "sellerDescription": "Eine helle Wohnung mit offenem Grundriss und sorgf?ltig ausgew?hlten Materialien.",
+      "specialNotes": "DEMO / TESTDATEN",
+      "targetAudience": "Paare und anspruchsvolle Eigennutzer",
+      "marketingContent": {
+        "title": {
+          "value": "3-Zimmer-Apartment mit Balkon und Einbauk?che in Neuk?lln",
+          "source": "ai"
+        },
+        "subtitle": {
+          "value": "Apartment mit 92 m? Wohnfl?che in Berlin-Neuk?lln",
+          "source": "ai"
+        },
+        "highlights": {
+          "value": [
+            "92 m? Wohnfl?che",
+            "3 Zimmer, davon 2 Schlafzimmer",
+            "Baujahr 2018",
+            "Einbauk?che vorhanden",
+            "Balkon vorhanden",
+            "Keller vorhanden"
+          ],
+          "source": "ai"
+        },
+        "propertyDescription": {
+          "value": "Das Apartment verf?gt ?ber 92 m? Wohnfl?che, verteilt auf drei Zimmer mit zwei Schlafzimmern und einem Badezimmer. Das im Jahr 2018 errichtete Geb?ude umfasst f?nf Etagen. Ein Balkon, eine Einbauk?che und ein eigener Kellerbereich erg?nzen das Angebot. Die Wohnung ist sofort verf?gbar und wird zum Kauf angeboten.",
+          "source": "ai"
+        },
+        "equipmentDescription": {
+          "value": "Zur Ausstattung geh?ren eine Einbauk?che, ein Balkon und ein Badezimmer. Ein Keller ist vorhanden.",
+          "source": "ai"
+        },
+        "locationDescription": {
+          "value": "Das Apartment befindet sich in Berlin-Neuk?lln. In der Umgebung verkehren die U7 und mehrere Buslinien. Vielf?ltige Gesch?fte und ein Wochenmarkt bieten Einkaufsm?glichkeiten. Der Volkspark Hasenheide steht f?r Freizeit und Erholung zur Verf?gung; Caf?s und Restaurants sind fu?l?ufig erreichbar. Das Umfeld ist durch Caf?s, kleine L?den und kurze Wege zu den t?glichen Zielen gepr?gt.",
+          "source": "ai"
+        }
+      }
+    },
+    {
       "id": "194ff9c2-72e0-4bd3-8848-f6bf9141577f",
       "propertyType": "apartment",
       "transactionType": "sale",

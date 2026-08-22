@@ -28,23 +28,37 @@ import type {
   ExternalFacility,
   ExternalGeocoding,
   ExternalResearch,
+  MarketingContent,
   Property,
   PropertyPayload,
   StructuredAddress,
 } from './types';
-import { STEPS, emptyExposeData, initialPayload } from './types';
+import { STEPS, PROPERTY_TYPES, emptyExposeData, initialPayload } from './types';
 import {
+  collectAdditionalInformation,
   collectWizardFieldCandidates,
   computeWizardPrefills,
+  groupAdditionalByKey,
   groupCandidatesByField,
+  type AdditionalInfoCandidate,
   type WizardFieldCandidate,
 } from './document-prefill';
-import { StepAddress, StepProperty, StepDetails } from './components/basic-steps';
-import { StepFeatures, StepEnergy, StepAgent } from './components/feature-steps';
+import { stepStatus, stepStatusLabel, normalizeCertificateType, normalizeEnergySource, type WizardStepStatus } from './wizard-steps';
+import { StepBuilding, StepProperty, type AddressFieldState } from './components/basic-steps';
+import { StepEnergy, StepFeatures, StepAgent } from './components/feature-steps';
+import {
+  StepFinancial,
+  StepLegal,
+  StepLocation,
+  StepYourInformation,
+} from './components/financial-steps';
 import { StepPhotos, StepPlans } from './components/media-steps';
 import { StepDocuments } from './components/documents-step';
+import { StepMarketingContent } from './components/marketing-steps';
 import { Review, ContentEditor } from './components/review';
-import { AddressDebugPanel } from './components/debug';
+
+const REVIEW_STEP = 13;
+const CONTENT_STEP = 14;
 
 export default function WizardClient({ initialProperty }: { initialProperty: Property }) {
   const router = useRouter();
@@ -53,7 +67,10 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
   const [content, setContent] = useState<ExposeContent | null>(
     initialProperty.expose?.content ?? null,
   );
-  const [step, setStep] = useState(content ? 11 : 0);
+  const [marketingContent, setMarketingContent] = useState<MarketingContent | null>(
+    initialProperty.marketingContent ?? null,
+  );
+  const [step, setStep] = useState(content ? CONTENT_STEP : 0);
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState('');
@@ -78,6 +95,10 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
   const [boris, setBoris] = useState<BorisEnrichment | null>(null);
   const [borisLoading, setBorisLoading] = useState(false);
   const [fieldSources, setFieldSources] = useState<Record<string, WizardFieldCandidate[]>>({});
+  const [additionalInfoByKey, setAdditionalInfoByKey] = useState<
+    Record<string, AdditionalInfoCandidate[]>
+  >({});
+  const [documentRecords, setDocumentRecords] = useState<DocumentRecord[]>([]);
 
   // Load persisted documents and prefill empty wizard fields from their AI
   // understanding results. This is what makes prefill survive a page reload:
@@ -114,12 +135,12 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
           `/api/address/suggestions?q=${encodeURIComponent(addressQuery.trim())}`,
           { signal: controller.signal },
         );
-        if (!response.ok) throw new Error('Address lookup is currently unavailable.');
+        if (!response.ok) throw new Error('Die Adresssuche ist derzeit nicht verfügbar.');
         setAddressSuggestions(await response.json());
       } catch (lookupError) {
         if (!controller.signal.aborted)
           setAddressError(
-            lookupError instanceof Error ? lookupError.message : 'Address lookup failed.',
+            lookupError instanceof Error ? lookupError.message : 'Die Adresssuche ist fehlgeschlagen.',
           );
       } finally {
         if (!controller.signal.aborted) setAddressLoading(false);
@@ -293,24 +314,29 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
   }
 
   function applyExtractedDocuments(records: DocumentRecord[]) {
+    setDocumentRecords(records);
     // Collect every AI-extracted candidate across all persisted documents. All
     // sources are preserved (conflicting values are never silently discarded);
     // only empty wizard fields are prefilled.
     const sourcesByField = groupCandidatesByField(collectWizardFieldCandidates(records));
     setFieldSources(sourcesByField);
+    setAdditionalInfoByKey(groupAdditionalByKey(collectAdditionalInformation(records)));
     if (!Object.keys(sourcesByField).length) return;
 
     setProperty((current) => {
       const data = current.exposeData ?? emptyExposeData(initialProperty);
       const address = data.basicInformation.address;
+      const details = data.propertyDetails;
       const currentValues: Record<string, unknown> = {
-        livingArea: current.livingArea,
-        plotArea: current.plotArea,
-        rooms: current.rooms,
-        bedrooms: current.bedrooms,
-        bathrooms: current.bathrooms,
-        yearBuilt: current.constructionYear,
-        numberOfFloors: current.totalFloors,
+        livingArea: current.livingArea ?? details.livingArea,
+        usableArea: details.usableArea,
+        plotArea: current.plotArea ?? details.plotArea,
+        rooms: current.rooms ?? details.rooms,
+        bedrooms: current.bedrooms ?? details.bedrooms,
+        bathrooms: current.bathrooms ?? details.bathrooms,
+        guestToilets: details.guestToilets,
+        yearBuilt: current.constructionYear ?? details.yearBuilt,
+        numberOfFloors: current.totalFloors ?? details.numberOfFloors,
         floor: current.floor,
         street: address.street,
         houseNumber: address.houseNumber,
@@ -319,11 +345,40 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         district: address.district,
         state: address.state,
         country: address.country,
+        condition: current.condition,
+        buildingStatus: details.buildingStatus,
+        renovationStatus: details.renovationStatus,
+        lastModernizationYear: details.lastModernizationYear,
+        usageType: data.basicInformation.usageType,
+        propertySubtype: data.basicInformation.propertySubtype,
+        propertyType: current.propertyType,
+        transactionType: current.transactionType,
         energyClass: data.energy?.efficiencyClass,
         energyConsumption: data.energy?.finalEnergyConsumption,
         energyDemand: data.energy?.finalEnergyDemand,
-        heatingType: data.energy?.primaryEnergySource,
+        heatingType: data.energy?.heatingType,
+        primaryEnergySource: data.energy?.primaryEnergySource,
         yearOfConstruction: data.energy?.yearOfConstruction,
+        certificateType: data.energy?.certificateType,
+        certificateDate: data.energy?.certificateDate,
+        certificateValidUntil: data.energy?.certificateValidUntil,
+        hotWaterIncluded: data.energy?.hotWaterIncluded,
+        askingPrice: current.askingPrice,
+        pricePerM2: data.pricing.pricePerM2,
+        commissionRate: data.pricing.commissionRate,
+        commissionPayer: data.pricing.commissionPayer,
+        isRented: data.rental?.isRented,
+        monthlyRent: current.coldRent,
+        annualRent: data.rental?.annualRent,
+        additionalCosts: current.additionalCosts,
+        furnished: data.rental?.furnished,
+        availableFrom: current.availableFrom,
+        grossYieldTarget: data.investment?.grossYieldTargetPercent,
+        grossYieldActual: data.investment?.grossYieldActualPercent,
+        usufruct: data.additionalInformation?.legalFlags?.usufruct,
+        leasehold: data.additionalInformation?.legalFlags?.leasehold,
+        foreclosure: data.additionalInformation?.legalFlags?.foreclosure,
+        heritageProtection: data.additionalInformation?.legalFlags?.heritageProtection,
       };
       const { defaults } = computeWizardPrefills(records, currentValues);
       return applyPrefillToProperty(current, defaults);
@@ -352,7 +407,21 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     const next = { ...current };
     const data = next.exposeData ?? emptyExposeData(initialProperty);
     const address = { ...data.basicInformation.address };
+    const basicInfo = { ...data.basicInformation };
+    const details = { ...data.propertyDetails };
+    const pricing = { ...data.pricing };
+    const energy = data.energy ? { ...data.energy } : {};
+    const rental = { ...(data.rental ?? {}) };
+    const investment = { ...(data.investment ?? {}) };
+    const legalFlags = { ...(data.additionalInformation.legalFlags ?? {}) };
     let addressChanged = false;
+    let energyChanged = false;
+    let detailsChanged = false;
+    let pricingChanged = false;
+    let rentalChanged = false;
+    let investmentChanged = false;
+    let legalChanged = false;
+    let basicChanged = false;
     const addressRecord = address as Record<string, string | null | undefined>;
     const setAddress = (key: keyof StructuredAddress, value: string) => {
       if (value && !addressRecord[key]) {
@@ -360,13 +429,28 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         addressChanged = true;
       }
     };
-
-    const energy = data.energy ? { ...data.energy } : {};
-    let energyChanged = false;
     const setEnergy = (key: keyof EnergyData, value: string | number | boolean | null) => {
       if (value !== null && value !== undefined && value !== '' && energy[key] == null) {
         (energy as Record<string, string | number | boolean | null>)[key] = value;
         energyChanged = true;
+      }
+    };
+    const setRental = (key: keyof typeof rental, value: string | number | boolean) => {
+      if (value !== null && value !== undefined && value !== '' && rental[key] == null) {
+        (rental as Record<string, string | number | boolean | null>)[key] = value;
+        rentalChanged = true;
+      }
+    };
+    const setInvestment = (key: keyof typeof investment, value: string | number | boolean) => {
+      if (value !== null && value !== undefined && value !== '' && investment[key] == null) {
+        (investment as Record<string, string | number | boolean | null>)[key] = value;
+        investmentChanged = true;
+      }
+    };
+    const setLegalFlag = (key: keyof typeof legalFlags, value: boolean) => {
+      if (value && legalFlags[key] !== true) {
+        (legalFlags as Record<string, boolean | null | undefined>)[key] = true;
+        legalChanged = true;
       }
     };
 
@@ -397,14 +481,39 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         case 'propertyType': {
           // propertyType always has the initial default value, so treat that
           // default as "empty" and never overwrite an explicit user choice.
+          // Also guard against non-normalized AI values (e.g. "Wohnhaus").
+          const validType = (PROPERTY_TYPES as readonly (readonly [string, string])[]).some(
+            ([key]) => key === value,
+          );
           const currentType = current.propertyType;
-          if (value && (!currentType || currentType === 'apartment')) {
+          if (validType && (!currentType || currentType === 'apartment')) {
             next.propertyType = value as PropertyPayload['propertyType'];
+            basicChanged = true;
+          }
+          break;
+        }
+        case 'propertySubtype': {
+          if (!basicInfo.propertySubtype) {
+            basicInfo.propertySubtype = String(value);
+            basicChanged = true;
+          }
+          break;
+        }
+        case 'usageType': {
+          if (!basicInfo.usageType) {
+            basicInfo.usageType = String(value);
+            basicChanged = true;
           }
           break;
         }
         case 'livingArea':
           if (next.livingArea == null) next.livingArea = Number(value);
+          break;
+        case 'usableArea':
+          if (details.usableArea == null) {
+            details.usableArea = Number(value);
+            detailsChanged = true;
+          }
           break;
         case 'plotArea':
           if (next.plotArea == null) next.plotArea = Number(value);
@@ -418,6 +527,12 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         case 'bathrooms':
           if (next.bathrooms == null) next.bathrooms = Number(value);
           break;
+        case 'guestToilets':
+          if (details.guestToilets == null) {
+            details.guestToilets = Number(value);
+            detailsChanged = true;
+          }
+          break;
         case 'yearBuilt':
           if (next.constructionYear == null) next.constructionYear = Number(value);
           break;
@@ -426,6 +541,48 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
           break;
         case 'floor':
           if (!next.floor) next.floor = String(value);
+          break;
+        case 'condition':
+          if (!next.condition) next.condition = String(value);
+          break;
+        case 'buildingStatus':
+          if (details.buildingStatus == null) {
+            details.buildingStatus = String(value) as 'new' | 'existing';
+            detailsChanged = true;
+          }
+          break;
+        case 'renovationStatus':
+          if (!details.renovationStatus) {
+            details.renovationStatus = String(value);
+            detailsChanged = true;
+          }
+          break;
+        case 'lastModernizationYear':
+          if (details.lastModernizationYear == null) {
+            details.lastModernizationYear = Number(value);
+            detailsChanged = true;
+          }
+          break;
+        case 'askingPrice':
+          if (next.askingPrice == null) next.askingPrice = Number(value);
+          break;
+        case 'pricePerM2':
+          if (pricing.pricePerM2 == null) {
+            pricing.pricePerM2 = Number(value);
+            pricingChanged = true;
+          }
+          break;
+        case 'commissionRate':
+          if (pricing.commissionRate == null) {
+            pricing.commissionRate = Number(value);
+            pricingChanged = true;
+          }
+          break;
+        case 'commissionPayer':
+          if (!pricing.commissionPayer) {
+            pricing.commissionPayer = String(value) as ExposeData['pricing']['commissionPayer'];
+            pricingChanged = true;
+          }
           break;
         case 'energyClass':
           setEnergy('efficiencyClass', String(value));
@@ -436,26 +593,87 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         case 'energyDemand':
           setEnergy('finalEnergyDemand', Number(value));
           break;
-        case 'heatingType':
-          setEnergy(
-            'primaryEnergySource',
-            String(value)
-              .toLowerCase()
-              .replace('heizung', '')
-              .trim(),
-          );
+        case 'certificateType': {
+          const normalized = normalizeCertificateType(String(value));
+          if (normalized) setEnergy('certificateType', normalized);
           break;
+        }
+        case 'certificateDate':
+          setEnergy('certificateDate', String(value));
+          break;
+        case 'certificateValidUntil':
+          setEnergy('certificateValidUntil', String(value));
+          break;
+        case 'heatingType': {
+          // heatingType is stored verbatim as the heating system name and also
+          // used to derive the primary energy source when that is still empty.
+          setEnergy('heatingType', String(value));
+          if (!energy.primaryEnergySource) {
+            const source = normalizeEnergySource(String(value));
+            if (source) setEnergy('primaryEnergySource', source);
+          }
+          break;
+        }
+        case 'primaryEnergySource': {
+          const source = normalizeEnergySource(String(value));
+          if (source) setEnergy('primaryEnergySource', source);
+          break;
+        }
         case 'yearOfConstruction':
           setEnergy('yearOfConstruction', Number(value));
+          break;
+        case 'hotWaterIncluded':
+          if (value === true && energy.hotWaterIncluded !== true) {
+            setEnergy('hotWaterIncluded', true);
+          }
+          break;
+        case 'isRented':
+          if (value === true && rental.isRented !== true) setRental('isRented', true);
+          break;
+        case 'monthlyRent':
+          if (next.transactionType === 'rent' && next.coldRent == null)
+            next.coldRent = Number(value);
+          break;
+        case 'annualRent':
+          if (rental.annualRent == null) setRental('annualRent', Number(value));
+          break;
+        case 'additionalCosts':
+          if (next.additionalCosts == null) next.additionalCosts = Number(value);
+          break;
+        case 'furnished':
+          if (value === true && rental.furnished !== true) setRental('furnished', true);
+          break;
+        case 'availableFrom':
+          if (!next.availableFrom) next.availableFrom = String(value);
+          break;
+        case 'grossYieldTarget':
+          if (investment.grossYieldTargetPercent == null)
+            setInvestment('grossYieldTargetPercent', Number(value));
+          break;
+        case 'grossYieldActual':
+          if (investment.grossYieldActualPercent == null)
+            setInvestment('grossYieldActualPercent', Number(value));
+          break;
+        case 'usufruct':
+          if (value === true) setLegalFlag('usufruct', true);
+          break;
+        case 'leasehold':
+          if (value === true) setLegalFlag('leasehold', true);
+          break;
+        case 'foreclosure':
+          if (value === true) setLegalFlag('foreclosure', true);
+          break;
+        case 'heritageProtection':
+          if (value === true) setLegalFlag('heritageProtection', true);
+          break;
+        case 'transactionType':
+          // The default is always 'sale'; never overwrite an explicit choice.
           break;
         case 'basement':
           if (value === true) features.push('basement');
           break;
-        case 'parking':
-          if (value === true) features.push('parking');
-          break;
-        case 'garage':
-          if (value === true) features.push('garage');
+        case 'attic':
+          if (value === true) features.push('attic');
           break;
         case 'balcony':
           if (value === true) features.push('balcony');
@@ -466,6 +684,21 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         case 'garden':
           if (value === true) features.push('garden');
           break;
+        case 'garage':
+          if (value === true) features.push('garage');
+          break;
+        case 'parking':
+          if (value === true) features.push('parking');
+          break;
+        case 'shower':
+          if (value === true) features.push('shower');
+          break;
+        case 'bathtub':
+          if (value === true) features.push('bathtub');
+          break;
+        case 'carport':
+          if (value === true) features.push('carport');
+          break;
         default:
           // Fields without a wizard target (e.g. parcelNumber, plotNumber) stay
           // available in sourcesByField for inspection but are not forced in.
@@ -473,6 +706,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       }
     }
 
+    if (basicChanged) data.basicInformation = { ...basicInfo, address };
     if (addressChanged) {
       data.basicInformation = { ...data.basicInformation, address };
       data.location = { ...data.location, address, district: address.district };
@@ -489,16 +723,23 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     }
 
     if (energyChanged) data.energy = energy as EnergyData;
+    if (detailsChanged) data.propertyDetails = details;
+    if (pricingChanged) data.pricing = pricing;
+    if (rentalChanged) data.rental = rental;
+    if (investmentChanged) data.investment = investment;
+    if (legalChanged) {
+      data.additionalInformation = { ...data.additionalInformation, legalFlags };
+    }
 
     data.propertyDetails = {
       ...data.propertyDetails,
-      livingArea: next.livingArea,
-      plotArea: next.plotArea,
-      rooms: next.rooms,
-      bathrooms: next.bathrooms,
-      yearBuilt: next.constructionYear,
-      floor: next.floor ?? data.propertyDetails.floor,
-      numberOfFloors: next.totalFloors,
+      livingArea: next.livingArea ?? data.propertyDetails.livingArea ?? null,
+      plotArea: next.plotArea ?? data.propertyDetails.plotArea ?? null,
+      rooms: next.rooms ?? data.propertyDetails.rooms ?? null,
+      bathrooms: next.bathrooms ?? data.propertyDetails.bathrooms ?? null,
+      yearBuilt: next.constructionYear ?? data.propertyDetails.yearBuilt ?? null,
+      floor: next.floor ?? data.propertyDetails.floor ?? null,
+      numberOfFloors: next.totalFloors ?? data.propertyDetails.numberOfFloors ?? null,
     };
 
     return { ...next, exposeData: data };
@@ -508,7 +749,9 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     setProperty((current) => {
       const next = { ...current, [key]: value };
       const data = next.exposeData ?? emptyExposeData(initialProperty);
-      // Keep the canonical exposeData in sync with the legacy flat fields edited here.
+      // Keep the canonical exposeData in sync with the legacy flat fields edited
+      // here. Values are coerced to null so JSON serialization never drops a
+      // known key (JSON.stringify omits undefined properties).
       if (key === 'address' || key === 'zipCode' || key === 'city' || key === 'district') {
         const address = {
           ...data.basicInformation.address,
@@ -522,25 +765,27 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       }
       data.propertyDetails = {
         ...data.propertyDetails,
-        livingArea: next.livingArea,
-        plotArea: next.plotArea,
-        rooms: next.rooms,
-        bathrooms: next.bathrooms,
-        yearBuilt: next.constructionYear,
-        floor: next.floor,
-        numberOfFloors: next.totalFloors,
-        bodenrichtwert: next.bodenrichtwert,
+        livingArea: next.livingArea ?? null,
+        plotArea: next.plotArea ?? null,
+        rooms: next.rooms ?? null,
+        bathrooms: next.bathrooms ?? null,
+        yearBuilt: next.constructionYear ?? null,
+        floor: next.floor ?? null,
+        numberOfFloors: next.totalFloors ?? null,
+        bodenrichtwert: next.bodenrichtwert ?? null,
       };
       data.pricing = {
         ...data.pricing,
         purchasePrice:
-          next.transactionType === 'sale' ? next.askingPrice : data.pricing.purchasePrice,
+          next.transactionType === 'sale'
+            ? (next.askingPrice ?? null)
+            : (data.pricing.purchasePrice ?? null),
         rentPrice:
           next.transactionType === 'rent'
-            ? (next.coldRent ?? next.askingPrice)
-            : data.pricing.rentPrice,
-        additionalCosts: next.additionalCosts,
-        buyerCommission: next.commission,
+            ? (next.coldRent ?? next.askingPrice ?? null)
+            : (data.pricing.rentPrice ?? null),
+        additionalCosts: next.additionalCosts ?? null,
+        buyerCommission: next.commission ?? null,
       };
       return { ...next, exposeData: data };
     });
@@ -559,6 +804,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     updateExposeData({ additionalInformation });
   };
   const [metadataLoading, setMetadataLoading] = useState(false);
+  const [marketingLoading, setMarketingLoading] = useState(false);
   async function generateMetadata() {
     setMetadataLoading(true);
     setError('');
@@ -566,7 +812,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       method: 'POST',
     });
     const result = await response.json();
-    if (!response.ok) setError(result.error || 'The AI could not generate a title.');
+    if (!response.ok) setError(result.error || 'Die KI konnte keinen Titel erzeugen.');
     else {
       updateExposeData({
         basicInformation: {
@@ -575,7 +821,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
           propertySubtype: result.subtitle,
         },
       });
-      toast.success('Listing title generated');
+      toast.success('Exposé-Titel erzeugt');
     }
     setMetadataLoading(false);
   }
@@ -586,19 +832,19 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     const response = await apiFetch(`/api/properties/${initialProperty.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(property),
+      body: JSON.stringify({ ...property, marketingContent }),
     });
-    if (!response.ok) setError('The details could not be saved.');
+    if (!response.ok) setError('Die Angaben konnten nicht gespeichert werden.');
     setSaving(false);
   }
 
   async function next() {
     if (step === 1 && !addressSelected) {
-      setError('Please select an exact address from the suggestions before continuing.');
+      setError('Bitte wählen Sie zuerst eine genaue Adresse aus den Vorschlägen aus.');
       return;
     }
     await save();
-    setStep((current) => Math.min(current + 1, 9));
+    setStep((current) => Math.min(current + 1, REVIEW_STEP));
   }
 
   async function generate(action = '') {
@@ -611,12 +857,26 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       body: JSON.stringify({ action }),
     });
     const result = await response.json();
-    if (!response.ok) setError(result.error || 'The AI could not create the text.');
+    if (!response.ok) setError(result.error || 'Die KI konnte den Text nicht erstellen.');
     else {
       setContent(result);
-      setStep(10);
+      setStep(CONTENT_STEP);
     }
     setAiLoading(false);
+  }
+
+  async function generateMarketingContent() {
+    await save();
+    setMarketingLoading(true);
+    setError('');
+    const response = await apiFetch(
+      `/api/properties/${initialProperty.id}/marketing-content/generate`,
+      { method: 'POST' },
+    );
+    const result = await response.json();
+    if (!response.ok) setError(result.error || 'Der Exposé-Inhalt konnte nicht erzeugt werden.');
+    else setMarketingContent(result);
+    setMarketingLoading(false);
   }
 
   async function saveContent() {
@@ -628,7 +888,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       body: JSON.stringify(content),
     });
     if (response.ok) router.push(`/preview/${initialProperty.id}`);
-    else setError('The content could not be saved.');
+    else setError('Der Inhalt konnte nicht gespeichert werden.');
     setSaving(false);
   }
 
@@ -663,10 +923,10 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       });
       if (response.ok) {
         setImages((current) => current.filter((image) => image.id !== id));
-        toast.success('Photo removed');
-      } else setError('The image could not be removed.');
+        toast.success('Foto entfernt');
+      } else setError('Das Foto konnte nicht entfernt werden.');
     } catch {
-      setError('The image could not be removed.');
+      setError('Das Foto konnte nicht entfernt werden.');
     }
   }
 
@@ -678,9 +938,9 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         body: JSON.stringify({ cover: true }),
       });
       if (response.ok) setImages(await response.json());
-      else setError('The cover could not be updated.');
+      else setError('Das Titelfoto konnte nicht gesetzt werden.');
     } catch {
-      setError('The cover could not be updated.');
+      setError('Das Titelfoto konnte nicht gesetzt werden.');
     }
   }
 
@@ -696,11 +956,77 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageIds: reordered.map((image) => image.id) }),
       });
-      if (!response.ok) setError('The image order could not be saved.');
+      if (!response.ok) setError('Die Reihenfolge konnte nicht gespeichert werden.');
     } catch {
-      setError('The image order could not be saved.');
+      setError('Die Reihenfolge konnte nicht gespeichert werden.');
     }
   }
+
+  const data = property.exposeData!;
+  const addressState: AddressFieldState = {
+    query: addressQuery,
+    suggestions: addressSuggestions,
+    loading: addressLoading,
+    lookupError: addressError,
+    selected: addressSelected,
+    address: data.basicInformation.address,
+    onQueryChange: (value) => {
+      setAddressQuery(value);
+      setAddressSelected(false);
+    },
+    onSelect: selectAddress,
+  };
+
+  const stepStatuses: WizardStepStatus[] = STEPS.map((_, index) =>
+    stepStatus(index, {
+      documents: {
+        total: documentRecords.length,
+        analyzed: documentRecords.filter((record) => record.status === 'completed').length,
+      },
+      addressSelected,
+      propertyType: property.propertyType,
+      transactionType: property.transactionType,
+      usageType: data.basicInformation.usageType,
+      livingArea: data.propertyDetails.livingArea ?? property.livingArea,
+      usableArea: data.propertyDetails.usableArea,
+      plotArea: data.propertyDetails.plotArea ?? property.plotArea,
+      rooms: data.propertyDetails.rooms ?? property.rooms,
+      bedrooms: property.bedrooms,
+      bathrooms: data.propertyDetails.bathrooms ?? property.bathrooms,
+      guestToilets: data.propertyDetails.guestToilets,
+      yearBuilt: data.propertyDetails.yearBuilt ?? property.constructionYear,
+      condition: property.condition,
+      renovationStatus: data.propertyDetails.renovationStatus,
+      lastModernizationYear: data.propertyDetails.lastModernizationYear,
+      selectedFeatures: property.selectedFeatures,
+      gardenArea: data.outdoorAreas.find((area) => area.type === 'garden')?.area,
+      energy: data.energy ?? undefined,
+      askingPrice: property.askingPrice ?? data.pricing.purchasePrice,
+      rentPrice: property.coldRent ?? data.pricing.rentPrice,
+      commissionRate: data.pricing.commissionRate,
+      legalFlags: data.additionalInformation.legalFlags,
+      additionalInfoCount: Object.keys(additionalInfoByKey).length,
+      surroundings: property.surroundings,
+      yourInfo: {
+        sellerDescription: property.sellerDescription,
+        specialNotes: property.specialNotes,
+        targetAudience: property.targetAudience,
+        sellerNotes: data.additionalInformation.sellerNotes,
+        additionalInformation: data.additionalInformation.additionalInformation,
+      },
+      imageCount: images.length,
+      planCount: images.filter(
+        (image) => image.category === 'floor_plan' || image.category === 'document',
+      ).length,
+      agentName: data.agent?.name,
+      agentCompany: data.agent?.company,
+      contentExists: Boolean(content),
+      marketingContentExists: Boolean(marketingContent),
+    }),
+  );
+
+  const currentStep = Math.min(step, REVIEW_STEP);
+  const currentStatus = stepStatuses[currentStep];
 
   return (
     <main className="min-h-screen bg-background">
@@ -710,17 +1036,17 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
           <span className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex">
             {saving ? (
               <>
-                <LoaderCircle className="size-3.5 animate-spin" /> Saving…
+                <LoaderCircle className="size-3.5 animate-spin" /> Wird gespeichert…
               </>
             ) : (
               <>
                 <span className="size-1.5 rounded-full bg-emerald-500" />
-                Saved automatically
+                Automatisch gespeichert
               </>
             )}
           </span>
           <Button variant="outline" size="sm" asChild>
-            <Link href="/">Back to drafts</Link>
+            <Link href="/">Zurück zu den Entwürfen</Link>
           </Button>
         </div>
       </header>
@@ -729,38 +1055,36 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         <div className="mb-7 flex items-end justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-              New exposé
+              Neues Exposé
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-              {STEPS[Math.min(step, 9)]}
+              {step < STEPS.length ? STEPS[step] : 'KI-Inhaltseditor'}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Step {Math.min(step + 1, 10)} of {STEPS.length}
+              Schritt {currentStep + 1} von {STEPS.length} · {stepStatusLabel(currentStatus)}
             </p>
           </div>
           <span className="hidden text-sm font-medium text-muted-foreground sm:block">
-            {Math.round(((Math.min(step, 9) + 1) / STEPS.length) * 100)}% complete
+            {Math.round(((currentStep + 1) / STEPS.length) * 100)}% fertig
           </span>
         </div>
 
-        <Progress
-          value={((Math.min(step, 9) + 1) / STEPS.length) * 100}
-          className="mb-8 h-1.5"
-        />
+        <Progress value={((currentStep + 1) / STEPS.length) * 100} className="mb-8 h-1.5" />
 
         <div className="lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-8">
           <nav
             className="mb-6 flex gap-1 overflow-x-auto pb-2 lg:mb-0 lg:block lg:space-y-1 lg:overflow-visible lg:pb-0"
-            aria-label="Wizard steps"
+            aria-label="Wizard-Schritte"
           >
             {STEPS.map((name, index) => {
-              const current = index === step;
-              const completed = index < step;
-              const future = index > step;
+              const current = index === currentStep;
+              const completed = index < currentStep;
+              const future = index > currentStep;
+              const status = stepStatuses[index];
               return (
                 <button
                   key={name}
-                  onClick={() => index <= step && setStep(index)}
+                  onClick={() => index <= currentStep && setStep(index)}
                   disabled={future}
                   aria-current={current ? 'step' : undefined}
                   className={cn(
@@ -796,6 +1120,15 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                   >
                     {name}
                   </span>
+                  <span
+                    aria-label={`${name}: ${stepStatusLabel(status)}`}
+                    className={cn(
+                      'ml-auto size-2 shrink-0 rounded-full',
+                      status === 'complete' && 'bg-emerald-500',
+                      status === 'partial' && 'bg-amber-500',
+                      status === 'incomplete' && 'bg-muted-foreground/30',
+                    )}
+                  />
                 </button>
               );
             })}
@@ -805,8 +1138,8 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
             {error && (
               <Alert variant="destructive" className="mb-6">
                 <AlertTitle className="flex items-center justify-between gap-2">
-                  Something went wrong
-                  <button onClick={() => setError('')} aria-label="Dismiss">
+                  Es ist etwas schiefgegangen
+                  <button onClick={() => setError('')} aria-label="Schließen">
                     <X className="size-4" />
                   </button>
                 </AlertTitle>
@@ -815,13 +1148,13 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
             )}
             <AnimatePresence mode="wait">
               <motion.div
-                key={step}
+                key={currentStep}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.16, ease: 'easeOut' }}
               >
-                {step < 10 ? (
+                {step < REVIEW_STEP ? (
                   <>
                     {step === 0 && (
                       <StepDocuments
@@ -830,72 +1163,97 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                       />
                     )}
                     {step === 1 && (
-                      <StepAddress
-                        query={addressQuery}
-                        suggestions={addressSuggestions}
-                        loading={addressLoading}
-                        lookupError={addressError}
-                        selected={addressSelected}
-                        onQueryChange={(value) => {
-                          setAddressQuery(value);
-                          setAddressSelected(false);
-                        }}
-                        onSelect={selectAddress}
-                        address={property.exposeData!.basicInformation.address}
-                        sources={fieldSources}
-                      />
-                    )}
-                    {step === 1 && addressSelected && (
-                      <AddressDebugPanel
-                        propertyId={initialProperty.id}
-                        property={property}
-                        address={property.exposeData!.basicInformation.address}
-                        onData={applyExternalData}
-                      />
-                    )}
-                    {step === 2 && (
                       <StepProperty
                         property={property}
                         set={set}
-                        exposeData={property.exposeData!}
+                        exposeData={data}
                         updateExposeData={updateExposeData}
-                        noteValue={noteValue}
-                        setNote={setNote}
+                        sources={fieldSources}
+                        addressState={addressState}
+                      />
+                    )}
+                    {step === 2 && (
+                      <StepBuilding
+                        property={property}
+                        set={set}
+                        exposeData={data}
+                        updateExposeData={updateExposeData}
                         sources={fieldSources}
                       />
                     )}
                     {step === 3 && (
-                      <StepDetails
+                      <StepFeatures
                         property={property}
                         set={set}
-                        boris={boris}
-                        borisLoading={borisLoading}
+                        exposeData={data}
+                        updateExposeData={updateExposeData}
                         noteValue={noteValue}
                         setNote={setNote}
                         sources={fieldSources}
                       />
                     )}
                     {step === 4 && (
-                      <StepFeatures
-                        property={property}
-                        set={set}
-                        exposeData={property.exposeData!}
-                        updateExposeData={updateExposeData}
-                        noteValue={noteValue}
-                        setNote={setNote}
-                        sources={fieldSources}
-                      />
-                    )}
-                    {step === 5 && (
                       <StepEnergy
-                        data={property.exposeData!.energy}
+                        data={data.energy}
                         update={(energy) => updateExposeData({ energy })}
                         noteValue={noteValue}
                         setNote={setNote}
                         sources={fieldSources}
                       />
                     )}
+                    {step === 5 && (
+                      <StepFinancial
+                        property={property}
+                        set={set}
+                        exposeData={data}
+                        updateExposeData={updateExposeData}
+                        sources={fieldSources}
+                        boris={boris}
+                        borisLoading={borisLoading}
+                      />
+                    )}
                     {step === 6 && (
+                      <StepLegal
+                        exposeData={data}
+                        updateExposeData={updateExposeData}
+                        sources={fieldSources}
+                        additionalInfo={additionalInfoByKey}
+                        noteValue={noteValue}
+                        setNote={setNote}
+                      />
+                    )}
+                    {step === 7 && (
+                      <StepLocation
+                        property={property}
+                        set={set}
+                        exposeData={data}
+                        updateExposeData={updateExposeData}
+                        sources={fieldSources}
+                        propertyId={initialProperty.id}
+                        address={data.basicInformation.address}
+                        addressSelected={addressSelected}
+                        onData={applyExternalData}
+                      />
+                    )}
+                    {step === 8 && (
+                      <StepYourInformation
+                        property={property}
+                        set={set}
+                        exposeData={data}
+                        updateExposeData={updateExposeData}
+                        noteValue={noteValue}
+                        setNote={setNote}
+                      />
+                    )}
+                    {step === 9 && (
+                      <StepMarketingContent
+                        content={marketingContent}
+                        setContent={setMarketingContent}
+                        onGenerate={generateMarketingContent}
+                        generating={marketingLoading}
+                      />
+                    )}
+                    {step === 10 && (
                       <StepPhotos
                         images={images}
                         rooms={property.rooms}
@@ -907,7 +1265,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                         setNote={setNote}
                       />
                     )}
-                    {step === 7 && (
+                    {step === 11 && (
                       <StepPlans
                         images={images}
                         upload={upload}
@@ -918,26 +1276,25 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                         setNote={setNote}
                       />
                     )}
-                    {step === 8 && (
+                    {step === 12 && (
                       <StepAgent
-                        data={property.exposeData!.agent}
+                        data={data.agent}
                         update={(agent) => updateExposeData({ agent })}
                         noteValue={noteValue}
                         setNote={setNote}
                       />
                     )}
-                    {step === 9 && (
-                      <Review
-                        property={property}
-                        images={images}
-                        onEdit={setStep}
-                        generateMetadata={generateMetadata}
-                        metadataLoading={metadataLoading}
-                        updateExposeData={updateExposeData}
-                        noteValue={noteValue}
-                      />
-                    )}
                   </>
+                ) : step === REVIEW_STEP ? (
+                  <Review
+                    property={property}
+                    images={images}
+                    onEdit={setStep}
+                    generateMetadata={generateMetadata}
+                    metadataLoading={metadataLoading}
+                    updateExposeData={updateExposeData}
+                    noteValue={noteValue}
+                  />
                 ) : (
                   <ContentEditor
                     content={content}
@@ -956,37 +1313,37 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
           <Button
             variant="outline"
             disabled={step === 0}
-            onClick={() => setStep((current) => current - 1)}
+            onClick={() => setStep((current) => Math.max(current - 1, 0))}
           >
-            <ArrowLeft className="size-4" /> Back
+            <ArrowLeft className="size-4" /> Zurück
           </Button>
-          {step < 9 ? (
+          {step < REVIEW_STEP ? (
             <Button onClick={next} disabled={saving}>
               {saving ? (
                 <>
-                  <LoaderCircle className="size-4 animate-spin" /> Saving…
+                  <LoaderCircle className="size-4 animate-spin" /> Wird gespeichert…
                 </>
               ) : (
                 <>
-                  Next <ArrowRight className="size-4" />
+                  Weiter <ArrowRight className="size-4" />
                 </>
               )}
             </Button>
-          ) : step === 9 ? (
+          ) : step === REVIEW_STEP ? (
             <Button onClick={() => generate()} disabled={aiLoading}>
               {aiLoading ? (
                 <>
-                  <LoaderCircle className="size-4 animate-spin" /> Improving…
+                  <LoaderCircle className="size-4 animate-spin" /> Wird verbessert…
                 </>
               ) : (
                 <>
-                  <Sparkles className="size-4" /> Improve with AI
+                  <Sparkles className="size-4" /> Mit KI verbessern
                 </>
               )}
             </Button>
           ) : (
             <Button onClick={saveContent} disabled={saving}>
-              <FileText className="size-4" /> Open preview <ArrowRight className="size-4" />
+              <FileText className="size-4" /> Vorschau öffnen <ArrowRight className="size-4" />
             </Button>
           )}
         </div>

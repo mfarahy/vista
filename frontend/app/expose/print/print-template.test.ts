@@ -1,0 +1,296 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import { createElement } from 'react';
+import { renderToString } from 'react-dom/server';
+
+import type { DocumentRecord, Property, PropertyImage } from '../../create/[id]/types';
+import {
+  ModernExposeTemplate,
+  type ExposeMedia,
+} from '../../builder/[id]/components/modern-expose-template';
+import type {
+  EffectiveMarketingContent,
+  ExposeConfiguration,
+} from '../../builder/[id]/expose-model';
+import {
+  defaultExposeConfiguration,
+  effectiveMarketingContent,
+} from '../../builder/[id]/expose-model';
+
+function makeImage(overrides: Partial<PropertyImage> = {}): PropertyImage {
+  return {
+    id: 'img-a',
+    url: '/uploads/a.jpg',
+    fileName: 'a.jpg',
+    mimeType: 'image/jpeg',
+    size: 10,
+    sequence: 0,
+    isCover: false,
+    category: 'exterior',
+    caption: 'Hausansicht',
+    ...overrides,
+  };
+}
+
+function makeProperty(overrides: Partial<Property> = {}): Property {
+  return {
+    id: 'prop-1',
+    propertyType: 'house',
+    transactionType: 'sale',
+    constructionYear: 1987,
+    address: 'Musterstraße 12',
+    zipCode: '12345',
+    city: 'Berlin',
+    district: 'Buckow',
+    livingArea: 107,
+    plotArea: 469,
+    rooms: 4,
+    bedrooms: 3,
+    bathrooms: 2,
+    condition: 'wellMaintained',
+    askingPrice: 469000,
+    selectedFeatures: ['garden', 'garage'],
+    additionalFeatures: null,
+    surroundings: {},
+    tone: 'professional',
+    language: 'de',
+    images: [
+      makeImage({ id: 'img-a', url: '/uploads/a.jpg', isCover: true, caption: 'Hausansicht' }),
+      makeImage({ id: 'img-b', url: '/uploads/b.jpg', caption: 'Wohnzimmer' }),
+      makeImage({ id: 'img-c', url: '/uploads/c.jpg', caption: 'Küche' }),
+    ],
+    roomsData: [],
+    exposeData: {
+      basicInformation: {
+        propertyType: 'house',
+        propertySubtype: 'singleFamilyHouse',
+        address: {
+          street: 'Musterstraße 12',
+          postalCode: '12345',
+          city: 'Berlin',
+          district: 'Buckow',
+          country: 'Deutschland',
+        },
+      },
+      pricing: { purchasePrice: 469000 },
+      propertyDetails: { livingArea: 107, plotArea: 469, rooms: 4, yearBuilt: 1987 },
+      energy: {
+        certificateType: 'consumption_based',
+        efficiencyClass: 'B',
+        primaryEnergySource: 'gas',
+      },
+      location: {
+        address: {
+          street: 'Musterstraße 12',
+          postalCode: '12345',
+          city: 'Berlin',
+          district: 'Buckow',
+          country: 'Deutschland',
+        },
+        district: 'Buckow',
+      },
+      images: [],
+      floorPlans: [],
+      maps: [],
+      rooms: [],
+      equipment: [],
+      outdoorAreas: [],
+      additionalInformation: {},
+      systemBranding: { companyName: 'Vista', processSteps: [] },
+    },
+    ...overrides,
+  };
+}
+
+const marketing: EffectiveMarketingContent = {
+  title: 'Gepflegtes Einfamilienhaus mit Garten',
+  subtitle: 'Musterstraße 12, Berlin-Buckow',
+  highlights: ['107 m² Wohnfläche', '4 Zimmer', 'Großer Garten'],
+  propertyDescription: 'Ein ruhiges Zuhause mit hellem Wohnzimmer.',
+  equipmentDescription: 'Garage und Terrasse.',
+  locationDescription: 'Kurze Wege zu Geschäften.',
+};
+
+const documents: DocumentRecord[] = [
+  {
+    id: 'doc-1',
+    propertyId: 'prop-1',
+    filename: 'grundriss.pdf',
+    mimeType: 'application/pdf',
+    size: 100,
+    url: '/uploads/grundriss.pdf',
+    status: 'completed',
+    documentType: 'grundriss',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'doc-2',
+    propertyId: 'prop-1',
+    filename: 'energieausweis.pdf',
+    mimeType: 'application/pdf',
+    size: 100,
+    url: '/uploads/energieausweis.pdf',
+    status: 'completed',
+    documentType: 'energieausweis',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'doc-3',
+    propertyId: 'prop-1',
+    filename: 'grundbuchauszug.pdf',
+    mimeType: 'application/pdf',
+    size: 100,
+    url: '/uploads/grundbuchauszug.pdf',
+    status: 'completed',
+    documentType: 'grundbuchauszug',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'doc-4',
+    propertyId: 'prop-1',
+    filename: 'kaufvertrag.pdf',
+    mimeType: 'application/pdf',
+    size: 100,
+    url: '/uploads/kaufvertrag.pdf',
+    status: 'completed',
+    documentType: 'kaufvertrag',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  },
+];
+
+function render({
+  property = makeProperty(),
+  content = marketing,
+  expose = defaultExposeConfiguration(),
+  media,
+}: {
+  property?: Property;
+  content?: EffectiveMarketingContent;
+  expose?: ExposeConfiguration;
+  media?: ExposeMedia;
+} = {}): string {
+  return renderToString(
+    createElement(ModernExposeTemplate, {
+      property,
+      marketingContent: content,
+      expose,
+      media: media ?? { images: property.images, documents },
+    }),
+  );
+}
+
+describe('print route template rendering', () => {
+  it('renders marketing content as escaped text and never as raw HTML', () => {
+    const malicious = effectiveMarketingContent(null, {
+      title: '<script>alert(1)</script>',
+      subtitle: '<b>fett</b>',
+      propertyDescription: '<img src=x onerror=alert(2)><script>steal()</script>',
+      highlights: ['<svg onload=alert(3)>'],
+      equipmentDescription: '<iframe src="https://evil.example">',
+      locationDescription: 'Normaler Text',
+    });
+    const html = render({ content: malicious });
+    assert.ok(!html.includes('<script>'), 'script tags must be escaped');
+    assert.ok(!html.includes('<img src=x'), 'img injection must be escaped');
+    assert.ok(!html.includes('<svg'), 'svg injection must be escaped');
+    assert.ok(!html.includes('<iframe'), 'iframe injection must be escaped');
+    assert.ok(html.includes('&lt;script&gt;'), 'escaped output must still be visible as text');
+    assert.ok(html.includes('&lt;img src=x onerror=alert(2)&gt;'), 'injection stays inert text');
+  });
+
+  it('omits hidden sections and keeps visible ones', () => {
+    const expose = defaultExposeConfiguration();
+    expose.sections = expose.sections.map((section) =>
+      ['energy', 'gallery', 'documents'].includes(section.type)
+        ? { ...section, visible: false }
+        : section,
+    );
+    const html = render({ expose });
+    assert.ok(html.includes('id="expose-cover"'));
+    assert.ok(html.includes('id="expose-highlights"'));
+    assert.ok(!html.includes('id="expose-energy"'));
+    assert.ok(!html.includes('id="expose-gallery"'));
+    assert.ok(!html.includes('id="expose-documents"'));
+  });
+
+  it('renders sections in the persisted order', () => {
+    const expose = defaultExposeConfiguration();
+    const sections = [...expose.sections];
+    const move = (type: string, toIndex: number) => {
+      const index = sections.findIndex((section) => section.type === type);
+      const [section] = sections.splice(index, 1);
+      sections.splice(toIndex, 0, section);
+    };
+    move('gallery', 0);
+    move('energy', 1);
+    expose.sections = sections;
+    const html = render({ expose });
+    assert.ok(html.indexOf('id="expose-gallery"') < html.indexOf('id="expose-energy"'));
+    assert.ok(html.indexOf('id="expose-energy"') < html.indexOf('id="expose-highlights"'));
+  });
+
+  it('uses the selected cover image on the cover', () => {
+    const expose = { ...defaultExposeConfiguration(), selectedCoverImageId: 'img-b' };
+    const html = render({ expose });
+    const cover = html.slice(
+      html.indexOf('id="expose-cover"'),
+      html.indexOf('id="expose-cover"') + 4000,
+    );
+    assert.ok(cover.includes('http://localhost:4000/uploads/b.jpg'), 'cover must show img-b');
+    assert.ok(!cover.includes('uploads/a.jpg'), 'cover must not fall back to the isCover image');
+  });
+
+  it('renders only the selected gallery images in the persisted order', () => {
+    const expose = {
+      ...defaultExposeConfiguration(),
+      selectedCoverImageId: 'img-b',
+      galleryImageIds: ['img-c', 'img-a', 'img-b'],
+    };
+    const html = render({ expose });
+    const gallery = html.slice(
+      html.indexOf('id="expose-gallery"'),
+      html.indexOf('id="expose-gallery"') + 4000,
+    );
+    const imgC = gallery.indexOf('uploads/c.jpg');
+    const imgA = gallery.indexOf('uploads/a.jpg');
+    assert.ok(imgC >= 0, 'gallery must contain img-c');
+    assert.ok(imgA >= 0, 'gallery must contain img-a');
+    assert.ok(imgC < imgA, 'gallery must keep the configured order');
+    assert.ok(!gallery.includes('uploads/b.jpg'), 'the cover image is excluded from the gallery');
+  });
+
+  it('never exposes sensitive legal documents in the Unterlagen section', () => {
+    const html = render();
+    assert.ok(html.includes('grundriss.pdf'));
+    assert.ok(html.includes('energieausweis.pdf'));
+    assert.ok(!html.includes('grundbuchauszug.pdf'));
+    assert.ok(!html.includes('kaufvertrag.pdf'));
+  });
+
+  it('hides the contact section when no agent information exists', () => {
+    const property = makeProperty({
+      exposeData: { ...makeProperty().exposeData!, agent: undefined },
+    });
+    const html = render({ property });
+    assert.ok(!html.includes('id="expose-contact"'));
+  });
+
+  it('renders only existing contact information without empty labels', () => {
+    const exposeData = makeProperty().exposeData;
+    const property = makeProperty({
+      exposeData: { ...exposeData!, agent: { name: 'Max Mustermann', phone: '030 123456' } },
+    });
+    const html = render({ property });
+    assert.ok(html.includes('Max Mustermann'));
+    assert.ok(html.includes('030 123456'));
+    const contact = html.slice(
+      html.indexOf('id="expose-contact"'),
+      html.indexOf('id="expose-contact"') + 2000,
+    );
+    assert.ok(!contact.includes('href='), 'no empty website/email links are rendered');
+  });
+});

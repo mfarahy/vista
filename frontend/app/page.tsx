@@ -7,6 +7,7 @@ import {
   FileUp,
   Sparkles,
   FileDown,
+  LayoutTemplate,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { frontendLogger } from '@/lib/logger';
@@ -119,9 +120,8 @@ export default async function Home() {
           {properties.length ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {properties.slice(0, 3).map((property) => (
-                <Link
+                <div
                   key={property.id}
-                  href={`/create/${property.id}`}
                   className="group rounded-xl border bg-card p-5 transition-shadow hover:shadow-md"
                 >
                   <div className="mb-4 flex items-center justify-between">
@@ -130,14 +130,26 @@ export default async function Home() {
                     </span>
                     <Building2 className="size-4 text-muted-foreground" aria-hidden />
                   </div>
-                  <h3 className="text-lg font-semibold text-foreground group-hover:text-primary">
-                    {property.city || 'New property'}
+                  <h3 className="text-lg font-semibold text-foreground">
+                    <Link href={`/create/${property.id}`} className="hover:text-primary">
+                      {property.city || 'New property'}
+                    </Link>
                   </h3>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {property.livingArea ? `${property.livingArea} m² · ` : ''}
                     {property.images.length} photos
                   </p>
-                </Link>
+                  <div className="mt-4 flex gap-2">
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/create/${property.id}`}>Bearbeiten</Link>
+                    </Button>
+                    <Button size="sm" asChild>
+                      <Link href={`/builder/${property.id}`}>
+                        <LayoutTemplate className="size-4" /> Builder
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
               ))}
             </div>
           ) : (

@@ -35,6 +35,7 @@ Then open `http://localhost:3000` and select **New Exposé**.
 - `LOCATION_SEARCH_RADIUS_METERS`: search radius, default `1000`
 - `LOCATION_FACILITY_CATEGORIES`: comma-separated POI categories
 - `MAP_ATTRIBUTION`: attribution for the local map fallback
+- `FRONTEND_URL`: base URL of the Next.js app that hosts the PDF print route, default `http://localhost:3000`
 - `BORIS_BASE_URL`: optional Brandenburg BORIS OGC API endpoint for Bodenrichtwert enrichment (default `https://ogc-api.geobasis-bb.de/boris`)
 
 The OpenStreetMap adapters use Nominatim for geocoding and Overpass for supermarkets, kindergartens, schools, public transit, pharmacies, parks, and restaurants/cafés. They are active only when the providers are explicitly configured. There is currently no external static map provider: the local, coordinate-aware SVG fallback is exposed for development and testing and must not be considered a real map-service integration.
@@ -67,10 +68,19 @@ The Express service is the central runtime for persistence, AI, location resolut
 
 ## PDF
 
-PDFs are rendered through Playwright/Chromium from the same HTML/CSS template as the preview. The Chromium binary must be available when a PDF is generated for the first time. If it is not installed:
+PDFs are generated on demand through `POST /api/properties/:id/pdf`. The backend opens the same React Exposé the Builder previews — the print route `/expose/print/:id` on the frontend renders `ModernExposeTemplate` with print-only CSS — and prints it to A4 via Playwright/Chromium. The frontend must be reachable from the expose-service; set `FRONTEND_URL` in `expose-service/.env` when the app is not on `http://localhost:3000`.
+
+The Chromium binary must be available when a PDF is generated for the first time. If it is not installed:
 
 ```bash
 npx playwright install chromium
+```
+
+A manual end-to-end smoke test (demo property → real PDF) requires both services running:
+
+```bash
+cd expose-service
+npm run pdf:smoke
 ```
 
 ## Architecture

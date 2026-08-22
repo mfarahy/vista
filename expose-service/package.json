@@ -12,6 +12,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "test": "node --import tsx --test src/**/*.test.ts",
+    "pdf:smoke": "tsx scripts/pdf-smoke.ts",
     "pw": "npx prettier --write ."
   },
   "dependencies": {

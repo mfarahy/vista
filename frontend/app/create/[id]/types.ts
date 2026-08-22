@@ -1,5 +1,39 @@
 export type ImageCategory = 'exterior' | 'interior' | 'floor_plan' | 'document';
 
+/** One editable marketing field with its provenance (ai | user). */
+export type MarketingTextField = {
+  value: string;
+  source: 'ai' | 'user';
+};
+
+export type MarketingTextListField = {
+  value: string[];
+  source: 'ai' | 'user';
+};
+
+/**
+ * Persisted AI-generated / user-edited Exposé copy. `locationDescription` is
+ * null when no meaningful location facts exist. User edits set `source` to
+ * "user" so regeneration never silently overwrites them.
+ */
+export type MarketingContent = {
+  title: MarketingTextField;
+  subtitle: MarketingTextField;
+  highlights: MarketingTextListField;
+  propertyDescription: MarketingTextField;
+  equipmentDescription: MarketingTextField;
+  locationDescription: MarketingTextField | null;
+};
+
+export const emptyMarketingContent = (): MarketingContent => ({
+  title: { value: '', source: 'ai' },
+  subtitle: { value: '', source: 'ai' },
+  highlights: { value: [], source: 'ai' },
+  propertyDescription: { value: '', source: 'ai' },
+  equipmentDescription: { value: '', source: 'ai' },
+  locationDescription: null,
+});
+
 export type Property = {
   id: string;
   propertyType: string;
@@ -49,9 +83,24 @@ export type Property = {
     propertyId: string;
     template: 'modern';
     content: ExposeContent | null;
+    configuration?: {
+      template: 'modern';
+      sections: Array<{ id: string; type: string; visible: boolean }>;
+      selectedCoverImageId?: string;
+      galleryImageIds?: string[];
+      contentOverrides?: {
+        title?: string;
+        subtitle?: string;
+        highlights?: string[];
+        propertyDescription?: string;
+        equipmentDescription?: string;
+        locationDescription?: string;
+      };
+    } | null;
     pdfUrl?: string | null;
     generatedAt?: string | null;
   } | null;
+  marketingContent?: MarketingContent | null;
   createdAt?: string;
   updatedAt?: string;
   exposeData?: ExposeData;
@@ -73,6 +122,8 @@ export type PropertyImage = {
 
 export type EnergyData = {
   certificateType?: 'needs_based' | 'consumption_based' | 'not_available' | 'unknown' | null;
+  certificateDate?: string | null;
+  certificateValidUntil?: string | null;
   yearOfConstruction?: number | null;
   primaryEnergySource?:
     | 'gas'
@@ -84,9 +135,29 @@ export type EnergyData = {
     | 'pellets'
     | 'other'
     | null;
+  heatingType?: string | null;
+  hotWaterIncluded?: boolean | null;
   finalEnergyDemand?: number | null;
   finalEnergyConsumption?: number | null;
   efficiencyClass?: 'A+' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | null;
+};
+
+export type RentalData = {
+  isRented?: boolean | null;
+  furnished?: boolean | null;
+  annualRent?: number | null;
+};
+
+export type InvestmentData = {
+  grossYieldTargetPercent?: number | null;
+  grossYieldActualPercent?: number | null;
+};
+
+export type LegalFlags = {
+  usufruct?: boolean | null;
+  leasehold?: boolean | null;
+  foreclosure?: boolean | null;
+  heritageProtection?: boolean | null;
 };
 
 export type StructuredAddress = {
@@ -109,12 +180,14 @@ export type AdditionalInformation = {
   commissionNotes?: string | null;
   availability?: string | null;
   notes?: Record<string, string>;
+  legalFlags?: LegalFlags;
 };
 
 export type ExposeData = {
   basicInformation: {
     propertyType: string;
     propertySubtype?: string | null;
+    usageType?: string | null;
     title?: string | null;
     address: StructuredAddress;
   };
@@ -124,12 +197,19 @@ export type ExposeData = {
     additionalCosts?: number | null;
     buyerCommission?: string | null;
     sellerCommission?: string | null;
+    pricePerM2?: number | null;
+    commissionRate?: number | null;
+    commissionPayer?: 'buyer' | 'seller' | 'both' | null;
+    commissionVatIncluded?: boolean | null;
   };
   propertyDetails: {
     livingArea?: number | null;
     plotArea?: number | null;
+    usableArea?: number | null;
     rooms?: number | null;
+    bedrooms?: number | null;
     bathrooms?: number | null;
+    guestToilets?: number | null;
     yearBuilt?: number | null;
     completionYear?: number | null;
     floor?: string | null;
@@ -137,8 +217,13 @@ export type ExposeData = {
     garageCount?: number | null;
     parkingSpaceCount?: number | null;
     bodenrichtwert?: number | null;
+    buildingStatus?: 'new' | 'existing' | null;
+    renovationStatus?: string | null;
+    lastModernizationYear?: number | null;
   };
   energy?: EnergyData | null;
+  rental?: RentalData;
+  investment?: InvestmentData;
   rooms: Array<{
     id?: string;
     type: string;
@@ -252,46 +337,185 @@ export type ExternalResearch = {
 };
 
 export const PROPERTY_TYPES = [
-  ['apartment', 'Apartment'],
-  ['house', 'House'],
+  ['apartment', 'Wohnung'],
+  ['house', 'Haus'],
   ['villa', 'Villa'],
   ['penthouse', 'Penthouse'],
-  ['semi-detached', 'Semi-detached house'],
-  ['terraced', 'Terraced house'],
-  ['other', 'Other'],
+  ['semi-detached', 'Doppelhaushälfte'],
+  ['terraced', 'Reihenhaus'],
+  ['other', 'Sonstiges'],
+] as const;
+
+/**
+ * Normalized property subtypes per property type. The first tuple entry is the
+ * canonical stored value (what the AI returns, see prompt.ts and
+ * WIZARD_FIELD_TARGETS); the second is the German label shown in the wizard.
+ * Values and labels live together here so the UI never hard-codes either in
+ * more than one place.
+ */
+export const PROPERTY_SUBTYPES: Record<string, ReadonlyArray<readonly [string, string]>> = {
+  apartment: [
+    ['condominium', 'Eigentumswohnung'],
+    ['groundFloorApartment', 'Erdgeschosswohnung'],
+    ['highGroundFloor', 'Hochparterre'],
+    ['storeyApartment', 'Etagenwohnung'],
+    ['maisonette', 'Maisonette'],
+    ['loft', 'Loft'],
+    ['terraceApartment', 'Terrassenwohnung'],
+    ['penthouse', 'Penthouse'],
+    ['atticApartment', 'Dachgeschoss'],
+    ['basementApartment', 'Souterrain'],
+  ],
+  house: [
+    ['singleFamilyHouse', 'Einfamilienhaus'],
+    ['semiDetached', 'Doppelhaushälfte'],
+    ['terraced', 'Reihenhaus'],
+    ['endTerraceHouse', 'Reihenendhaus'],
+    ['townhouse', 'Stadthaus'],
+    ['bungalow', 'Bungalow'],
+    ['villa', 'Villa'],
+    ['countryHouse', 'Landhaus'],
+    ['multiFamilyHouse', 'Mehrfamilienhaus'],
+  ],
+  villa: [['villa', 'Villa']],
+  penthouse: [['penthouse', 'Penthouse']],
+  'semi-detached': [['semiDetached', 'Doppelhaushälfte']],
+  terraced: [
+    ['terraced', 'Reihenhaus'],
+    ['endTerraceHouse', 'Reihenendhaus'],
+  ],
+  other: [],
+};
+
+/** Resolves a stored subtype value (normalized or German) to its German label. */
+export function subtypeLabel(propertyType: string, value?: string | null): string {
+  if (!value) return '';
+  const options = PROPERTY_SUBTYPES[propertyType] ?? [];
+  return (
+    options.find(([key, label]) => key === value || label === value)?.[1] ?? value
+  );
+}
+
+/** Resolves a stored subtype value to its normalized key (for Select values). */
+export function subtypeKey(propertyType: string, value?: string | null): string {
+  if (!value) return '';
+  const options = PROPERTY_SUBTYPES[propertyType] ?? [];
+  return options.find(([key, label]) => key === value || label === value)?.[0] ?? value;
+}
+
+export function propertySubtypeOptions(
+  propertyType: string,
+): ReadonlyArray<readonly [string, string]> {
+  return PROPERTY_SUBTYPES[propertyType] ?? [];
+}
+
+export const PROPERTY_USAGE_TYPES = [
+  ['ownerOccupied', 'Selbst genutzt'],
+  ['rental', 'Vermietet'],
+  ['investment', 'Kapitalanlage'],
+  ['mixed', 'Teilweise selbst genutzt'],
+] as const;
+
+export const PROPERTY_CONDITIONS = [
+  ['unknown', 'Keine Angabe'],
+  ['firstOccupancy', 'Erstbezug'],
+  ['firstOccupancyAfterRenovation', 'Erstbezug nach Sanierung'],
+  ['wellMaintained', 'Gepflegt'],
+  ['modernized', 'Modernisiert'],
+  ['newLike', 'Neuwertig'],
+  ['needsRenovation', 'Renovierungsbedürftig'],
+  ['renovated', 'Renoviert'],
+  ['fullyRenovated', 'Vollständig renoviert'],
+] as const;
+
+/** Legacy condition values mapped onto the normalized domain condition set. */
+const LEGACY_CONDITION_MAP: Record<string, string> = {
+  new: 'firstOccupancy',
+  'like-new': 'newLike',
+  good: 'wellMaintained',
+  renovated: 'renovated',
+  'needs-renovation': 'needsRenovation',
+};
+
+export function conditionLabel(value?: string | null): string {
+  if (!value) return '';
+  const normalized = LEGACY_CONDITION_MAP[value] ?? value;
+  return PROPERTY_CONDITIONS.find(([key]) => key === normalized)?.[1] ?? value;
+}
+
+export function normalizeCondition(value?: string | null): string {
+  if (!value) return '';
+  return LEGACY_CONDITION_MAP[value] ?? value;
+}
+
+export const BUILDING_STATUSES = [
+  ['new', 'Neubau'],
+  ['existing', 'Bestand'],
+] as const;
+
+export const RENOVATION_STATUSES = [
+  ['firstOccupancyAfterRenovation', 'Erstbezug nach Sanierung'],
+  ['modernized', 'Modernisiert'],
+  ['renovated', 'Renoviert'],
+  ['fullyRenovated', 'Vollständig renoviert'],
+] as const;
+
+export const ENERGY_CERTIFICATE_TYPES = [
+  ['needs_based', 'Bedarfsausweis'],
+  ['consumption_based', 'Verbrauchsausweis'],
+  ['not_available', 'Nicht verfügbar'],
+  ['unknown', 'Unbekannt'],
+] as const;
+
+export const ENERGY_SOURCES = [
+  ['gas', 'Gas'],
+  ['oil', 'Öl'],
+  ['district_heating', 'Fernwärme'],
+  ['heat_pump', 'Wärmepumpe'],
+  ['electricity', 'Strom'],
+  ['wood', 'Holz'],
+  ['pellets', 'Pellets'],
+  ['other', 'Sonstige'],
 ] as const;
 
 export const FEATURE_OPTIONS = [
-  ['balcony', 'Balcony'],
-  ['terrace', 'Terrace'],
-  ['garden', 'Garden'],
+  ['balcony', 'Balkon'],
+  ['terrace', 'Terrasse'],
+  ['garden', 'Garten'],
   ['garage', 'Garage'],
-  ['parking', 'Parking space'],
-  ['elevator', 'Elevator'],
-  ['basement', 'Basement'],
-  ['attic', 'Attic'],
-  ['fitted-kitchen', 'Fitted kitchen'],
-  ['underfloor-heating', 'Underfloor heating'],
-  ['air-conditioning', 'Air conditioning'],
-  ['guest-toilet', 'Guest toilet'],
-  ['accessible', 'Accessible'],
-  ['storage', 'Storage room'],
-  ['wardrobes', 'Built-in wardrobes'],
-  ['smart-home', 'Smart home'],
-  ['energy-efficient', 'Energy efficient'],
+  ['parking', 'Stellplatz'],
+  ['elevator', 'Aufzug'],
+  ['basement', 'Keller'],
+  ['attic', 'Dachgeschoss'],
+  ['fitted-kitchen', 'Einbauküche'],
+  ['underfloor-heating', 'Fußbodenheizung'],
+  ['air-conditioning', 'Klimaanlage'],
+  ['guest-toilet', 'Gäste-WC'],
+  ['shower', 'Dusche'],
+  ['bathtub', 'Badewanne'],
+  ['carport', 'Carport'],
+  ['accessible', 'Barrierefrei'],
+  ['storage', 'Abstellraum'],
+  ['wardrobes', 'Einbauschränke'],
+  ['smart-home', 'Smart Home'],
+  ['energy-efficient', 'Energieeffizient'],
 ] as const;
 
 export const STEPS = [
-  'Documents',
-  'Address',
-  'Property',
-  'Details & Price',
-  'Features',
-  'Energy',
-  'Photos',
-  'Plans & Documents',
+  'Dokumente',
+  'Objekt',
+  'Gebäude',
+  'Ausstattung',
+  'Energie',
+  'Finanzen',
+  'Recht & Zusätzliches',
+  'Lage',
+  'Ihre Angaben',
+  'Exposé-Inhalt',
+  'Fotos',
+  'Pläne & Dokumente',
   'Agent',
-  'Review',
+  'Prüfung',
 ];
 
 export type DocumentStatus = 'pending' | 'processing' | 'completed' | 'failed';
@@ -382,10 +606,53 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   other: 'Other',
 };
 
+export const LEGAL_FLAG_LABELS: Record<string, string> = {
+  usufruct: 'Nießbrauch',
+  leasehold: 'Erbbaurecht',
+  foreclosure: 'Zwangsversteigerung',
+  heritageProtection: 'Denkmalschutz',
+};
+
+/** German display label for an additional-information key extracted from documents. */
+export function additionalInfoLabel(key: string): string {
+  const labels: Record<string, string> = {
+    parcelNumber: 'Flurstück',
+    plotNumber: 'Flurstück',
+    landRegisterDistrict: 'Gemarkung / Amtsgericht',
+    landRegisterSheet: 'Grundbuchblatt',
+    owners: 'Eingetragene Eigentümer',
+    registeredOwners: 'Eingetragene Eigentümer',
+    owner_name: 'Eigentümer',
+    encumbrances: 'Eingetragene Belastungen',
+    registeredEncumbrances: 'Eingetragene Belastungen',
+    landCharges: 'Grundschulden',
+    registeredLandCharges: 'Grundschulden',
+    easements: 'Wegerechte / Dienstbarkeiten',
+    rightsOfWay: 'Wegerechte',
+    buildingRestrictions: 'Baulasten',
+    usufruct: 'Nießbrauch',
+    leasehold: 'Erbbaurecht',
+    foreclosure: 'Zwangsversteigerung',
+    heritageProtection: 'Denkmalschutz',
+    orientation: 'Ausrichtung',
+    owner: 'Eigentümer',
+    landRegister: 'Grundbuch',
+    municipal_district: 'Verwaltungsbezirk',
+    cadastral_flur: 'Flur',
+    cadastral_gemarkung: 'Gemarkung',
+    building_plot_area: 'Baugrundstück',
+    projected_building_footprint: 'Geplante Bebauungsfläche',
+    projected_building_dimensions: 'Gebäudemaße',
+    document_date: 'Datum',
+  };
+  return labels[key] ?? key;
+}
+
 export const emptyExposeData = (property: Property): ExposeData => ({
   basicInformation: {
     propertyType: property.propertyType,
     propertySubtype: null,
+    usageType: null,
     title: null,
     address: {
       street: property.address,
@@ -403,12 +670,19 @@ export const emptyExposeData = (property: Property): ExposeData => ({
     additionalCosts: property.additionalCosts,
     buyerCommission: property.commission,
     sellerCommission: null,
+    pricePerM2: null,
+    commissionRate: null,
+    commissionPayer: null,
+    commissionVatIncluded: null,
   },
   propertyDetails: {
     livingArea: property.livingArea,
     plotArea: property.plotArea,
+    usableArea: null,
     rooms: property.rooms,
+    bedrooms: property.bedrooms,
     bathrooms: property.bathrooms,
+    guestToilets: null,
     yearBuilt: property.constructionYear,
     completionYear: null,
     floor: property.floor,
@@ -416,8 +690,13 @@ export const emptyExposeData = (property: Property): ExposeData => ({
     garageCount: null,
     parkingSpaceCount: null,
     bodenrichtwert: property.bodenrichtwert ?? null,
+    buildingStatus: null,
+    renovationStatus: null,
+    lastModernizationYear: null,
   },
   energy: null,
+  rental: { isRented: null, furnished: null, annualRent: null },
+  investment: { grossYieldTargetPercent: null, grossYieldActualPercent: null },
   rooms: [],
   equipment: [],
   outdoorAreas: [],
@@ -445,6 +724,12 @@ export const emptyExposeData = (property: Property): ExposeData => ({
     sellerNotes: property.specialNotes,
     commissionNotes: null,
     availability: property.availableFrom,
+    legalFlags: {
+      usufruct: null,
+      leasehold: null,
+      foreclosure: null,
+      heritageProtection: null,
+    },
   },
   systemBranding: { companyName: 'Vista', processSteps: [] },
   agent: undefined,
@@ -461,6 +746,7 @@ export const initialPayload = (property: Property): PropertyPayload => {
   } = property;
   return {
     ...payload,
+    condition: normalizeCondition(payload.condition) || null,
     roomsData: property.roomsData.map(({ id: _roomId, ...room }) => room),
     exposeData: property.exposeData ?? emptyExposeData(property),
   };

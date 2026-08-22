@@ -13,7 +13,9 @@ import type {
   PropertyPayload,
   PropertyRoom,
 } from './types.js';
+import type { ExposeConfiguration } from './expose-configuration.js';
 import type { DocumentUnderstandingResult } from './document-understanding/types.js';
+import type { MarketingContentRecord } from './marketing-content/types.js';
 import { emptyExposeData } from './expose-data.js';
 import { addressFromLegacy, addressKey } from '../external-services/location.js';
 import type { LocationIntelligence } from './expose-data.js';
@@ -21,8 +23,12 @@ import type { BorisEnrichment } from './expose-data.js';
 import type { LocationResearch } from '../mastra/schemas/location-research.js';
 import { getLogger } from './logger.js';
 
-const dataPath = path.join(process.cwd(), 'data', 'properties.json');
-const uploadPath = path.join(process.cwd(), 'public', 'uploads');
+const dataPath = process.env.DATA_DIR
+  ? path.join(path.resolve(process.env.DATA_DIR), 'properties.json')
+  : path.join(process.cwd(), 'data', 'properties.json');
+const uploadPath = process.env.UPLOAD_DIR
+  ? path.resolve(process.env.UPLOAD_DIR)
+  : path.join(process.cwd(), 'public', 'uploads');
 type DB = { properties: Property[]; documents: DocumentRecord[] };
 
 function normalizeProperty(property: Property): Property {
@@ -308,6 +314,88 @@ export async function saveExpose(id: string, content: StoredExposeContent): Prom
   return expose;
 }
 
+/**
+ * Reads the persisted Expose configuration of a property, or null when the
+ * property has no Expose record yet. The Builder falls back to defaults.
+ */
+export async function getExposeConfiguration(id: string): Promise<ExposeConfiguration | null> {
+  const property = await getProperty(id);
+  return property?.expose?.configuration ?? null;
+}
+
+/**
+ * Persists the Expose configuration on the property's Expose record. Creates
+ * the Expose record when the user reaches the Builder without having saved AI
+ * content. Only the presentation configuration is stored — never Property or
+ * MarketingContent copies.
+ */
+export async function saveExposeConfiguration(
+  id: string,
+  configuration: ExposeConfiguration,
+): Promise<ExposeConfiguration | null> {
+  const db = await readDB();
+  const property = db.properties.find((item) => item.id === id);
+  if (!property) {
+    getLogger().warn({ id }, 'saveExposeConfiguration property not found for {id}');
+    return null;
+  }
+  if (!property.expose) {
+    property.expose = {
+      id: randomUUID(),
+      propertyId: id,
+      template: 'modern',
+      content: null,
+      configuration,
+      generatedAt: new Date().toISOString(),
+    };
+  } else {
+    property.expose.configuration = configuration;
+  }
+  property.updatedAt = new Date().toISOString();
+  await writeDB(db);
+  getLogger().info(
+    { id, sectionCount: configuration.sections.length },
+    'Saved expose configuration for property {id}',
+  );
+  return configuration;
+}
+
+/**
+ * Persists generated marketing content on the property record. The factual
+ * Property data is never touched by marketing generation; this only stores the
+ * separate MarketingContent layer.
+ */
+export async function saveMarketingContent(
+  id: string,
+  content: MarketingContentRecord,
+): Promise<Property | null> {
+  const db = await readDB();
+  const property = db.properties.find((item) => item.id === id);
+  if (!property) {
+    getLogger().warn({ id }, 'saveMarketingContent property not found for {id}');
+    return null;
+  }
+  property.marketingContent = content;
+  property.updatedAt = new Date().toISOString();
+  await writeDB(db);
+  getLogger().info(
+    { id, title: content.title.value, sources: contentSourcesOf(content) },
+    'Saved marketing content for property {id}',
+  );
+  return property;
+}
+
+function contentSourcesOf(content: MarketingContentRecord): Record<string, string> {
+  return {
+    title: content.title.source,
+    subtitle: content.subtitle.source,
+    highlights: content.highlights.source,
+    propertyDescription: content.propertyDescription.source,
+    equipmentDescription: content.equipmentDescription.source,
+    locationDescription: content.locationDescription?.source ?? 'none',
+  };
+}
+
 export async function saveLocationIntelligence(
   id: string,
   intelligence: LocationIntelligence | null,
@@ -442,10 +530,7 @@ export async function removeDocument(documentId: string): Promise<DocumentRecord
   }
   const [removed] = db.documents.splice(index, 1);
   await writeDB(db);
-  getLogger().info(
-    { documentId, fileName: removed.filename },
-    'Removed document {documentId}',
-  );
+  getLogger().info({ documentId, fileName: removed.filename }, 'Removed document {documentId}');
   return removed;
 }
 

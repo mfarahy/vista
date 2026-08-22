@@ -38,3 +38,46 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
 export function apiAssetUrl(path: string) {
   return path.startsWith('http') || path.startsWith('data:') ? path : `${getApiBaseUrl()}${path}`;
 }
+
+/**
+ * Resolves the download filename from an RFC 5987 `filename*` or plain
+ * `filename` Content-Disposition parameter, or null when absent.
+ */
+export function pdfFilenameFromDisposition(disposition: string | null): string | null {
+  if (!disposition) return null;
+  const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (encoded?.[1]) {
+    try {
+      return decodeURIComponent(encoded[1]);
+    } catch {
+      // Malformed encoding: fall through to the plain filename parameter.
+    }
+  }
+  const plain = disposition.match(/filename="?([^";]+)"?/i);
+  return plain?.[1] ?? null;
+}
+
+/**
+ * Generates the Exposé PDF through the API and triggers a browser download
+ * without leaving the current page. Returns the download filename on success,
+ * or null when the backend rejected the request.
+ */
+export async function downloadPdf(propertyId: string): Promise<string | null> {
+  const response = await apiFetch(`/api/properties/${propertyId}/pdf`, { method: 'POST' });
+  if (!response.ok) return null;
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  try {
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download =
+      pdfFilenameFromDisposition(response.headers.get('Content-Disposition')) ??
+      `Expose_${propertyId}.pdf`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    return anchor.download;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}

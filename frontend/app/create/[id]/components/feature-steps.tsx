@@ -2,13 +2,78 @@ import { Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { EnergyData, ExposeData, PropertyPayload, SetProperty } from '../types';
+import { ENERGY_CERTIFICATE_TYPES, ENERGY_SOURCES } from '../types';
 import type { WizardFieldCandidate } from '../document-prefill';
-import { FEATURE_OPTIONS } from '../types';
-import { EnergyClassPicker, Input, Section, SectionNotes, Select, Textarea } from './ui';
+import {
+  DateInput,
+  EnergyClassPicker,
+  GroupCard,
+  Input,
+  Section,
+  SectionNotes,
+  Select,
+  Textarea,
+  Toggle,
+  UnitInput,
+} from './ui';
 import { DocumentSources } from './document-sources';
 import { AgentDebugPanel } from './debug';
 
-const FEATURE_WIZARD_FIELDS = ['basement', 'parking', 'garage', 'balcony', 'terrace', 'garden'];
+const FEATURE_WIZARD_FIELDS = [
+  'basement',
+  'parking',
+  'garage',
+  'balcony',
+  'terrace',
+  'garden',
+  'attic',
+  'shower',
+  'bathtub',
+  'carport',
+];
+
+function FeatureToggle({
+  label,
+  description,
+  active,
+  onToggle,
+}: {
+  label: string;
+  description?: string;
+  active: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={active}
+      className={cn(
+        'flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors',
+        active
+          ? 'border-primary bg-primary/[0.06] text-primary'
+          : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground',
+      )}
+    >
+      <span
+        className={cn(
+          'mt-0.5 grid size-4 shrink-0 place-items-center rounded border transition-colors',
+          active ? 'border-primary bg-primary text-primary-foreground' : 'border-border',
+        )}
+      >
+        {active && (
+          <svg viewBox="0 0 12 12" className="size-3 fill-none stroke-current" strokeWidth="2">
+            <path d="M2.5 6.5 5 9l4.5-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </span>
+      <span className="min-w-0">
+        <span className="block">{label}</span>
+        {description && <span className="block text-xs font-normal">{description}</span>}
+      </span>
+    </button>
+  );
+}
 
 export function StepFeatures({
   property,
@@ -34,9 +99,24 @@ export function StepFeatures({
         ? property.selectedFeatures.filter((value) => value !== key)
         : [...property.selectedFeatures, key],
     );
+  const has = (key: string) => property.selectedFeatures.includes(key);
   const featureSources = FEATURE_WIZARD_FIELDS.map((field) => sources?.[field]).filter(
     (group): group is WizardFieldCandidate[] => !!group?.length,
   );
+  const energy = exposeData.energy ?? {};
+  const updateEnergy = (patch: Partial<EnergyData>) =>
+    updateExposeData({ energy: { ...energy, ...patch } });
+  const setGarden = (patch: { area?: number | null; orientation?: string | null }) => {
+    const outdoorAreas = [...exposeData.outdoorAreas];
+    const index = outdoorAreas.findIndex((area) => area.type === 'garden');
+    if (index >= 0) {
+      outdoorAreas[index] = { ...outdoorAreas[index], ...patch };
+    } else {
+      outdoorAreas.push({ type: 'garden', ...patch });
+    }
+    updateExposeData({ outdoorAreas });
+  };
+  const garden = exposeData.outdoorAreas.find((area) => area.type === 'garden');
   const addEquipment = () =>
     updateExposeData({
       equipment: [...exposeData.equipment, { category: 'interior', name: '', description: null }],
@@ -51,73 +131,148 @@ export function StepFeatures({
     updateExposeData({
       equipment: exposeData.equipment.filter((_, itemIndex) => itemIndex !== index),
     });
+
   return (
     <Section
-      title="Features & equipment"
-      description="Record the facts and features in a structured way."
+      title="Ausstattung"
+      description="Erfassen Sie Ausstattung und Merkmale strukturiert. Nur Felder, die wirklich vorhanden sind."
     >
-      <div className="space-y-7">
-        <div className="space-y-3">
-          <span className="text-sm font-medium text-foreground">Property features</span>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-            {FEATURE_OPTIONS.map(([key, name]) => {
-              const active = property.selectedFeatures.includes(key);
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => toggle(key)}
-                  aria-pressed={active}
-                  className={cn(
-                    'flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors',
-                    active
-                      ? 'border-primary bg-primary/[0.06] text-primary'
-                      : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'grid size-4 shrink-0 place-items-center rounded border transition-colors',
-                      active ? 'border-primary bg-primary text-primary-foreground' : 'border-border',
-                    )}
-                  >
-                    {active && (
-                      <svg viewBox="0 0 12 12" className="size-3 fill-none stroke-current" strokeWidth="2">
-                        <path d="M2.5 6.5 5 9l4.5-6" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </span>
-                  {name}
-                </button>
-              );
-            })}
+      <div className="space-y-6">
+        <GroupCard title="Außenbereich">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <FeatureToggle label="Balkon" active={has('balcony')} onToggle={() => toggle('balcony')} />
+            <FeatureToggle label="Terrasse" active={has('terrace')} onToggle={() => toggle('terrace')} />
+            <FeatureToggle label="Garten" active={has('garden')} onToggle={() => toggle('garden')} />
+            <FeatureToggle label="Stellplatz" active={has('parking')} onToggle={() => toggle('parking')} />
           </div>
-          {featureSources.length > 0 && (
-            <div className="space-y-2">
-              {featureSources.map((group) => (
-                <DocumentSources key={group[0].field} sources={group} />
-              ))}
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <UnitInput
+                label="Gartenfläche"
+                unit="m²"
+                type="number"
+                value={garden?.area}
+                onChange={(value) => setGarden({ area: value ? Number(value) : null })}
+                placeholder="Optional"
+              />
+              <DocumentSources sources={sources?.gardenArea} />
             </div>
-          )}
-        </div>
+            <div>
+              <Input
+                label="Ausrichtung"
+                value={garden?.orientation}
+                onChange={(value) => setGarden({ orientation: value || null })}
+                placeholder="z. B. Süd"
+              />
+              <DocumentSources sources={sources?.orientation} />
+            </div>
+          </div>
+        </GroupCard>
+
+        <GroupCard title="Küche & Bad">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <FeatureToggle
+              label="Einbauküche"
+              active={has('fitted-kitchen')}
+              onToggle={() => toggle('fitted-kitchen')}
+            />
+            <FeatureToggle label="Dusche" active={has('shower')} onToggle={() => toggle('shower')} />
+            <FeatureToggle
+              label="Badewanne"
+              active={has('bathtub')}
+              onToggle={() => toggle('bathtub')}
+            />
+            <FeatureToggle
+              label="Gäste-WC"
+              active={has('guest-toilet')}
+              onToggle={() => toggle('guest-toilet')}
+            />
+          </div>
+        </GroupCard>
+
+        <GroupCard
+          title="Heizung"
+          description="Heizungsart und Energieträger stammen meist aus dem Energieausweis."
+        >
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <Input
+                label="Heizungsart"
+                value={energy.heatingType}
+                onChange={(value) => updateEnergy({ heatingType: value || null })}
+                placeholder="z. B. Zentralheizung"
+              />
+              <DocumentSources sources={sources?.heatingType} />
+            </div>
+            <div>
+              <Select
+                label="Energieträger"
+                value={energy.primaryEnergySource ?? ''}
+                onChange={(value) =>
+                  updateEnergy({
+                    primaryEnergySource: (value || null) as EnergyData['primaryEnergySource'],
+                  })
+                }
+                placeholder="Auswählen"
+                options={ENERGY_SOURCES as unknown as ReadonlyArray<readonly [string, string]>}
+              />
+              <DocumentSources sources={sources?.primaryEnergySource} />
+            </div>
+          </div>
+        </GroupCard>
+
+        <GroupCard title="Parken">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <FeatureToggle label="Garage" active={has('garage')} onToggle={() => toggle('garage')} />
+            <FeatureToggle label="Carport" active={has('carport')} onToggle={() => toggle('carport')} />
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <UnitInput
+                label="Stellplätze"
+                unit="Stellplätze"
+                type="number"
+                value={exposeData.propertyDetails.parkingSpaceCount}
+                onChange={(value) =>
+                  updateExposeData({
+                    propertyDetails: {
+                      ...exposeData.propertyDetails,
+                      parkingSpaceCount: value ? Number(value) : null,
+                    },
+                  })
+                }
+                placeholder="1"
+              />
+              <DocumentSources sources={sources?.parking} />
+            </div>
+          </div>
+        </GroupCard>
+
+        {featureSources.length > 0 && (
+          <div className="space-y-2">
+            {featureSources.map((group) => (
+              <DocumentSources key={group[0].field} sources={group} />
+            ))}
+          </div>
+        )}
 
         <Textarea
-          label="Additional features"
+          label="Weitere Ausstattung"
           value={property.additionalFeatures}
           onChange={(value) => set('additionalFeatures', value)}
-          placeholder="e.g. fitted kitchen, parquet flooring, triple glazing"
+          placeholder="z. B. Parkett, Isolierglas, Smart Home"
         />
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-foreground">Structured equipment</span>
+            <span className="text-sm font-medium text-foreground">Strukturierte Ausstattung</span>
             <Button type="button" variant="outline" size="sm" onClick={addEquipment}>
-              <Plus /> Add equipment
+              <Plus /> Ausstattung hinzufügen
             </Button>
           </div>
           {exposeData.equipment.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              No equipment listed yet. Add items like a fitted kitchen or parquet flooring.
+              Noch keine Ausstattung erfasst. Fügen Sie Punkte wie Einbauküche oder Parkett hinzu.
             </p>
           )}
           {exposeData.equipment.map((item, index) => (
@@ -126,35 +281,35 @@ export function StepFeatures({
               className="grid gap-3 rounded-lg border bg-card p-3 sm:grid-cols-[1fr_1.5fr_auto]"
             >
               <Select
-                label="Category"
+                label="Kategorie"
                 value={item.category}
                 onChange={(value) => updateEquipment(index, { category: value })}
                 options={[
-                  ['interior', 'Interior'],
-                  ['kitchen', 'Kitchen'],
-                  ['bathroom', 'Bathroom'],
-                  ['flooring', 'Flooring'],
-                  ['windows', 'Windows'],
-                  ['heating', 'Heating'],
-                  ['technology', 'Technology'],
-                  ['outdoor', 'Outdoor'],
-                  ['parking', 'Parking'],
-                  ['storage', 'Storage'],
-                  ['other', 'Other'],
+                  ['interior', 'Innenausbau'],
+                  ['kitchen', 'Küche'],
+                  ['bathroom', 'Bad'],
+                  ['flooring', 'Fußboden'],
+                  ['windows', 'Fenster'],
+                  ['heating', 'Heizung'],
+                  ['technology', 'Technik'],
+                  ['outdoor', 'Außenbereich'],
+                  ['parking', 'Parken'],
+                  ['storage', 'Stauraum'],
+                  ['other', 'Sonstiges'],
                 ]}
               />
               <Input
-                label="Name"
+                label="Bezeichnung"
                 value={item.name}
                 onChange={(value) => updateEquipment(index, { name: value })}
-                placeholder="e.g. fitted kitchen"
+                placeholder="z. B. Einbauküche"
               />
               <div className="flex items-end">
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="Remove equipment"
+                  aria-label="Ausstattung entfernen"
                   className="text-muted-foreground hover:text-destructive"
                   onClick={() => removeEquipment(index)}
                 >
@@ -168,7 +323,7 @@ export function StepFeatures({
         <SectionNotes
           value={noteValue('features')}
           onChange={(value) => setNote('features', value)}
-          placeholder="Mention any feature or highlight worth emphasizing…"
+          placeholder="Weitere Merkmale oder Highlights notieren…"
         />
       </div>
     </Section>
@@ -190,101 +345,133 @@ export function StepEnergy({
 }) {
   const energy = data ?? {};
   const number = (value: string) => (value === '' ? null : Number(value));
+  const patch = (change: Partial<EnergyData>) => update({ ...energy, ...change });
   return (
     <Section
-      title="Energy"
-      description="Only enter the values that are present on the energy certificate."
+      title="Energie"
+      description="Nur Werte eintragen, die tatsächlich auf dem Energieausweis stehen. Fehlende Angaben blockieren nichts."
     >
       <div className="space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Select
-            label="Energy certificate"
-            value={energy.certificateType}
-            onChange={(value) =>
-              update({
-                ...energy,
-                certificateType: (value || null) as EnergyData['certificateType'],
-              })
-            }
-            placeholder="Select an option"
-            options={[
-              ['needs_based', 'Demand-based'],
-              ['consumption_based', 'Consumption-based'],
-              ['not_available', 'Not available'],
-              ['unknown', 'Unknown'],
-            ]}
-          />
-          <div>
-            <Input
-              label="Construction year per certificate"
-              value={energy.yearOfConstruction}
-              type="number"
-              onChange={(value) => update({ ...energy, yearOfConstruction: number(value) })}
-              placeholder="1969"
-            />
-            <DocumentSources sources={sources?.yearOfConstruction} />
+        <GroupCard
+          title="Energieausweis"
+          description="Bedarfsausweis und Verbrauchsausweis bleiben strikt getrennt."
+        >
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <Select
+                label="Ausweistyp"
+                value={energy.certificateType ?? ''}
+                onChange={(value) =>
+                  patch({ certificateType: (value || null) as EnergyData['certificateType'] })
+                }
+                placeholder="Auswählen"
+                options={ENERGY_CERTIFICATE_TYPES as unknown as ReadonlyArray<readonly [string, string]>}
+              />
+              <DocumentSources sources={sources?.certificateType} />
+            </div>
+            <div>
+              <DateInput
+                label="Ausgestellt am"
+                value={energy.certificateDate}
+                onChange={(value) => patch({ certificateDate: value || null })}
+              />
+              <DocumentSources sources={sources?.certificateDate} />
+            </div>
+            <div>
+              <DateInput
+                label="Gültig bis"
+                value={energy.certificateValidUntil}
+                onChange={(value) => patch({ certificateValidUntil: value || null })}
+              />
+              <DocumentSources sources={sources?.certificateValidUntil} />
+            </div>
+            <div>
+              <Input
+                label="Baujahr laut Ausweis"
+                type="number"
+                value={energy.yearOfConstruction}
+                onChange={(value) => patch({ yearOfConstruction: number(value) })}
+                placeholder="z. B. 1969"
+              />
+              <DocumentSources sources={sources?.yearOfConstruction} />
+            </div>
           </div>
-          <div>
-            <Select
-              label="Primary energy source"
-              value={energy.primaryEnergySource}
-              onChange={(value) =>
-                update({
-                  ...energy,
-                  primaryEnergySource: (value || null) as EnergyData['primaryEnergySource'],
-                })
-              }
-              placeholder="Select an option"
-              options={[
-                ['gas', 'Gas'],
-                ['oil', 'Oil'],
-                ['district_heating', 'District heating'],
-                ['heat_pump', 'Heat pump'],
-                ['electricity', 'Electricity'],
-                ['wood', 'Wood'],
-                ['pellets', 'Pellets'],
-                ['other', 'Other'],
-              ]}
-            />
-            <DocumentSources sources={sources?.heatingType} />
+        </GroupCard>
+
+        <GroupCard title="Energieverbrauch & -bedarf">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <UnitInput
+                label="Endenergiebedarf"
+                unit="kWh/(m²·a)"
+                type="number"
+                value={energy.finalEnergyDemand}
+                onChange={(value) => patch({ finalEnergyDemand: number(value) })}
+                placeholder="z. B. 85"
+              />
+              <DocumentSources sources={sources?.energyDemand} />
+            </div>
+            <div>
+              <UnitInput
+                label="Endenergieverbrauch"
+                unit="kWh/(m²·a)"
+                type="number"
+                value={energy.finalEnergyConsumption}
+                onChange={(value) => patch({ finalEnergyConsumption: number(value) })}
+                placeholder="Optional"
+              />
+              <DocumentSources sources={sources?.energyConsumption} />
+            </div>
+            <div className="sm:col-span-2 lg:col-span-1">
+              <Toggle
+                label="Warmwasser im Verbrauch enthalten"
+                checked={energy.hotWaterIncluded === true}
+                onChange={(checked) => patch({ hotWaterIncluded: checked || null })}
+              />
+              <DocumentSources sources={sources?.hotWaterIncluded} />
+            </div>
           </div>
-          <div>
-            <Input
-              label="Final energy demand (kWh/(m²·a))"
-              value={energy.finalEnergyDemand}
-              type="number"
-              onChange={(value) => update({ ...energy, finalEnergyDemand: number(value) })}
-              placeholder="250.20"
-            />
-            <DocumentSources sources={sources?.energyDemand} />
+        </GroupCard>
+
+        <GroupCard title="Heizung">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <Input
+                label="Heizungsart"
+                value={energy.heatingType}
+                onChange={(value) => patch({ heatingType: value || null })}
+                placeholder="z. B. Zentralheizung"
+              />
+              <DocumentSources sources={sources?.heatingType} />
+            </div>
+            <div>
+              <Select
+                label="Energieträger"
+                value={energy.primaryEnergySource ?? ''}
+                onChange={(value) =>
+                  patch({
+                    primaryEnergySource: (value || null) as EnergyData['primaryEnergySource'],
+                  })
+                }
+                placeholder="Auswählen"
+                options={ENERGY_SOURCES as unknown as ReadonlyArray<readonly [string, string]>}
+              />
+              <DocumentSources sources={sources?.primaryEnergySource} />
+            </div>
+            <div className="sm:col-span-2 lg:col-span-1">
+              <EnergyClassPicker
+                value={energy.efficiencyClass}
+                onChange={(value) => patch({ efficiencyClass: (value || null) as EnergyData['efficiencyClass'] })}
+              />
+              <DocumentSources sources={sources?.energyClass} />
+            </div>
           </div>
-          <div>
-            <Input
-              label="Final energy consumption (kWh/(m²·a))"
-              value={energy.finalEnergyConsumption}
-              type="number"
-              onChange={(value) => update({ ...energy, finalEnergyConsumption: number(value) })}
-              placeholder="Optional"
-            />
-            <DocumentSources sources={sources?.energyConsumption} />
-          </div>
-          <div className="sm:col-span-2">
-            <EnergyClassPicker
-              value={energy.efficiencyClass}
-              onChange={(value) =>
-                update({
-                  ...energy,
-                  efficiencyClass: (value || null) as EnergyData['efficiencyClass'],
-                })
-              }
-            />
-            <DocumentSources sources={sources?.energyClass} />
-          </div>
-        </div>
+        </GroupCard>
+
         <SectionNotes
           value={noteValue('energy')}
           onChange={(value) => setNote('energy', value)}
-          placeholder="Add any energy-related notes or highlights…"
+          placeholder="Energiebezogene Hinweise oder Besonderheiten notieren…"
         />
       </div>
     </Section>
@@ -305,8 +492,8 @@ export function StepAgent({
   const agent = data ?? {};
   return (
     <Section
-      title="Agent / contact"
-      description="Agent data is kept separate from Vista system information."
+      title="Agent / Kontakt"
+      description="Agenturdaten werden getrennt von den Vista-Systeminformationen geführt."
     >
       <div className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -316,17 +503,17 @@ export function StepAgent({
             onChange={(value) => update({ ...agent, name: value })}
           />
           <Input
-            label="Company"
+            label="Unternehmen"
             value={agent.company}
             onChange={(value) => update({ ...agent, company: value })}
           />
           <Input
-            label="Phone"
+            label="Telefon"
             value={agent.phone}
             onChange={(value) => update({ ...agent, phone: value })}
           />
           <Input
-            label="Email"
+            label="E-Mail"
             value={agent.email}
             onChange={(value) => update({ ...agent, email: value })}
           />
@@ -336,7 +523,7 @@ export function StepAgent({
             onChange={(value) => update({ ...agent, website: value })}
           />
           <Input
-            label="Street and house number"
+            label="Straße und Hausnummer"
             value={agent.address?.street}
             onChange={(value) =>
               update({
@@ -350,7 +537,7 @@ export function StepAgent({
         <SectionNotes
           value={noteValue('agent')}
           onChange={(value) => setNote('agent', value)}
-          placeholder="Add notes about the agent or contact…"
+          placeholder="Hinweise zum Agenten oder Kontakt notieren…"
         />
       </div>
     </Section>

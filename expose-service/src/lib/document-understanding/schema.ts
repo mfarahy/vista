@@ -53,9 +53,11 @@ export const DOCUMENT_TAGS = [
 ] as const;
 
 /**
- * The set of wizard field keys the model may fill. These match the existing
- * wizard fields (see prefill.ts and the frontend wizard) so prefilled values
- * drop straight into the wizard without a separate mapping layer.
+ * The set of wizard field keys the model may fill. Keys stay short and flat
+ * (see WIZARD_FIELD_TARGETS in domain-model.ts for the dotted PropertyModel
+ * path each key maps onto). Existing keys match the existing wizard fields
+ * (see prefill.ts and the frontend wizard) so prefilled values drop straight
+ * into the wizard without a separate mapping layer.
  */
 export const WIZARD_FIELDS = [
   // Address
@@ -66,29 +68,71 @@ export const WIZARD_FIELDS = [
   'district',
   'state',
   'country',
-  // Property
+  // Classification
   'propertyType',
+  'propertySubtype',
+  'usageType',
+  // Areas
   'livingArea',
+  'usableArea',
   'plotArea',
+  // Rooms
   'rooms',
   'bedrooms',
   'bathrooms',
-  'yearBuilt',
+  'guestToilets',
   // Building
+  'yearBuilt',
+  'buildingStatus',
+  'condition',
   'numberOfFloors',
   'floor',
   'basement',
+  'attic',
+  'renovationStatus',
+  'lastModernizationYear',
+  // Features
   'parking',
   'garage',
+  // Outdoor
   'balcony',
   'terrace',
   'garden',
+  'gardenArea',
+  'orientation',
   // Energy
   'energyClass',
-  'energyConsumption',
   'energyDemand',
+  'energyConsumption',
   'heatingType',
   'yearOfConstruction',
+  'certificateType',
+  'certificateDate',
+  'certificateValidUntil',
+  'primaryEnergySource',
+  'hotWaterIncluded',
+  // Financial
+  'askingPrice',
+  'pricePerM2',
+  'commissionRate',
+  'commissionPayer',
+  // Rental
+  'isRented',
+  'monthlyRent',
+  'annualRent',
+  'additionalCosts',
+  'furnished',
+  'availableFrom',
+  // Investment
+  'grossYieldTarget',
+  'grossYieldActual',
+  // Legal
+  'usufruct',
+  'leasehold',
+  'foreclosure',
+  'heritageProtection',
+  // Transaction
+  'transactionType',
   // Land / identification
   'parcelNumber',
   'plotNumber',

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { locationIntelligenceSchema, propertyExposeDataSchema } from './expose-data.js';
 import { locationResearchSchema } from '../mastra/schemas/location-research.js';
+import { marketingContentRecordSchema } from './marketing-content/schema.js';
 
 const nullableNumber = z.number().finite().nullable().optional();
 export const propertySchema = z.object({
@@ -49,6 +50,7 @@ export const propertySchema = z.object({
     )
     .max(50),
   exposeData: propertyExposeDataSchema.optional(),
+  marketingContent: marketingContentRecordSchema.optional().nullable(),
 });
 
 export const exposeContentSchema = z.object({
