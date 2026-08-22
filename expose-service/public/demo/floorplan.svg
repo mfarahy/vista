@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="840" viewBox="0 0 1200 840">
+  <rect width="1200" height="840" fill="#fbfcfb"/>
+  <g stroke="#26302a" stroke-width="5" fill="none">
+    <rect x="60" y="60" width="1080" height="720"/>
+    <path d="M400 60 V420"/>
+    <path d="M400 540 V780"/>
+    <path d="M60 420 H270"/>
+    <path d="M660 420 V180"/>
+    <path d="M400 180 H530"/>
+    <path d="M660 540 V780"/>
+    <path d="M940 420 V180"/>
+  </g>
+  <g fill="#26302a" font-family="Arial, sans-serif" font-size="26">
+    <text x="600" y="120" text-anchor="middle">Wohnen / Essen · 34 m²</text>
+    <text x="465" y="230" text-anchor="middle">Küche · 9 m²</text>
+    <text x="800" y="230" text-anchor="middle">Schlafzimmer · 15 m²</text>
+    <text x="600" y="320" text-anchor="middle">Flur · 7 m²</text>
+    <text x="165" y="490" text-anchor="middle">Bad · 6 m²</text>
+    <text x="530" y="620" text-anchor="middle">Arbeitszimmer · 11 m²</text>
+    <text x="800" y="620" text-anchor="middle">Abstellraum · 3 m²</text>
+    <text x="1060" y="100" text-anchor="end" font-size="18" fill="#57625a">2. Obergeschoss · ca. 92 m²</text>
+  </g>
+  <g stroke="#57625a" stroke-width="3" fill="none">
+    <rect x="915" y="180" width="12" height="100"/>
+    <rect x="885" y="180" width="12" height="100"/>
+    <text x="906" y="140" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#57625a">Balkon</text>
+  </g>
+</svg>

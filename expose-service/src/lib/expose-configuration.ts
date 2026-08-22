@@ -12,11 +12,11 @@ import { z } from 'zod';
 
 export const EXPOSE_SECTION_TYPES = [
   'cover',
+  'facts',
   'highlights',
   'property',
   'equipment',
   'location',
-  'facts',
   'energy',
   'gallery',
   'floorplans',

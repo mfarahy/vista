@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import type { MarketingContent, Property } from '../../create/[id]/types';
 import {
   EXPOSE_SECTION_TYPES,
+  coverFacts,
   coverImageOf,
   defaultExposeConfiguration,
   defaultGalleryImageIds,
@@ -11,7 +12,9 @@ import {
   energyFacts,
   galleryImagesOf,
   isExposeConfiguration,
+  priceFacts,
   propertyFacts,
+  structuredEquipment,
   summaryFacts,
   visibleSections,
 } from './expose-model';
@@ -294,6 +297,154 @@ describe('property isolation', () => {
     summaryFacts(property);
     energyFacts(property);
     assert.deepEqual(property, makeProperty());
+  });
+});
+
+describe('price presentation', () => {
+  it('sale properties show Kaufpreis plus the persisted commission', () => {
+    const property = makeProperty({
+      exposeData: {
+        ...makeProperty().exposeData!,
+        pricing: { ...makeProperty().exposeData!.pricing, buyerCommission: '3,57 % inkl. MwSt.' },
+      },
+    });
+    const price = priceFacts(property);
+    assert.equal(price?.primary.label, 'Kaufpreis');
+    assert.ok(price?.primary.value.includes('469.000'), price?.primary.value);
+    assert.deepEqual(price?.secondary, [{ label: 'Provision', value: '3,57 % inkl. MwSt.' }]);
+  });
+
+  it('rental properties show Kaltmiete with Nebenkosten and Kaution', () => {
+    const property = makeProperty({
+      transactionType: 'rent',
+      coldRent: 1200,
+      additionalCosts: 240,
+      deposit: 3600,
+      askingPrice: null,
+      exposeData: {
+        ...makeProperty().exposeData!,
+        pricing: {
+          ...makeProperty().exposeData!.pricing,
+          purchasePrice: null,
+          rentPrice: 1200,
+          additionalCosts: 240,
+        },
+      },
+    });
+    const price = priceFacts(property);
+    assert.equal(price?.primary.label, 'Kaltmiete');
+    assert.ok(price?.primary.value.includes('1.200'), price?.primary.value);
+    assert.ok(price?.secondary[0]?.label === 'Nebenkosten' && price.secondary[0].value.includes('240'));
+    assert.ok(price?.secondary[1]?.label === 'Kaution' && price.secondary[1].value.includes('3.600'));
+    assert.ok(!JSON.stringify(price).includes('Kaufpreis'), 'no sale wording on rentals');
+  });
+
+  it('returns null when no price information exists', () => {
+    const property = makeProperty({ askingPrice: null, coldRent: null, exposeData: undefined });
+    assert.equal(priceFacts(property), null);
+  });
+
+  it('cover facts only render values that exist', () => {
+    const property = makeProperty();
+    assert.deepEqual(coverFacts(property), [
+      { label: 'Wohnfläche', value: '107 m²' },
+      { label: 'Zimmer', value: '4' },
+      { label: 'Baujahr', value: '1987' },
+    ]);
+    const sparse = makeProperty({
+      livingArea: null,
+      rooms: null,
+      constructionYear: null,
+      exposeData: {
+        ...makeProperty().exposeData!,
+        propertyDetails: {
+          ...makeProperty().exposeData!.propertyDetails,
+          livingArea: null,
+          rooms: null,
+          yearBuilt: null,
+        },
+      },
+    });
+    assert.deepEqual(coverFacts(sparse), []);
+  });
+});
+
+describe('energy presentation', () => {
+  it('keeps demand and consumption strictly separate', () => {
+    const property = makeProperty({
+      exposeData: {
+        ...makeProperty().exposeData!,
+        energy: {
+          certificateType: 'consumption_based',
+          finalEnergyDemand: null,
+          finalEnergyConsumption: 127.5,
+          efficiencyClass: 'C',
+        },
+      },
+    });
+    const facts = energyFacts(property);
+    const labels = facts.map((fact) => fact.label);
+    assert.ok(labels.includes('Endenergieverbrauch'));
+    assert.ok(!labels.includes('Endenergiebedarf'), 'demand must not be invented');
+  });
+
+  it('shows certificate dates when persisted', () => {
+    const property = makeProperty({
+      exposeData: {
+        ...makeProperty().exposeData!,
+        energy: {
+          certificateType: 'needs_based',
+          certificateDate: '2024-03-01',
+          certificateValidUntil: '2034-03-01',
+          finalEnergyDemand: 78.5,
+          efficiencyClass: 'B',
+          primaryEnergySource: 'district_heating',
+        },
+      },
+    });
+    const facts = energyFacts(property);
+    assert.ok(facts.some((fact) => fact.label === 'Ausstellungsdatum' && fact.value === '2024-03-01'));
+    assert.ok(facts.some((fact) => fact.label === 'Gültig bis' && fact.value === '2034-03-01'));
+    assert.ok(facts.some((fact) => fact.label === 'Endenergiebedarf' && fact.value === '78,5 kWh/(m²a)'));
+  });
+
+  it('returns an empty list when no energy data exists', () => {
+    assert.deepEqual(energyFacts(makeProperty()), []);
+  });
+});
+
+describe('equipment presentation', () => {
+  it('prefers structured equipment items and appends free-form additions', () => {
+    const property = makeProperty({
+      additionalFeatures: 'Südwest-Balkon mit Weitblick',
+      exposeData: {
+        ...makeProperty().exposeData!,
+        equipment: [
+          { category: 'kitchen', name: 'Einbauküche', description: null },
+          { category: 'outdoor', name: 'Balkon', description: null },
+        ],
+      },
+    });
+    assert.deepEqual(structuredEquipment(property), [
+      'Einbauküche',
+      'Balkon',
+      'Südwest-Balkon mit Weitblick',
+    ]);
+  });
+
+  it('falls back to selected feature labels and free-form additions', () => {
+    const property = makeProperty({ additionalFeatures: 'Carport' });
+    assert.deepEqual(structuredEquipment(property), ['Garten', 'Garage', 'Carport']);
+  });
+
+  it('ignores empty structured equipment names', () => {
+    const property = makeProperty({
+      exposeData: {
+        ...makeProperty().exposeData!,
+        equipment: [{ category: 'interior', name: '   ', description: null }],
+      },
+    });
+    assert.deepEqual(structuredEquipment(property), ['Garten', 'Garage']);
   });
 });
 

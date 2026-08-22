@@ -1,9 +1,5 @@
 import assert from 'node:assert/strict';
-import os from 'node:os';
-import path from 'node:path';
-import { chromium } from 'playwright';
 import { describe, it } from 'node:test';
-import { exposeHTML } from './lib/expose-template.js';
 import {
   getGeocodingProvider,
   getPlacesProvider,
@@ -12,7 +8,7 @@ import {
   type PlacesProvider,
 } from './external-services/location.js';
 import { createManualLocation, resolveLocation } from './lib/location-service.js';
-import type { Property, StructuredExposeContent } from './lib/types.js';
+import type { Property } from './lib/types.js';
 
 const enabled = process.env.RUN_LOCATION_INTEGRATION === '1';
 const providersConfigured =
@@ -65,28 +61,8 @@ const property: Property = {
   } as Property['exposeData'],
 };
 
-function content(
-  location: NonNullable<Awaited<ReturnType<typeof resolveLocation>>['intelligence']>,
-): StructuredExposeContent {
-  return {
-    version: 2,
-    cover: { title: 'Phase 4 Integration', location: '12045 Berlin · Neukölln' },
-    overview: {
-      facts: [{ label: 'Standort', value: location.formattedAddress || 'Weserstraße 42, Berlin' }],
-    },
-    objectInformation: { address: location.address },
-    location: { description: location.summary, intelligence: location },
-    vistaSection: {
-      heading: 'Vista',
-      subtitle: 'Integration',
-      description: 'Real location pipeline',
-      steps: ['Adresse', 'Koordinaten', 'Umgebung'],
-    },
-  };
-}
-
 describe('real location pipeline', { skip: skipReason }, () => {
-  it('runs geocoding, real POI search, cache, correction, map, and PDF', async () => {
+  it('runs geocoding, real POI search, cache, correction, and map', async () => {
     const previousCategories = process.env.LOCATION_FACILITY_CATEGORIES;
     process.env.LOCATION_FACILITY_CATEGORIES = 'supermarket';
     try {
@@ -226,28 +202,6 @@ describe('real location pipeline', { skip: skipReason }, () => {
             ),
         ),
       );
-
-      const browser = await chromium.launch({ headless: true });
-      try {
-        const page = await browser.newPage();
-        await page.setContent(await exposeHTML(property, content(location)), {
-          waitUntil: 'networkidle',
-        });
-        const pdf = await page.pdf({
-          path: path.join(os.tmpdir(), 'vista-phase4-location-integration.pdf'),
-          format: 'A4',
-          printBackground: true,
-          margin: { top: '0', right: '0', bottom: '0', left: '0' },
-        });
-        assert.equal(pdf.subarray(0, 4).toString('ascii'), '%PDF');
-        assert.match(await page.locator('body').innerText(), /Lage|Umgebung/);
-        assert.match(
-          await page.locator('body').innerText(),
-          new RegExp(facilities[0].name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
-        );
-      } finally {
-        await browser.close();
-      }
     } finally {
       if (previousCategories === undefined) delete process.env.LOCATION_FACILITY_CATEGORIES;
       else process.env.LOCATION_FACILITY_CATEGORIES = previousCategories;

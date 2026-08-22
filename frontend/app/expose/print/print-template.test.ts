@@ -293,4 +293,226 @@ describe('print route template rendering', () => {
     );
     assert.ok(!contact.includes('href='), 'no empty website/email links are rendered');
   });
+
+  it('renders the cover with title, location, price and key facts', () => {
+    const html = render();
+    const cover = html.slice(0, html.indexOf('id="expose-facts"'));
+    assert.ok(cover.includes('Gepflegtes Einfamilienhaus mit Garten'));
+    assert.ok(cover.includes('Berlin'));
+    assert.ok(cover.includes('Buckow'));
+    assert.ok(cover.includes('Kaufpreis'));
+    assert.ok(cover.includes('469.000'));
+    assert.ok(cover.includes('107 m²'));
+    assert.match(cover, /expose-cover-fact-value">4</, 'Zimmer value renders as a cover fact');
+    assert.ok(cover.includes('1987'));
+  });
+
+  it('shows the persisted commission on a sale cover', () => {
+    const property = makeProperty({
+      commission: '3,57 % inkl. MwSt.',
+      exposeData: {
+        ...makeProperty().exposeData!,
+        pricing: { ...makeProperty().exposeData!.pricing, buyerCommission: '3,57 % inkl. MwSt.' },
+      },
+    });
+    const html = render({ property });
+    const cover = html.slice(0, html.indexOf('id="expose-facts"'));
+    assert.ok(cover.includes('Provision'));
+    assert.ok(cover.includes('3,57 % inkl. MwSt.'));
+  });
+
+  it('renders rental information instead of sale information for rentals', () => {
+    const property = makeProperty({
+      transactionType: 'rent',
+      coldRent: 1200,
+      additionalCosts: 240,
+      deposit: 3600,
+      askingPrice: null,
+      exposeData: {
+        ...makeProperty().exposeData!,
+        pricing: {
+          ...makeProperty().exposeData!.pricing,
+          purchasePrice: null,
+          rentPrice: 1200,
+          additionalCosts: 240,
+        },
+      },
+    });
+    const html = render({ property });
+    const head = html.slice(0, html.indexOf('id="expose-facts"'));
+    assert.ok(head.includes('Kaltmiete'));
+    assert.ok(head.includes('Nebenkosten'));
+    assert.ok(head.includes('Kaution'));
+    assert.ok(!head.includes('Kaufpreis'), 'no sale price on a rental Exposé');
+    assert.ok(!head.includes('Provision'), 'no sale commission on a rental Exposé');
+  });
+
+  it('renders the facts section as a clean label/value grid', () => {
+    const html = render();
+    const facts = html.slice(html.indexOf('id="expose-facts"'), html.indexOf('id="expose-highlights"'));
+    assert.ok(facts.includes('expose-fact-grid'));
+    assert.ok(facts.includes('Objektart'));
+    assert.ok(facts.includes('Einfamilienhaus'));
+    assert.ok(facts.includes('Wohnfläche'));
+    assert.ok(facts.includes('Grundstück'));
+    assert.ok(facts.includes('Zimmer'));
+    assert.ok(facts.includes('Baujahr'));
+  });
+
+  it('renders the energy section with scale and certificate dates', () => {
+    const exposeData = makeProperty().exposeData;
+    const property = makeProperty({
+      exposeData: {
+        ...exposeData!,
+        energy: {
+          certificateType: 'needs_based',
+          certificateDate: '2024-03-01',
+          certificateValidUntil: '2034-03-01',
+          finalEnergyDemand: 78.5,
+          finalEnergyConsumption: null,
+          efficiencyClass: 'B',
+          primaryEnergySource: 'district_heating',
+          heatingType: 'Zentralheizung',
+        },
+      },
+    });
+    const html = render({ property });
+    const energy = html.slice(html.indexOf('id="expose-energy"'), html.indexOf('id="expose-gallery"'));
+    assert.ok(energy.includes('Bedarfsausweis'));
+    assert.ok(energy.includes('78,5'));
+    assert.ok(energy.includes('Ausstellungsdatum'));
+    assert.ok(energy.includes('2024-03-01'));
+    assert.ok(energy.includes('Gültig bis'));
+    assert.ok(energy.includes('2034-03-01'));
+    assert.ok(energy.includes('Energieträger'));
+    assert.ok(energy.includes('Fernwärme'));
+    assert.ok(energy.includes('eff-B active'), 'the efficiency class segment is highlighted');
+    assert.ok(!energy.includes('Endenergieverbrauch'), 'consumption is not invented for Bedarfsausweis');
+  });
+
+  it('keeps demand and consumption strictly separate', () => {
+    const property = makeProperty({
+      exposeData: {
+        ...makeProperty().exposeData!,
+        energy: {
+          certificateType: 'consumption_based',
+          finalEnergyDemand: null,
+          finalEnergyConsumption: 127.5,
+          efficiencyClass: 'C',
+        },
+      },
+    });
+    const html = render({ property });
+    const energy = html.slice(html.indexOf('id="expose-energy"'), html.indexOf('id="expose-gallery"'));
+    assert.ok(energy.includes('Endenergieverbrauch'));
+    assert.ok(!energy.includes('Endenergiebedarf'), 'demand is not invented for Verbrauchsausweis');
+  });
+
+  it('omits the energy section when no energy data exists', () => {
+    const html = render({ property: makeProperty({ exposeData: undefined }) });
+    assert.ok(!html.includes('id="expose-energy"'));
+  });
+
+  it('renders floorplans without distortion and with captions', () => {
+    const property = makeProperty({
+      images: [
+        makeImage({
+          id: 'plan-1',
+          url: '/uploads/plan.png',
+          category: 'floor_plan',
+          caption: 'Grundriss Erdgeschoss',
+        }),
+      ],
+    });
+    const html = render({ property });
+    const plans = html.slice(html.indexOf('id="expose-floorplans"'), html.indexOf('id="expose-documents"'));
+    assert.ok(plans.includes('expose-floorplan-figure'));
+    assert.ok(plans.includes('Grundriss Erdgeschoss'));
+    assert.ok(!plans.includes('aspect-'), 'floorplans must not be cropped to a fixed ratio');
+    assert.ok(
+      html.includes('.expose-floorplan-figure img') && html.includes('object-fit: contain'),
+      'floorplan images must use object-fit: contain',
+    );
+  });
+
+  it('renders the default sections in the improved hierarchy order', () => {
+    const exposeData = makeProperty().exposeData;
+    const property = makeProperty({
+      exposeData: {
+        ...exposeData!,
+        energy: {
+          certificateType: 'consumption_based',
+          finalEnergyDemand: null,
+          finalEnergyConsumption: 127.5,
+          efficiencyClass: 'C',
+          primaryEnergySource: 'gas',
+        },
+        agent: { name: 'Max Mustermann', company: 'Muster Immobilien GmbH' },
+      },
+      images: [
+        makeImage({ id: 'img-a', url: '/uploads/a.jpg', isCover: true, caption: 'Hausansicht' }),
+        makeImage({ id: 'img-b', url: '/uploads/b.jpg', caption: 'Wohnzimmer' }),
+        makeImage({ id: 'img-c', url: '/uploads/c.jpg', caption: 'Küche' }),
+        makeImage({
+          id: 'img-plan',
+          url: '/uploads/plan.png',
+          category: 'floor_plan',
+          caption: 'Grundriss',
+        }),
+      ],
+    });
+    const html = render({ property });
+    const order = [
+      'id="expose-cover"',
+      'id="expose-facts"',
+      'id="expose-highlights"',
+      'id="expose-property"',
+      'id="expose-equipment"',
+      'id="expose-location"',
+      'id="expose-energy"',
+      'id="expose-gallery"',
+      'id="expose-floorplans"',
+      'id="expose-documents"',
+      'id="expose-contact"',
+    ].map((id) => html.indexOf(id));
+    for (let index = 1; index < order.length; index += 1) {
+      assert.ok(
+        order[index - 1] >= 0 && order[index - 1] < order[index],
+        `${order[index - 1]} before ${order[index]}`,
+      );
+    }
+  });
+
+  it('renders contact channels with German labels', () => {
+    const exposeData = makeProperty().exposeData;
+    const property = makeProperty({
+      exposeData: {
+        ...exposeData!,
+        agent: {
+          name: 'Max Mustermann',
+          company: 'Muster Immobilien GmbH',
+          phone: '+49 30 123456',
+          email: 'max@example.com',
+          website: 'https://www.example.com',
+        },
+      },
+    });
+    const html = render({ property });
+    const contact = html.slice(html.indexOf('id="expose-contact"'));
+    assert.ok(contact.includes('Telefon'));
+    assert.ok(contact.includes('+49 30 123456'));
+    assert.ok(contact.includes('E-Mail'));
+    assert.ok(contact.includes('max@example.com'));
+    assert.ok(contact.includes('Web'));
+    assert.ok(contact.includes('https://www.example.com'));
+  });
+
+  it('does not render any Builder UI, source badges or debug metadata', () => {
+    const html = render();
+    assert.ok(!html.includes('Bearbeitbar'));
+    assert.ok(!html.includes('Nur-Lese'));
+    assert.ok(!html.includes('Fakten aus Ihren Objektdaten'));
+    assert.ok(!html.includes('source'));
+    assert.ok(!html.includes('__EXPOSE_READY__'));
+  });
 });

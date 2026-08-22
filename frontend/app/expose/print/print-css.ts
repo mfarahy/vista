@@ -1,13 +1,15 @@
 /**
- * Print-only CSS for the Exposé PDF export (Phase 5B).
+ * Print-only CSS for the Exposé PDF export (Phase 5B, refined in Phase 6).
  *
  * The Exposé is the exact same `ModernExposeTemplate` the Builder previews;
  * only layout/pagination for A4 differs here. No Builder UI, editing
  * indicators, or source badges are rendered by the print route at all.
  *
- * Sections flow naturally; only blocks that would look broken when split
- * (fact tables, figures, contact card, highlight lists, headings) are kept
- * together with `break-inside: avoid` / `break-after: avoid`.
+ * Sections flow naturally; only the cover is a forced page. Blocks that
+ * would look broken when split (fact grids, highlight lists, figures, the
+ * energy scale, contact block, document rows) are kept together with
+ * `break-inside: avoid`. Headings stay with their content via
+ * `break-after: avoid`.
  */
 export const PRINT_CSS = `
   @page {
@@ -38,25 +40,33 @@ export const PRINT_CSS = `
     text-decoration: none;
   }
   .expose-cover {
+    height: 297mm;
+    min-height: 297mm;
+    overflow: hidden;
     break-after: page;
     page-break-after: always;
   }
-  .expose-section-title {
+  .expose-section-header {
     break-after: avoid;
     page-break-after: avoid;
+    break-inside: avoid;
   }
-  .expose-fact-table,
-  .expose-contact-card,
+  .expose-fact-grid,
+  .expose-highlights,
+  .expose-equipment,
+  .expose-energy-scale,
+  .expose-contact,
   .expose-gallery-figure,
   .expose-floorplan-figure,
-  .expose-highlights-list,
-  .expose-equipment-list {
+  .expose-document-row {
     break-inside: avoid;
     page-break-inside: avoid;
   }
-  .expose-documents-list li {
+  #expose-energy,
+  #expose-floorplans,
+  #expose-contact,
+  #expose-documents {
     break-inside: avoid;
-    page-break-inside: avoid;
   }
   .expose-print footer {
     break-before: auto;

@@ -28,7 +28,6 @@ import { locationResearchInputSchema } from '../mastra/schemas/location-research
 import { getParam, loadProperty, sendError, errorMessage, asyncHandler } from '../lib/http.js';
 import { getLogger } from '../lib/logger.js';
 import { upload, isAllowedImageMime, MAX_IMAGE_BYTES, IMAGE_CATEGORIES } from '../lib/upload.js';
-import { exposeHTML } from '../lib/expose-template.js';
 import { persistImages, removeImageRecord } from '../services/image-files.js';
 import {
   contentDispositionHeader,
@@ -397,16 +396,6 @@ export function propertiesRouter(options: PropertiesRouterOptions = {}): Router 
       );
       if (!property) return sendError(res, 404, 'Not found');
       res.json(property.images);
-    }),
-  );
-
-  propertiesRouter.get(
-    '/api/properties/:id/html',
-    asyncHandler(async (req, res) => {
-      const property = await loadProperty(req, res);
-      if (!property) return;
-      if (!property?.expose?.content) return sendError(res, 400, 'Please generate content first');
-      res.type('html').send(await exposeHTML(property, property.expose.content));
     }),
   );
 

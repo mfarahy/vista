@@ -19,11 +19,11 @@ import {
 
 export const EXPOSE_SECTION_TYPES = [
   'cover',
+  'facts',
   'highlights',
   'property',
   'equipment',
   'location',
-  'facts',
   'energy',
   'gallery',
   'floorplans',
@@ -155,6 +155,11 @@ export function effectiveMarketingContent(
 
 export type ExposeFact = { label: string; value: string };
 
+export type ExposePriceFacts = {
+  primary: ExposeFact;
+  secondary: ExposeFact[];
+};
+
 const formatNumber = (value?: number | null) =>
   value == null
     ? ''
@@ -172,6 +177,9 @@ export function formatMoney(value?: number | null) {
 
 const area = (value?: number | null) =>
   value == null ? '' : `${formatNumber(value)} m²`;
+
+/** Years are rendered without thousands separators (Baujahr "1987"). */
+const year = (value?: number | null) => (value == null ? '' : String(value));
 
 export function propertyTypeLabel(property: Property): string {
   return (
@@ -208,7 +216,7 @@ export function propertyFacts(property: Property): ExposeFact[] {
   if (rooms != null) facts.push({ label: 'Zimmer', value: formatNumber(rooms) });
   if (bedrooms != null) facts.push({ label: 'Schlafzimmer', value: formatNumber(bedrooms) });
   if (bathrooms != null) facts.push({ label: 'Bäder', value: formatNumber(bathrooms) });
-  if (yearBuilt != null) facts.push({ label: 'Baujahr', value: formatNumber(yearBuilt) });
+  if (yearBuilt != null) facts.push({ label: 'Baujahr', value: year(yearBuilt) });
   if (condition) facts.push({ label: 'Zustand', value: condition });
   return facts;
 }
@@ -227,7 +235,7 @@ export function summaryFacts(property: Property): ExposeFact[] {
   if (living != null) facts.push({ label: 'Wohnfläche', value: area(living) });
   if (plot != null) facts.push({ label: 'Grundstück', value: area(plot) });
   if (rooms != null) facts.push({ label: 'Zimmer', value: formatNumber(rooms) });
-  if (yearBuilt != null) facts.push({ label: 'Baujahr', value: formatNumber(yearBuilt) });
+  if (yearBuilt != null) facts.push({ label: 'Baujahr', value: year(yearBuilt) });
   if (sale) {
     const purchasePrice = property.askingPrice ?? pricing?.purchasePrice;
     if (purchasePrice != null)
@@ -236,6 +244,46 @@ export function summaryFacts(property: Property): ExposeFact[] {
     const rent = property.coldRent ?? pricing?.rentPrice;
     if (rent != null) facts.push({ label: 'Kaltmiete', value: formatMoney(rent) });
   }
+  return facts;
+}
+
+/**
+ * Price block for the cover, driven by the persisted transaction type. Sale
+ * properties show the asking price with the persisted commission; rentals
+ * show cold rent plus Nebenkosten and Kaution when present. Only persisted
+ * values are used — nothing is derived.
+ */
+export function priceFacts(property: Property): ExposePriceFacts | null {
+  const pricing = property.exposeData?.pricing;
+  if (property.transactionType === 'rent') {
+    const rent = property.coldRent ?? pricing?.rentPrice;
+    if (rent == null) return null;
+    const secondary: ExposeFact[] = [];
+    const additionalCosts = property.additionalCosts ?? pricing?.additionalCosts;
+    if (additionalCosts != null)
+      secondary.push({ label: 'Nebenkosten', value: formatMoney(additionalCosts) });
+    if (property.deposit != null)
+      secondary.push({ label: 'Kaution', value: formatMoney(property.deposit) });
+    return { primary: { label: 'Kaltmiete', value: formatMoney(rent) }, secondary };
+  }
+  const purchasePrice = property.askingPrice ?? pricing?.purchasePrice;
+  if (purchasePrice == null) return null;
+  const secondary: ExposeFact[] = [];
+  const commission = pricing?.buyerCommission || property.commission;
+  if (commission) secondary.push({ label: 'Provision', value: commission });
+  return { primary: { label: 'Kaufpreis', value: formatMoney(purchasePrice) }, secondary };
+}
+
+/** Short fact row on the cover: living area, rooms, year built. */
+export function coverFacts(property: Property): ExposeFact[] {
+  const details = property.exposeData?.propertyDetails;
+  const facts: ExposeFact[] = [];
+  const living = property.livingArea ?? details?.livingArea;
+  const rooms = property.rooms ?? details?.rooms;
+  const yearBuilt = property.constructionYear ?? details?.yearBuilt;
+  if (living != null) facts.push({ label: 'Wohnfläche', value: area(living) });
+  if (rooms != null) facts.push({ label: 'Zimmer', value: formatNumber(rooms) });
+  if (yearBuilt != null) facts.push({ label: 'Baujahr', value: year(yearBuilt) });
   return facts;
 }
 
@@ -270,7 +318,32 @@ export function energyFacts(property: Property): ExposeFact[] {
   }
   if (energy.heatingType)
     facts.push({ label: 'Heizungsart', value: energy.heatingType });
+  if (energy.certificateDate)
+    facts.push({ label: 'Ausstellungsdatum', value: energy.certificateDate });
+  if (energy.certificateValidUntil)
+    facts.push({ label: 'Gültig bis', value: energy.certificateValidUntil });
   return facts;
+}
+
+/**
+ * Equipment presented in the Exposé. Prefers the structured equipment items
+ * of the property data (name only, descriptions stay in the narrative);
+ * falls back to the wizard's feature labels and free-form additions. Only
+ * values that exist are returned.
+ */
+export function structuredEquipment(property: Property): string[] {
+  const structured = property.exposeData?.equipment ?? [];
+  const items: string[] = [];
+  for (const item of structured) {
+    const name = item.name.trim();
+    if (name) items.push(name);
+  }
+  if (items.length) {
+    const freeForm = property.additionalFeatures?.trim();
+    if (freeForm) items.push(freeForm);
+    return items;
+  }
+  return equipmentFeatures(property);
 }
 
 /** Structured equipment features with German labels, plus free-form additions. */
