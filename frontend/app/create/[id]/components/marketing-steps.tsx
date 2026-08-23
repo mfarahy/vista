@@ -1,5 +1,6 @@
 import { LoaderCircle, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/lib/i18n';
 import type { MarketingContent } from '../types';
 import { GroupCard, Section, Input, Textarea } from './ui';
 import { marketingProvenanceLabel } from '../field-provenance';
@@ -10,16 +11,15 @@ import { marketingProvenanceLabel } from '../field-provenance';
  * internal source record ("ai" | "user") is never shown.
  */
 function ProvenanceLabel({ source }: { source: 'ai' | 'user' }) {
+  const { t } = useI18n();
   const user = source === 'user';
   return (
     <p
       className={
-        user
-          ? 'mt-1.5 text-xs font-medium text-foreground'
-          : 'mt-1.5 text-xs text-muted-foreground'
+        user ? 'mt-1.5 text-xs font-medium text-foreground' : 'mt-1.5 text-xs text-muted-foreground'
       }
     >
-      {marketingProvenanceLabel(source)}
+      {t(marketingProvenanceLabel(source))}
     </p>
   );
 }
@@ -42,27 +42,24 @@ export function StepMarketingContent({
   onGenerate: () => Promise<void>;
   generating: boolean;
 }) {
+  const { t } = useI18n();
   if (!content) {
     return (
       <Section
-        title="Exposé-Inhalt"
-        description="Professionelle deutsche Marketing-Texte aus Ihren geprüften Objektdaten erzeugen."
+        title={t('steps.marketing.emptySectionTitle')}
+        description={t('steps.marketing.emptySectionDescription')}
       >
         <div className="mx-auto max-w-xl py-8 text-center">
-          <p className="text-sm font-medium text-foreground">
-            Ihr Exposé-Inhalt wurde noch nicht erzeugt.
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Vista kann einen ersten Entwurf aus den eingegebenen Objektdaten erstellen.
-          </p>
+          <p className="text-sm font-medium text-foreground">{t('steps.marketing.emptyTitle')}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('steps.marketing.emptyText')}</p>
           <Button type="button" className="mt-6" disabled={generating} onClick={() => onGenerate()}>
             {generating ? (
               <>
-                <LoaderCircle className="size-4 animate-spin" /> Ihr Exposé wird erzeugt…
+                <LoaderCircle className="size-4 animate-spin" /> {t('steps.marketing.generating')}
               </>
             ) : (
               <>
-                <Sparkles className="size-4" /> Inhalt erzeugen
+                <Sparkles className="size-4" /> {t('steps.marketing.generate')}
               </>
             )}
           </Button>
@@ -90,27 +87,27 @@ export function StepMarketingContent({
 
   return (
     <Section
-      title="Exposé-Inhalt"
-      description="Prüfen und bearbeiten Sie die erzeugten Texte. Ihre Änderungen werden beim Speichern übernommen und nicht von der KI überschrieben."
+      title={t('steps.marketing.sectionTitle')}
+      description={t('steps.marketing.sectionDescription')}
     >
       <div className="space-y-5">
-        <GroupCard title="Titel & Untertitel">
+        <GroupCard title={t('steps.marketing.groupTitleSubtitle')}>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <Input
-                label="Titel"
+                label={t('steps.marketing.titleLabel')}
                 value={content.title.value}
                 onChange={editText('title')}
-                placeholder="z. B. Gepflegtes Einfamilienhaus mit Garten und Garage"
+                placeholder={t('steps.marketing.titlePlaceholder')}
               />
               <ProvenanceLabel source={content.title.source} />
             </div>
             <div>
               <Input
-                label="Untertitel"
+                label={t('steps.marketing.subtitleLabel')}
                 value={content.subtitle.value}
                 onChange={editText('subtitle')}
-                placeholder="z. B. Reiheneckhaus in Berlin-Buckow"
+                placeholder={t('steps.marketing.subtitlePlaceholder')}
               />
               <ProvenanceLabel source={content.subtitle.source} />
             </div>
@@ -118,8 +115,8 @@ export function StepMarketingContent({
         </GroupCard>
 
         <GroupCard
-          title="Highlights"
-          description="Jeder Stichpunkt entspricht einem geprüften Objektmerkmal."
+          title={t('steps.marketing.groupHighlights')}
+          description={t('steps.marketing.groupHighlightsDescription')}
         >
           <div className="space-y-2">
             {content.highlights.value.map((highlight, index) => (
@@ -135,14 +132,14 @@ export function StepMarketingContent({
                     next[index] = event.target.value;
                     editHighlights(next);
                   }}
-                  placeholder={`Highlight ${index + 1}`}
+                  placeholder={t('steps.marketing.highlightPlaceholder', { number: index + 1 })}
                   className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={`Highlight ${index + 1} entfernen`}
+                  aria-label={t('steps.marketing.removeHighlight', { number: index + 1 })}
                   className="shrink-0 text-muted-foreground hover:text-destructive"
                   onClick={() =>
                     editHighlights(content.highlights.value.filter((_, i) => i !== index))
@@ -160,14 +157,14 @@ export function StepMarketingContent({
             className="mt-3"
             onClick={() => editHighlights([...content.highlights.value, ''])}
           >
-            <Plus className="size-4" /> Highlight hinzufügen
+            <Plus className="size-4" /> {t('steps.marketing.addHighlight')}
           </Button>
           <ProvenanceLabel source={content.highlights.source} />
         </GroupCard>
 
-        <GroupCard title="Objektbeschreibung">
+        <GroupCard title={t('steps.marketing.groupDescription')}>
           <Textarea
-            label="Objektbeschreibung"
+            label={t('steps.marketing.descriptionLabel')}
             value={content.propertyDescription.value}
             onChange={editText('propertyDescription')}
             rows={6}
@@ -175,27 +172,25 @@ export function StepMarketingContent({
           <ProvenanceLabel source={content.propertyDescription.source} />
         </GroupCard>
 
-        <GroupCard title="Ausstattung">
+        <GroupCard title={t('steps.marketing.groupEquipment')}>
           <Textarea
-            label="Ausstattungsbeschreibung"
+            label={t('steps.marketing.equipmentLabel')}
             value={content.equipmentDescription.value}
             onChange={editText('equipmentDescription')}
             rows={5}
-            hint="Beschreibt nur die tatsächlich vorhandenen Merkmale."
+            hint={t('steps.marketing.equipmentHint')}
           />
           <ProvenanceLabel source={content.equipmentDescription.source} />
         </GroupCard>
 
-        <GroupCard title="Lage">
+        <GroupCard title={t('steps.marketing.groupLocation')}>
           <Textarea
-            label="Lagebeschreibung"
+            label={t('steps.marketing.locationLabel')}
             value={content.locationDescription?.value ?? ''}
             onChange={editText('locationDescription')}
             rows={5}
             placeholder={
-              content.locationDescription
-                ? undefined
-                : 'Keine Lageinformationen vorhanden — bei Bedarf selbst ergänzen.'
+              content.locationDescription ? undefined : t('steps.marketing.locationPlaceholder')
             }
           />
           {content.locationDescription && (
@@ -204,10 +199,7 @@ export function StepMarketingContent({
         </GroupCard>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
-          <p className="text-xs text-muted-foreground">
-            „Neu erzeugen“ ersetzt nur KI-Entwürfe. Felder, die Sie bearbeitet haben, bleiben
-            erhalten.
-          </p>
+          <p className="text-xs text-muted-foreground">{t('steps.marketing.regenerateNote')}</p>
           <Button
             type="button"
             variant="secondary"
@@ -216,11 +208,11 @@ export function StepMarketingContent({
           >
             {generating ? (
               <>
-                <LoaderCircle className="size-4 animate-spin" /> Ihr Exposé wird erzeugt…
+                <LoaderCircle className="size-4 animate-spin" /> {t('steps.marketing.generating')}
               </>
             ) : (
               <>
-                <Sparkles className="size-4" /> Neu erzeugen
+                <Sparkles className="size-4" /> {t('steps.marketing.regenerate')}
               </>
             )}
           </Button>

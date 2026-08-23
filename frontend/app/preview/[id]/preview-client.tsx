@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft, Download, LayoutTemplate } from 'lucide-react';
 import { downloadPdf } from '@/lib/api';
 import { useState } from 'react';
+import { useI18n } from '@/lib/i18n';
 import type { DocumentRecord, Property } from '../../create/[id]/types';
 import type {
   EffectiveMarketingContent,
@@ -10,6 +11,7 @@ import type {
 } from '../../builder/[id]/expose-model';
 import { Button } from '@/components/ui/button';
 import { VistaLogoLink } from '@/components/vista-logo';
+import { LanguageSwitcher } from '@/components/language-switcher';
 import ExposeDocument from '../../expose/expose-document';
 
 export default function PreviewClient({
@@ -21,12 +23,13 @@ export default function PreviewClient({
   documents,
 }: {
   id: string;
-  title: string;
+  title?: string;
   property: Property;
   marketingContent: EffectiveMarketingContent;
   expose: ExposeConfiguration;
   documents: DocumentRecord[];
 }) {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
 
   async function pdf() {
@@ -45,23 +48,27 @@ export default function PreviewClient({
           <Button variant="outline" size="sm" asChild>
             <Link href={`/builder/${id}`}>
               <ArrowLeft className="size-4" />{' '}
-              <span className="hidden sm:inline">Exposé-Builder</span>
+              <span className="hidden sm:inline">{t('preview.backToBuilder')}</span>
             </Link>
           </Button>
           <div className="hidden items-center gap-3 border-l pl-4 sm:flex">
             <VistaLogoLink href="/" />
-            <span className="max-w-md truncate text-sm font-medium text-foreground">{title}</span>
+            <span className="max-w-md truncate text-sm font-medium text-foreground">
+              {title ?? t('preview.title')}
+            </span>
           </div>
         </div>
         <div className="flex gap-2">
+          <LanguageSwitcher />
           <Button variant="outline" size="sm" asChild>
             <Link href={`/builder/${id}`}>
               <LayoutTemplate className="size-4" />{' '}
-              <span className="hidden sm:inline">Bearbeiten</span>
+              <span className="hidden sm:inline">{t('preview.edit')}</span>
             </Link>
           </Button>
           <Button size="sm" onClick={pdf} disabled={loading}>
-            <Download className="size-4" /> {loading ? 'PDF wird erstellt…' : 'PDF erstellen'}
+            <Download className="size-4" />{' '}
+            {loading ? t('preview.generatingPdf') : t('preview.createPdf')}
           </Button>
         </div>
       </header>

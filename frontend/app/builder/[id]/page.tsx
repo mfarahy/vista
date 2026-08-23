@@ -34,11 +34,7 @@ async function getDocuments(id: string): Promise<DocumentRecord[]> {
   }
 }
 
-export default async function ExposeBuilderPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function ExposeBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [property, documents] = await Promise.all([getProperty(id), getDocuments(id)]);
   if (!property) notFound();

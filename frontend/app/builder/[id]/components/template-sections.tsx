@@ -1,4 +1,9 @@
-import type { DocumentRecord, FloorPlan3DRecord, Property, PropertyImage } from '../../../create/[id]/types';
+import type {
+  DocumentRecord,
+  FloorPlan3DRecord,
+  Property,
+  PropertyImage,
+} from '../../../create/[id]/types';
 import { apiAssetUrl, apiFetch } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
@@ -13,6 +18,7 @@ import {
   TreePine,
   UtensilsCrossed,
 } from 'lucide-react';
+import type { Translator } from '@/lib/i18n/core';
 import type {
   EffectiveBranding,
   ExposeConfiguration,
@@ -69,13 +75,13 @@ export function Section({
   );
 }
 
-export function FactGrid({ facts }: { facts: ExposeFact[] }) {
+export function FactGrid({ facts, tr }: { facts: ExposeFact[]; tr: Translator }) {
   if (!facts.length) return null;
   return (
     <div className="expose-fact-grid">
       {facts.map((fact) => (
         <div key={fact.label} className="expose-fact">
-          <span className="expose-fact-label">{fact.label}</span>
+          <span className="expose-fact-label">{tr.t(fact.label)}</span>
           <span className="expose-fact-value">{fact.value}</span>
         </div>
       ))}
@@ -112,24 +118,29 @@ export function HighlightList({ highlights }: { highlights: string[] }) {
   );
 }
 
-export function EquipmentList({ property }: { property: Property }) {
+export function EquipmentList({ property, tr }: { property: Property; tr: Translator }) {
   const items = structuredEquipment(property);
   if (!items.length) return null;
   return (
     <ul className="expose-equipment">
       {items.map((item) => (
         <li key={item} className="expose-equipment-item">
-          {item}
+          {/* Structured features are translation keys; free-form user text
+              passes through because unknown keys fall back to the key itself. */}
+          {tr.t(item)}
         </li>
       ))}
     </ul>
   );
 }
 
-export function EfficiencyScale({ value }: { value: string }) {
+export function EfficiencyScale({ value, tr }: { value: string; tr: Translator }) {
   const classes = ['A+', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
   return (
-    <div className="expose-energy-scale" aria-label={`Energieeffizienzklasse ${value}`}>
+    <div
+      className="expose-energy-scale"
+      aria-label={tr.t('expose.efficiencyScaleLabel', { value })}
+    >
       {classes.map((item) => (
         <span
           key={item}
@@ -142,18 +153,26 @@ export function EfficiencyScale({ value }: { value: string }) {
   );
 }
 
-export function FactsSection({ property }: { property: Property }) {
+export function FactsSection({ property, tr }: { property: Property; tr: Translator }) {
   return (
-    <Section id="facts" kicker="OBJEKTDATEN" title="Fakten">
-      <FactGrid facts={summaryFacts(property)} />
+    <Section
+      id="facts"
+      kicker={tr.t('expose.kickers.facts')}
+      title={tr.t('expose.facts.factsTitle')}
+    >
+      <FactGrid facts={summaryFacts(property, tr)} tr={tr} />
     </Section>
   );
 }
 
-export function HighlightsSection({ highlights }: { highlights: string[] }) {
+export function HighlightsSection({ highlights, tr }: { highlights: string[]; tr: Translator }) {
   if (!highlights.some((item) => item.trim())) return null;
   return (
-    <Section id="highlights" kicker="AUF EINEN BLICK" title="Highlights">
+    <Section
+      id="highlights"
+      kicker={tr.t('expose.kickers.highlights')}
+      title={tr.t('expose.sectionLabels.highlights')}
+    >
       <HighlightList highlights={highlights} />
     </Section>
   );
@@ -162,16 +181,22 @@ export function HighlightsSection({ highlights }: { highlights: string[] }) {
 export function PropertySection({
   property,
   description,
+  tr,
 }: {
   property: Property;
   description: string;
+  tr: Translator;
 }) {
-  const facts = propertyFacts(property);
+  const facts = propertyFacts(property, tr);
   const hasDescription = description.trim().length > 0;
   if (!facts.length && !hasDescription) return null;
   return (
-    <Section id="property" kicker="OBJEKTINFORMATIONEN" title="Objektbeschreibung">
-      {facts.length > 0 && <FactGrid facts={facts} />}
+    <Section
+      id="property"
+      kicker={tr.t('expose.kickers.property')}
+      title={tr.t('expose.propertyTitle')}
+    >
+      {facts.length > 0 && <FactGrid facts={facts} tr={tr} />}
       <Prose text={description} className={cn(facts.length > 0 && 'mt-7')} />
     </Section>
   );
@@ -180,16 +205,22 @@ export function PropertySection({
 export function EquipmentSection({
   property,
   description,
+  tr,
 }: {
   property: Property;
   description: string;
+  tr: Translator;
 }) {
   const items = structuredEquipment(property);
   const hasDescription = description.trim().length > 0;
   if (!items.length && !hasDescription) return null;
   return (
-    <Section id="equipment" kicker="AUSSTATTUNG" title="Ausstattung">
-      {items.length > 0 && <EquipmentList property={property} />}
+    <Section
+      id="equipment"
+      kicker={tr.t('expose.kickers.equipment')}
+      title={tr.t('expose.equipmentTitle')}
+    >
+      {items.length > 0 && <EquipmentList property={property} tr={tr} />}
       <Prose text={description} className={cn(items.length > 0 && 'mt-7')} />
     </Section>
   );
@@ -211,7 +242,7 @@ const NEARBY_ICONS: Record<NearbyIcon, typeof ShoppingCart> = {
  * verified route are rendered — every distance and travel time comes from
  * the routing provider. A missing category simply renders no row.
  */
-export function NearbyFacilityList({ property }: { property: Property }) {
+export function NearbyFacilityList({ property, tr }: { property: Property; tr: Translator }) {
   const entries = nearbyFacilityEntries(property);
   if (!entries.length) return null;
   return (
@@ -226,8 +257,9 @@ export function NearbyFacilityList({ property }: { property: Property }) {
             <span className="expose-nearby-info">
               <span className="expose-nearby-name">{entry.place.name}</span>
               <span className="expose-nearby-meta">
-                {entry.label} · {formatNearbyDistance(entry.distanceMeters)} ·{' '}
-                {formatNearbyDuration(entry.durationSeconds)} {travelModeLabel(entry.travelMode)}
+                {tr.t(entry.label)} · {formatNearbyDistance(entry.distanceMeters, tr.locale)} ·{' '}
+                {formatNearbyDuration(entry.durationSeconds, tr.locale)}{' '}
+                {tr.t(travelModeLabel(entry.travelMode))}
               </span>
             </span>
           </li>
@@ -240,9 +272,11 @@ export function NearbyFacilityList({ property }: { property: Property }) {
 export function LocationSection({
   property,
   description,
+  tr,
 }: {
   property: Property;
   description: string;
+  tr: Translator;
 }) {
   const address = fullAddressLines(property);
   const intelligence = property.exposeData?.location.intelligence;
@@ -251,16 +285,14 @@ export function LocationSection({
   const hasMap = Boolean(mapUrl);
   const hasNearby = nearbyFacilityEntries(property).length > 0;
   const summary = intelligence?.summary?.trim();
-  if (
-    !address.length &&
-    !locationLine(property) &&
-    !hasDescription &&
-    !hasMap &&
-    !hasNearby
-  )
+  if (!address.length && !locationLine(property) && !hasDescription && !hasMap && !hasNearby)
     return null;
   return (
-    <Section id="location" kicker="LAGE & UMWELT" title="Lage">
+    <Section
+      id="location"
+      kicker={tr.t('expose.kickers.location')}
+      title={tr.t('expose.locationTitle')}
+    >
       {address.length > 0 && <p className="expose-location-address">{address.join(' · ')}</p>}
       {(hasMap || hasNearby) && (
         <div className="expose-location-layout">
@@ -268,13 +300,13 @@ export function LocationSection({
             <figure className="expose-location-map">
               <img
                 src={apiAssetUrl(mapUrl as string)}
-                alt={intelligence?.mapAsset?.caption || 'Lage und Umgebung'}
+                alt={intelligence?.mapAsset?.caption || tr.t('expose.altFallbacks.locationMap')}
               />
             </figure>
           )}
           <div className="expose-location-side">
             {summary && <p className="expose-location-summary">{summary}</p>}
-            {hasNearby && <NearbyFacilityList property={property} />}
+            {hasNearby && <NearbyFacilityList property={property} tr={tr} />}
           </div>
         </div>
       )}
@@ -283,16 +315,16 @@ export function LocationSection({
   );
 }
 
-export function EnergySection({ property }: { property: Property }) {
-  const facts = energyFacts(property);
+export function EnergySection({ property, tr }: { property: Property; tr: Translator }) {
+  const facts = energyFacts(property, tr);
   const efficiencyClass = property.exposeData?.energy?.efficiencyClass;
   if (!facts.length) return null;
   return (
-    <Section id="energy" kicker="ENERGIE" title="Energie">
-      <FactGrid facts={facts} />
+    <Section id="energy" kicker={tr.t('expose.kickers.energy')} title={tr.t('expose.energyTitle')}>
+      <FactGrid facts={facts} tr={tr} />
       {efficiencyClass && (
         <div className="mt-6">
-          <EfficiencyScale value={efficiencyClass} />
+          <EfficiencyScale value={efficiencyClass} tr={tr} />
         </div>
       )}
     </Section>
@@ -302,22 +334,28 @@ export function EnergySection({ property }: { property: Property }) {
 export function GallerySection({
   property,
   expose,
+  tr,
 }: {
   property: Property;
   expose: ExposeConfiguration;
+  tr: Translator;
 }) {
   const images = galleryImagesOf(property, expose).filter(
     (image) => image.id !== expose.selectedCoverImageId,
   );
   if (!images.length) return null;
   return (
-    <Section id="gallery" kicker="FOTOS" title="Galerie">
+    <Section
+      id="gallery"
+      kicker={tr.t('expose.kickers.gallery')}
+      title={tr.t('expose.galleryTitle')}
+    >
       <div className="expose-gallery">
         {images.map((image) => (
           <figure key={image.id} className="expose-gallery-figure">
             <img
               src={apiAssetUrl(image.url)}
-              alt={image.caption || image.fileName || 'Objektfoto'}
+              alt={image.caption || image.fileName || tr.t('expose.altFallbacks.propertyPhoto')}
             />
             {image.caption && (
               <figcaption className="expose-figure-caption">{image.caption}</figcaption>
@@ -341,10 +379,12 @@ export function FloorplanSection({
   property,
   images,
   staticRender,
+  tr,
 }: {
   property: Property;
   images: PropertyImage[];
   staticRender?: boolean;
+  tr: Translator;
 }) {
   const plans = floorplanImages(images);
   const [record, setRecord] = useState<FloorPlan3DRecord | null>(property.floorPlan3D ?? null);
@@ -374,19 +414,25 @@ export function FloorplanSection({
   const interactive = !staticRender;
 
   return (
-    <Section id="floorplans" kicker="GRUNDRISSE" title="Grundrisse">
+    <Section
+      id="floorplans"
+      kicker={tr.t('expose.kickers.floorplans')}
+      title={tr.t('expose.floorplansTitle')}
+    >
       <div className="expose-floorplans">
         {model && interactive ? (
           <figure className="expose-floorplan-figure">
             <FloorPlan3DViewer model={model} />
-            <figcaption className="expose-figure-caption">3D-Grundriss</figcaption>
+            <figcaption className="expose-figure-caption">
+              {tr.t('expose.floorplan3dCaption')}
+            </figcaption>
           </figure>
         ) : (
           plans.map((image) => (
             <figure key={image.id} className="expose-floorplan-figure">
               <img
                 src={apiAssetUrl(image.url)}
-                alt={image.caption || image.fileName || 'Grundriss'}
+                alt={image.caption || image.fileName || tr.t('expose.altFallbacks.floorPlan')}
               />
               {image.caption && (
                 <figcaption className="expose-figure-caption">{image.caption}</figcaption>
@@ -396,7 +442,7 @@ export function FloorplanSection({
         )}
       </div>
       {interactive && record?.status === 'pending' && (
-        <p className="expose-floorplan-pending">3D-Grundriss wird erstellt…</p>
+        <p className="expose-floorplan-pending">{tr.t('expose.floorplan3dPending')}</p>
       )}
     </Section>
   );
@@ -409,13 +455,17 @@ const nonEmpty = (value?: string | null | undefined) => {
 
 const PUBLISHABLE_DOCUMENT_TYPES = ['grundriss', 'energieausweis'];
 
-export function DocumentsSection({ records }: { records: DocumentRecord[] }) {
+export function DocumentsSection({ records, tr }: { records: DocumentRecord[]; tr: Translator }) {
   const documents = records.filter(
     (record) => record.documentType && PUBLISHABLE_DOCUMENT_TYPES.includes(record.documentType),
   );
   if (!documents.length) return null;
   return (
-    <Section id="documents" kicker="UNTERLAGEN" title="Unterlagen">
+    <Section
+      id="documents"
+      kicker={tr.t('expose.kickers.documents')}
+      title={tr.t('expose.documentsTitle')}
+    >
       <ul className="expose-documents">
         {documents.map((document) => (
           <li key={document.id} className="expose-document-row">
@@ -428,7 +478,11 @@ export function DocumentsSection({ records }: { records: DocumentRecord[] }) {
               {document.filename}
             </a>
             <span className="expose-document-type">
-              {document.documentType === 'grundriss' ? 'Grundriss' : 'Energieausweis'}
+              {tr.t(
+                document.documentType === 'grundriss'
+                  ? 'documentType.grundriss'
+                  : 'documentType.energieausweis',
+              )}
             </span>
           </li>
         ))}
@@ -448,19 +502,21 @@ export function ContactSection({
   property,
   expose,
   branding,
+  tr,
 }: {
   property: Property;
   expose: ExposeConfiguration;
   branding: EffectiveBranding;
+  tr: Translator;
 }) {
   const agent = property.exposeData?.agent;
   const explicit = expose.branding;
   const hasExplicitBranding = Boolean(
     explicit &&
-      (nonEmpty(explicit.companyName) ||
-        nonEmpty(explicit.phone) ||
-        nonEmpty(explicit.email) ||
-        nonEmpty(explicit.website)),
+    (nonEmpty(explicit.companyName) ||
+      nonEmpty(explicit.phone) ||
+      nonEmpty(explicit.email) ||
+      nonEmpty(explicit.website)),
   );
   if (!agent?.name && !agent?.company && !hasExplicitBranding) return null;
   const address = agent?.address
@@ -470,17 +526,23 @@ export function ContactSection({
       ].filter(Boolean)
     : [];
   const channels = [
-    branding.phone ? { label: 'Telefon', value: branding.phone } : null,
-    branding.email ? { label: 'E-Mail', value: branding.email } : null,
-    branding.website ? { label: 'Web', value: branding.website } : null,
+    branding.phone ? { label: tr.t('expose.contactChannels.phone'), value: branding.phone } : null,
+    branding.email ? { label: tr.t('expose.contactChannels.email'), value: branding.email } : null,
+    branding.website
+      ? { label: tr.t('expose.contactChannels.web'), value: branding.website }
+      : null,
   ].filter((channel): channel is { label: string; value: string } => channel !== null);
   return (
-    <Section id="contact" kicker="KONTAKT" title="Ihr Ansprechpartner">
+    <Section
+      id="contact"
+      kicker={tr.t('expose.kickers.contact')}
+      title={tr.t('expose.contactTitle')}
+    >
       <div className="expose-contact">
         {branding.logoUrl && (
           <img
             src={apiAssetUrl(branding.logoUrl)}
-            alt={`${branding.companyName || 'Firmenlogo'}`}
+            alt={branding.companyName || tr.t('expose.altFallbacks.logo')}
             className="expose-contact-logo"
           />
         )}

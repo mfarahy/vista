@@ -1,6 +1,7 @@
 import type { Property } from '../../../create/[id]/types';
 import { apiAssetUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { translations, type Translator } from '@/lib/i18n/core';
 import type {
   EffectiveBranding,
   EffectiveMarketingContent,
@@ -576,43 +577,46 @@ function ClassicCover({
   expose,
   media,
   branding,
+  tr,
 }: {
   property: Property;
   content: EffectiveMarketingContent;
   expose: ExposeConfiguration;
   media: ExposeMedia;
   branding: EffectiveBranding;
+  tr: Translator;
 }) {
   const hero = coverImageOf(property, expose) ?? media.images[0];
-  const price = priceFacts(property);
-  const facts = coverFacts(property);
+  const price = priceFacts(property, tr);
+  const facts = coverFacts(property, tr);
 
   return (
     <section id="expose-cover" className="expose-cover">
       <header className="expose-cover-header">
         <div className="expose-cover-brand">
           {branding.logoUrl && (
-            <img src={apiAssetUrl(branding.logoUrl)} alt={`${branding.companyName || 'Firmenlogo'}`} />
+            <img
+              src={apiAssetUrl(branding.logoUrl)}
+              alt={branding.companyName || tr.t('expose.altFallbacks.logo')}
+            />
           )}
           {branding.companyName && <span>{branding.companyName}</span>}
         </div>
-        {branding.phone && (
-          <span className="expose-cover-header-contact">{branding.phone}</span>
-        )}
+        {branding.phone && <span className="expose-cover-header-contact">{branding.phone}</span>}
       </header>
       <div className="expose-cover-body">
         <div className={cn('expose-cover-hero', !hero && 'expose-cover-hero-empty')}>
           {hero ? (
             <img
               src={apiAssetUrl(hero.url)}
-              alt={hero.caption || hero.fileName || 'Titelfoto'}
+              alt={hero.caption || hero.fileName || tr.t('expose.altFallbacks.coverPhoto')}
             />
           ) : (
-            <span className="expose-cover-noimage">Kein Titelfoto vorhanden</span>
+            <span className="expose-cover-noimage">{tr.t('expose.noCoverImage')}</span>
           )}
         </div>
         <div className="expose-cover-copy">
-          <p className="expose-kicker">Immobilien-Exposé</p>
+          <p className="expose-kicker">{tr.t('expose.coverKicker')}</p>
           {content.title && <h1 className="expose-cover-title">{content.title}</h1>}
           {content.subtitle && <p className="expose-cover-subtitle">{content.subtitle}</p>}
           {locationLine(property) && (
@@ -620,11 +624,11 @@ function ClassicCover({
           )}
           {price && (
             <div className="expose-cover-price">
-              <span className="expose-price-label">{price.primary.label}</span>
+              <span className="expose-price-label">{tr.t(price.primary.label)}</span>
               <span className="expose-price-value">{price.primary.value}</span>
               {price.secondary.map((fact) => (
                 <span key={fact.label} className="expose-price-meta">
-                  {fact.label}: {fact.value}
+                  {tr.t(fact.label)}: {fact.value}
                 </span>
               ))}
             </div>
@@ -633,7 +637,7 @@ function ClassicCover({
             <div className="expose-cover-facts">
               {facts.map((fact) => (
                 <div key={fact.label} className="expose-cover-fact">
-                  <span className="expose-cover-fact-label">{fact.label}</span>
+                  <span className="expose-cover-fact-label">{tr.t(fact.label)}</span>
                   <span className="expose-cover-fact-value">{fact.value}</span>
                 </div>
               ))}
@@ -650,12 +654,15 @@ export function ClassicExposeTemplate({
   marketingContent,
   expose,
   media,
+  translations: translationsProp,
 }: {
   property: Property;
   marketingContent: EffectiveMarketingContent;
   expose: ExposeConfiguration;
   media: ExposeMedia;
+  translations?: Translator;
 }) {
+  const tr = translationsProp ?? translations.en;
   const sections = visibleSections(expose);
   const branding = effectiveBranding(property, expose);
   return (
@@ -676,18 +683,26 @@ export function ClassicExposeTemplate({
                   expose={expose}
                   media={media}
                   branding={branding}
+                  tr={tr}
                 />
               );
             case 'facts':
-              return <FactsSection key={section.id} property={property} />;
+              return <FactsSection key={section.id} property={property} tr={tr} />;
             case 'highlights':
-              return <HighlightsSection key={section.id} highlights={marketingContent.highlights} />;
+              return (
+                <HighlightsSection
+                  key={section.id}
+                  highlights={marketingContent.highlights}
+                  tr={tr}
+                />
+              );
             case 'property':
               return (
                 <PropertySection
                   key={section.id}
                   property={property}
                   description={marketingContent.propertyDescription}
+                  tr={tr}
                 />
               );
             case 'equipment':
@@ -696,6 +711,7 @@ export function ClassicExposeTemplate({
                   key={section.id}
                   property={property}
                   description={marketingContent.equipmentDescription}
+                  tr={tr}
                 />
               );
             case 'location':
@@ -704,12 +720,15 @@ export function ClassicExposeTemplate({
                   key={section.id}
                   property={property}
                   description={marketingContent.locationDescription}
+                  tr={tr}
                 />
               );
             case 'energy':
-              return <EnergySection key={section.id} property={property} />;
+              return <EnergySection key={section.id} property={property} tr={tr} />;
             case 'gallery':
-              return <GallerySection key={section.id} property={property} expose={expose} />;
+              return (
+                <GallerySection key={section.id} property={property} expose={expose} tr={tr} />
+              );
             case 'floorplans':
               return (
                 <FloorplanSection
@@ -717,19 +736,30 @@ export function ClassicExposeTemplate({
                   property={property}
                   images={media.images}
                   staticRender={media.staticRender}
+                  tr={tr}
                 />
               );
             case 'documents':
-              return <DocumentsSection key={section.id} records={media.documents} />;
+              return <DocumentsSection key={section.id} records={media.documents} tr={tr} />;
             case 'contact':
-              return <ContactSection key={section.id} property={property} expose={expose} branding={branding} />;
+              return (
+                <ContactSection
+                  key={section.id}
+                  property={property}
+                  expose={expose}
+                  branding={branding}
+                  tr={tr}
+                />
+              );
             default:
               return null;
           }
         })}
         <footer className="expose-footer">
-          {branding.companyName || 'Vista'} · Immobilien-Exposé ·{' '}
-          {new Date().toLocaleDateString('de-DE')}
+          {tr.t('expose.footer', {
+            company: branding.companyName || 'Vista',
+            date: new Date().toLocaleDateString(tr.locale),
+          })}
         </footer>
       </article>
     </>

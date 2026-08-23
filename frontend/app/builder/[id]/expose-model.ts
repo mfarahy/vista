@@ -14,8 +14,8 @@ import {
   PROPERTY_SUBTYPES,
   PROPERTY_TYPES,
   conditionLabel,
-  subtypeLabel,
 } from '../../create/[id]/types';
+import { translations, type Locale, type TranslationKey, type Translator } from '@/lib/i18n/core';
 
 /**
  * Expose configuration model for the Exposé Builder (Phase 5A, extended in
@@ -93,32 +93,32 @@ export type ExposeConfiguration = {
   branding?: ExposeBranding;
 };
 
-export const SECTION_LABELS: Record<ExposeSectionType, string> = {
-  cover: 'Titelseite',
-  highlights: 'Highlights',
-  property: 'Objekt',
-  equipment: 'Ausstattung',
-  location: 'Lage',
-  facts: 'Fakten',
-  energy: 'Energie',
-  gallery: 'Galerie',
-  floorplans: 'Grundrisse',
-  documents: 'Unterlagen',
-  contact: 'Kontakt',
+export const SECTION_LABELS: Record<ExposeSectionType, TranslationKey> = {
+  cover: 'expose.sectionLabels.cover',
+  highlights: 'expose.sectionLabels.highlights',
+  property: 'expose.sectionLabels.property',
+  equipment: 'expose.sectionLabels.equipment',
+  location: 'expose.sectionLabels.location',
+  facts: 'expose.sectionLabels.facts',
+  energy: 'expose.sectionLabels.energy',
+  gallery: 'expose.sectionLabels.gallery',
+  floorplans: 'expose.sectionLabels.floorplans',
+  documents: 'expose.sectionLabels.documents',
+  contact: 'expose.sectionLabels.contact',
 };
 
-export const SECTION_DESCRIPTIONS: Record<ExposeSectionType, string> = {
-  cover: 'Titelfoto, Titel und Untertitel',
-  highlights: 'Kurze Stärken in Stichpunkten',
-  property: 'Wesentliche Objektdaten',
-  equipment: 'Ausstattungsmerkmale und Beschreibung',
-  location: 'Lagebeschreibung und Adresse',
-  facts: 'Kompakte Faktenübersicht',
-  energy: 'Energieausweis-Daten',
-  gallery: 'Ausgewählte Objektfotos',
-  floorplans: 'Grundriss-Pläne',
-  documents: 'Präsentationsunterlagen',
-  contact: 'Ansprechpartner',
+export const SECTION_DESCRIPTIONS: Record<ExposeSectionType, TranslationKey> = {
+  cover: 'expose.sectionDescriptions.cover',
+  highlights: 'expose.sectionDescriptions.highlights',
+  property: 'expose.sectionDescriptions.property',
+  equipment: 'expose.sectionDescriptions.equipment',
+  location: 'expose.sectionDescriptions.location',
+  facts: 'expose.sectionDescriptions.facts',
+  energy: 'expose.sectionDescriptions.energy',
+  gallery: 'expose.sectionDescriptions.gallery',
+  floorplans: 'expose.sectionDescriptions.floorplans',
+  documents: 'expose.sectionDescriptions.documents',
+  contact: 'expose.sectionDescriptions.contact',
 };
 
 export function defaultExposeSections(): ExposeSection[] {
@@ -202,7 +202,7 @@ export function effectiveMarketingContent(
   };
 }
 
-export type ExposeFact = { label: string; value: string };
+export type ExposeFact = { label: TranslationKey | string; value: string };
 
 /** Media available to a template: property images and library documents. */
 export type ExposeMedia = {
@@ -220,46 +220,49 @@ export type ExposePriceFacts = {
   secondary: ExposeFact[];
 };
 
-const formatNumber = (value?: number | null) =>
-  value == null
-    ? ''
-    : new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 }).format(value);
+const formatNumber = (value?: number | null, locale: Locale = 'de') =>
+  value == null ? '' : new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value);
 
-export function formatMoney(value?: number | null) {
+export function formatMoney(value?: number | null, locale: Locale = 'de') {
   return value == null
     ? ''
-    : new Intl.NumberFormat('de-DE', {
+    : new Intl.NumberFormat(locale, {
         style: 'currency',
         currency: 'EUR',
         maximumFractionDigits: 0,
       }).format(value);
 }
 
-const area = (value?: number | null) =>
-  value == null ? '' : `${formatNumber(value)} m²`;
+const area = (value?: number | null, locale: Locale = 'de') =>
+  value == null
+    ? ''
+    : `${formatNumber(value, locale)} ${translations[locale].t('expose.units.sqm')}`;
 
 /** Years are rendered without thousands separators (Baujahr "1987"). */
 const year = (value?: number | null) => (value == null ? '' : String(value));
 
-export function propertyTypeLabel(property: Property): string {
+/** Translation key of the property type label. */
+export function propertyTypeLabel(property: Property): TranslationKey | string {
   return (
-    PROPERTY_TYPES.find(([key]) => key === property.propertyType)?.[1] ??
-    property.propertyType
+    PROPERTY_TYPES.find(([key]) => key === property.propertyType)?.[1] ?? property.propertyType
   );
 }
 
-export function subtypeOrTypeLabel(property: Property): string {
+/** Translation key of the subtype (when it belongs to the chosen type), else the type key. */
+export function subtypeOrTypeLabel(property: Property): TranslationKey | string {
   const subtype = property.exposeData?.basicInformation.propertySubtype;
   if (!subtype) return propertyTypeLabel(property);
   // Only render the subtype when it actually belongs to the chosen property
   // type. A leftover house subtype on an apartment (or vice versa) would
-  // otherwise leak raw identifiers into the Exposé.
+  // otherwise leak raw identifiers into the Exposé. Legacy German values are
+  // matched against the German translation of the stored key.
   const validSubtypes = PROPERTY_SUBTYPES[property.propertyType] ?? [];
   const known = validSubtypes.some(
-    ([key, label]: readonly [string, string]) => key === subtype || label === subtype,
+    ([key]) => key === subtype || translations.de.t(key) === subtype,
   );
   return known
-    ? subtypeLabel(property.propertyType, subtype)
+    ? (validSubtypes.find(([key]) => key === subtype || translations.de.t(key) === subtype)?.[1] ??
+        propertyTypeLabel(property))
     : propertyTypeLabel(property);
 }
 
@@ -267,7 +270,7 @@ export function subtypeOrTypeLabel(property: Property): string {
  * Factual Property section ("Objekt"). Read-only values — the Builder must
  * never edit them. Only values that actually exist are rendered.
  */
-export function propertyFacts(property: Property): ExposeFact[] {
+export function propertyFacts(property: Property, tr: Translator): ExposeFact[] {
   const details = property.exposeData?.propertyDetails;
   const facts: ExposeFact[] = [];
   const living = property.livingArea ?? details?.livingArea;
@@ -278,15 +281,19 @@ export function propertyFacts(property: Property): ExposeFact[] {
   const bathrooms = property.bathrooms ?? details?.bathrooms;
   const yearBuilt = property.constructionYear ?? details?.yearBuilt;
   const condition = conditionLabel(property.condition);
-  if (living != null) facts.push({ label: 'Wohnfläche', value: area(living) });
-  if (usable != null) facts.push({ label: 'Nutzfläche', value: area(usable) });
-  if (plot != null) facts.push({ label: 'Grundstück', value: area(plot) });
-  if (rooms != null) facts.push({ label: 'Zimmer', value: formatNumber(rooms) });
-  if (bedrooms != null) facts.push({ label: 'Schlafzimmer', value: formatNumber(bedrooms) });
-  if (bathrooms != null) facts.push({ label: 'Bäder', value: formatNumber(bathrooms) });
-  if (yearBuilt != null) facts.push({ label: 'Baujahr', value: year(yearBuilt) });
-  if (condition) facts.push({ label: 'Zustand', value: condition });
-  facts.push(...wegFacts(property));
+  const locale = tr.locale ?? 'de';
+  if (living != null) facts.push({ label: 'expose.facts.livingArea', value: area(living, locale) });
+  if (usable != null) facts.push({ label: 'expose.facts.usableArea', value: area(usable, locale) });
+  if (plot != null) facts.push({ label: 'expose.facts.plot', value: area(plot, locale) });
+  if (rooms != null)
+    facts.push({ label: 'expose.facts.rooms', value: formatNumber(rooms, locale) });
+  if (bedrooms != null)
+    facts.push({ label: 'expose.facts.bedrooms', value: formatNumber(bedrooms, locale) });
+  if (bathrooms != null)
+    facts.push({ label: 'expose.facts.bathrooms', value: formatNumber(bathrooms, locale) });
+  if (yearBuilt != null) facts.push({ label: 'expose.facts.yearBuilt', value: year(yearBuilt) });
+  if (condition) facts.push({ label: 'expose.facts.condition', value: tr.t(condition) });
+  facts.push(...wegFacts(property, tr));
   return facts;
 }
 
@@ -295,23 +302,24 @@ export function propertyFacts(property: Property): ExposeFact[] {
  * values are rendered — nothing is derived. Falls back to the legacy
  * `hausgeld` property field when the structured WEG value is absent.
  */
-export function wegFacts(property: Property): ExposeFact[] {
+export function wegFacts(property: Property, tr: Translator): ExposeFact[] {
   const weg = property.exposeData?.weg;
   const facts: ExposeFact[] = [];
   const hausgeld = weg?.hausgeldEur ?? property.hausgeld;
-  if (hausgeld != null) facts.push({ label: 'Hausgeld', value: formatMoney(hausgeld) });
+  if (hausgeld != null)
+    facts.push({ label: 'expose.facts.hausgeld', value: formatMoney(hausgeld, tr.locale) });
   if (weg?.maintenanceReserveEur != null)
     facts.push({
-      label: 'Instandhaltungsrücklage',
-      value: formatMoney(weg.maintenanceReserveEur),
+      label: 'expose.facts.maintenanceReserve',
+      value: formatMoney(weg.maintenanceReserveEur, tr.locale),
     });
   if (weg?.coOwnershipShare)
-    facts.push({ label: 'Miteigentumsanteil', value: weg.coOwnershipShare });
+    facts.push({ label: 'expose.facts.coOwnershipShare', value: weg.coOwnershipShare });
   return facts;
 }
 
 /** Compact facts summary ("Fakten") — a concise subset, not the full wizard. */
-export function summaryFacts(property: Property): ExposeFact[] {
+export function summaryFacts(property: Property, tr: Translator): ExposeFact[] {
   const details = property.exposeData?.propertyDetails;
   const pricing = property.exposeData?.pricing;
   const facts: ExposeFact[] = [];
@@ -320,18 +328,24 @@ export function summaryFacts(property: Property): ExposeFact[] {
   const rooms = property.rooms ?? details?.rooms;
   const yearBuilt = property.constructionYear ?? details?.yearBuilt;
   const sale = property.transactionType === 'sale';
-  facts.push({ label: 'Objektart', value: subtypeOrTypeLabel(property) });
-  if (living != null) facts.push({ label: 'Wohnfläche', value: area(living) });
-  if (plot != null) facts.push({ label: 'Grundstück', value: area(plot) });
-  if (rooms != null) facts.push({ label: 'Zimmer', value: formatNumber(rooms) });
-  if (yearBuilt != null) facts.push({ label: 'Baujahr', value: year(yearBuilt) });
+  const locale = tr.locale ?? 'de';
+  facts.push({ label: 'expose.facts.propertyType', value: tr.t(subtypeOrTypeLabel(property)) });
+  if (living != null) facts.push({ label: 'expose.facts.livingArea', value: area(living, locale) });
+  if (plot != null) facts.push({ label: 'expose.facts.plot', value: area(plot, locale) });
+  if (rooms != null)
+    facts.push({ label: 'expose.facts.rooms', value: formatNumber(rooms, locale) });
+  if (yearBuilt != null) facts.push({ label: 'expose.facts.yearBuilt', value: year(yearBuilt) });
   if (sale) {
     const purchasePrice = property.askingPrice ?? pricing?.purchasePrice;
     if (purchasePrice != null)
-      facts.push({ label: 'Kaufpreis', value: formatMoney(purchasePrice) });
+      facts.push({
+        label: 'expose.facts.purchasePrice',
+        value: formatMoney(purchasePrice, locale),
+      });
   } else {
     const rent = property.coldRent ?? pricing?.rentPrice;
-    if (rent != null) facts.push({ label: 'Kaltmiete', value: formatMoney(rent) });
+    if (rent != null)
+      facts.push({ label: 'expose.facts.coldRent', value: formatMoney(rent, locale) });
   }
   return facts;
 }
@@ -342,88 +356,106 @@ export function summaryFacts(property: Property): ExposeFact[] {
  * show cold rent plus Nebenkosten and Kaution when present. Only persisted
  * values are used — nothing is derived.
  */
-export function priceFacts(property: Property): ExposePriceFacts | null {
+export function priceFacts(property: Property, tr: Translator): ExposePriceFacts | null {
   const pricing = property.exposeData?.pricing;
+  const locale = tr.locale ?? 'de';
   if (property.transactionType === 'rent') {
     const rent = property.coldRent ?? pricing?.rentPrice;
     if (rent == null) return null;
     const secondary: ExposeFact[] = [];
     const additionalCosts = property.additionalCosts ?? pricing?.additionalCosts;
     if (additionalCosts != null)
-      secondary.push({ label: 'Nebenkosten', value: formatMoney(additionalCosts) });
+      secondary.push({
+        label: 'expose.facts.additionalCosts',
+        value: formatMoney(additionalCosts, locale),
+      });
     if (property.deposit != null)
-      secondary.push({ label: 'Kaution', value: formatMoney(property.deposit) });
-    return { primary: { label: 'Kaltmiete', value: formatMoney(rent) }, secondary };
+      secondary.push({
+        label: 'expose.facts.deposit',
+        value: formatMoney(property.deposit, locale),
+      });
+    return {
+      primary: { label: 'expose.facts.coldRent', value: formatMoney(rent, locale) },
+      secondary,
+    };
   }
   const purchasePrice = property.askingPrice ?? pricing?.purchasePrice;
   if (purchasePrice == null) return null;
   const secondary: ExposeFact[] = [];
   const commission = pricing?.buyerCommission || property.commission;
-  if (commission) secondary.push({ label: 'Provision', value: commission });
-  return { primary: { label: 'Kaufpreis', value: formatMoney(purchasePrice) }, secondary };
+  if (commission) secondary.push({ label: 'expose.facts.commission', value: commission });
+  return {
+    primary: { label: 'expose.facts.purchasePrice', value: formatMoney(purchasePrice, locale) },
+    secondary,
+  };
 }
 
 /** Short fact row on the cover: living area, rooms, year built. */
-export function coverFacts(property: Property): ExposeFact[] {
+export function coverFacts(property: Property, tr: Translator): ExposeFact[] {
   const details = property.exposeData?.propertyDetails;
   const facts: ExposeFact[] = [];
   const living = property.livingArea ?? details?.livingArea;
   const rooms = property.rooms ?? details?.rooms;
   const yearBuilt = property.constructionYear ?? details?.yearBuilt;
-  if (living != null) facts.push({ label: 'Wohnfläche', value: area(living) });
-  if (rooms != null) facts.push({ label: 'Zimmer', value: formatNumber(rooms) });
-  if (yearBuilt != null) facts.push({ label: 'Baujahr', value: year(yearBuilt) });
+  const locale = tr.locale ?? 'de';
+  if (living != null) facts.push({ label: 'expose.facts.livingArea', value: area(living, locale) });
+  if (rooms != null)
+    facts.push({ label: 'expose.facts.rooms', value: formatNumber(rooms, locale) });
+  if (yearBuilt != null) facts.push({ label: 'expose.facts.yearBuilt', value: year(yearBuilt) });
   return facts;
 }
 
 /** Energy section — rendered only when energy information exists. */
-export function energyFacts(property: Property): ExposeFact[] {
+export function energyFacts(property: Property, tr: Translator): ExposeFact[] {
   const energy = property.exposeData?.energy;
   if (!energy) return [];
   const facts: ExposeFact[] = [];
+  const locale = tr.locale ?? 'de';
   if (energy.certificateType) {
-    const label = ENERGY_CERTIFICATE_TYPES.find(
-      ([key]) => key === energy.certificateType,
-    )?.[1];
-    if (label) facts.push({ label: 'Energieausweis', value: label });
+    const label = ENERGY_CERTIFICATE_TYPES.find(([key]) => key === energy.certificateType)?.[1];
+    if (label) facts.push({ label: 'expose.facts.energyCertificate', value: tr.t(label) });
   }
   if (energy.finalEnergyDemand != null)
     facts.push({
-      label: 'Endenergiebedarf',
-      value: `${formatNumber(energy.finalEnergyDemand)} kWh/(m²a)`,
+      label: 'expose.facts.energyDemand',
+      value: `${formatNumber(energy.finalEnergyDemand, locale)} ${tr.t('expose.units.kwh')}`,
     });
   if (energy.finalEnergyConsumption != null)
     facts.push({
-      label: 'Endenergieverbrauch',
-      value: `${formatNumber(energy.finalEnergyConsumption)} kWh/(m²a)`,
+      label: 'expose.facts.energyConsumption',
+      value: `${formatNumber(energy.finalEnergyConsumption, locale)} ${tr.t('expose.units.kwh')}`,
     });
   if (energy.efficiencyClass)
-    facts.push({ label: 'Effizienzklasse', value: energy.efficiencyClass });
-  if (
-    energy.primaryEnergySource &&
-    energy.primaryEnergySource !== 'other'
-  ) {
-    const label = ENERGY_SOURCES.find(
-      ([key]) => key === energy.primaryEnergySource,
-    )?.[1];
-    if (label) facts.push({ label: 'Energieträger', value: label });
+    facts.push({ label: 'expose.facts.efficiencyClass', value: energy.efficiencyClass });
+  if (energy.primaryEnergySource && energy.primaryEnergySource !== 'other') {
+    const label = ENERGY_SOURCES.find(([key]) => key === energy.primaryEnergySource)?.[1];
+    if (label) facts.push({ label: 'expose.facts.energySource', value: tr.t(label) });
   }
   if (energy.heatingType)
-    facts.push({ label: 'Heizungsart', value: energy.heatingType });
+    facts.push({ label: 'expose.facts.heatingType', value: energy.heatingType });
   if (energy.certificateDate)
     facts.push({
-      label: 'Ausstellungsdatum',
-      value: germanDate(energy.certificateDate),
+      label: 'expose.facts.certificateDate',
+      value: formatDate(energy.certificateDate, locale),
     });
   if (energy.certificateValidUntil)
-    facts.push({ label: 'Gültig bis', value: germanDate(energy.certificateValidUntil) });
+    facts.push({
+      label: 'expose.facts.certificateValidUntil',
+      value: formatDate(energy.certificateValidUntil, locale),
+    });
   return facts;
 }
 
-/** Formats an ISO date (YYYY-MM-DD) as a German date (TT.MM.JJJJ). */
-export function germanDate(value: string): string {
+/**
+ * Formats an ISO date (YYYY-MM-DD) per locale: TT.MM.JJJJ for German,
+ * MM/DD/YYYY for English.
+ */
+export function formatDate(value: string, locale: Locale = 'de'): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
-  return match ? `${match[3]}.${match[2]}.${match[1]}` : value;
+  if (!match) return value;
+  return locale === 'de'
+    ? `${match[3]}.${match[2]}.${match[1]}`
+    : `${match[2]}/${match[3]}/${match[1]}`;
 }
 
 /**
@@ -461,10 +493,7 @@ export function equipmentFeatures(property: Property): string[] {
 /** Photos usable for cover/gallery (excludes plans and documents). */
 export function photoImages(images: PropertyImage[]): PropertyImage[] {
   return images.filter(
-    (image) =>
-      image.category === 'exterior' ||
-      image.category === 'interior' ||
-      !image.category,
+    (image) => image.category === 'exterior' || image.category === 'interior' || !image.category,
   );
 }
 
@@ -486,9 +515,7 @@ export function galleryImagesOf(
   const ids = configuration.galleryImageIds;
   if (!ids?.length) return photos;
   const byId = new Map(photos.map((image) => [image.id, image]));
-  return ids
-    .map((id) => byId.get(id))
-    .filter((image): image is PropertyImage => Boolean(image));
+  return ids.map((id) => byId.get(id)).filter((image): image is PropertyImage => Boolean(image));
 }
 
 export function coverImageOf(
@@ -497,9 +524,7 @@ export function coverImageOf(
 ): PropertyImage | undefined {
   const photos = photoImages(property.images);
   if (configuration.selectedCoverImageId) {
-    const selected = photos.find(
-      (image) => image.id === configuration.selectedCoverImageId,
-    );
+    const selected = photos.find((image) => image.id === configuration.selectedCoverImageId);
     if (selected) return selected;
   }
   const fallbackId = defaultCoverImageId(property);
@@ -509,8 +534,7 @@ export function coverImageOf(
 /** Location line shown on the cover and the location section header. */
 export function locationLine(property: Property): string {
   const address =
-    property.exposeData?.location.address ??
-    property.exposeData?.basicInformation.address;
+    property.exposeData?.location.address ?? property.exposeData?.basicInformation.address;
   return [address?.district, address?.city].filter(Boolean).join(' · ');
 }
 
@@ -546,8 +570,8 @@ export type NearbyIcon =
 export type NearbyFacilityEntry = {
   place: NearbyFacility;
   category: NearbyDisplayCategory;
-  /** German category label, e.g. "Supermarkt" or "ÖPNV". */
-  label: string;
+  /** Translation key of the category label, e.g. "expose.nearby.supermarket". */
+  label: TranslationKey;
   icon: NearbyIcon;
   /** Routed distance in meters (from the routing provider). */
   distanceMeters: number;
@@ -559,22 +583,22 @@ export type NearbyFacilityEntry = {
 /** Display categories with their candidate place categories, closest first. */
 export const NEARBY_DISPLAY_CATEGORIES: Record<
   NearbyDisplayCategory,
-  { label: string; candidates: string[] }
+  { label: TranslationKey; candidates: string[] }
 > = {
-  supermarket: { label: 'Supermarkt', candidates: ['supermarket', 'grocery'] },
-  kindergarten: { label: 'Kindergarten', candidates: ['kindergarten'] },
-  school: { label: 'Schule', candidates: ['school'] },
+  supermarket: { label: 'expose.nearby.supermarket', candidates: ['supermarket', 'grocery'] },
+  kindergarten: { label: 'expose.nearby.kindergarten', candidates: ['kindergarten'] },
+  school: { label: 'expose.nearby.school', candidates: ['school'] },
   transport: {
-    label: 'ÖPNV',
+    label: 'expose.nearby.transport',
     candidates: ['train_station', 'subway', 'tram', 'bus_stop'],
   },
-  pharmacy: { label: 'Apotheke', candidates: ['pharmacy'] },
+  pharmacy: { label: 'expose.nearby.pharmacy', candidates: ['pharmacy'] },
   healthcare: {
-    label: 'Arzt / Krankenhaus',
+    label: 'expose.nearby.healthcare',
     candidates: ['hospital', 'doctor'],
   },
-  park: { label: 'Park', candidates: ['park', 'playground'] },
-  dining: { label: 'Restaurant / Café', candidates: ['restaurant', 'cafe'] },
+  park: { label: 'expose.nearby.park', candidates: ['park', 'playground'] },
+  dining: { label: 'expose.nearby.dining', candidates: ['restaurant', 'cafe'] },
 };
 
 function routedCandidates(property: Property): NearbyFacility[] {
@@ -593,13 +617,12 @@ export function nearbyFacilityEntries(property: Property): NearbyFacilityEntry[]
   const routed = routedCandidates(property);
   const entries: NearbyFacilityEntry[] = [];
   for (const [category, spec] of Object.entries(NEARBY_DISPLAY_CATEGORIES) as Array<
-    [NearbyDisplayCategory, { label: string; candidates: string[] }]
+    [NearbyDisplayCategory, { label: TranslationKey; candidates: string[] }]
   >) {
     const place = routed
       .filter((candidate) => spec.candidates.includes(candidate.category))
       .sort(
-        (a, b) =>
-          (a.route?.distanceMeters ?? Infinity) - (b.route?.distanceMeters ?? Infinity),
+        (a, b) => (a.route?.distanceMeters ?? Infinity) - (b.route?.distanceMeters ?? Infinity),
       )[0];
     if (!place?.route) continue;
     entries.push({
@@ -615,35 +638,35 @@ export function nearbyFacilityEntries(property: Property): NearbyFacilityEntry[]
   return entries.sort((a, b) => a.distanceMeters - b.distanceMeters);
 }
 
-/** German distance formatting for the nearby list ("650 m", "1,4 km"). */
-export function formatNearbyDistance(meters: number): string {
-  if (meters < 1000) return `${Math.round(meters / 10) * 10} m`;
-  return `${(meters / 1000).toLocaleString('de-DE', {
+/** Distance formatting for the nearby list ("650 m", "1,4 km" / "1.4 km"). */
+export function formatNearbyDistance(meters: number, locale: Locale = 'de'): string {
+  if (meters < 1000)
+    return `${Math.round(meters / 10) * 10} ${translations[locale].t('expose.units.meter')}`;
+  return `${(meters / 1000).toLocaleString(locale, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
-  })} km`;
+  })} ${translations[locale].t('expose.units.km')}`;
 }
 
-/** German duration formatting for the nearby list ("8 Min."). */
-export function formatNearbyDuration(seconds: number): string {
-  return `${Math.max(1, Math.round(seconds / 60))} Min.`;
+/** Duration formatting for the nearby list ("8 Min." / "8 min"). */
+export function formatNearbyDuration(seconds: number, locale: Locale = 'de'): string {
+  return `${Math.max(1, Math.round(seconds / 60))} ${translations[locale].t('expose.units.minute')}`;
 }
 
-/** German travel-mode label ("8 Min. zu Fuß"). */
-export function travelModeLabel(mode: TravelMode): string {
-  const labels: Record<TravelMode, string> = {
-    foot: 'zu Fuß',
-    bike: 'mit dem Fahrrad',
-    car: 'mit dem Auto',
-    transit: 'mit Bus & Bahn',
+/** Translation key of the travel-mode label ("8 Min. zu Fuß"). */
+export function travelModeLabel(mode: TravelMode): TranslationKey {
+  const labels: Record<TravelMode, TranslationKey> = {
+    foot: 'expose.travelMode.foot',
+    bike: 'expose.travelMode.bike',
+    car: 'expose.travelMode.car',
+    transit: 'expose.travelMode.transit',
   };
   return labels[mode];
 }
 
 export function fullAddressLines(property: Property): string[] {
   const address =
-    property.exposeData?.location.address ??
-    property.exposeData?.basicInformation.address;
+    property.exposeData?.location.address ?? property.exposeData?.basicInformation.address;
   if (!address) return [];
   const street = [address.street, address.houseNumber].filter(Boolean).join(' ');
   const city = [address.postalCode, address.city].filter(Boolean).join(' ');

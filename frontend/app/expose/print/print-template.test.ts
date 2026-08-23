@@ -4,9 +4,7 @@ import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 
 import type { DocumentRecord, Property, PropertyImage } from '../../create/[id]/types';
-import {
-  ModernExposeTemplate,
-} from '../../builder/[id]/components/modern-expose-template';
+import { ModernExposeTemplate } from '../../builder/[id]/components/modern-expose-template';
 import type {
   EffectiveMarketingContent,
   ExposeConfiguration,
@@ -16,6 +14,7 @@ import {
   defaultExposeConfiguration,
   effectiveMarketingContent,
 } from '../../builder/[id]/expose-model';
+import { translations } from '@/lib/i18n/core';
 
 function makeImage(overrides: Partial<PropertyImage> = {}): PropertyImage {
   return {
@@ -179,6 +178,8 @@ function render({
       marketingContent: content,
       expose,
       media: media ?? { images: property.images, documents },
+      // The print document contract is asserted in German.
+      translations: translations.de,
     }),
   );
 }
@@ -349,7 +350,10 @@ describe('print route template rendering', () => {
 
   it('renders the facts section as a clean label/value grid', () => {
     const html = render();
-    const facts = html.slice(html.indexOf('id="expose-facts"'), html.indexOf('id="expose-highlights"'));
+    const facts = html.slice(
+      html.indexOf('id="expose-facts"'),
+      html.indexOf('id="expose-highlights"'),
+    );
     assert.ok(facts.includes('expose-fact-grid'));
     assert.ok(facts.includes('Objektart'));
     assert.ok(facts.includes('Einfamilienhaus'));
@@ -377,7 +381,10 @@ describe('print route template rendering', () => {
       },
     });
     const html = render({ property });
-    const energy = html.slice(html.indexOf('id="expose-energy"'), html.indexOf('id="expose-gallery"'));
+    const energy = html.slice(
+      html.indexOf('id="expose-energy"'),
+      html.indexOf('id="expose-gallery"'),
+    );
     assert.ok(energy.includes('Bedarfsausweis'));
     assert.ok(energy.includes('78,5'));
     assert.ok(energy.includes('Ausstellungsdatum'));
@@ -387,7 +394,10 @@ describe('print route template rendering', () => {
     assert.ok(energy.includes('Energieträger'));
     assert.ok(energy.includes('Fernwärme'));
     assert.ok(energy.includes('eff-B active'), 'the efficiency class segment is highlighted');
-    assert.ok(!energy.includes('Endenergieverbrauch'), 'consumption is not invented for Bedarfsausweis');
+    assert.ok(
+      !energy.includes('Endenergieverbrauch'),
+      'consumption is not invented for Bedarfsausweis',
+    );
   });
 
   it('keeps demand and consumption strictly separate', () => {
@@ -403,7 +413,10 @@ describe('print route template rendering', () => {
       },
     });
     const html = render({ property });
-    const energy = html.slice(html.indexOf('id="expose-energy"'), html.indexOf('id="expose-gallery"'));
+    const energy = html.slice(
+      html.indexOf('id="expose-energy"'),
+      html.indexOf('id="expose-gallery"'),
+    );
     assert.ok(energy.includes('Endenergieverbrauch'));
     assert.ok(!energy.includes('Endenergiebedarf'), 'demand is not invented for Verbrauchsausweis');
   });
@@ -425,7 +438,10 @@ describe('print route template rendering', () => {
       ],
     });
     const html = render({ property });
-    const plans = html.slice(html.indexOf('id="expose-floorplans"'), html.indexOf('id="expose-documents"'));
+    const plans = html.slice(
+      html.indexOf('id="expose-floorplans"'),
+      html.indexOf('id="expose-documents"'),
+    );
     assert.ok(plans.includes('expose-floorplan-figure'));
     assert.ok(plans.includes('Grundriss Erdgeschoss'));
     assert.ok(!plans.includes('aspect-'), 'floorplans must not be cropped to a fixed ratio');
@@ -477,7 +493,10 @@ describe('print route template rendering', () => {
       property,
       media: { images: property.images, documents, staticRender: true },
     });
-    const plans = html.slice(html.indexOf('id="expose-floorplans"'), html.indexOf('id="expose-documents"'));
+    const plans = html.slice(
+      html.indexOf('id="expose-floorplans"'),
+      html.indexOf('id="expose-documents"'),
+    );
     assert.ok(plans.includes('/uploads/plan.png'), 'the 2D plan must remain the PDF fallback');
     assert.ok(!plans.includes('floorplan-3d-scene'), 'the WebGL viewer must not render in the PDF');
     assert.ok(!plans.includes('3D-Grundriss wird erstellt'), 'no pending hint in static renders');
@@ -503,9 +522,15 @@ describe('print route template rendering', () => {
       ],
     });
     const html = render({ property });
-    const plans = html.slice(html.indexOf('id="expose-floorplans"'), html.indexOf('id="expose-documents"'));
+    const plans = html.slice(
+      html.indexOf('id="expose-floorplans"'),
+      html.indexOf('id="expose-documents"'),
+    );
     assert.ok(plans.includes('/uploads/plan.png'), 'the 2D plan is the fallback while pending');
-    assert.ok(plans.includes('3D-Grundriss wird erstellt'), 'a loading hint is shown while pending');
+    assert.ok(
+      plans.includes('3D-Grundriss wird erstellt'),
+      'a loading hint is shown while pending',
+    );
     assert.ok(!plans.includes('floorplan-3d-scene'), 'no viewer before generation completes');
   });
 

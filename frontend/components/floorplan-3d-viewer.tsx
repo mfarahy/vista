@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import type { ComponentType } from 'react';
+import { useI18n } from '@/lib/i18n';
 import type { FloorPlan3DModel } from '@/app/create/[id]/types';
 
 /**
@@ -10,6 +11,7 @@ import type { FloorPlan3DModel } from '@/app/create/[id]/types';
  * code and simply renders the placeholder.
  */
 export default function FloorPlan3DViewer({ model }: { model: FloorPlan3DModel }) {
+  const { t } = useI18n();
   const [Scene, setScene] = useState<ComponentType<{ model: FloorPlan3DModel }> | null>(null);
 
   useEffect(() => {
@@ -24,9 +26,9 @@ export default function FloorPlan3DViewer({ model }: { model: FloorPlan3DModel }
 
   if (!Scene) {
     return (
-      <div className="floorplan-3d-loading" aria-label="3D-Grundriss wird geladen">
+      <div className="floorplan-3d-loading" aria-label={t('floorplan3d.loading')}>
         <span className="floorplan-3d-loading-spinner" aria-hidden="true" />
-        <span>3D-Grundriss wird geladen…</span>
+        <span>{t('floorplan3d.loading')}</span>
       </div>
     );
   }

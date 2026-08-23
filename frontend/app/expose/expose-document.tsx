@@ -8,6 +8,7 @@ import type {
 } from '../builder/[id]/expose-model';
 import { getExposeTemplate } from '../builder/[id]/expose-templates';
 import { PRINT_CSS } from './print/print-css';
+import { useI18n } from '@/lib/i18n';
 
 /**
  * The rendered Exposé document shared by the print route (PDF export) and the
@@ -71,6 +72,7 @@ export default function ExposeDocument({
   /** Static rendering (PDF print): skips interactive components like the 3D viewer. */
   staticRender?: boolean;
 }) {
+  const { locale, t } = useI18n();
   const media: ExposeMedia = { images: property.images, documents, staticRender };
   const Template = getExposeTemplate(expose.template).component;
   return (
@@ -81,6 +83,7 @@ export default function ExposeDocument({
         marketingContent={marketingContent}
         expose={expose}
         media={media}
+        translations={{ locale, t }}
       />
       <PrintReadyMarker />
     </main>

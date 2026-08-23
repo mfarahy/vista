@@ -5,9 +5,11 @@ import { AlertTriangle, LoaderCircle } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { VistaLogo } from '@/components/vista-logo';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/lib/i18n';
 
 export default function CreatePage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -26,11 +28,9 @@ export default function CreatePage() {
             <span className="grid size-12 place-items-center rounded-xl bg-destructive/10 text-destructive">
               <AlertTriangle className="size-6" />
             </span>
-            <p className="mt-4 text-sm text-destructive">
-              Der Entwurf konnte nicht erstellt werden. Bitte versuchen Sie es erneut.
-            </p>
+            <p className="mt-4 text-sm text-destructive">{t('createPage.error')}</p>
             <Button className="mt-5" onClick={() => window.location.reload()}>
-              Erneut versuchen
+              {t('createPage.retry')}
             </Button>
           </div>
         ) : (
@@ -38,7 +38,7 @@ export default function CreatePage() {
             <span className="grid size-12 place-items-center rounded-xl bg-primary/10 text-primary">
               <LoaderCircle className="size-6 animate-spin" />
             </span>
-            <p className="mt-4 text-sm text-muted-foreground">Ihr Exposé wird vorbereitet…</p>
+            <p className="mt-4 text-sm text-muted-foreground">{t('createPage.loading')}</p>
           </div>
         )}
       </div>

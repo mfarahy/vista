@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { VistaLogoLink } from '@/components/vista-logo';
+import { LanguageSwitcher } from '@/components/language-switcher';
 import { apiFetch } from '@/lib/api';
 import type {
   BorisEnrichment,
@@ -57,12 +58,14 @@ import { StepPhotos, StepPlans } from './components/media-steps';
 import { StepDocuments } from './components/documents-step';
 import { StepMarketingContent } from './components/marketing-steps';
 import { Review, ContentEditor } from './components/review';
+import { useI18n } from '@/lib/i18n';
 
 const REVIEW_STEP = 13;
 const CONTENT_STEP = 14;
 
 export default function WizardClient({ initialProperty }: { initialProperty: Property }) {
   const router = useRouter();
+  const { t, locale } = useI18n();
   const [property, setProperty] = useState<PropertyPayload>(initialPayload(initialProperty));
   const [images, setImages] = useState(initialProperty.images);
   const [content, setContent] = useState<ExposeContent | null>(
@@ -134,20 +137,23 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
 
   const reviewIssues: ReviewIssue[] = useMemo(
     () =>
-      buildReviewIssues({
-        property,
-        sourcesByField: fieldSources,
-        documents: {
-          total: documentRecords.length,
-          analyzed: documentRecords.filter((record) => record.status === 'completed').length,
-          failed: documentRecords.filter(
-            (record) => record.status === 'failed' || record.understandingError != null,
-          ).length,
+      buildReviewIssues(
+        {
+          property,
+          sourcesByField: fieldSources,
+          documents: {
+            total: documentRecords.length,
+            analyzed: documentRecords.filter((record) => record.status === 'completed').length,
+            failed: documentRecords.filter(
+              (record) => record.status === 'failed' || record.understandingError != null,
+            ).length,
+          },
+          imageCount: images.length,
+          marketingContentExists: Boolean(marketingContent),
         },
-        imageCount: images.length,
-        marketingContentExists: Boolean(marketingContent),
-      }),
-    [property, fieldSources, documentRecords, images.length, marketingContent],
+        { locale, t },
+      ),
+    [property, fieldSources, documentRecords, images.length, marketingContent, locale, t],
   );
 
   // Load persisted documents and prefill empty wizard fields from their AI
@@ -185,14 +191,12 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
           `/api/address/suggestions?q=${encodeURIComponent(addressQuery.trim())}`,
           { signal: controller.signal },
         );
-        if (!response.ok) throw new Error('Die Adresssuche ist derzeit nicht verfügbar.');
+        if (!response.ok) throw new Error(t('address.lookupUnavailable'));
         setAddressSuggestions(await response.json());
       } catch (lookupError) {
         if (!controller.signal.aborted)
           setAddressError(
-            lookupError instanceof Error
-              ? lookupError.message
-              : 'Die Adresssuche ist fehlgeschlagen.',
+            lookupError instanceof Error ? lookupError.message : t('address.lookupFailed'),
           );
       } finally {
         if (!controller.signal.aborted) setAddressLoading(false);
@@ -928,8 +932,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       method: 'POST',
     });
     const result = await response.json();
-    if (!response.ok)
-      setError('Die KI konnte keinen Titel erzeugen. Bitte versuchen Sie es erneut.');
+    if (!response.ok) setError(t('wizard.generateTitleFailed'));
     else {
       updateExposeData({
         basicInformation: {
@@ -938,7 +941,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
           propertySubtype: result.subtitle,
         },
       });
-      toast.success('Exposé-Titel erzeugt');
+      toast.success(t('wizard.titleGenerated'));
     }
     setMetadataLoading(false);
   }
@@ -951,13 +954,13 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...property, marketingContent }),
     });
-    if (!response.ok) setError('Die Angaben konnten nicht gespeichert werden.');
+    if (!response.ok) setError(t('wizard.saveFailed'));
     setSaving(false);
   }
 
   async function next() {
     if (step === 1 && !addressSelected) {
-      setError('Bitte wählen Sie zuerst eine genaue Adresse aus den Vorschlägen aus.');
+      setError(t('wizard.addressFirst'));
       return;
     }
     await save();
@@ -974,8 +977,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       body: JSON.stringify({ action }),
     });
     const result = await response.json();
-    if (!response.ok)
-      setError('Die KI konnte den Text nicht erstellen. Bitte versuchen Sie es erneut.');
+    if (!response.ok) setError(t('wizard.aiImproveFailed'));
     else {
       setContent(result);
       setStep(CONTENT_STEP);
@@ -992,8 +994,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       { method: 'POST' },
     );
     const result = await response.json();
-    if (!response.ok)
-      setError('Der Exposé-Inhalt konnte nicht erzeugt werden. Bitte versuchen Sie es erneut.');
+    if (!response.ok) setError(t('wizard.marketingGenerateFailed'));
     else setMarketingContent(result);
     setMarketingLoading(false);
   }
@@ -1007,7 +1008,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       body: JSON.stringify(content),
     });
     if (response.ok) router.push(`/preview/${initialProperty.id}`);
-    else setError('Der Inhalt konnte nicht gespeichert werden.');
+    else setError(t('wizard.contentSaveFailed'));
     setSaving(false);
   }
 
@@ -1031,7 +1032,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       body,
     });
     const result = await response.json();
-    if (!response.ok) setError('Die Fotos konnten nicht hochgeladen werden.');
+    if (!response.ok) setError(t('wizard.uploadFailed'));
     else setImages((current) => [...current, ...result]);
   }
 
@@ -1042,10 +1043,10 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       });
       if (response.ok) {
         setImages((current) => current.filter((image) => image.id !== id));
-        toast.success('Foto entfernt');
-      } else setError('Das Foto konnte nicht entfernt werden.');
+        toast.success(t('wizard.photoRemoved'));
+      } else setError(t('wizard.photoRemoveFailed'));
     } catch {
-      setError('Das Foto konnte nicht entfernt werden.');
+      setError(t('wizard.photoRemoveFailed'));
     }
   }
 
@@ -1057,9 +1058,9 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         body: JSON.stringify({ cover: true }),
       });
       if (response.ok) setImages(await response.json());
-      else setError('Das Titelfoto konnte nicht gesetzt werden.');
+      else setError(t('wizard.coverFailed'));
     } catch {
-      setError('Das Titelfoto konnte nicht gesetzt werden.');
+      setError(t('wizard.coverFailed'));
     }
   }
 
@@ -1075,9 +1076,9 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageIds: reordered.map((image) => image.id) }),
       });
-      if (!response.ok) setError('Die Reihenfolge konnte nicht gespeichert werden.');
+      if (!response.ok) setError(t('wizard.reorderFailed'));
     } catch {
-      setError('Die Reihenfolge konnte nicht gespeichert werden.');
+      setError(t('wizard.reorderFailed'));
     }
   }
 
@@ -1157,18 +1158,19 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
           <span className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex">
             {saving ? (
               <>
-                <LoaderCircle className="size-3.5 animate-spin" /> Wird gespeichert…
+                <LoaderCircle className="size-3.5 animate-spin" /> {t('wizard.saving')}
               </>
             ) : (
               <>
                 <span className="size-1.5 rounded-full bg-emerald-500" />
-                Automatisch gespeichert
+                {t('wizard.saved')}
               </>
             )}
           </span>
           <Button variant="outline" size="sm" asChild>
-            <Link href="/">Zurück zu den Entwürfen</Link>
+            <Link href="/">{t('wizard.backToDrafts')}</Link>
           </Button>
+          <LanguageSwitcher />
         </div>
       </header>
 
@@ -1176,17 +1178,21 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         <div className="mb-7 flex items-end justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-              Neues Exposé
+              {t('wizard.kicker')}
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-              {step < STEPS.length ? STEPS[step] : 'KI-Inhaltseditor'}
+              {step < STEPS.length ? t(STEPS[step]) : t('wizard.aiEditor')}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Schritt {currentStep + 1} von {STEPS.length} · {stepStatusLabel(currentStatus)}
+              {t('wizard.stepIndicator', {
+                current: currentStep + 1,
+                total: STEPS.length,
+                status: t(stepStatusLabel(currentStatus)),
+              })}
             </p>
           </div>
           <span className="hidden text-sm font-medium text-muted-foreground sm:block">
-            {progressPercent}% fertig
+            {t('wizard.percentComplete', { percent: progressPercent })}
           </span>
         </div>
 
@@ -1195,7 +1201,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         <div className="lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-8">
           <nav
             className="mb-6 flex gap-1 overflow-x-auto pb-2 lg:mb-0 lg:block lg:space-y-1 lg:overflow-visible lg:pb-0"
-            aria-label="Wizard-Schritte"
+            aria-label={t('wizard.navLabel')}
           >
             {STEPS.map((name, index) => {
               const current = index === currentStep;
@@ -1239,10 +1245,13 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                           : 'font-medium text-muted-foreground/60',
                     )}
                   >
-                    {name}
+                    {t(name)}
                   </span>
                   <span
-                    aria-label={`${name}: ${stepStatusLabel(status)}`}
+                    aria-label={t('wizard.stepLabel', {
+                      name: t(name),
+                      status: t(stepStatusLabel(status)),
+                    })}
                     className={cn(
                       'ml-auto size-2 shrink-0 rounded-full',
                       status === 'complete' && 'bg-emerald-500',
@@ -1259,8 +1268,8 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
             {error && (
               <Alert variant="destructive" className="mb-6">
                 <AlertTitle className="flex items-center justify-between gap-2">
-                  Es ist etwas schiefgegangen
-                  <button onClick={() => setError('')} aria-label="Schließen">
+                  {t('wizard.somethingWentWrong')}
+                  <button onClick={() => setError('')} aria-label={t('common.close')}>
                     <X className="size-4" />
                   </button>
                 </AlertTitle>
@@ -1439,17 +1448,17 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
             disabled={step === 0}
             onClick={() => setStep((current) => Math.max(current - 1, 0))}
           >
-            <ArrowLeft className="size-4" /> Zurück
+            <ArrowLeft className="size-4" /> {t('common.back')}
           </Button>
           {step < REVIEW_STEP ? (
             <Button onClick={next} disabled={saving}>
               {saving ? (
                 <>
-                  <LoaderCircle className="size-4 animate-spin" /> Wird gespeichert…
+                  <LoaderCircle className="size-4 animate-spin" /> {t('wizard.saving')}
                 </>
               ) : (
                 <>
-                  Weiter <ArrowRight className="size-4" />
+                  {t('common.next')} <ArrowRight className="size-4" />
                 </>
               )}
             </Button>
@@ -1457,17 +1466,18 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
             <Button onClick={() => generate()} disabled={aiLoading}>
               {aiLoading ? (
                 <>
-                  <LoaderCircle className="size-4 animate-spin" /> Wird verbessert…
+                  <LoaderCircle className="size-4 animate-spin" /> {t('wizard.improving')}
                 </>
               ) : (
                 <>
-                  <Sparkles className="size-4" /> Mit KI verbessern
+                  <Sparkles className="size-4" /> {t('wizard.improveWithAi')}
                 </>
               )}
             </Button>
           ) : (
             <Button onClick={saveContent} disabled={saving}>
-              <FileText className="size-4" /> Vorschau öffnen <ArrowRight className="size-4" />
+              <FileText className="size-4" /> {t('wizard.openPreview')}{' '}
+              <ArrowRight className="size-4" />
             </Button>
           )}
         </div>

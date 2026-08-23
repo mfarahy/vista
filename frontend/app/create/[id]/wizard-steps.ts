@@ -9,6 +9,8 @@
  * unless the wizard explicitly requires it (only the address must be resolved).
  */
 
+import type { TranslationKey } from '@/lib/i18n/core';
+
 export type WizardStepStatus = 'complete' | 'partial' | 'incomplete';
 
 export const STEP_DOCUMENTS = 0;
@@ -99,10 +101,7 @@ export interface StepCompletionSnapshot {
  * core property facts count as "complete" for the data steps; everything else
  * is best-effort information that must never block progression.
  */
-export function stepStatus(
-  step: number,
-  s: StepCompletionSnapshot,
-): WizardStepStatus {
+export function stepStatus(step: number, s: StepCompletionSnapshot): WizardStepStatus {
   switch (step) {
     case STEP_DOCUMENTS: {
       if (s.documents.total === 0) return 'incomplete';
@@ -123,19 +122,26 @@ export function stepStatus(
       return statusOf(core, [isFilled(s.renovationStatus), isFilled(s.lastModernizationYear)]);
     }
     case STEP_FEATURES:
-      return isFilled(s.selectedFeatures) || isFilled(s.gardenArea)
-        ? 'complete'
-        : 'incomplete';
+      return isFilled(s.selectedFeatures) || isFilled(s.gardenArea) ? 'complete' : 'incomplete';
     case STEP_ENERGY: {
-      const demandOrClass = isFilled(s.energy?.demandKwhPerM2A) || isFilled(s.energy?.consumptionKwhPerM2A);
-      if (isFilled(s.energy?.certificateType) || demandOrClass || isFilled(s.energy?.efficiencyClass)) {
+      const demandOrClass =
+        isFilled(s.energy?.demandKwhPerM2A) || isFilled(s.energy?.consumptionKwhPerM2A);
+      if (
+        isFilled(s.energy?.certificateType) ||
+        demandOrClass ||
+        isFilled(s.energy?.efficiencyClass)
+      ) {
         return 'complete';
       }
       return isFilled(s.energy) ? 'partial' : 'incomplete';
     }
     case STEP_FINANCIAL: {
       if (s.transactionType === 'rent') {
-        return isFilled(s.rentPrice) ? 'complete' : isFilled(s.askingPrice) ? 'partial' : 'incomplete';
+        return isFilled(s.rentPrice)
+          ? 'complete'
+          : isFilled(s.askingPrice)
+            ? 'partial'
+            : 'incomplete';
       }
       if (isFilled(s.askingPrice)) return 'complete';
       if (isFilled(s.commissionRate) || isFilled(s.rentPrice)) return 'partial';
@@ -165,23 +171,21 @@ export function stepStatus(
   }
 }
 
-function statusOf(
-  core: boolean[],
-  any: boolean[],
-): WizardStepStatus {
+function statusOf(core: boolean[], any: boolean[]): WizardStepStatus {
   if (core.every(Boolean)) return 'complete';
   if (core.some(Boolean) || any.some(Boolean)) return 'partial';
   return 'incomplete';
 }
 
-export function stepStatusLabel(status: WizardStepStatus): string {
+/** Translation key for a wizard step status ("Ausgefüllt" → wizard.status.*). */
+export function stepStatusLabel(status: WizardStepStatus): TranslationKey {
   switch (status) {
     case 'complete':
-      return 'Ausgefüllt';
+      return 'wizard.status.filled';
     case 'partial':
-      return 'Teilweise ausgefüllt';
+      return 'wizard.status.partiallyFilled';
     default:
-      return 'Noch offen';
+      return 'wizard.status.open';
   }
 }
 
@@ -226,8 +230,7 @@ export function normalizeCertificateType(value: string | null | undefined): stri
   if (!value) return null;
   const lowered = value.toLowerCase();
   if (lowered === 'needs_based' || lowered.includes('bedarf')) return 'needs_based';
-  if (lowered === 'consumption_based' || lowered.includes('verbrauch'))
-    return 'consumption_based';
+  if (lowered === 'consumption_based' || lowered.includes('verbrauch')) return 'consumption_based';
   if (lowered.includes('nicht') || lowered.includes('kein')) return 'not_available';
   if (lowered.includes('unbekannt') || lowered.includes('unknown')) return 'unknown';
   return null;

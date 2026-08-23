@@ -4,6 +4,9 @@ import { describe, it } from 'node:test';
 import type { PropertyPayload } from './types';
 import type { WizardFieldCandidate } from './document-prefill';
 import { buildReviewIssues, reviewCategoryStatuses } from './review-checklist';
+import { translations } from '@/lib/i18n/core';
+
+const de = translations.de;
 import type { ReviewChecklistInput } from './review-checklist';
 
 function source(
@@ -66,7 +69,7 @@ function input(overrides: Partial<ReviewChecklistInput> = {}): ReviewChecklistIn
 
 describe('buildReviewIssues', () => {
   it('warns about missing important information with the correct edit step', () => {
-    const issues = buildReviewIssues(input());
+    const issues = buildReviewIssues(input(), de);
     const missingArea = issues.find((issue) => issue.id === 'missing-livingArea');
     const missingPrice = issues.find((issue) => issue.id === 'missing-price');
     assert.ok(missingArea, 'Wohnfläche warning exists');
@@ -83,6 +86,7 @@ describe('buildReviewIssues', () => {
       input({
         property: property({ livingArea: 145, rooms: 5, askingPrice: 549000 }),
       }),
+      de,
     );
     assert.ok(!issues.some((issue) => issue.id === 'missing-livingArea'));
     assert.ok(!issues.some((issue) => issue.id === 'missing-price'));
@@ -91,6 +95,7 @@ describe('buildReviewIssues', () => {
   it('warns about the missing rent instead of the price for rentals', () => {
     const issues = buildReviewIssues(
       input({ property: property({ transactionType: 'rent' }) }),
+      de,
     );
     assert.ok(issues.some((issue) => issue.id === 'missing-rent'));
     assert.ok(!issues.some((issue) => issue.id === 'missing-price'));
@@ -101,6 +106,7 @@ describe('buildReviewIssues', () => {
       input({
         property: property({ livingArea: 145, rooms: 5, askingPrice: 549000 }),
       }),
+      de,
     );
     assert.ok(!issues.some((issue) => issue.title.includes('Gartenfläche')));
     assert.ok(!issues.some((issue) => issue.title.includes('Hausgeld')));
@@ -111,9 +117,13 @@ describe('buildReviewIssues', () => {
     const issues = buildReviewIssues(
       input({
         sourcesByField: {
-          houseNumber: [source('houseNumber', '88 A', 'Grundbuchauszug.pdf'), source('houseNumber', '88a', 'Lageplan.pdf')],
+          houseNumber: [
+            source('houseNumber', '88 A', 'Grundbuchauszug.pdf'),
+            source('houseNumber', '88a', 'Lageplan.pdf'),
+          ],
         },
       }),
+      de,
     );
     const conflict = issues.find((issue) => issue.id === 'conflict-houseNumber');
     assert.ok(conflict);
@@ -130,6 +140,7 @@ describe('buildReviewIssues', () => {
           usufruct: [source('usufruct', true, 'A.pdf'), source('usufruct', false, 'B.pdf')],
         },
       }),
+      de,
     );
     const conflict = issues.find((issue) => issue.id === 'conflict-usufruct');
     assert.equal(conflict?.editStep, 6);
@@ -138,10 +149,12 @@ describe('buildReviewIssues', () => {
   it('warns about failed analyses and informs about pending ones', () => {
     const failed = buildReviewIssues(
       input({ documents: { total: 3, analyzed: 2, failed: 1 } }),
+      de,
     );
     assert.ok(failed.some((issue) => issue.id === 'documents-failed'));
     const pending = buildReviewIssues(
       input({ documents: { total: 3, analyzed: 2, failed: 0 } }),
+      de,
     );
     assert.ok(pending.some((issue) => issue.id === 'documents-pending'));
   });
@@ -153,6 +166,7 @@ describe('buildReviewIssues', () => {
         marketingContentExists: false,
         property: property({ livingArea: 145, rooms: 5, askingPrice: 549000 }),
       }),
+      de,
     );
     const photos = issues.find((issue) => issue.id === 'photos-missing');
     const content = issues.find((issue) => issue.id === 'content-missing');
@@ -164,7 +178,7 @@ describe('buildReviewIssues', () => {
   });
 
   it('never flags empty optional fields as blocking warnings', () => {
-    const issues = buildReviewIssues(input());
+    const issues = buildReviewIssues(input(), de);
     assert.ok(issues.every((issue) => issue.type === 'warning' || issue.type === 'info'));
   });
 });
@@ -176,6 +190,7 @@ describe('reviewCategoryStatuses', () => {
         documents: { total: 0, analyzed: 0, failed: 0 },
         property: property({ askingPrice: 549000 }),
       }),
+      de,
     );
     const statuses = reviewCategoryStatuses(issues);
     assert.equal(statuses.Objekt, 'attention', 'Wohnfläche/Zimmer missing');

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { translations } from '@/lib/i18n/core';
 import {
   STEP_BUILDING,
   STEP_ENERGY,
@@ -122,7 +123,10 @@ describe('step completion', () => {
   });
 
   it('features step completes with at least one selected feature', () => {
-    assert.equal(stepStatus(STEP_FEATURES, snapshot({ selectedFeatures: ['balcony'] })), 'complete');
+    assert.equal(
+      stepStatus(STEP_FEATURES, snapshot({ selectedFeatures: ['balcony'] })),
+      'complete',
+    );
     assert.equal(stepStatus(STEP_FEATURES, snapshot()), 'incomplete');
   });
 
@@ -148,10 +152,7 @@ describe('step completion', () => {
 
   it('legal step completes from legal flags or stays partial with document info', () => {
     assert.equal(stepStatus(STEP_LEGAL, snapshot()), 'incomplete');
-    assert.equal(
-      stepStatus(STEP_LEGAL, snapshot({ legalFlags: { leasehold: true } })),
-      'complete',
-    );
+    assert.equal(stepStatus(STEP_LEGAL, snapshot({ legalFlags: { leasehold: true } })), 'complete');
     assert.equal(stepStatus(STEP_LEGAL, snapshot({ additionalInfoCount: 2 })), 'partial');
   });
 
@@ -170,20 +171,14 @@ describe('step completion', () => {
 
   it('documents step is complete only when every document is analyzed', () => {
     assert.equal(stepStatus(0, snapshot()), 'incomplete');
-    assert.equal(
-      stepStatus(0, snapshot({ documents: { total: 3, analyzed: 2 } })),
-      'partial',
-    );
-    assert.equal(
-      stepStatus(0, snapshot({ documents: { total: 3, analyzed: 3 } })),
-      'complete',
-    );
+    assert.equal(stepStatus(0, snapshot({ documents: { total: 3, analyzed: 2 } })), 'partial');
+    assert.equal(stepStatus(0, snapshot({ documents: { total: 3, analyzed: 3 } })), 'complete');
   });
 
   it('labels the statuses in German', () => {
-    assert.equal(stepStatusLabel('complete'), 'Ausgefüllt');
-    assert.equal(stepStatusLabel('partial'), 'Teilweise ausgefüllt');
-    assert.equal(stepStatusLabel('incomplete'), 'Noch offen');
+    assert.equal(translations.de.t(stepStatusLabel('complete')), 'Ausgefüllt');
+    assert.equal(translations.de.t(stepStatusLabel('partial')), 'Teilweise ausgefüllt');
+    assert.equal(translations.de.t(stepStatusLabel('incomplete')), 'Noch offen');
   });
 });
 

@@ -1,4 +1,5 @@
 import type { DocumentRecord, PropertyPayload } from './types';
+import { defaultLocale, translate, type Locale, type TranslationKey } from '@/lib/i18n/core';
 
 /**
  * Wizard-prefill helpers. Faithful port of the backend prefill rules
@@ -34,90 +35,97 @@ export type AdditionalInfoCandidate = {
 };
 
 /**
- * German labels for the AI-extracted wizard fields (the raw field keys are
+ * Translation keys for the AI-extracted wizard fields (the raw field keys are
  * internal identifiers and must never be shown to the user).
  */
-export const WIZARD_FIELD_LABELS: Record<string, string> = {
-  street: 'Straße',
-  houseNumber: 'Hausnummer',
-  postalCode: 'PLZ',
-  city: 'Ort',
-  district: 'Stadtteil',
-  state: 'Bundesland',
-  country: 'Land',
-  propertyType: 'Objektart',
-  propertySubtype: 'Objektunterart',
-  usageType: 'Verwendungszweck',
-  livingArea: 'Wohnfläche',
-  usableArea: 'Nutzfläche',
-  plotArea: 'Grundstücksfläche',
-  rooms: 'Zimmer',
-  bedrooms: 'Schlafzimmer',
-  bathrooms: 'Badezimmer',
-  guestToilets: 'Gäste-WCs',
-  yearBuilt: 'Baujahr',
-  buildingStatus: 'Objektstatus',
-  condition: 'Zustand',
-  numberOfFloors: 'Etagen',
-  floor: 'Etage',
-  basement: 'Keller',
-  attic: 'Dachgeschoss',
-  renovationStatus: 'Sanierungsstatus',
-  lastModernizationYear: 'Letzte Modernisierung',
-  parking: 'Stellplatz',
-  garage: 'Garage',
-  balcony: 'Balkon',
-  terrace: 'Terrasse',
-  garden: 'Garten',
-  gardenArea: 'Gartenfläche',
-  orientation: 'Ausrichtung',
-  energyClass: 'Effizienzklasse',
-  energyDemand: 'Endenergiebedarf',
-  energyConsumption: 'Endenergieverbrauch',
-  heatingType: 'Heizungsart',
-  yearOfConstruction: 'Baujahr laut Ausweis',
-  certificateType: 'Ausweistyp',
-  certificateDate: 'Ausgestellt am',
-  certificateValidUntil: 'Gültig bis',
-  primaryEnergySource: 'Energieträger',
-  hotWaterIncluded: 'Warmwasser enthalten',
-  askingPrice: 'Kaufpreis',
-  pricePerM2: 'Kaufpreis / m²',
-  commissionRate: 'Provisionssatz',
-  commissionPayer: 'Provisionszahler',
-  isRented: 'Vermietet',
-  monthlyRent: 'Kaltmiete',
-  annualRent: 'Jahresmiete',
-  additionalCosts: 'Nebenkosten',
-  deposit: 'Kaution',
-  furnished: 'Möbliert',
-  availableFrom: 'Verfügbar ab',
-  grossYieldTarget: 'Bruttorendite (Soll)',
-  grossYieldActual: 'Bruttorendite (Ist)',
-  hausgeld: 'Hausgeld',
-  maintenanceReserve: 'Instandhaltungsrücklage',
-  coOwnershipShare: 'Miteigentumsanteil',
-  usufruct: 'Nießbrauch',
-  leasehold: 'Erbbaurecht',
-  foreclosure: 'Zwangsversteigerung',
-  heritageProtection: 'Denkmalschutz',
-  transactionType: 'Kauf / Miete',
-  parcelNumber: 'Flurstück',
-  plotNumber: 'Flur',
+export const WIZARD_FIELD_LABELS: Record<string, TranslationKey> = {
+  street: 'fields.street',
+  houseNumber: 'fields.houseNumber',
+  postalCode: 'fields.postalCode',
+  city: 'fields.city',
+  district: 'fields.district',
+  state: 'fields.state',
+  country: 'fields.country',
+  propertyType: 'fields.propertyType',
+  propertySubtype: 'fields.propertySubtype',
+  usageType: 'fields.usageType',
+  livingArea: 'fields.livingArea',
+  usableArea: 'fields.usableArea',
+  plotArea: 'fields.plotArea',
+  rooms: 'fields.rooms',
+  bedrooms: 'fields.bedrooms',
+  bathrooms: 'fields.bathrooms',
+  guestToilets: 'fields.guestToilets',
+  yearBuilt: 'fields.constructionYear',
+  buildingStatus: 'fields.objectStatus',
+  condition: 'fields.condition',
+  numberOfFloors: 'fields.floors',
+  floor: 'fields.floor',
+  basement: 'fields.basement',
+  attic: 'fields.attic',
+  renovationStatus: 'fields.renovationStatus',
+  lastModernizationYear: 'fields.lastModernization',
+  parking: 'fields.parkingSpace',
+  garage: 'fields.garage',
+  balcony: 'fields.balcony',
+  terrace: 'fields.terrace',
+  garden: 'fields.garden',
+  gardenArea: 'fields.gardenArea',
+  orientation: 'fields.orientation',
+  energyClass: 'fields.efficiencyClass',
+  energyDemand: 'fields.energyDemand',
+  energyConsumption: 'fields.energyConsumption',
+  heatingType: 'fields.heatingType',
+  yearOfConstruction: 'fields.yearBuiltPerCertificate',
+  certificateType: 'fields.certificateType',
+  certificateDate: 'fields.certificateDate',
+  certificateValidUntil: 'fields.certificateValidUntil',
+  primaryEnergySource: 'fields.energySource',
+  hotWaterIncluded: 'fields.hotWaterIncluded',
+  askingPrice: 'fields.purchasePrice',
+  pricePerM2: 'fields.pricePerM2',
+  commissionRate: 'fields.commissionRate',
+  commissionPayer: 'fields.commissionPayer',
+  isRented: 'fields.rented',
+  monthlyRent: 'fields.coldRent',
+  annualRent: 'fields.annualRent',
+  additionalCosts: 'fields.additionalCosts',
+  deposit: 'fields.deposit',
+  furnished: 'fields.furnished',
+  availableFrom: 'fields.availableFrom',
+  grossYieldTarget: 'fields.grossYieldTarget',
+  grossYieldActual: 'fields.grossYieldActual',
+  hausgeld: 'fields.hausgeld',
+  maintenanceReserve: 'fields.maintenanceReserve',
+  coOwnershipShare: 'fields.coOwnershipShare',
+  usufruct: 'legalFlag.usufruct',
+  leasehold: 'legalFlag.leasehold',
+  foreclosure: 'legalFlag.foreclosure',
+  heritageProtection: 'legalFlag.heritageProtection',
+  transactionType: 'steps.review.transactionType',
+  parcelNumber: 'additionalInfo.parcelNumber',
+  plotNumber: 'additionalInfo.plotNumber',
 };
 
-/** Resolves a wizard-field key to its German label, falling back to the key. */
-export function wizardFieldLabel(field: string): string {
+/** Resolves a wizard-field key to its translation key, falling back to the key. */
+export function wizardFieldLabel(field: string): TranslationKey | string {
   return WIZARD_FIELD_LABELS[field] ?? field;
 }
 
 /** Formats an extracted value for display without internal jargon. */
-export function formatExtractedValue(value: string | number | boolean | null | undefined): string {
+export function formatExtractedValue(
+  value: string | number | boolean | null | undefined,
+  locale: Locale = defaultLocale,
+): string {
   if (value === null || value === undefined || value === '') return '—';
-  if (value === true) return 'Ja';
-  if (value === false) return 'Nein';
-  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value))
-    return `${value.slice(8, 10)}.${value.slice(5, 7)}.${value.slice(0, 4)}`;
+  if (value === true) return translate(locale, 'common.yes');
+  if (value === false) return translate(locale, 'common.no');
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    // Keep the zero-padded DD.MM.YYYY style for German; US-style MM/DD/YYYY for English.
+    return locale === 'de'
+      ? `${value.slice(8, 10)}.${value.slice(5, 7)}.${value.slice(0, 4)}`
+      : `${value.slice(5, 7)}/${value.slice(8, 10)}/${value.slice(0, 4)}`;
+  }
   return String(value);
 }
 

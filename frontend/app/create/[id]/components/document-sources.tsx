@@ -2,6 +2,7 @@
 import { useId, useState } from 'react';
 import { ChevronDown, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 import type { WizardFieldCandidate } from '../document-prefill';
 import { resolveFieldProvenance } from '../field-provenance';
 
@@ -34,23 +35,22 @@ export function DocumentSources({
 }) {
   const [open, setOpen] = useState(false);
   const detailsId = useId();
+  const { t } = useI18n();
   const provenance = resolveFieldProvenance(currentValue, sources);
 
   // Value without any document source: clearly a user value, never labeled
   // "aus Dokumenten übernommen" (empty fields stay quiet).
   if (!sources?.length) {
     if (provenance.origin !== 'user') return null;
-    return (
-      <p className="mt-1.5 text-xs text-muted-foreground">Von Ihnen eingegeben</p>
-    );
+    return <p className="mt-1.5 text-xs text-muted-foreground">{t('provenance.userEntered')}</p>;
   }
 
   const multiple = sources.length > 1;
   const documentOrigin = provenance.origin === 'document';
   const userEdited = provenance.userEdited;
   const conflictLabel = documentOrigin
-    ? 'Unterschiedliche Angaben in Ihren Dokumenten'
-    : `${provenance.distinctValues.length} unterschiedliche Angaben in den Dokumenten`;
+    ? t('provenance.conflict')
+    : t('provenance.conflictCount', { count: provenance.distinctValues.length });
 
   return (
     <div className="mt-1.5">
@@ -59,14 +59,16 @@ export function DocumentSources({
           <>
             <Sparkles className="size-3.5 shrink-0 text-primary" aria-hidden />
             <span>
-              Aus Dokumenten übernommen
+              {t('provenance.fromDocuments')}
               <span className="font-semibold text-foreground">
-                {multiple ? ` · ${sources.length} Dokumente` : ` · ${sources[0].sourceFilename}`}
+                {multiple
+                  ? t('provenance.documentsCount', { count: sources.length })
+                  : t('provenance.singleDocument', { filename: sources[0].sourceFilename })}
               </span>
             </span>
           </>
         ) : userEdited ? (
-          <span className="font-medium text-foreground">Von Ihnen geändert</span>
+          <span className="font-medium text-foreground">{t('provenance.userEdited')}</span>
         ) : null}
         <button
           type="button"
@@ -75,7 +77,11 @@ export function DocumentSources({
           aria-controls={detailsId}
           className="inline-flex items-center gap-1 font-semibold text-primary underline-offset-2 hover:underline"
         >
-          {open ? 'Belege ausblenden' : multiple ? 'Belege anzeigen' : 'Beleg anzeigen'}
+          {open
+            ? t('provenance.hideEvidence')
+            : multiple
+              ? t('provenance.showEvidence')
+              : t('provenance.showEvidenceSingular')}
           <ChevronDown
             size={12}
             className={cn('transition-transform', open && 'rotate-180')}
@@ -91,20 +97,18 @@ export function DocumentSources({
       )}
 
       {open && (
-        <ul id={detailsId} className="mt-2 max-w-full space-y-2 rounded-lg border bg-card px-3 py-2">
+        <ul
+          id={detailsId}
+          className="mt-2 max-w-full space-y-2 rounded-lg border bg-card px-3 py-2"
+        >
           {sources.map((source, index) => (
-            <li
-              key={`${source.sourceDocumentId}-${index}`}
-              className="min-w-0 text-xs leading-5"
-            >
-              <p className="break-words font-semibold text-foreground">
-                {source.sourceFilename}
-              </p>
-              <p className="break-words text-muted-foreground">
-                {formatValue(source.value)}
-              </p>
+            <li key={`${source.sourceDocumentId}-${index}`} className="min-w-0 text-xs leading-5">
+              <p className="break-words font-semibold text-foreground">{source.sourceFilename}</p>
+              <p className="break-words text-muted-foreground">{formatValue(source.value)}</p>
               {source.evidence && (
-                <p className="break-words text-muted-foreground">“{source.evidence}”</p>
+                <p className="break-words text-muted-foreground">
+                  {t('provenance.evidenceQuote', { evidence: source.evidence })}
+                </p>
               )}
             </li>
           ))}

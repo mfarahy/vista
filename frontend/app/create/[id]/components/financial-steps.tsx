@@ -1,4 +1,5 @@
 import { LoaderCircle } from 'lucide-react';
+import { defaultLocale, translate, useI18n, type Locale } from '@/lib/i18n';
 import type { BorisEnrichment, ExposeData, PropertyPayload, SetProperty } from '../types';
 import { LEGAL_FLAG_LABELS, additionalInfoLabel } from '../types';
 import type { AdditionalInfoCandidate, WizardFieldCandidate } from '../document-prefill';
@@ -18,9 +19,13 @@ import {
 import { DocumentSources } from './document-sources';
 import { AddressIntelligencePanel } from './debug';
 
-function formatEuro(value?: number | null): string {
+function formatEuro(value?: number | null, locale: Locale = defaultLocale): string {
   if (value == null) return '';
-  return `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(value)} €`;
+  return translate(locale, 'finance.formatEuro', {
+    value: new Intl.NumberFormat(locale === 'de' ? 'de-DE' : 'en-US', {
+      maximumFractionDigits: 0,
+    }).format(value),
+  });
 }
 
 function hasWegData(weg: ExposeData['weg'] | undefined): boolean {
@@ -64,99 +69,117 @@ export function StepFinancial({
   // property types it only appears when the documents actually produced data.
   const showWeg = property.propertyType === 'apartment' || hasWegData(exposeData.weg);
   const currentValues = wizardCurrentValues(property);
+  const { locale, t } = useI18n();
 
   return (
     <Section
-      title="Finanzen"
-      description="Preis- und Provisionsangaben. Werte werden nicht automatisch berechnet — nur eingetragene Angaben zählen."
+      title={t('steps.financial.sectionTitle')}
+      description={t('steps.financial.sectionDescription')}
     >
       <div className="space-y-6">
         {sale ? (
-          <GroupCard title="Kaufpreis">
+          <GroupCard title={t('steps.financial.groupPurchasePrice')}>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <UnitInput
-                  label="Kaufpreis"
-                  unit="€"
+                  label={t('fields.purchasePrice')}
+                  unit={t('expose.units.euro')}
                   type="number"
                   value={pricing.purchasePrice ?? property.askingPrice}
                   onChange={(value) => set('askingPrice', value ? Number(value) : null)}
-                  placeholder="z. B. 440000"
+                  placeholder={t('steps.financial.purchasePlaceholder')}
                 />
-                <DocumentSources sources={sources?.askingPrice} currentValue={currentValues.askingPrice} />
+                <DocumentSources
+                  sources={sources?.askingPrice}
+                  currentValue={currentValues.askingPrice}
+                />
               </div>
               <div>
                 <UnitInput
-                  label="Kaufpreis / m²"
-                  unit="€/m²"
+                  label={t('fields.pricePerM2')}
+                  unit={t('expose.units.euroPerSqm')}
                   type="number"
                   value={pricing.pricePerM2}
                   onChange={(value) => setPricing({ pricePerM2: value ? Number(value) : null })}
-                  placeholder="Nur wenn angegeben"
+                  placeholder={t('steps.financial.onlyIfGiven')}
                 />
-                <DocumentSources sources={sources?.pricePerM2} currentValue={currentValues.pricePerM2} />
+                <DocumentSources
+                  sources={sources?.pricePerM2}
+                  currentValue={currentValues.pricePerM2}
+                />
               </div>
               <div>
                 <UnitInput
-                  label="Bodenrichtwert"
-                  unit="€/m²"
+                  label={t('fields.landValue')}
+                  unit={t('expose.units.euroPerSqm')}
                   type="number"
                   value={property.bodenrichtwert}
                   onChange={(value) => set('bodenrichtwert', value ? Number(value) : null)}
                   placeholder={
                     boris?.bodenrichtwert?.value != null
                       ? String(boris.bodenrichtwert.value)
-                      : 'Optional'
+                      : t('common.optional')
                   }
                 />
               </div>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              {pricing.purchasePrice ? formatEuro(pricing.purchasePrice) : 'Noch kein Kaufpreis'} ·{' '}
+              {pricing.purchasePrice
+                ? formatEuro(pricing.purchasePrice, locale)
+                : t('steps.financial.noPrice')}{' '}
+              ·{' '}
               {pricing.pricePerM2
-                ? `${formatEuro(pricing.pricePerM2)} / m²`
-                : '€/m² nicht angegeben'}
+                ? t('steps.financial.pricePerM2Value', {
+                    value: formatEuro(pricing.pricePerM2, locale),
+                  })
+                : t('steps.financial.pricePerM2NotGiven')}
             </p>
           </GroupCard>
         ) : (
-          <GroupCard title="Miete">
+          <GroupCard title={t('steps.financial.groupRent')}>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <UnitInput
-                  label="Kaltmiete / Monat"
-                  unit="€"
+                  label={t('steps.financial.coldRentLabel')}
+                  unit={t('expose.units.euro')}
                   type="number"
                   value={property.coldRent}
                   onChange={(value) => set('coldRent', value ? Number(value) : null)}
-                  placeholder="z. B. 1900"
+                  placeholder={t('steps.financial.demandPlaceholder')}
                 />
-                <DocumentSources sources={sources?.monthlyRent} currentValue={currentValues.monthlyRent} />
+                <DocumentSources
+                  sources={sources?.monthlyRent}
+                  currentValue={currentValues.monthlyRent}
+                />
               </div>
               <div>
                 <UnitInput
-                  label="Nebenkosten / Monat"
-                  unit="€"
+                  label={t('steps.financial.additionalCostsLabel')}
+                  unit={t('expose.units.euro')}
                   type="number"
                   value={pricing.additionalCosts ?? property.additionalCosts}
                   onChange={(value) => set('additionalCosts', value ? Number(value) : null)}
-                  placeholder="z. B. 350"
+                  placeholder={t('steps.financial.additionalCostsPlaceholder')}
                 />
-                <DocumentSources sources={sources?.additionalCosts} currentValue={currentValues.additionalCosts} />
+                <DocumentSources
+                  sources={sources?.additionalCosts}
+                  currentValue={currentValues.additionalCosts}
+                />
               </div>
               <div>
                 <UnitInput
-                  label="Kaution"
-                  unit="€"
+                  label={t('fields.deposit')}
+                  unit={t('expose.units.euro')}
                   type="number"
                   value={property.deposit}
                   onChange={(value) => set('deposit', value ? Number(value) : null)}
-                  placeholder="Optional"
+                  placeholder={t('common.optional')}
                 />
                 <DocumentSources sources={sources?.deposit} currentValue={currentValues.deposit} />
               </div>
               <div>
                 <DateInput
-                  label="Verfügbar ab"
+                  label={t('fields.availableFrom')}
                   value={property.availableFrom}
                   onChange={(value) => set('availableFrom', value)}
                 />
@@ -164,68 +187,79 @@ export function StepFinancial({
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
               {property.coldRent
-                ? `${formatEuro(property.coldRent)} Kaltmiete`
-                : 'Noch keine Miete'}
+                ? t('steps.financial.coldRentValue', {
+                    value: formatEuro(property.coldRent, locale),
+                  })
+                : t('steps.financial.noRent')}
             </p>
           </GroupCard>
         )}
 
         {borisLoading && (
           <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-            <LoaderCircle className="size-4 animate-spin" /> Bodenrichtwert wird geprüft…
+            <LoaderCircle className="size-4 animate-spin" />{' '}
+            {t('steps.financial.landValueChecking')}
           </p>
         )}
 
         {boris?.available && boris.bodenrichtwert?.value != null && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-            <p className="font-semibold">Bodenrichtwert {boris.bodenrichtwert.value} €/m²</p>
+            <p className="font-semibold">
+              {t('steps.financial.landValueResult', { value: boris.bodenrichtwert.value })}
+            </p>
             <p className="mt-0.5 text-amber-700">
-              Quelle: {boris.source}
+              {t('steps.financial.source', { source: boris.source ?? '' })}
               {boris.referenceDate
-                ? ` · Stichtag: ${new Date(boris.referenceDate).toLocaleDateString('de-DE')}`
+                ? t('steps.financial.referenceDate', {
+                    date: new Date(boris.referenceDate).toLocaleDateString(locale),
+                  })
                 : ''}
             </p>
-            <p className="mt-1 text-amber-600">
-              Amtlicher Wert als Vorschlag — Sie können ihn jederzeit ändern.
-            </p>
+            <p className="mt-1 text-amber-600">{t('steps.financial.landValueHint')}</p>
           </div>
         )}
 
         {sale && (
-          <GroupCard title="Provision">
+          <GroupCard title={t('steps.financial.groupCommission')}>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <UnitInput
-                  label="Provisionssatz"
-                  unit="%"
+                  label={t('fields.commissionRate')}
+                  unit={t('expose.units.percent')}
                   type="number"
                   value={pricing.commissionRate}
                   onChange={(value) => setPricing({ commissionRate: value ? Number(value) : null })}
-                  placeholder="z. B. 3,57"
+                  placeholder={t('steps.financial.commissionPlaceholder')}
                 />
-                <DocumentSources sources={sources?.commissionRate} currentValue={currentValues.commissionRate} />
+                <DocumentSources
+                  sources={sources?.commissionRate}
+                  currentValue={currentValues.commissionRate}
+                />
               </div>
               <div>
                 <Select
-                  label="Provisionszahler"
+                  label={t('fields.commissionPayer')}
                   value={pricing.commissionPayer ?? ''}
                   onChange={(value) =>
                     setPricing({
                       commissionPayer: (value || null) as ExposeData['pricing']['commissionPayer'],
                     })
                   }
-                  placeholder="Auswählen"
+                  placeholder={t('common.select')}
                   options={[
-                    ['buyer', 'Käufer'],
-                    ['seller', 'Verkäufer'],
-                    ['both', 'Beide'],
+                    ['buyer', t('finance.buyer')],
+                    ['seller', t('finance.seller')],
+                    ['both', t('finance.both')],
                   ]}
                 />
-                <DocumentSources sources={sources?.commissionPayer} currentValue={currentValues.commissionPayer} />
+                <DocumentSources
+                  sources={sources?.commissionPayer}
+                  currentValue={currentValues.commissionPayer}
+                />
               </div>
               <div className="flex items-end pb-1">
                 <Toggle
-                  label="inkl. MwSt."
+                  label={t('steps.financial.vatIncluded')}
                   checked={pricing.commissionVatIncluded === true}
                   onChange={(checked) => setPricing({ commissionVatIncluded: checked || null })}
                 />
@@ -236,42 +270,51 @@ export function StepFinancial({
 
         {showWeg && (
           <GroupCard
-            title="WEG / Hausgeld"
-            description="Angaben zur Eigentumswohnung (WEG). Nur Werte aus Ihren Unterlagen zählen — es wird nichts berechnet."
+            title={t('steps.financial.groupWeg')}
+            description={t('steps.financial.groupWegDescription')}
           >
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <UnitInput
-                  label="Hausgeld / Monat"
-                  unit="€"
+                  label={t('steps.financial.hausgeldLabel')}
+                  unit={t('expose.units.euro')}
                   type="number"
                   value={exposeData.weg?.hausgeldEur}
                   onChange={(value) => setWeg({ hausgeldEur: value ? Number(value) : null })}
-                  placeholder="z. B. 350"
+                  placeholder={t('steps.financial.hausgeldPlaceholder')}
                 />
-                <DocumentSources sources={sources?.hausgeld} currentValue={currentValues.hausgeld} />
+                <DocumentSources
+                  sources={sources?.hausgeld}
+                  currentValue={currentValues.hausgeld}
+                />
               </div>
               <div>
                 <UnitInput
-                  label="Instandhaltungsrücklage"
-                  unit="€"
+                  label={t('fields.maintenanceReserve')}
+                  unit={t('expose.units.euro')}
                   type="number"
                   value={exposeData.weg?.maintenanceReserveEur}
                   onChange={(value) =>
                     setWeg({ maintenanceReserveEur: value ? Number(value) : null })
                   }
-                  placeholder="Nur wenn angegeben"
+                  placeholder={t('steps.financial.onlyIfGiven')}
                 />
-                <DocumentSources sources={sources?.maintenanceReserve} currentValue={currentValues.maintenanceReserve} />
+                <DocumentSources
+                  sources={sources?.maintenanceReserve}
+                  currentValue={currentValues.maintenanceReserve}
+                />
               </div>
               <div>
                 <Input
-                  label="Miteigentumsanteil"
+                  label={t('fields.coOwnershipShare')}
                   value={exposeData.weg?.coOwnershipShare ?? ''}
                   onChange={(value) => setWeg({ coOwnershipShare: value || null })}
-                  placeholder="z. B. 145/10.000"
+                  placeholder={t('steps.financial.coOwnershipPlaceholder')}
                 />
-                <DocumentSources sources={sources?.coOwnershipShare} currentValue={currentValues.coOwnershipShare} />
+                <DocumentSources
+                  sources={sources?.coOwnershipShare}
+                  currentValue={currentValues.coOwnershipShare}
+                />
               </div>
             </div>
           </GroupCard>
@@ -279,73 +322,76 @@ export function StepFinancial({
 
         {showInvestment && (
           <GroupCard
-            title="Miete & Rendite"
-            description="Angaben für vermietete oder als Kapitalanlage genutzte Objekte."
+            title={t('steps.financial.groupRentYield')}
+            description={t('steps.financial.groupRentYieldDescription')}
           >
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Toggle
-                label="Vermietet"
+                label={t('steps.financial.rented')}
                 checked={exposeData.rental?.isRented === true}
                 onChange={(checked) => setRental({ isRented: checked || null })}
               />
               <Toggle
-                label="Möbliert"
+                label={t('steps.financial.furnished')}
                 checked={exposeData.rental?.furnished === true}
                 onChange={(checked) => setRental({ furnished: checked || null })}
               />
               <div>
                 <UnitInput
-                  label="Monatsmiete"
-                  unit="€"
+                  label={t('steps.financial.monthlyRentLabel')}
+                  unit={t('expose.units.euro')}
                   type="number"
                   value={property.coldRent}
                   onChange={(value) => set('coldRent', value ? Number(value) : null)}
-                  placeholder="Optional"
+                  placeholder={t('common.optional')}
                 />
               </div>
               <div>
                 <UnitInput
-                  label="Jahresmiete"
-                  unit="€"
+                  label={t('fields.annualRent')}
+                  unit={t('expose.units.euro')}
                   type="number"
                   value={exposeData.rental?.annualRent}
                   onChange={(value) => setRental({ annualRent: value ? Number(value) : null })}
-                  placeholder="Optional"
+                  placeholder={t('common.optional')}
                 />
-                <DocumentSources sources={sources?.annualRent} currentValue={currentValues.annualRent} />
+                <DocumentSources
+                  sources={sources?.annualRent}
+                  currentValue={currentValues.annualRent}
+                />
               </div>
               <div>
                 <UnitInput
-                  label="Nebenkosten / Monat"
-                  unit="€"
+                  label={t('steps.financial.additionalCostsMonthly')}
+                  unit={t('expose.units.euro')}
                   type="number"
                   value={pricing.additionalCosts ?? property.additionalCosts}
                   onChange={(value) => set('additionalCosts', value ? Number(value) : null)}
-                  placeholder="Optional"
+                  placeholder={t('common.optional')}
                 />
               </div>
               <div>
                 <UnitInput
-                  label="Kaution"
-                  unit="€"
+                  label={t('fields.deposit')}
+                  unit={t('expose.units.euro')}
                   type="number"
                   value={property.deposit}
                   onChange={(value) => set('deposit', value ? Number(value) : null)}
-                  placeholder="Optional"
+                  placeholder={t('common.optional')}
                 />
                 <DocumentSources sources={sources?.deposit} currentValue={currentValues.deposit} />
               </div>
               <div>
                 <DateInput
-                  label="Verfügbar ab"
+                  label={t('fields.availableFrom')}
                   value={property.availableFrom}
                   onChange={(value) => set('availableFrom', value)}
                 />
               </div>
               <div>
                 <UnitInput
-                  label="Bruttorendite (Soll)"
-                  unit="%"
+                  label={t('fields.grossYieldTarget')}
+                  unit={t('expose.units.percent')}
                   type="number"
                   value={exposeData.investment?.grossYieldTargetPercent}
                   onChange={(value) =>
@@ -353,14 +399,17 @@ export function StepFinancial({
                       grossYieldTargetPercent: value ? Number(value) : null,
                     })
                   }
-                  placeholder="Optional"
+                  placeholder={t('common.optional')}
                 />
-                <DocumentSources sources={sources?.grossYieldTarget} currentValue={currentValues.grossYieldTarget} />
+                <DocumentSources
+                  sources={sources?.grossYieldTarget}
+                  currentValue={currentValues.grossYieldTarget}
+                />
               </div>
               <div>
                 <UnitInput
-                  label="Bruttorendite (Ist)"
-                  unit="%"
+                  label={t('fields.grossYieldActual')}
+                  unit={t('expose.units.percent')}
                   type="number"
                   value={exposeData.investment?.grossYieldActualPercent}
                   onChange={(value) =>
@@ -368,9 +417,12 @@ export function StepFinancial({
                       grossYieldActualPercent: value ? Number(value) : null,
                     })
                   }
-                  placeholder="Optional"
+                  placeholder={t('common.optional')}
                 />
-                <DocumentSources sources={sources?.grossYieldActual} currentValue={currentValues.grossYieldActual} />
+                <DocumentSources
+                  sources={sources?.grossYieldActual}
+                  currentValue={currentValues.grossYieldActual}
+                />
               </div>
             </div>
           </GroupCard>
@@ -404,49 +456,51 @@ export function StepLegal({
       },
     });
   const flagGroups = Object.entries(flags);
+  const { locale, t } = useI18n();
 
   return (
     <Section
-      title="Recht & Zusätzliches"
-      description="Kompakte rechtliche Angaben sowie dokumentierte Zusatzinformationen aus Ihren Unterlagen."
+      title={t('steps.legal.sectionTitle')}
+      description={t('steps.legal.sectionDescription')}
     >
       <div className="space-y-6">
-        <GroupCard title="Rechtliche Angaben">
+        <GroupCard title={t('steps.legal.groupLegal')}>
           <div className="grid gap-2 sm:grid-cols-2">
             {flagGroups.map(([key, value]) => (
               <Toggle
                 key={key}
-                label={LEGAL_FLAG_LABELS[key] ?? key}
+                label={t(LEGAL_FLAG_LABELS[key] ?? key)}
                 checked={value === true}
                 onChange={(checked) => setFlag(key as keyof typeof flags, checked)}
               />
             ))}
             {flagGroups.length === 0 && (
-              <p className="text-sm text-muted-foreground">Keine rechtlichen Angaben vorhanden.</p>
+              <p className="text-sm text-muted-foreground">{t('steps.legal.noLegalFlags')}</p>
             )}
           </div>
           <div className="mt-4">
             <DocumentSources sources={sources?.usufruct} currentValue={flags.usufruct} />
             <DocumentSources sources={sources?.leasehold} currentValue={flags.leasehold} />
             <DocumentSources sources={sources?.foreclosure} currentValue={flags.foreclosure} />
-            <DocumentSources sources={sources?.heritageProtection} currentValue={flags.heritageProtection} />
+            <DocumentSources
+              sources={sources?.heritageProtection}
+              currentValue={flags.heritageProtection}
+            />
           </div>
         </GroupCard>
 
         <GroupCard
-          title="Zusätzliche Informationen"
-          description="Diese Angaben stammen aus Ihren Dokumenten und bleiben dem jeweiligen Dokument zugeordnet."
+          title={t('steps.legal.groupAdditional')}
+          description={t('steps.legal.groupAdditionalDescription')}
         >
           {Object.keys(additionalInfo).length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Keine zusätzlichen Informationen aus Dokumenten erkannt.
-            </p>
+            <p className="text-sm text-muted-foreground">{t('steps.legal.noAdditionalInfo')}</p>
           ) : (
             <div className="space-y-4">
               {Object.entries(additionalInfo).map(([key, candidates]) => (
                 <div key={key} className="rounded-lg border bg-card p-3.5">
                   <p className="text-sm font-semibold text-foreground">
-                    {additionalInfoLabel(key)}
+                    {t(additionalInfoLabel(key))}
                   </p>
                   <div className="mt-2 space-y-1.5">
                     {candidates.map((candidate, index) => (
@@ -455,7 +509,7 @@ export function StepLegal({
                         className="flex items-start justify-between gap-3 text-xs"
                       >
                         <span className="min-w-0 text-foreground">
-                          {formatAdditionalValue(candidate.value)}
+                          {formatAdditionalValue(candidate.value, locale)}
                         </span>
                         <span className="shrink-0 text-muted-foreground">
                           {candidate.sourceFilename}
@@ -469,7 +523,7 @@ export function StepLegal({
                         .filter((candidate) => candidate.evidence)
                         .map((candidate, index) => (
                           <li key={`evidence-${index}`} className="text-xs text-muted-foreground">
-                            Beleg: “{candidate.evidence}”
+                            {t('steps.legal.evidence', { evidence: candidate.evidence ?? '' })}
                           </li>
                         ))}
                     </ul>
@@ -481,7 +535,7 @@ export function StepLegal({
         </GroupCard>
 
         <Textarea
-          label="Rechtliche Notizen"
+          label={t('steps.legal.legalNotes')}
           value={exposeData.additionalInformation.legalNotes}
           onChange={(value) =>
             updateExposeData({
@@ -491,21 +545,26 @@ export function StepLegal({
               },
             })
           }
-          placeholder="Besonderheiten, Auflassungsvormerkungen, Baulasten usw."
+          placeholder={t('steps.legal.legalNotesPlaceholder')}
         />
 
         <SectionNotes
           value={noteValue('legal')}
           onChange={(value) => setNote('legal', value)}
-          placeholder="Weitere rechtliche Hinweise…"
+          placeholder={t('steps.legal.notesPlaceholder')}
         />
       </div>
     </Section>
   );
 }
 
-function formatAdditionalValue(value: string | number | boolean | null): string {
-  if (value === null || value === undefined || value === '') return '—';
+function formatAdditionalValue(
+  value: string | number | boolean | null,
+  locale: Locale = defaultLocale,
+): string {
+  if (value === null || value === undefined || value === '') {
+    return translate(locale, 'steps.legal.emptyValue');
+  }
   return String(value);
 }
 
@@ -532,28 +591,53 @@ export function StepLocation({
 }) {
   const surroundings = property.surroundings ?? {};
   const currentValues = wizardCurrentValues(property);
+  const { t } = useI18n();
   const setSurrounding = (key: string, value: string) =>
     set('surroundings', { ...surroundings, [key]: value });
   const rows: Array<[string, string, string]> = [
-    ['transport', 'Öffentlicher Nahverkehr', 'z. B. U7, Buslinie 121'],
-    ['schools', 'Schulen', 'z. B. Grundschule am Park'],
-    ['childcare', 'Kindergärten', 'z. B. Kita Sonnenschein'],
-    ['shopping', 'Einkaufsmöglichkeiten', 'z. B. Supermarkt, Wochenmarkt'],
-    ['medical', 'Medizinische Versorgung', 'z. B. Hausarzt in 500 m'],
-    ['parks', 'Freizeit & Naherholung', 'z. B. Volkspark, Spielplatz'],
+    [
+      'transport',
+      t('steps.location.surroundings.public_transport'),
+      t('steps.location.surroundingsPlaceholders.public_transport'),
+    ],
+    [
+      'schools',
+      t('steps.location.surroundings.schools'),
+      t('steps.location.surroundingsPlaceholders.schools'),
+    ],
+    [
+      'childcare',
+      t('steps.location.surroundings.kindergartens'),
+      t('steps.location.surroundingsPlaceholders.kindergartens'),
+    ],
+    [
+      'shopping',
+      t('steps.location.surroundings.shopping'),
+      t('steps.location.surroundingsPlaceholders.shopping'),
+    ],
+    [
+      'medical',
+      t('steps.location.surroundings.medical_care'),
+      t('steps.location.surroundingsPlaceholders.medical_care'),
+    ],
+    [
+      'parks',
+      t('steps.location.surroundings.leisure'),
+      t('steps.location.surroundingsPlaceholders.leisure'),
+    ],
   ];
 
   return (
     <Section
-      title="Lage"
-      description="Standortkontext für das Exposé — getrennt von der postalischen Adresse."
+      title={t('steps.location.sectionTitle')}
+      description={t('steps.location.sectionDescription')}
     >
       <div className="space-y-6">
-        <GroupCard title="Umgebung">
+        <GroupCard title={t('steps.location.groupSurroundings')}>
           <div className="mb-4 grid gap-4 sm:grid-cols-2">
             <div>
               <Input
-                label="Stadtteil"
+                label={t('fields.district')}
                 value={exposeData.location.district ?? property.district ?? ''}
                 onChange={(value) => {
                   updateExposeData({
@@ -568,7 +652,7 @@ export function StepLocation({
                   });
                   set('district', value || null);
                 }}
-                placeholder="z. B. Neukölln"
+                placeholder={t('steps.location.districtPlaceholder')}
               />
               <DocumentSources sources={sources?.district} currentValue={currentValues.district} />
             </div>
@@ -597,7 +681,7 @@ export function StepLocation({
         )}
 
         <Textarea
-          label="Lagebeschreibung"
+          label={t('steps.location.locationDescriptionLabel')}
           value={exposeData.location.description ?? property.locationNote ?? ''}
           onChange={(value) => {
             updateExposeData({
@@ -605,7 +689,7 @@ export function StepLocation({
             });
             set('locationNote', value || null);
           }}
-          placeholder="Beschreibung der Lage und Umgebung…"
+          placeholder={t('steps.location.locationDescriptionPlaceholder')}
           rows={3}
         />
       </div>
@@ -628,20 +712,21 @@ export function StepYourInformation({
   setNote: (key: string, value: string) => void;
   noteValue: (key: string) => string;
 }) {
+  const { t } = useI18n();
   return (
     <Section
-      title="Ihre Angaben"
-      description="Ihre persönlichen Eindrücke. Diese Angaben helfen später bei der Erstellung des Exposés — sie sind keine Dokumentdaten."
+      title={t('steps.yourDetails.sectionTitle')}
+      description={t('steps.yourDetails.sectionDescription')}
     >
       <div className="space-y-5">
         <Textarea
-          label="Was macht diese Immobilie besonders?"
+          label={t('steps.yourDetails.specialLabel')}
           value={property.sellerDescription ?? ''}
           onChange={(value) => set('sellerDescription', value)}
-          placeholder="z. B. ruhige Lage, viel Licht, familiäre Nachbarschaft…"
+          placeholder={t('steps.yourDetails.specialPlaceholder')}
         />
         <Textarea
-          label="Was gefällt Ihnen persönlich besonders?"
+          label={t('steps.yourDetails.impressionsLabel')}
           value={exposeData.additionalInformation.sellerNotes ?? ''}
           onChange={(value) =>
             updateExposeData({
@@ -651,22 +736,22 @@ export function StepYourInformation({
               },
             })
           }
-          placeholder="Ihre eigenen Eindrücke und Erlebnisse…"
+          placeholder={t('steps.yourDetails.impressionsPlaceholder')}
         />
         <Textarea
-          label="Gibt es etwas, das Interessenten wissen sollten?"
+          label={t('steps.yourDetails.mustKnowLabel')}
           value={property.specialNotes ?? ''}
           onChange={(value) => set('specialNotes', value)}
-          placeholder="z. B. anstehende Modernisierungen, Besonderheiten des Hauses…"
+          placeholder={t('steps.yourDetails.mustKnowPlaceholder')}
         />
         <Textarea
-          label="Für wen ist die Immobilie besonders geeignet?"
+          label={t('steps.yourDetails.suitedForLabel')}
           value={property.targetAudience ?? ''}
           onChange={(value) => set('targetAudience', value)}
-          placeholder="z. B. junge Familien, Paare, Kapitalanleger…"
+          placeholder={t('steps.yourDetails.suitedForPlaceholder')}
         />
         <Textarea
-          label="Zusätzliche Notizen"
+          label={t('steps.yourDetails.notesLabel')}
           value={exposeData.additionalInformation.additionalInformation ?? ''}
           onChange={(value) =>
             updateExposeData({
@@ -676,17 +761,17 @@ export function StepYourInformation({
               },
             })
           }
-          placeholder="Alles Weitere, das für das Exposé wichtig sein könnte…"
+          placeholder={t('steps.yourDetails.notesPlaceholder')}
         />
         <div className="rounded-lg border border-dashed bg-muted/40 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Ihre Notizen
+            {t('steps.yourDetails.notesBoxHeading')}
           </p>
           <textarea
             className="mt-3 w-full resize-y rounded-md border bg-card p-2 text-sm"
             value={noteValue('yourInfo')}
             onChange={(event) => setNote('yourInfo', event.target.value)}
-            placeholder="Interne Notizen, die nicht ins Exposé fließen…"
+            placeholder={t('steps.yourDetails.internalNotesPlaceholder')}
           />
         </div>
       </div>

@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test \"app/create/[[]id[]]/document-prefill.test.ts\" \"app/create/[[]id[]]/field-provenance.test.ts\" \"app/create/[[]id[]]/review-checklist.test.ts\" \"app/create/[[]id[]]/wizard-steps.test.ts\" \"app/builder/[[]id[]]/expose-model.test.ts\" \"app/builder/[[]id[]]/expose-templates.test.ts\" \"app/expose/print/print-template.test.ts\"",
+    "test": "node --import tsx --test \"lib/i18n/i18n.test.ts\" \"app/create/[[]id[]]/document-prefill.test.ts\" \"app/create/[[]id[]]/field-provenance.test.ts\" \"app/create/[[]id[]]/review-checklist.test.ts\" \"app/create/[[]id[]]/wizard-steps.test.ts\" \"app/builder/[[]id[]]/expose-model.test.ts\" \"app/builder/[[]id[]]/expose-templates.test.ts\" \"app/expose/print/print-template.test.ts\"",
     "pw": "npx prettier --write ."
   },
   "dependencies": {

@@ -1,6 +1,7 @@
 'use client';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 import { EXPOSE_TEMPLATES } from '../expose-templates';
 import type { ExposeTemplateId } from '../expose-model';
 
@@ -15,14 +16,13 @@ export function TemplatePicker({
   value: ExposeTemplateId;
   onChange: (template: ExposeTemplateId) => void;
 }) {
+  const { t } = useI18n();
   return (
-    <div className="space-y-2" role="radiogroup" aria-label="Exposé-Design wählen">
+    <div className="space-y-2" role="radiogroup" aria-label={t('builder.picker.ariaLabel')}>
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Exposé-Design
+        {t('builder.picker.heading')}
       </p>
-      <p className="pb-1 text-xs text-muted-foreground">
-        Die Vorschau aktualisiert sich sofort. Inhalte, Reihenfolge und Medien bleiben erhalten.
-      </p>
+      <p className="pb-1 text-xs text-muted-foreground">{t('builder.picker.note')}</p>
       <div className="grid gap-3">
         {EXPOSE_TEMPLATES.map((template) => {
           const selected = template.id === value;
@@ -49,14 +49,12 @@ export function TemplatePicker({
                       selected ? 'text-primary' : 'text-foreground',
                     )}
                   >
-                    {template.label}
+                    {t(template.label)}
                   </span>
-                  {selected && (
-                    <Check className="size-3.5 text-primary" aria-hidden />
-                  )}
+                  {selected && <Check className="size-3.5 text-primary" aria-hidden />}
                 </span>
                 <span className="block truncate text-[11px] text-muted-foreground">
-                  {template.description}
+                  {t(template.description)}
                 </span>
               </span>
             </button>

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { translations } from '@/lib/i18n/core';
 import type { WizardFieldCandidate } from './document-prefill';
 import { marketingProvenanceLabel, resolveFieldProvenance } from './field-provenance';
 
@@ -130,7 +131,10 @@ describe('resolveFieldProvenance', () => {
   });
 
   it('resolves the marketing provenance label without internal jargon', () => {
-    assert.equal(marketingProvenanceLabel('ai'), 'Von KI erstellt · bearbeitbar');
-    assert.equal(marketingProvenanceLabel('user'), 'Von Ihnen bearbeitet');
+    assert.equal(
+      translations.de.t(marketingProvenanceLabel('ai')),
+      'Von KI erstellt · bearbeitbar',
+    );
+    assert.equal(translations.de.t(marketingProvenanceLabel('user')), 'Von Ihnen bearbeitet');
   });
 });

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { translations } from '@/lib/i18n/core';
 import type {
   FloorPlan3DRecord,
   LocationIntelligence,
@@ -30,6 +31,8 @@ import {
   travelModeLabel,
   visibleSections,
 } from './expose-model';
+
+const de = translations.de;
 
 function makeProperty(overrides: Partial<Property> = {}): Property {
   return {
@@ -305,9 +308,9 @@ describe('property isolation', () => {
 
   it('fact helpers read from Property without writing', () => {
     const property = makeProperty();
-    propertyFacts(property);
-    summaryFacts(property);
-    energyFacts(property);
+    propertyFacts(property, de);
+    summaryFacts(property, de);
+    energyFacts(property, de);
     assert.deepEqual(property, makeProperty());
   });
 });
@@ -320,10 +323,13 @@ describe('price presentation', () => {
         pricing: { ...makeProperty().exposeData!.pricing, buyerCommission: '3,57 % inkl. MwSt.' },
       },
     });
-    const price = priceFacts(property);
-    assert.equal(price?.primary.label, 'Kaufpreis');
+    const price = priceFacts(property, de);
+    assert.equal(price ? de.t(price.primary.label) : null, 'Kaufpreis');
     assert.ok(price?.primary.value.includes('469.000'), price?.primary.value);
-    assert.deepEqual(price?.secondary, [{ label: 'Provision', value: '3,57 % inkl. MwSt.' }]);
+    assert.deepEqual(
+      price?.secondary.map((f) => ({ label: de.t(f.label), value: f.value })),
+      [{ label: 'Provision', value: '3,57 % inkl. MwSt.' }],
+    );
   });
 
   it('rental properties show Kaltmiete with Nebenkosten and Kaution', () => {
@@ -343,26 +349,40 @@ describe('price presentation', () => {
         },
       },
     });
-    const price = priceFacts(property);
-    assert.equal(price?.primary.label, 'Kaltmiete');
+    const price = priceFacts(property, de);
+    assert.equal(price ? de.t(price.primary.label) : null, 'Kaltmiete');
     assert.ok(price?.primary.value.includes('1.200'), price?.primary.value);
-    assert.ok(price?.secondary[0]?.label === 'Nebenkosten' && price.secondary[0].value.includes('240'));
-    assert.ok(price?.secondary[1]?.label === 'Kaution' && price.secondary[1].value.includes('3.600'));
-    assert.ok(!JSON.stringify(price).includes('Kaufpreis'), 'no sale wording on rentals');
+    assert.ok(
+      price?.secondary[0] &&
+        de.t(price.secondary[0].label) === 'Nebenkosten' &&
+        price.secondary[0].value.includes('240'),
+    );
+    assert.ok(
+      price?.secondary[1] &&
+        de.t(price.secondary[1].label) === 'Kaution' &&
+        price.secondary[1].value.includes('3.600'),
+    );
+    assert.ok(
+      !JSON.stringify(price).includes(de.t('expose.facts.purchasePrice')),
+      'no sale wording on rentals',
+    );
   });
 
   it('returns null when no price information exists', () => {
     const property = makeProperty({ askingPrice: null, coldRent: null, exposeData: undefined });
-    assert.equal(priceFacts(property), null);
+    assert.equal(priceFacts(property, de), null);
   });
 
   it('cover facts only render values that exist', () => {
     const property = makeProperty();
-    assert.deepEqual(coverFacts(property), [
-      { label: 'Wohnfläche', value: '107 m²' },
-      { label: 'Zimmer', value: '4' },
-      { label: 'Baujahr', value: '1987' },
-    ]);
+    assert.deepEqual(
+      coverFacts(property, de).map((f) => ({ label: de.t(f.label), value: f.value })),
+      [
+        { label: 'Wohnfläche', value: '107 m²' },
+        { label: 'Zimmer', value: '4' },
+        { label: 'Baujahr', value: '1987' },
+      ],
+    );
     const sparse = makeProperty({
       livingArea: null,
       rooms: null,
@@ -377,7 +397,7 @@ describe('price presentation', () => {
         },
       },
     });
-    assert.deepEqual(coverFacts(sparse), []);
+    assert.deepEqual(coverFacts(sparse, de), []);
   });
 });
 
@@ -394,8 +414,8 @@ describe('energy presentation', () => {
         },
       },
     });
-    const facts = energyFacts(property);
-    const labels = facts.map((fact) => fact.label);
+    const facts = energyFacts(property, de);
+    const labels = facts.map((fact) => de.t(fact.label));
     assert.ok(labels.includes('Endenergieverbrauch'));
     assert.ok(!labels.includes('Endenergiebedarf'), 'demand must not be invented');
   });
@@ -414,16 +434,22 @@ describe('energy presentation', () => {
         },
       },
     });
-    const facts = energyFacts(property);
+    const facts = energyFacts(property, de);
     assert.ok(
-      facts.some((fact) => fact.label === 'Ausstellungsdatum' && fact.value === '01.03.2024'),
+      facts.some((fact) => de.t(fact.label) === 'Ausstellungsdatum' && fact.value === '01.03.2024'),
     );
-    assert.ok(facts.some((fact) => fact.label === 'Gültig bis' && fact.value === '01.03.2034'));
-    assert.ok(facts.some((fact) => fact.label === 'Endenergiebedarf' && fact.value === '78,5 kWh/(m²a)'));
+    assert.ok(
+      facts.some((fact) => de.t(fact.label) === 'Gültig bis' && fact.value === '01.03.2034'),
+    );
+    assert.ok(
+      facts.some(
+        (fact) => de.t(fact.label) === 'Endenergiebedarf' && fact.value === '78,5 kWh/(m²a)',
+      ),
+    );
   });
 
   it('returns an empty list when no energy data exists', () => {
-    assert.deepEqual(energyFacts(makeProperty()), []);
+    assert.deepEqual(energyFacts(makeProperty(), de), []);
   });
 });
 
@@ -448,7 +474,10 @@ describe('equipment presentation', () => {
 
   it('falls back to selected feature labels and free-form additions', () => {
     const property = makeProperty({ additionalFeatures: 'Carport' });
-    assert.deepEqual(structuredEquipment(property), ['Garten', 'Garage', 'Carport']);
+    assert.deepEqual(
+      structuredEquipment(property).map((item) => de.t(item)),
+      ['Garten', 'Garage', 'Carport'],
+    );
   });
 
   it('ignores empty structured equipment names', () => {
@@ -458,7 +487,10 @@ describe('equipment presentation', () => {
         equipment: [{ category: 'interior', name: '   ', description: null }],
       },
     });
-    assert.deepEqual(structuredEquipment(property), ['Garten', 'Garage']);
+    assert.deepEqual(
+      structuredEquipment(property).map((item) => de.t(item)),
+      ['Garten', 'Garage'],
+    );
   });
 });
 
@@ -477,9 +509,11 @@ describe('missing data', () => {
       images: [],
       exposeData: undefined,
     });
-    assert.deepEqual(propertyFacts(empty), []);
-    assert.deepEqual(energyFacts(empty), []);
-    assert.deepEqual(summaryFacts(empty), [{ label: 'Objektart', value: 'Haus' }]);
+    assert.deepEqual(propertyFacts(empty, de), []);
+    assert.deepEqual(energyFacts(empty, de), []);
+    assert.deepEqual(summaryFacts(empty, de), [
+      { label: 'expose.facts.propertyType', value: 'Haus' },
+    ]);
   });
 
   it('gallery helpers fall back to empty lists without photos', () => {
@@ -502,8 +536,8 @@ describe('missing data', () => {
         },
       },
     });
-    const facts = summaryFacts(property);
-    assert.equal(facts[0].label, 'Objektart');
+    const facts = summaryFacts(property, de);
+    assert.equal(de.t(facts[0].label), 'Objektart');
     assert.equal(facts[0].value, 'Wohnung');
   });
 });
@@ -525,7 +559,10 @@ describe('persistence', () => {
     const restored = JSON.parse(JSON.stringify(configuration)) as typeof configuration;
     assert.deepEqual(restored, configuration);
     assert.equal(isExposeConfiguration(restored), true);
-    assert.equal(restored.sections.find((section) => section.type === 'highlights')?.visible, false);
+    assert.equal(
+      restored.sections.find((section) => section.type === 'highlights')?.visible,
+      false,
+    );
   });
 });
 
@@ -577,9 +614,7 @@ function intelligenceWith(
   };
 }
 
-function propertyWithIntelligence(
-  intelligence: LocationIntelligence | undefined,
-): Property {
+function propertyWithIntelligence(intelligence: LocationIntelligence | undefined): Property {
   return makeProperty({
     exposeData: {
       ...makeProperty().exposeData!,
@@ -649,16 +684,13 @@ describe('nearby facility presentation', () => {
     assert.equal(rewe?.distanceMeters, 1400);
     assert.equal(rewe?.durationSeconds, Math.round((1400 / 80) * 60));
     assert.equal(rewe?.travelMode, 'foot');
-    assert.equal(rewe?.label, 'Supermarkt');
+    assert.equal(de.t(rewe!.label), 'Supermarkt');
   });
 
   it('picks the closest routed candidate for grouped categories', () => {
     const property = propertyWithIntelligence(
       intelligenceWith({
-        shopping: [
-          facility('grocery', 'Späti', 400),
-          facility('supermarket', 'Aldi', 900),
-        ],
+        shopping: [facility('grocery', 'Späti', 400), facility('supermarket', 'Aldi', 900)],
         dailyLife: [
           facility('restaurant', 'Gasthaus', 1500),
           facility('cafe', 'Kaffeerösterei', 600),
@@ -683,23 +715,23 @@ describe('nearby facility presentation', () => {
 
 describe('nearby facility formatting', () => {
   it('formats distances in German units', () => {
-    assert.equal(formatNearbyDistance(650), '650 m');
-    assert.equal(formatNearbyDistance(654), '650 m');
-    assert.equal(formatNearbyDistance(1400), '1,4 km');
-    assert.equal(formatNearbyDistance(998), '1000 m');
+    assert.equal(formatNearbyDistance(650, 'de'), '650 m');
+    assert.equal(formatNearbyDistance(654, 'de'), '650 m');
+    assert.equal(formatNearbyDistance(1400, 'de'), '1,4 km');
+    assert.equal(formatNearbyDistance(998, 'de'), '1000 m');
   });
 
   it('formats durations as minutes with a one-minute floor', () => {
-    assert.equal(formatNearbyDuration(480), '8 Min.');
-    assert.equal(formatNearbyDuration(30), '1 Min.');
-    assert.equal(formatNearbyDuration(5400), '90 Min.');
+    assert.equal(formatNearbyDuration(480, 'de'), '8 Min.');
+    assert.equal(formatNearbyDuration(30, 'de'), '1 Min.');
+    assert.equal(formatNearbyDuration(5400, 'de'), '90 Min.');
   });
 
   it('labels travel modes in German', () => {
-    assert.equal(travelModeLabel('foot'), 'zu Fuß');
-    assert.equal(travelModeLabel('bike'), 'mit dem Fahrrad');
-    assert.equal(travelModeLabel('car'), 'mit dem Auto');
-    assert.equal(travelModeLabel('transit'), 'mit Bus & Bahn');
+    assert.equal(de.t(travelModeLabel('foot')), 'zu Fuß');
+    assert.equal(de.t(travelModeLabel('bike')), 'mit dem Fahrrad');
+    assert.equal(de.t(travelModeLabel('car')), 'mit dem Auto');
+    assert.equal(de.t(travelModeLabel('transit')), 'mit Bus & Bahn');
   });
 });
 

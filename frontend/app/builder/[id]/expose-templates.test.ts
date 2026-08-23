@@ -17,6 +17,7 @@ import {
   wegFacts,
 } from './expose-model';
 import { EXPOSE_TEMPLATES, getExposeTemplate } from './expose-templates';
+import { translations } from '@/lib/i18n/core';
 
 function makeImage(overrides: Partial<PropertyImage> = {}): PropertyImage {
   return {
@@ -165,6 +166,7 @@ function render(
       marketingContent: content,
       expose,
       media: media ?? { images: property.images, documents },
+      translations: translations.de,
     }),
   );
 }
@@ -175,7 +177,7 @@ describe('expose template registry', () => {
       EXPOSE_TEMPLATES.map((template) => template.id),
       ['modern', 'classic', 'elegant'],
     );
-    const labels = EXPOSE_TEMPLATES.map((template) => template.label);
+    const labels = EXPOSE_TEMPLATES.map((template) => translations.de.t(template.label));
     assert.ok(labels.includes('Modern'));
     assert.ok(labels.includes('Klassisch'));
     assert.ok(labels.includes('Elegant'));
@@ -290,7 +292,11 @@ describe('expose branding', () => {
     const property = makeProperty();
     const configuration = {
       ...defaultExposeConfiguration(),
-      branding: { companyName: 'Eigene Firma', phone: '030 000', logoUrl: 'https://cdn.example.com/logo.png' },
+      branding: {
+        companyName: 'Eigene Firma',
+        phone: '030 000',
+        logoUrl: 'https://cdn.example.com/logo.png',
+      },
     };
     const branding = effectiveBranding(property, configuration);
     assert.equal(branding.companyName, 'Eigene Firma');
@@ -340,7 +346,11 @@ describe('expose branding', () => {
   it('renders branding in the document for every template', () => {
     const expose = {
       ...defaultExposeConfiguration(),
-      branding: { companyName: 'Luxus Immobilien', phone: '+49 30 123', logoUrl: '/uploads/logo.png' },
+      branding: {
+        companyName: 'Luxus Immobilien',
+        phone: '+49 30 123',
+        logoUrl: '/uploads/logo.png',
+      },
     };
     for (const template of EXPOSE_TEMPLATES) {
       const html = render(template.id, { expose });
@@ -381,9 +391,9 @@ describe('weg facts', () => {
         weg: { hausgeldEur: 390, maintenanceReserveEur: 5400, coOwnershipShare: '145/10.000' },
       },
     });
-    const facts = wegFacts(property);
+    const facts = wegFacts(property, translations.de);
     assert.deepEqual(
-      facts.map((fact) => fact.label),
+      facts.map((fact) => translations.de.t(fact.label)),
       ['Hausgeld', 'Instandhaltungsrücklage', 'Miteigentumsanteil'],
     );
     assert.ok(facts[0].value.includes('390'), facts[0].value);
@@ -395,16 +405,16 @@ describe('weg facts', () => {
         weg: { hausgeldEur: 390, maintenanceReserveEur: null, coOwnershipShare: null },
       },
     });
-    assert.equal(wegFacts(sparse).length, 1);
-    assert.equal(wegFacts(sparse)[0].label, 'Hausgeld');
-    assert.deepEqual(wegFacts(makeProperty()), []);
+    assert.equal(wegFacts(sparse, translations.de).length, 1);
+    assert.equal(translations.de.t(wegFacts(sparse, translations.de)[0].label), 'Hausgeld');
+    assert.deepEqual(wegFacts(makeProperty(), translations.de), []);
   });
 
   it('falls back to the legacy hausgeld field', () => {
     const property = makeProperty({ hausgeld: 350 });
-    const facts = wegFacts(property);
+    const facts = wegFacts(property, translations.de);
     assert.equal(facts.length, 1);
-    assert.equal(facts[0].label, 'Hausgeld');
+    assert.equal(translations.de.t(facts[0].label), 'Hausgeld');
     assert.ok(facts[0].value.includes('350'), facts[0].value);
   });
 
@@ -423,7 +433,10 @@ describe('weg facts', () => {
       );
       assert.ok(propertySection.includes('Hausgeld'), `${template.id} shows Hausgeld`);
       assert.ok(propertySection.includes('390'), `${template.id} shows the Hausgeld value`);
-      assert.ok(propertySection.includes('Instandhaltungsrücklage'), `${template.id} shows the reserve`);
+      assert.ok(
+        propertySection.includes('Instandhaltungsrücklage'),
+        `${template.id} shows the reserve`,
+      );
       assert.ok(propertySection.includes('Miteigentumsanteil'), `${template.id} shows the share`);
       assert.ok(propertySection.includes('145/10.000'), `${template.id} shows the share value`);
     }
@@ -588,9 +601,7 @@ describe('template rendering', () => {
         };
         move('gallery', 0);
         expose.sections = sections.map((section) =>
-          ['energy', 'documents'].includes(section.type)
-            ? { ...section, visible: false }
-            : section,
+          ['energy', 'documents'].includes(section.type) ? { ...section, visible: false } : section,
         );
         const html = render(template.id, { expose });
         assert.ok(!html.includes('id="expose-energy"'), 'hidden energy section is omitted');

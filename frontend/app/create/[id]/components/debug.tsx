@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { MapPin, LoaderCircle } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { useI18n } from '@/lib/i18n';
 import type { PropertyPayload, StructuredAddress } from '../types';
 
 // Leaflet touches the DOM at module evaluation time, so it must never be
@@ -9,9 +10,7 @@ import type { PropertyPayload, StructuredAddress } from '../types';
 // /create/[id] page from crashing during SSR.
 const DebugMap = dynamic(() => import('./map').then((m) => m.DebugMap), {
   ssr: false,
-  loading: () => (
-    <div className="h-80 w-full rounded-lg border border-[#e4d9b8] bg-[#eef1ec]" />
-  ),
+  loading: () => <div className="h-80 w-full rounded-lg border border-[#e4d9b8] bg-[#eef1ec]" />,
 });
 
 type GeocodingResult = {
@@ -57,13 +56,9 @@ export function AddressIntelligencePanel({
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [resolved, setResolved] = useState(false);
+  const { t } = useI18n();
   // Only re-query when the parts of the address that affect external lookups change.
-  const addressKey = [
-    address.street,
-    address.houseNumber,
-    address.postalCode,
-    address.city,
-  ]
+  const addressKey = [address.street, address.houseNumber, address.postalCode, address.city]
     .map((part) => (part ?? '').trim().toLocaleLowerCase())
     .join('|');
 
@@ -136,11 +131,13 @@ export function AddressIntelligencePanel({
   const geocoding = data?.geocoding as GeocodingResult | null | undefined;
   const research = data?.research as ResearchResult | null | undefined;
   const coordinates = geocoding?.coordinates;
-  const hasGeocoding = Boolean(geocoding?.coordinates || geocoding?.summary || geocoding?.facilities);
-  const claimCount = [
-    research?.mikrolage?.claims ?? [],
-    research?.makrolage?.claims ?? [],
-  ].reduce((total, claims) => total + claims.length, 0);
+  const hasGeocoding = Boolean(
+    geocoding?.coordinates || geocoding?.summary || geocoding?.facilities,
+  );
+  const claimCount = [research?.mikrolage?.claims ?? [], research?.makrolage?.claims ?? []].reduce(
+    (total, claims) => total + claims.length,
+    0,
+  );
   const sourceCount = research?.sources?.length ?? 0;
   const facilityCountValue = facilityCount(geocoding?.facilities);
   const hasAnyResult = hasGeocoding || Boolean(research?.mikrolage || research?.makrolage);
@@ -149,21 +146,16 @@ export function AddressIntelligencePanel({
     <div className="mt-6 rounded-lg border border-border bg-card p-4">
       <div className="flex items-center gap-2">
         <MapPin className="size-4 shrink-0 text-primary" aria-hidden />
-        <p className="text-sm font-semibold text-foreground">Standort &amp; Umgebung</p>
+        <p className="text-sm font-semibold text-foreground">{t('intelligence.heading')}</p>
         {loading && <LoaderCircle className="size-3.5 animate-spin text-muted-foreground" />}
       </div>
 
       {!resolved && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Wir prüfen die Lage der Adresse und ergänzen die Umgebungsangaben automatisch.
-        </p>
+        <p className="mt-2 text-xs text-muted-foreground">{t('intelligence.pending')}</p>
       )}
 
       {resolved && !hasAnyResult && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Für diese Adresse konnten derzeit keine automatischen Umgebungsangaben ermittelt werden.
-          Sie können die Felder oben auch selbst ergänzen.
-        </p>
+        <p className="mt-2 text-xs text-muted-foreground">{t('intelligence.noResult')}</p>
       )}
 
       {resolved && hasAnyResult && (
@@ -171,21 +163,24 @@ export function AddressIntelligencePanel({
           <ul className="grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
             {hasGeocoding && coordinates ? (
               <li>
-                <span className="font-medium text-foreground">Koordinaten</span> — Adresse wurde
-                eindeutig verortet.
+                <span className="font-medium text-foreground">{t('intelligence.coordinates')}</span>
+                {t('intelligence.coordinatesDetail')}
               </li>
             ) : null}
             {facilityCountValue > 0 ? (
               <li>
-                <span className="font-medium text-foreground">{facilityCountValue} Orte</span> in der
-                Umgebung (z.&nbsp;B. Nahverkehr, Einkauf, Schulen) für die Umgebungsangaben
-                übernommen.
+                <span className="font-medium text-foreground">
+                  {t('intelligence.facilitiesCount', { count: facilityCountValue })}
+                </span>
+                {t('intelligence.facilitiesDetail')}
               </li>
             ) : null}
             {claimCount > 0 ? (
               <li>
-                <span className="font-medium text-foreground">{claimCount} recherchierte Aussagen</span>{' '}
-                zur Lage mit {sourceCount} Quellen.
+                <span className="font-medium text-foreground">
+                  {t('intelligence.claimsCount', { count: claimCount })}
+                </span>{' '}
+                {t('intelligence.claimsDetail', { count: sourceCount })}
               </li>
             ) : null}
           </ul>
@@ -201,8 +196,7 @@ export function AddressIntelligencePanel({
                 }}
               />
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Kartenausschnitt mit der Position der Immobilie und ausgewählten Orten in der
-                Umgebung.
+                {t('intelligence.mapCaption')}
               </p>
             </div>
           ) : null}

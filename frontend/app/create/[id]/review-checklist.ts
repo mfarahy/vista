@@ -2,6 +2,7 @@ import type { PropertyPayload } from './types';
 import type { WizardFieldCandidate } from './document-prefill';
 import { formatExtractedValue, wizardFieldLabel } from './document-prefill';
 import { distinctSourceValues } from './field-provenance';
+import type { TranslationKey, Translator } from '@/lib/i18n/core';
 
 /**
  * Review-checklist logic (Phase 10). The Prüfung step shows only information
@@ -13,14 +14,7 @@ import { distinctSourceValues } from './field-provenance';
  */
 
 export type ReviewCategory =
-  | 'Objekt'
-  | 'Gebäude'
-  | 'Ausstattung'
-  | 'Energie'
-  | 'Finanzen'
-  | 'Dokumente'
-  | 'Fotos'
-  | 'Inhalt';
+  'Objekt' | 'Gebäude' | 'Ausstattung' | 'Energie' | 'Finanzen' | 'Dokumente' | 'Fotos' | 'Inhalt';
 
 export type ReviewIssueType = 'warning' | 'info';
 
@@ -51,6 +45,18 @@ export const REVIEW_CATEGORIES: ReviewCategory[] = [
   'Finanzen',
   'Dokumente',
 ];
+
+/** Translation key for each review category shown in the status strip. */
+export const REVIEW_CATEGORY_KEYS: Record<ReviewCategory, TranslationKey> = {
+  Objekt: 'reviewCategories.object',
+  Gebäude: 'reviewCategories.building',
+  Ausstattung: 'reviewCategories.features',
+  Energie: 'reviewCategories.energy',
+  Finanzen: 'reviewCategories.financial',
+  Dokumente: 'reviewCategories.documents',
+  Fotos: 'reviewCategories.photos',
+  Inhalt: 'reviewCategories.content',
+};
 
 const STEP_PROPERTY = 1;
 const STEP_FINANCIAL = 5;
@@ -132,16 +138,17 @@ function isEmpty(value: unknown): boolean {
 
 function missingIssue(
   id: string,
-  label: string,
+  labelKey: TranslationKey | string,
   category: ReviewCategory,
   editStep: number,
+  tr: Translator,
 ): ReviewIssue {
   return {
     id,
     type: 'warning',
     category,
-    title: `${label} fehlt`,
-    detail: 'Diese Angabe fehlt noch und ist für das Exposé wichtig.',
+    title: tr.t('reviewIssues.missingTitle', { label: tr.t(labelKey) }),
+    detail: tr.t('reviewIssues.missingDetail'),
     editStep,
   };
 }
@@ -149,9 +156,10 @@ function missingIssue(
 /**
  * Builds the review issues for a property. Missing optional information never
  * produces an issue — only core marketing facts, real document conflicts and
- * analysis/documentation state.
+ * analysis/documentation state. Labels are resolved through the given
+ * translator so the checklist renders in the active language.
  */
-export function buildReviewIssues(input: ReviewChecklistInput): ReviewIssue[] {
+export function buildReviewIssues(input: ReviewChecklistInput, tr: Translator): ReviewIssue[] {
   const issues: ReviewIssue[] = [];
   const data = input.property.exposeData;
   const details = data?.propertyDetails;
@@ -161,31 +169,38 @@ export function buildReviewIssues(input: ReviewChecklistInput): ReviewIssue[] {
   const coldRent = input.property.coldRent ?? data?.pricing?.rentPrice;
 
   if (isEmpty(livingArea)) {
-    issues.push(missingIssue('missing-livingArea', 'Wohnfläche', 'Objekt', STEP_PROPERTY));
+    issues.push(
+      missingIssue('missing-livingArea', 'fields.livingArea', 'Objekt', STEP_PROPERTY, tr),
+    );
   }
   if (isEmpty(rooms)) {
-    issues.push(missingIssue('missing-rooms', 'Zimmer', 'Objekt', STEP_PROPERTY));
+    issues.push(missingIssue('missing-rooms', 'fields.rooms', 'Objekt', STEP_PROPERTY, tr));
   }
   if (input.property.transactionType === 'rent') {
     if (isEmpty(coldRent)) {
-      issues.push(missingIssue('missing-rent', 'Kaltmiete', 'Finanzen', STEP_FINANCIAL));
+      issues.push(missingIssue('missing-rent', 'fields.coldRent', 'Finanzen', STEP_FINANCIAL, tr));
     }
   } else if (isEmpty(askingPrice)) {
-    issues.push(missingIssue('missing-price', 'Kaufpreis', 'Finanzen', STEP_FINANCIAL));
+    issues.push(
+      missingIssue('missing-price', 'fields.purchasePrice', 'Finanzen', STEP_FINANCIAL, tr),
+    );
   }
 
   for (const [field, sources] of Object.entries(input.sourcesByField)) {
     const distinct = distinctSourceValues(sources);
     if (distinct.length < 2) continue;
-    const context = FIELD_CONTEXT[field] ?? { category: 'Dokumente' as const, editStep: STEP_LEGAL };
+    const context = FIELD_CONTEXT[field] ?? {
+      category: 'Dokumente' as const,
+      editStep: STEP_LEGAL,
+    };
     issues.push({
       id: `conflict-${field}`,
       type: 'warning',
       category: context.category,
-      title: `Unterschiedliche Angaben in Dokumenten`,
-      detail: `${wizardFieldLabel(field)}: ${distinct
-        .map((value) => formatExtractedValue(value as string | number | boolean | null))
-        .join(' und ')}`,
+      title: tr.t('reviewIssues.conflictTitle'),
+      detail: `${tr.t(wizardFieldLabel(field))}: ${distinct
+        .map((value) => formatExtractedValue(value as string | number | boolean | null, tr.locale))
+        .join(tr.t('reviewIssues.and'))}`,
       editStep: context.editStep,
     });
   }
@@ -196,8 +211,11 @@ export function buildReviewIssues(input: ReviewChecklistInput): ReviewIssue[] {
       id: 'documents-failed',
       type: 'warning',
       category: 'Dokumente',
-      title: `${failed} ${failed === 1 ? 'Dokument konnte' : 'Dokumente konnten'} nicht analysiert werden`,
-      detail: 'Die Analyse kann erneut gestartet werden.',
+      title:
+        failed === 1
+          ? tr.t('reviewIssues.documentsFailedOne', { count: failed })
+          : tr.t('reviewIssues.documentsFailedMany', { count: failed }),
+      detail: tr.t('reviewIssues.documentsFailedDetail'),
       editStep: 0,
     });
   } else if (total === 0) {
@@ -205,8 +223,8 @@ export function buildReviewIssues(input: ReviewChecklistInput): ReviewIssue[] {
       id: 'documents-missing',
       type: 'info',
       category: 'Dokumente',
-      title: 'Keine Dokumente hochgeladen',
-      detail: 'Unterlagen helfen Vista, Angaben vorauszufüllen — der Assistent funktioniert auch ohne.',
+      title: tr.t('reviewIssues.documentsMissingTitle'),
+      detail: tr.t('reviewIssues.documentsMissingDetail'),
       editStep: 0,
     });
   } else if (analyzed < total) {
@@ -214,8 +232,8 @@ export function buildReviewIssues(input: ReviewChecklistInput): ReviewIssue[] {
       id: 'documents-pending',
       type: 'info',
       category: 'Dokumente',
-      title: `${analyzed} von ${total} Dokumenten analysiert`,
-      detail: 'Die restlichen Dokumente werden analysiert oder konnten nicht verarbeitet werden.',
+      title: tr.t('reviewIssues.documentsPendingTitle', { analyzed, total }),
+      detail: tr.t('reviewIssues.documentsPendingDetail'),
       editStep: 0,
     });
   }
@@ -225,8 +243,8 @@ export function buildReviewIssues(input: ReviewChecklistInput): ReviewIssue[] {
       id: 'photos-missing',
       type: 'info',
       category: 'Fotos',
-      title: 'Noch keine Fotos hochgeladen',
-      detail: 'Ein Exposé wirkt ohne Fotos unvollständig.',
+      title: tr.t('reviewIssues.photosMissingTitle'),
+      detail: tr.t('reviewIssues.photosMissingDetail'),
       editStep: STEP_PHOTOS,
     });
   }
@@ -236,8 +254,8 @@ export function buildReviewIssues(input: ReviewChecklistInput): ReviewIssue[] {
       id: 'content-missing',
       type: 'info',
       category: 'Inhalt',
-      title: 'Exposé-Inhalt noch nicht erzeugt',
-      detail: 'Vista kann den Text aus Ihren geprüften Angaben erzeugen.',
+      title: tr.t('reviewIssues.contentMissingTitle'),
+      detail: tr.t('reviewIssues.contentMissingDetail'),
       editStep: STEP_MARKETING_CONTENT,
     });
   }

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useI18n } from '@/lib/i18n';
 import type { Property } from '../../../create/[id]/types';
 import { Field } from '../../../create/[id]/components/ui';
 import type {
@@ -34,17 +35,19 @@ import type { ExposeMedia } from '../expose-model';
  */
 
 function EditableTag() {
+  const { t } = useI18n();
   return (
     <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
-      <Pencil className="size-3" aria-hidden /> Bearbeitbar
+      <Pencil className="size-3" aria-hidden /> {t('builder.editableTag')}
     </span>
   );
 }
 
 function ReadonlyTag() {
+  const { t } = useI18n();
   return (
     <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-      Nur-Lese · Objektdaten
+      {t('builder.readonlyTag')}
     </span>
   );
 }
@@ -76,8 +79,9 @@ function FactList({
   facts: Array<{ label: string; value: string }>;
   sourceNote: string;
 }) {
+  const { t } = useI18n();
   if (!facts.length) {
-    return <p className="text-sm text-muted-foreground">Keine Daten vorhanden.</p>;
+    return <p className="text-sm text-muted-foreground">{t('builder.noData')}</p>;
   }
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
@@ -89,7 +93,7 @@ function FactList({
             index % 2 === 0 ? 'bg-background' : 'bg-muted/30',
           )}
         >
-          <span className="text-muted-foreground">{fact.label}</span>
+          <span className="text-muted-foreground">{t(fact.label)}</span>
           <span className="font-medium text-foreground">{fact.value}</span>
         </div>
       ))}
@@ -100,7 +104,7 @@ function FactList({
   );
 }
 
-const READONLY_SOURCE_NOTE = 'Aus Ihren Objektdaten. Änderungen bitte im Assistenten vornehmen.';
+const READONLY_SOURCE_NOTE = 'builder.readonlySourceNote';
 
 /* ------------------------------------------------------------------ */
 /* Inhalt                                                              */
@@ -117,25 +121,26 @@ export function ContentEditor({
   setOverride: (key: keyof ExposeContentOverrides, value: string | string[]) => void;
   marketingFallback: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-6">
-      <EditorShell title="Titel & Untertitel" tag={<EditableTag />}>
+      <EditorShell title={t('builder.editorShell.titleSubtitle')} tag={<EditableTag />}>
         <div className="space-y-4">
-          <Field label="Titel" hint="Bearbeitet nur dieses Exposé — der KI-Inhalt bleibt erhalten.">
+          <Field label={t('steps.marketing.titleLabel')} hint={t('builder.editorShell.titleHint')}>
             <Input
               value={effective.title}
               onChange={(event) => setOverride('title', event.target.value)}
-              placeholder="z. B. Gepflegtes Einfamilienhaus mit Garten"
+              placeholder={t('builder.editorShell.titlePlaceholder')}
             />
           </Field>
-          <Field label="Untertitel">
+          <Field label={t('builder.editorShell.subtitleLabel')}>
             <Input
               value={effective.subtitle}
               onChange={(event) => setOverride('subtitle', event.target.value)}
-              placeholder="z. B. Reihenhaus in Berlin-Buckow"
+              placeholder={t('builder.editorShell.subtitlePlaceholder')}
             />
           </Field>
-          <Field label="Ort">
+          <Field label={t('builder.editorShell.cityLabel')}>
             <Input
               value={locationLine(property)}
               readOnly
@@ -149,39 +154,42 @@ export function ContentEditor({
         setOverride={setOverride}
         marketingFallback={marketingFallback}
       />
-      <EditorShell title="Objektbeschreibung" tag={<EditableTag />}>
+      <EditorShell title={t('builder.editorShell.descriptionTitle')} tag={<EditableTag />}>
         <Field
-          label="Beschreibung"
-          hint="Marketing-Text für dieses Exposé. Der KI-Text bleibt im Assistenten erhalten."
+          label={t('builder.editorShell.descriptionLabel')}
+          hint={t('builder.editorShell.descriptionHint')}
         >
           <Textarea
             value={effective.propertyDescription}
             onChange={(event) => setOverride('propertyDescription', event.target.value)}
             rows={7}
-            placeholder="z. B. Helle Räume, offener Grundriss und ein gepflegter Garten…"
+            placeholder={t('builder.editorShell.descriptionPlaceholder')}
           />
         </Field>
       </EditorShell>
-      <EditorShell title="Ausstattungsbeschreibung" tag={<EditableTag />}>
-        <Field label="Beschreibung" hint="Marketing-Text für dieses Exposé.">
+      <EditorShell title={t('builder.editorShell.equipmentTitle')} tag={<EditableTag />}>
+        <Field
+          label={t('builder.editorShell.descriptionLabel')}
+          hint={t('builder.editorShell.equipmentHint')}
+        >
           <Textarea
             value={effective.equipmentDescription}
             onChange={(event) => setOverride('equipmentDescription', event.target.value)}
             rows={5}
-            placeholder="z. B. Moderne Einbauküche, Terrasse mit Gartenzugang…"
+            placeholder={t('builder.editorShell.equipmentPlaceholder')}
           />
         </Field>
       </EditorShell>
-      <EditorShell title="Lagebeschreibung" tag={<EditableTag />}>
+      <EditorShell title={t('builder.editorShell.locationTitle')} tag={<EditableTag />}>
         <Field
-          label="Beschreibung"
-          hint="Marketing-Text für dieses Exposé. Falls kein KI-Text existiert, können Sie hier einen eigenen formulieren."
+          label={t('builder.editorShell.descriptionLabel')}
+          hint={t('builder.editorShell.locationHint')}
         >
           <Textarea
             value={effective.locationDescription}
             onChange={(event) => setOverride('locationDescription', event.target.value)}
             rows={5}
-            placeholder="z. B. Ruhige Wohngegend mit kurzen Wegen zu Geschäften…"
+            placeholder={t('builder.editorShell.locationPlaceholder')}
           />
         </Field>
       </EditorShell>
@@ -198,13 +206,14 @@ function HighlightsEditor({
   setOverride: (key: keyof ExposeContentOverrides, value: string | string[]) => void;
   marketingFallback: boolean;
 }) {
+  const { t } = useI18n();
   const update = (next: string[]) => setOverride('highlights', next);
   return (
-    <EditorShell title="Highlights" tag={<EditableTag />}>
+    <EditorShell title={t('builder.editorShell.highlightsTitle')} tag={<EditableTag />}>
       <p className="text-xs text-muted-foreground">
         {marketingFallback
-          ? 'Die KI-Vorschläge werden hier bearbeitet. Ihre Änderungen überschreiben nur dieses Exposé.'
-          : 'Noch keine Highlights vorhanden — fügen Sie eigene Stichpunkte hinzu.'}
+          ? t('builder.editorShell.highlightsNote')
+          : t('builder.editorShell.highlightsEmpty')}
       </p>
       <div className="space-y-2">
         {highlights.map((highlight, index) => (
@@ -219,13 +228,13 @@ function HighlightsEditor({
                 next[index] = event.target.value;
                 update(next);
               }}
-              placeholder={`Highlight ${index + 1}`}
+              placeholder={t('builder.editorShell.highlightPlaceholder', { number: index + 1 })}
             />
             <Button
               type="button"
               variant="ghost"
               size="icon-sm"
-              aria-label={`Highlight ${index + 1} entfernen`}
+              aria-label={t('builder.editorShell.removeHighlight', { number: index + 1 })}
               className="shrink-0 text-muted-foreground hover:text-destructive"
               onClick={() => update(highlights.filter((_, i) => i !== index))}
             >
@@ -235,7 +244,7 @@ function HighlightsEditor({
         ))}
       </div>
       <Button type="button" variant="outline" size="sm" onClick={() => update([...highlights, ''])}>
-        <Plus className="size-4" /> Highlight hinzufügen
+        <Plus className="size-4" /> {t('builder.editorShell.addHighlight')}
       </Button>
     </EditorShell>
   );
@@ -256,22 +265,20 @@ export function MediaEditor({
   setCoverImageId: (id: string) => void;
   toggleGalleryImage: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const photos = photoImages(property.images);
   const selected = new Set(galleryImagesOf(property, configuration).map((image) => image.id));
   return (
     <div className="space-y-6">
       <EditorShell
-        title="Titelfoto"
+        title={t('builder.editorShell.coverTitle')}
         tag={
           <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-            Auswahl für dieses Exposé
+            {t('builder.editorShell.selectionTag')}
           </span>
         }
       >
-        <p className="text-xs text-muted-foreground">
-          Das Titelfoto erscheint auf der Titelseite. Es bleibt beim Wechsel der Vorlage
-          unverändert.
-        </p>
+        <p className="text-xs text-muted-foreground">{t('builder.editorShell.coverNote')}</p>
         {photos.length ? (
           <div className="grid grid-cols-4 gap-2">
             {photos.map((image) => {
@@ -281,7 +288,9 @@ export function MediaEditor({
                   key={image.id}
                   type="button"
                   onClick={() => setCoverImageId(image.id)}
-                  aria-label={`${image.caption || image.fileName} als Titelfoto wählen`}
+                  aria-label={t('builder.editorShell.chooseAsCover', {
+                    name: image.caption || image.fileName,
+                  })}
                   aria-pressed={isCover}
                   className={cn(
                     'relative overflow-hidden rounded-lg border-2 transition-colors',
@@ -292,12 +301,12 @@ export function MediaEditor({
                 >
                   <img
                     src={apiAssetUrl(image.url)}
-                    alt={image.caption || image.fileName || 'Foto'}
+                    alt={image.caption || image.fileName || t('builder.editorShell.photoAlt')}
                     className="aspect-square w-full object-cover"
                   />
                   {isCover && (
                     <span className="absolute inset-x-0 bottom-0 bg-primary/90 py-0.5 text-center text-[10px] font-semibold text-primary-foreground">
-                      Titelbild
+                      {t('builder.editorShell.coverOverlay')}
                     </span>
                   )}
                 </button>
@@ -306,22 +315,19 @@ export function MediaEditor({
           </div>
         ) : (
           <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-            Keine Fotos vorhanden. Fotos bitte im Assistenten hochladen.
+            {t('builder.editorShell.noPhotos')}
           </p>
         )}
       </EditorShell>
       <EditorShell
-        title="Galerie"
+        title={t('builder.editorShell.galleryTitle')}
         tag={
           <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-            Auswahl für dieses Exposé
+            {t('builder.editorShell.selectionTag')}
           </span>
         }
       >
-        <p className="text-xs text-muted-foreground">
-          Wählen Sie, welche Fotos in der Galerie erscheinen. Das Titelfoto ist davon unabhängig
-          und wird beim Vorlagenwechsel nicht verändert.
-        </p>
+        <p className="text-xs text-muted-foreground">{t('builder.editorShell.galleryNote')}</p>
         {photos.length ? (
           <div className="grid grid-cols-4 gap-2">
             {photos.map((image) => {
@@ -331,7 +337,12 @@ export function MediaEditor({
                   key={image.id}
                   type="button"
                   onClick={() => toggleGalleryImage(image.id)}
-                  aria-label={`${image.caption || image.fileName} ${included ? 'aus' : 'in'} der Galerie`}
+                  aria-label={t('builder.editorShell.galleryToggle', {
+                    name: image.caption || image.fileName,
+                    state: included
+                      ? t('builder.editorShell.inGallery')
+                      : t('builder.editorShell.outOfGallery'),
+                  })}
                   aria-pressed={included}
                   className={cn(
                     'relative overflow-hidden rounded-lg border-2 transition-colors',
@@ -342,7 +353,7 @@ export function MediaEditor({
                 >
                   <img
                     src={apiAssetUrl(image.url)}
-                    alt={image.caption || image.fileName || 'Foto'}
+                    alt={image.caption || image.fileName || t('builder.editorShell.photoAlt')}
                     className="aspect-square w-full object-cover"
                   />
                   <span
@@ -359,7 +370,7 @@ export function MediaEditor({
           </div>
         ) : (
           <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-            Keine Fotos vorhanden. Fotos bitte im Assistenten hochladen.
+            {t('builder.editorShell.noPhotos')}
           </p>
         )}
       </EditorShell>
@@ -380,6 +391,7 @@ export function BrandingEditor({
   configuration: ExposeConfiguration;
   setBranding: (key: keyof ExposeBranding, value: string) => void;
 }) {
+  const { t } = useI18n();
   const agent = property.exposeData?.agent;
   const system = property.exposeData?.systemBranding;
   const branding = configuration.branding ?? {};
@@ -391,35 +403,40 @@ export function BrandingEditor({
     <div className="space-y-6">
       <p className="text-xs leading-5 text-muted-foreground">
         {hasAgentData
-          ? 'Felder sind vorbelegt aus dem Agent-Profil (Ihre Angaben). Leere Felder verwenden weiterhin die Agent-Daten; Ihre Eingaben gelten nur für dieses Exposé.'
-          : 'Keine Agent-Daten hinterlegt. Alle Angaben hier gelten nur für dieses Exposé.'}
+          ? t('builder.editorShell.contactIntroWithAgent')
+          : t('builder.editorShell.contactIntroWithoutAgent')}
       </p>
-      <EditorShell title="Firmenname" tag={<EditableTag />}>
-        <Field label="Firmenname" hint="Erscheint auf der Titelseite und im Kontaktbereich.">
+      <EditorShell title={t('builder.editorShell.companyTitle')} tag={<EditableTag />}>
+        <Field
+          label={t('builder.editorShell.companyTitle')}
+          hint={t('builder.editorShell.companyHint')}
+        >
           <Input
             value={branding.companyName ?? ''}
             onChange={(event) => setBranding('companyName', event.target.value)}
-            placeholder={agentCompany || 'z. B. Muster Immobilien GmbH'}
+            placeholder={agentCompany || t('builder.editorShell.companyPlaceholder')}
           />
         </Field>
       </EditorShell>
-      <EditorShell title="Logo" tag={<EditableTag />}>
+      <EditorShell title={t('builder.editorShell.logoTitle')} tag={<EditableTag />}>
         <Field
-          label="Logo-URL"
-          hint="Bitte eine direkte Bild-URL (https://…). Das Logo erscheint nur auf der Titelseite und im Kontaktbereich."
+          label={t('builder.editorShell.logoUrlLabel')}
+          hint={t('builder.editorShell.logoUrlHint')}
         >
           <Input
             value={branding.logoUrl ?? ''}
             onChange={(event) => setBranding('logoUrl', event.target.value)}
-            placeholder={agent?.logo || 'https://…'}
+            placeholder={agent?.logo || t('builder.editorShell.logoUrlPlaceholder')}
           />
         </Field>
         {branding.logoUrl?.trim() && (
           <div className="rounded-lg border border-border bg-muted/30 p-3">
-            <p className="mb-2 text-[11px] text-muted-foreground">Vorschau:</p>
+            <p className="mb-2 text-[11px] text-muted-foreground">
+              {t('builder.editorShell.previewLabel')}
+            </p>
             <img
               src={apiAssetUrl(branding.logoUrl)}
-              alt="Logo-Vorschau"
+              alt={t('builder.editorShell.logoPreviewAlt')}
               className="max-h-14 object-contain"
               onError={(event) => {
                 (event.target as HTMLImageElement).style.display = 'none';
@@ -428,28 +445,28 @@ export function BrandingEditor({
           </div>
         )}
       </EditorShell>
-      <EditorShell title="Kontakt" tag={<EditableTag />}>
+      <EditorShell title={t('builder.editorShell.contactTitle')} tag={<EditableTag />}>
         <div className="space-y-4">
-          <Field label="Telefon">
+          <Field label={t('fields.phone')}>
             <Input
               value={branding.phone ?? ''}
               onChange={(event) => setBranding('phone', event.target.value)}
-              placeholder={agent?.phone || '+49 …'}
+              placeholder={agent?.phone || t('builder.editorShell.phonePlaceholder')}
             />
           </Field>
-          <Field label="E-Mail">
+          <Field label={t('fields.email')}>
             <Input
               type="email"
               value={branding.email ?? ''}
               onChange={(event) => setBranding('email', event.target.value)}
-              placeholder={agent?.email || 'kontakt@…'}
+              placeholder={agent?.email || t('builder.editorShell.emailPlaceholder')}
             />
           </Field>
-          <Field label="Website">
+          <Field label={t('fields.website')}>
             <Input
               value={branding.website ?? ''}
               onChange={(event) => setBranding('website', event.target.value)}
-              placeholder={agent?.website || 'https://…'}
+              placeholder={agent?.website || t('builder.editorShell.websitePlaceholder')}
             />
           </Field>
         </div>
@@ -462,27 +479,23 @@ export function BrandingEditor({
 /* Objektdaten                                                         */
 /* ------------------------------------------------------------------ */
 
-export function FactsEditor({
-  property,
-  media,
-}: {
-  property: Property;
-  media: ExposeMedia;
-}) {
+export function FactsEditor({ property, media }: { property: Property; media: ExposeMedia }) {
+  const { locale, t } = useI18n();
+  const tr = { locale, t };
   const plans = floorplanImages(media.images);
   const features = equipmentFeatures(property);
   return (
     <div className="space-y-6">
-      <EditorShell title="Faktenübersicht" tag={<ReadonlyTag />}>
-        <FactList facts={summaryFacts(property)} sourceNote={READONLY_SOURCE_NOTE} />
+      <EditorShell title={t('builder.editorShell.factsTitle')} tag={<ReadonlyTag />}>
+        <FactList facts={summaryFacts(property, tr)} sourceNote={t(READONLY_SOURCE_NOTE)} />
       </EditorShell>
-      <EditorShell title="Objektdaten" tag={<ReadonlyTag />}>
-        <FactList facts={propertyFacts(property)} sourceNote={READONLY_SOURCE_NOTE} />
+      <EditorShell title={t('builder.editorShell.objectDataTitle')} tag={<ReadonlyTag />}>
+        <FactList facts={propertyFacts(property, tr)} sourceNote={t(READONLY_SOURCE_NOTE)} />
       </EditorShell>
-      <EditorShell title="Energieangaben" tag={<ReadonlyTag />}>
-        <FactList facts={energyFacts(property)} sourceNote={READONLY_SOURCE_NOTE} />
+      <EditorShell title={t('builder.editorShell.energyTitle')} tag={<ReadonlyTag />}>
+        <FactList facts={energyFacts(property, tr)} sourceNote={t(READONLY_SOURCE_NOTE)} />
       </EditorShell>
-      <EditorShell title="Ausstattungsmerkmale" tag={<ReadonlyTag />}>
+      <EditorShell title={t('builder.editorShell.featuresTitle')} tag={<ReadonlyTag />}>
         {features.length ? (
           <ul className="flex flex-wrap gap-2">
             {features.map((feature) => (
@@ -490,15 +503,15 @@ export function FactsEditor({
                 key={feature}
                 className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground"
               >
-                {feature}
+                {t(feature)}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">Keine Ausstattungsmerkmale hinterlegt.</p>
+          <p className="text-sm text-muted-foreground">{t('builder.editorShell.noFeatures')}</p>
         )}
       </EditorShell>
-      <EditorShell title="Grundrisse" tag={<ReadonlyTag />}>
+      <EditorShell title={t('builder.editorShell.floorplansTitle')} tag={<ReadonlyTag />}>
         {plans.length ? (
           <ul className="space-y-2">
             {plans.map((image) => (
@@ -508,7 +521,7 @@ export function FactsEditor({
               >
                 <img
                   src={apiAssetUrl(image.url)}
-                  alt={image.caption || image.fileName || 'Grundriss'}
+                  alt={image.caption || image.fileName || t('expose.altFallbacks.floorPlan')}
                   className="h-12 w-12 shrink-0 rounded object-cover"
                 />
                 <span className="min-w-0 truncate font-medium text-foreground">
@@ -519,7 +532,7 @@ export function FactsEditor({
           </ul>
         ) : (
           <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-            Keine Grundrisse vorhanden. Grundrisse bitte im Assistenten hochladen.
+            {t('builder.editorShell.noFloorplans')}
           </p>
         )}
       </EditorShell>
@@ -531,23 +544,20 @@ export function FactsEditor({
 const PUBLISHABLE_DOCUMENT_TYPES = ['grundriss', 'energieausweis'];
 
 function DocumentsEditor({ records }: { records: ExposeMedia['documents'] }) {
+  const { t } = useI18n();
   const documents = records.filter(
-    (record) =>
-      record.documentType && PUBLISHABLE_DOCUMENT_TYPES.includes(record.documentType),
+    (record) => record.documentType && PUBLISHABLE_DOCUMENT_TYPES.includes(record.documentType),
   );
   return (
     <EditorShell
-      title="Unterlagen"
+      title={t('builder.editorShell.documentsTitle')}
       tag={
         <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-          Nur Präsentationsunterlagen
+          {t('builder.editorShell.presentationOnlyTag')}
         </span>
       }
     >
-      <p className="text-xs text-muted-foreground">
-        Nur Grundrisse und Energieausweise erscheinen im Exposé. Vertrauliche Dokumente (z. B.
-        Grundbuchauszug, Kaufvertrag) werden nicht angezeigt.
-      </p>
+      <p className="text-xs text-muted-foreground">{t('builder.editorShell.documentsNote')}</p>
       {documents.length ? (
         <ul className="space-y-2">
           {documents.map((document) => (
@@ -559,14 +569,18 @@ function DocumentsEditor({ records }: { records: ExposeMedia['documents'] }) {
                 {document.filename}
               </span>
               <span className="shrink-0 text-[11px] text-muted-foreground">
-                {document.documentType === 'grundriss' ? 'Grundriss' : 'Energieausweis'}
+                {t(
+                  document.documentType === 'grundriss'
+                    ? 'builder.editorShell.documentTypeFloorplan'
+                    : 'builder.editorShell.documentTypeEnergy',
+                )}
               </span>
             </li>
           ))}
         </ul>
       ) : (
         <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-          Keine präsentationsfähigen Unterlagen vorhanden.
+          {t('builder.editorShell.noDocuments')}
         </p>
       )}
     </EditorShell>
@@ -578,6 +592,7 @@ function DocumentsEditor({ records }: { records: ExposeMedia['documents'] }) {
 /* ------------------------------------------------------------------ */
 
 export function ContactEditor({ property }: { property: Property }) {
+  const { t } = useI18n();
   const agent = property.exposeData?.agent;
   const address = agent?.address
     ? [
@@ -586,11 +601,8 @@ export function ContactEditor({ property }: { property: Property }) {
       ].filter(Boolean)
     : [];
   return (
-    <EditorShell title="Ansprechpartner" tag={<ReadonlyTag />}>
-      <p className="text-xs text-muted-foreground">
-        Kontaktdaten aus dem Agent-Profil. Änderungen bitte im Assistenten vornehmen — das
-        Exposé-Branding können Sie unter „Markenauftritt“ anpassen.
-      </p>
+    <EditorShell title={t('builder.editorShell.contactPersonTitle')} tag={<ReadonlyTag />}>
+      <p className="text-xs text-muted-foreground">{t('builder.editorShell.contactPersonNote')}</p>
       {agent?.name || agent?.company ? (
         <div className="space-y-1 text-sm">
           {agent?.name && <p className="font-medium text-foreground">{agent.name}</p>}
@@ -604,7 +616,7 @@ export function ContactEditor({ property }: { property: Property }) {
         </div>
       ) : (
         <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-          Kein Ansprechpartner hinterlegt. Kontaktdaten bitte im Assistenten eingeben.
+          {t('builder.editorShell.noContactPerson')}
         </p>
       )}
     </EditorShell>

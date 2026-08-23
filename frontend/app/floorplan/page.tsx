@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   LoaderCircle,
   Minus,
@@ -23,7 +23,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { VistaLogoLink } from '@/components/vista-logo';
+import { LanguageSwitcher } from '@/components/language-switcher';
 import { EmptyState } from '@/components/empty-state';
+import { useI18n, type Locale } from '@/lib/i18n';
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 4;
@@ -38,6 +40,7 @@ function ZoomableImage({
   alt: string;
   imageClassName?: string;
 }) {
+  const { t } = useI18n();
   const [scale, setScale] = useState(1);
   const clamp = (value: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value));
 
@@ -48,7 +51,7 @@ function ZoomableImage({
           type="button"
           variant="ghost"
           size="icon-xs"
-          aria-label="Zoom out"
+          aria-label={t('floorplan.zoomOut')}
           disabled={scale <= ZOOM_MIN}
           onClick={() => setScale((value) => clamp(+(value - ZOOM_STEP).toFixed(2)))}
         >
@@ -61,7 +64,7 @@ function ZoomableImage({
           type="button"
           variant="ghost"
           size="icon-xs"
-          aria-label="Zoom in"
+          aria-label={t('floorplan.zoomIn')}
           disabled={scale >= ZOOM_MAX}
           onClick={() => setScale((value) => clamp(+(value + ZOOM_STEP).toFixed(2)))}
         >
@@ -71,7 +74,7 @@ function ZoomableImage({
           type="button"
           variant="ghost"
           size="icon-xs"
-          aria-label="Reset zoom"
+          aria-label={t('floorplan.resetZoom')}
           onClick={() => setScale(1)}
         >
           <RotateCcw />
@@ -89,28 +92,35 @@ function ZoomableImage({
   );
 }
 
-const DEFAULT_SYSTEM_PROMPT =
-  'The input image is a 2D architectural floor plan. Preserve the EXACT room layout: the position and proportions of every wall, door, window, and each room must stay unchanged. Do NOT add, remove, merge, or resize any rooms. Do NOT change the architecture or the overall outline of the building.';
-
-const DEFAULT_USER_PROMPT =
-  'Transform the 2D floor plan into a realistic 3D interior/exterior visualization. Add realistic furniture appropriate to each room (sofas, beds, kitchen counters, tables, chairs, etc.). Use realistic materials (wood flooring, tiles, brick, glass, concrete, drywall) and realistic natural lighting with soft shadows. Render as a professional architectural 3D visualization with a slightly elevated isometric view so the full layout is visible. Warm inviting color palette, high detail, photorealistic.';
-
 const IMAGE_SIZES = [
-  ['landscape_4_3', 'Landscape 4:3'],
-  ['landscape_16_9', 'Landscape 16:9'],
-  ['square', 'Square'],
-  ['square_hd', 'Square HD'],
-  ['portrait_4_3', 'Portrait 4:3'],
-  ['portrait_16_9', 'Portrait 16:9'],
+  ['landscape_4_3', 'floorplan.sizeLandscape43'],
+  ['landscape_16_9', 'floorplan.sizeLandscape169'],
+  ['square', 'floorplan.sizeSquare'],
+  ['square_hd', 'floorplan.sizeSquareHd'],
+  ['portrait_4_3', 'floorplan.sizePortrait43'],
+  ['portrait_16_9', 'floorplan.sizePortrait169'],
 ] as const;
 
 type Result = { url: string; falUrl: string; seed: number };
 
 export default function FloorplanPage() {
+  const { locale, t } = useI18n();
   const [image, setImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
-  const [userPrompt, setUserPrompt] = useState(DEFAULT_USER_PROMPT);
+  // The persisted locale is applied after the first render, so the prompt
+  // defaults are seeded once the locale has settled. Untouched prompts follow
+  // a language switch; prompts the user has edited are never overwritten.
+  const [systemPrompt, setSystemPrompt] = useState('');
+  const [userPrompt, setUserPrompt] = useState('');
+  const [promptLocale, setPromptLocale] = useState<Locale | null>(null);
+  const [systemPromptEdited, setSystemPromptEdited] = useState(false);
+  const [userPromptEdited, setUserPromptEdited] = useState(false);
+  useEffect(() => {
+    if (promptLocale === locale) return;
+    setPromptLocale(locale);
+    if (!systemPromptEdited) setSystemPrompt(t('floorplan.systemPrompt'));
+    if (!userPromptEdited) setUserPrompt(t('floorplan.userPrompt'));
+  }, [locale, t, promptLocale, systemPromptEdited, userPromptEdited]);
   const [imageSize, setImageSize] = useState('landscape_4_3');
   const [guidanceScale, setGuidanceScale] = useState('3.5');
   const [numInferenceSteps, setNumInferenceSteps] = useState('28');
@@ -130,7 +140,7 @@ export default function FloorplanPage() {
 
   async function handleGenerate() {
     if (!image) {
-      setError('Please upload a 2D floor plan image first.');
+      setError(t('floorplan.needImageFirst'));
       return;
     }
     setLoading(true);
@@ -151,10 +161,10 @@ export default function FloorplanPage() {
         body: form,
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body?.error || `Request failed (${response.status})`);
+      if (!response.ok) throw new Error(t('floorplan.requestFailed', { status: response.status }));
       setResult(body as Result);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Generation failed');
+      setError(e instanceof Error ? e.message : t('floorplan.generationFailed'));
     } finally {
       setLoading(false);
     }
@@ -165,22 +175,25 @@ export default function FloorplanPage() {
       <header className="border-b">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
           <VistaLogoLink href="/" />
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-            <Building2 className="size-3.5" /> Floorplan · 3D test
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Building2 className="size-3.5" /> {t('floorplan.badge')}
+            </span>
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 
       <header className="mx-auto max-w-6xl px-5 pt-10 sm:px-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-          Proof of concept · fal.ai flux 2
+          {t('floorplan.kicker')}
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-          2D floor plan → <span className="text-primary">3D render</span>
+          {t('floorplan.heroStart')}{' '}
+          <span className="text-primary">{t('floorplan.heroHighlight')}</span>
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Upload a floor plan image, tune the system and user prompts, and get a 3D
-          interior/exterior visualization back. Nothing is persisted.
+          {t('floorplan.intro')}
         </p>
       </header>
 
@@ -188,23 +201,19 @@ export default function FloorplanPage() {
         <div className="flex flex-col gap-5 rounded-xl border bg-card p-6">
           <div className="space-y-2">
             <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-              Input image
+              {t('floorplan.inputImage')}
             </Label>
             {previewUrl ? (
               <div className="flex flex-col gap-2">
                 <div className="rounded-xl border bg-muted/30 px-3 py-3">
                   <ZoomableImage
                     src={previewUrl}
-                    alt="Floor plan preview"
+                    alt={t('floorplan.floorPlanPreview')}
                     imageClassName="max-h-48 rounded-lg object-contain"
                   />
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => inputRef.current?.click()}
-                >
-                  <RefreshCw className="size-4" /> Replace image
+                <Button type="button" variant="outline" onClick={() => inputRef.current?.click()}>
+                  <RefreshCw className="size-4" /> {t('floorplan.replaceImage')}
                 </Button>
               </div>
             ) : (
@@ -220,9 +229,9 @@ export default function FloorplanPage() {
               >
                 <Upload className="size-5" />
                 <span>
-                  Click or drop a floor plan image
+                  {t('floorplan.dropzone')}
                   <span className="block text-xs text-muted-foreground">
-                    JPG · PNG · WEBP, up to 15 MB
+                    {t('floorplan.dropzoneHint')}
                   </span>
                 </span>
               </button>
@@ -238,34 +247,40 @@ export default function FloorplanPage() {
 
           <div className="space-y-2">
             <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-              System prompt
+              {t('floorplan.systemPromptLabel')}
             </Label>
             <Textarea
               className="w-full resize-y"
               value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
+              onChange={(e) => {
+                setSystemPrompt(e.target.value);
+                setSystemPromptEdited(true);
+              }}
               rows={5}
-              placeholder="Rules the model must follow"
+              placeholder={t('floorplan.systemPromptPlaceholder')}
             />
           </div>
 
           <div className="space-y-2">
             <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-              User prompt
+              {t('floorplan.userPromptLabel')}
             </Label>
             <Textarea
               className="w-full resize-y"
               value={userPrompt}
-              onChange={(e) => setUserPrompt(e.target.value)}
+              onChange={(e) => {
+                setUserPrompt(e.target.value);
+                setUserPromptEdited(true);
+              }}
               rows={5}
-              placeholder="What to generate"
+              placeholder={t('floorplan.userPromptPlaceholder')}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                Image size
+                {t('floorplan.imageSize')}
               </Label>
               <SelectRoot value={imageSize} onValueChange={setImageSize}>
                 <SelectTrigger className="w-full">
@@ -274,7 +289,7 @@ export default function FloorplanPage() {
                 <SelectContent>
                   {IMAGE_SIZES.map(([value, label]) => (
                     <SelectItem key={value} value={value}>
-                      {label}
+                      {t(label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -282,7 +297,7 @@ export default function FloorplanPage() {
             </div>
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                Guidance scale
+                {t('floorplan.guidanceScale')}
               </Label>
               <Input
                 type="number"
@@ -294,7 +309,7 @@ export default function FloorplanPage() {
             </div>
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                Steps
+                {t('floorplan.steps')}
               </Label>
               <Input
                 type="number"
@@ -306,13 +321,13 @@ export default function FloorplanPage() {
             </div>
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                Seed (optional)
+                {t('floorplan.seed')}
               </Label>
               <Input
                 type="number"
                 value={seed}
                 onChange={(e) => setSeed(e.target.value)}
-                placeholder="random"
+                placeholder={t('floorplan.seedPlaceholder')}
               />
             </div>
           </div>
@@ -320,11 +335,11 @@ export default function FloorplanPage() {
           <Button type="button" onClick={handleGenerate} disabled={loading}>
             {loading ? (
               <>
-                <LoaderCircle className="size-4 animate-spin" /> Generating…
+                <LoaderCircle className="size-4 animate-spin" /> {t('floorplan.generating')}
               </>
             ) : (
               <>
-                <Sparkles className="size-4" /> Generate 3D render
+                <Sparkles className="size-4" /> {t('floorplan.generate')}
               </>
             )}
           </Button>
@@ -338,11 +353,13 @@ export default function FloorplanPage() {
 
         <div className="flex flex-col gap-4 rounded-xl border bg-card p-6">
           <div className="flex items-center justify-between">
-            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Output</Label>
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+              {t('floorplan.output')}
+            </Label>
             {result && (
               <Button variant="outline" size="sm" asChild>
                 <a href={apiAssetUrl(result.url)} target="_blank" rel="noreferrer">
-                  Open full size
+                  {t('floorplan.openFullSize')}
                 </a>
               </Button>
             )}
@@ -351,21 +368,21 @@ export default function FloorplanPage() {
             {loading ? (
               <div className="flex flex-col items-center gap-3 py-16 text-sm text-muted-foreground">
                 <LoaderCircle className="size-6 animate-spin text-primary" />
-                Rendering 3D visualization…
+                {t('floorplan.rendering')}
               </div>
             ) : result ? (
               <div className="w-full px-3 py-3">
                 <ZoomableImage
                   src={apiAssetUrl(result.url)}
-                  alt="Generated 3D render"
+                  alt={t('floorplan.generatedRender')}
                   imageClassName="max-h-[520px] w-full object-contain"
                 />
               </div>
             ) : (
               <EmptyState
                 icon={RefreshCw}
-                title="No render yet"
-                description="Upload a floor plan and generate a 3D visualization."
+                title={t('floorplan.emptyTitle')}
+                description={t('floorplan.emptyDescription')}
                 className="border-0 bg-transparent"
               />
             )}
@@ -373,12 +390,12 @@ export default function FloorplanPage() {
           {result && (
             <div className="space-y-1 text-xs text-muted-foreground">
               <p>
-                Seed: <span className="font-semibold text-foreground">{result.seed}</span> · Served
-                from{' '}
+                {t('floorplan.seedMeta', { seed: result.seed })} ·{' '}
+                {t('floorplan.servedFrom', { source: '' })}
                 <code className="rounded bg-muted px-1.5 py-0.5">{result.url}</code>
               </p>
               <p className="truncate">
-                fal.ai URL:{' '}
+                {t('floorplan.falUrl')}{' '}
                 <a
                   href={result.falUrl}
                   target="_blank"

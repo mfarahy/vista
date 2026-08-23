@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, ImageOverlay, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useI18n } from '@/lib/i18n';
 
 export type DebugPlace = {
   id?: string;
@@ -34,6 +35,7 @@ const placePin = L.divIcon({
 
 export function DebugMap({ intelligence }: { intelligence: DebugIntelligence }) {
   const [mounted, setMounted] = useState(false);
+  const { t } = useI18n();
   useEffect(() => setMounted(true), []);
   const { latitude, longitude } = intelligence.coordinates;
   const radiusMeters = intelligence.radiusMeters ?? 1000;
@@ -66,7 +68,7 @@ export function DebugMap({ intelligence }: { intelligence: DebugIntelligence }) 
       )}
       <Marker position={[latitude, longitude]} icon={propertyPin}>
         <Popup>
-          Property · {latitude.toFixed(5)}, {longitude.toFixed(5)}
+          {t('map.popupCoordinates', { lat: latitude.toFixed(5), lng: longitude.toFixed(5) })}
         </Popup>
       </Marker>
       {places.map((place) => (
@@ -76,7 +78,11 @@ export function DebugMap({ intelligence }: { intelligence: DebugIntelligence }) 
           icon={placePin}
         >
           <Popup>
-            {place.name} · {place.category} · {place.distanceMeters}m
+            {t('map.popupPlace', {
+              name: place.name ?? '',
+              category: place.category ?? '',
+              distance: place.distanceMeters ?? 0,
+            })}
           </Popup>
         </Marker>
       ))}

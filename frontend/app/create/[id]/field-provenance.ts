@@ -79,9 +79,7 @@ export function resolveFieldProvenance(
       conflicting: distinctValues.length > 1,
     };
   }
-  const matchingSources = allSources.filter((source) =>
-    valuesMatch(source.value, currentValue),
-  );
+  const matchingSources = allSources.filter((source) => valuesMatch(source.value, currentValue));
   if (matchingSources.length) {
     return {
       origin: 'document',
@@ -103,10 +101,11 @@ export function resolveFieldProvenance(
 }
 
 /**
- * German provenance label for a marketing-content field (source "ai" | "user").
- * User-edited fields are never overwritten by regeneration; the label makes
- * that visible without exposing the internal source record.
+ * Translation key of the provenance label for a marketing-content field
+ * (source "ai" | "user"). User-edited fields are never overwritten by
+ * regeneration; the label makes that visible without exposing the internal
+ * source record.
  */
 export function marketingProvenanceLabel(source: 'ai' | 'user'): string {
-  return source === 'user' ? 'Von Ihnen bearbeitet' : 'Von KI erstellt · bearbeitbar';
+  return source === 'user' ? 'provenance.userEditedShort' : 'provenance.aiGenerated';
 }

@@ -3,7 +3,14 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
-import type { FloorPlan3DModel, FloorPlan3DOpening, FloorPlan3DRoom, FloorPlan3DWall } from '@/app/create/[id]/types';
+import { useI18n } from '@/lib/i18n';
+import type { Translator } from '@/lib/i18n/core';
+import type {
+  FloorPlan3DModel,
+  FloorPlan3DOpening,
+  FloorPlan3DRoom,
+  FloorPlan3DWall,
+} from '@/app/create/[id]/types';
 
 /**
  * Three.js scene for the generated 3D floor plan model. Renders the
@@ -42,8 +49,7 @@ function addWall(group: THREE.Group, wall: FloorPlan3DWall) {
 
 function addOpening(group: THREE.Group, opening: FloorPlan3DOpening, kind: 'door' | 'window') {
   const height = Math.min(opening.height, kind === 'door' ? opening.height : 1.4);
-  const y =
-    kind === 'door' ? height / 2 + 0.02 : height / 2 + 0.95;
+  const y = kind === 'door' ? height / 2 + 0.02 : height / 2 + 0.95;
   const mesh = new THREE.Mesh(
     new THREE.BoxGeometry(opening.width, height, 0.06),
     boxMaterial(kind === 'door' ? COLORS.door : COLORS.window, kind === 'window' ? 0.75 : 1),
@@ -53,7 +59,12 @@ function addOpening(group: THREE.Group, opening: FloorPlan3DOpening, kind: 'door
   group.add(mesh);
 }
 
-function addRoom(group: THREE.Group, room: FloorPlan3DRoom, labelLayer: THREE.Group) {
+function addRoom(
+  group: THREE.Group,
+  room: FloorPlan3DRoom,
+  labelLayer: THREE.Group,
+  tr: Translator,
+) {
   const floor = new THREE.Mesh(
     new THREE.BoxGeometry(room.width, 0.12, room.depth),
     boxMaterial(COLORS.floor),
@@ -63,13 +74,16 @@ function addRoom(group: THREE.Group, room: FloorPlan3DRoom, labelLayer: THREE.Gr
 
   const label = document.createElement('div');
   label.className = 'floorplan-3d-label';
-  label.textContent = room.areaM2 ? `${room.name} · ${room.areaM2} m²` : room.name;
+  label.textContent = room.areaM2
+    ? tr.t('floorplan3d.roomLabel', { name: room.name, area: room.areaM2 })
+    : room.name;
   const object = new CSS2DObject(label);
   object.position.set(room.x, room.height + 0.35, room.y);
   labelLayer.add(object);
 }
 
 export function FloorPlan3DScene({ model }: { model: FloorPlan3DModel }) {
+  const { locale, t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -113,7 +127,7 @@ export function FloorPlan3DScene({ model }: { model: FloorPlan3DModel }) {
       const group = new THREE.Group();
       group.position.y = level * (levelHeight + LEVEL_GAP);
       for (const room of model.rooms) {
-        if (room.level === level) addRoom(group, room, labelLayer);
+        if (room.level === level) addRoom(group, room, labelLayer, { locale, t });
       }
       for (const wall of model.walls) {
         if (wall.level === level) addWall(group, wall);
@@ -128,7 +142,8 @@ export function FloorPlan3DScene({ model }: { model: FloorPlan3DModel }) {
     }
 
     const bounds = new THREE.Box3().setFromObject(structure);
-    if (bounds.isEmpty()) bounds.setFromCenterAndSize(new THREE.Vector3(0, 1, 0), new THREE.Vector3(4, 2, 4));
+    if (bounds.isEmpty())
+      bounds.setFromCenterAndSize(new THREE.Vector3(0, 1, 0), new THREE.Vector3(4, 2, 4));
     const center = bounds.getCenter(new THREE.Vector3());
     const radius = bounds.getSize(new THREE.Vector3()).length() || 4;
     camera.position.copy(center).add(new THREE.Vector3(radius * 0.9, radius * 0.8, radius * 1.1));
@@ -178,13 +193,13 @@ export function FloorPlan3DScene({ model }: { model: FloorPlan3DModel }) {
       renderer.domElement.remove();
       labelRenderer.domElement.remove();
     };
-  }, [model]);
+  }, [model, t]);
 
   return (
-    <div className="floorplan-3d-scene" aria-label="Interaktiver 3D-Grundriss">
+    <div className="floorplan-3d-scene" aria-label={t('floorplan3d.ariaLabel')}>
       <div ref={containerRef} className="floorplan-3d-canvas" />
       <span className="floorplan-3d-hint" aria-hidden="true">
-        Ziehen zum Drehen · Scrollen zum Zoomen
+        {t('floorplan3d.hint')}
       </span>
     </div>
   );

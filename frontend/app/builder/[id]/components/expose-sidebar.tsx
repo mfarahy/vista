@@ -1,6 +1,7 @@
 'use client';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 import type { ExposeSection } from '../expose-model';
 import { SECTION_DESCRIPTIONS, SECTION_LABELS } from '../expose-model';
 
@@ -21,10 +22,11 @@ export function ExposeSidebar({
   onToggle: (id: string) => void;
   onMove: (id: string, direction: -1 | 1) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-1">
       <p className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Abschnitte
+        {t('builder.sidebar.heading')}
       </p>
       {sections.map((section, index) => {
         const selected = section.id === selectedId;
@@ -42,7 +44,7 @@ export function ExposeSidebar({
             <div className="flex flex-col">
               <button
                 type="button"
-                aria-label={`${SECTION_LABELS[section.type]} nach oben`}
+                aria-label={t('builder.sidebar.moveUp', { name: t(SECTION_LABELS[section.type]) })}
                 disabled={index === 0}
                 onClick={() => onMove(section.id, -1)}
                 className="grid size-5 place-items-center rounded text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-25"
@@ -51,7 +53,9 @@ export function ExposeSidebar({
               </button>
               <button
                 type="button"
-                aria-label={`${SECTION_LABELS[section.type]} nach unten`}
+                aria-label={t('builder.sidebar.moveDown', {
+                  name: t(SECTION_LABELS[section.type]),
+                })}
                 disabled={index === sections.length - 1}
                 onClick={() => onMove(section.id, 1)}
                 className="grid size-5 place-items-center rounded text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-25"
@@ -72,32 +76,34 @@ export function ExposeSidebar({
                     selected ? 'font-semibold text-primary' : 'font-medium text-foreground',
                   )}
                 >
-                  {SECTION_LABELS[section.type]}
+                  {t(SECTION_LABELS[section.type])}
                 </span>
                 <span className="block truncate text-[11px] text-muted-foreground">
-                  {SECTION_DESCRIPTIONS[section.type]}
+                  {t(SECTION_DESCRIPTIONS[section.type])}
                 </span>
               </button>
             ) : (
               <div className="min-w-0 flex-1 px-1 text-left">
                 <span className="block truncate text-sm font-medium text-foreground">
-                  {SECTION_LABELS[section.type]}
+                  {t(SECTION_LABELS[section.type])}
                 </span>
                 <span className="block truncate text-[11px] text-muted-foreground">
-                  {SECTION_DESCRIPTIONS[section.type]}
+                  {t(SECTION_DESCRIPTIONS[section.type])}
                 </span>
               </div>
             )}
             <label
               className="flex shrink-0 cursor-pointer items-center gap-1.5 pr-1"
-              title={section.visible ? 'Im Exposé anzeigen' : 'Im Exposé ausblenden'}
+              title={section.visible ? t('builder.sidebar.show') : t('builder.sidebar.hide')}
             >
               <input
                 type="checkbox"
                 checked={section.visible}
                 onChange={() => onToggle(section.id)}
                 className="size-4 rounded border-border accent-primary"
-                aria-label={`${SECTION_LABELS[section.type]} anzeigen`}
+                aria-label={t('builder.sidebar.toggleVisibility', {
+                  name: t(SECTION_LABELS[section.type]),
+                })}
               />
             </label>
           </div>

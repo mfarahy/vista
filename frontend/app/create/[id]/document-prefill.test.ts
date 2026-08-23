@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { translations } from '@/lib/i18n/core';
+
 import type {
   DocumentRecord,
   UnderstandingAdditionalInfo,
@@ -258,21 +260,24 @@ describe('computeWizardPrefills', () => {
   });
 
   it('resolves internal wizard-field keys to German labels for the UI', () => {
-    assert.equal(wizardFieldLabel('livingArea'), 'Wohnfläche');
-    assert.equal(wizardFieldLabel('parcelNumber'), 'Flurstück');
-    assert.equal(wizardFieldLabel('monthlyRent'), 'Kaltmiete');
-    assert.equal(wizardFieldLabel('hausgeld'), 'Hausgeld');
-    assert.equal(wizardFieldLabel('maintenanceReserve'), 'Instandhaltungsrücklage');
-    assert.equal(wizardFieldLabel('coOwnershipShare'), 'Miteigentumsanteil');
+    assert.equal(translations.de.t(wizardFieldLabel('livingArea')), 'Wohnfläche');
+    assert.equal(translations.de.t(wizardFieldLabel('parcelNumber')), 'Flurstück');
+    assert.equal(translations.de.t(wizardFieldLabel('monthlyRent')), 'Kaltmiete');
+    assert.equal(translations.de.t(wizardFieldLabel('hausgeld')), 'Hausgeld');
+    assert.equal(
+      translations.de.t(wizardFieldLabel('maintenanceReserve')),
+      'Instandhaltungsrücklage',
+    );
+    assert.equal(translations.de.t(wizardFieldLabel('coOwnershipShare')), 'Miteigentumsanteil');
   });
 
   it('formats extracted values without internal jargon', () => {
-    assert.equal(formatExtractedValue(true), 'Ja');
-    assert.equal(formatExtractedValue(false), 'Nein');
-    assert.equal(formatExtractedValue(null), '—');
-    assert.equal(formatExtractedValue(145), '145');
-    assert.equal(formatExtractedValue('2024-03-01'), '01.03.2024');
-    assert.equal(formatExtractedValue('2025-12-31'), '31.12.2025');
+    assert.equal(formatExtractedValue(true, 'de'), 'Ja');
+    assert.equal(formatExtractedValue(false, 'de'), 'Nein');
+    assert.equal(formatExtractedValue(null, 'de'), '—');
+    assert.equal(formatExtractedValue(145, 'de'), '145');
+    assert.equal(formatExtractedValue('2024-03-01', 'de'), '01.03.2024');
+    assert.equal(formatExtractedValue('2025-12-31', 'de'), '31.12.2025');
   });
 });
 

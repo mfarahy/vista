@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { apiFetch, downloadPdf } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { VistaLogoLink } from '@/components/vista-logo';
+import { LanguageSwitcher } from '@/components/language-switcher';
 import type { DocumentRecord, MarketingContent, Property } from '../../create/[id]/types';
 import type {
   ExposeBranding,
@@ -32,6 +33,7 @@ import {
 } from './expose-model';
 import type { ExposeMedia } from './expose-model';
 import { getExposeTemplate } from './expose-templates';
+import { useI18n } from '@/lib/i18n';
 import { ExposeSidebar } from './components/expose-sidebar';
 import {
   BrandingEditor,
@@ -51,16 +53,26 @@ import { cn } from '@/lib/utils';
  */
 
 const BUILDER_GROUPS = [
-  { id: 'design', label: 'Design', icon: Palette },
-  { id: 'sections', label: 'Abschnitte', icon: LayoutList },
-  { id: 'content', label: 'Inhalt', icon: FileText },
-  { id: 'media', label: 'Medien', icon: ImageIcon },
-  { id: 'branding', label: 'Markenauftritt', icon: Building2 },
-  { id: 'facts', label: 'Objektdaten', icon: Database },
-  { id: 'contact', label: 'Kontakt', icon: UserRound },
+  { id: 'design', icon: Palette },
+  { id: 'sections', icon: LayoutList },
+  { id: 'content', icon: FileText },
+  { id: 'media', icon: ImageIcon },
+  { id: 'branding', icon: Building2 },
+  { id: 'facts', icon: Database },
+  { id: 'contact', icon: UserRound },
 ] as const;
 
 type BuilderGroupId = (typeof BUILDER_GROUPS)[number]['id'];
+
+const GROUP_KEYS: Record<BuilderGroupId, string> = {
+  design: 'builder.groups.design',
+  sections: 'builder.groups.sections',
+  content: 'builder.groups.content',
+  media: 'builder.groups.media',
+  branding: 'builder.groups.branding',
+  facts: 'builder.groups.objectData',
+  contact: 'builder.groups.contact',
+};
 
 export default function ExposeBuilderClient({
   property,
@@ -80,6 +92,7 @@ export default function ExposeBuilderClient({
     initialConfiguration,
   );
   const [activeGroup, setActiveGroup] = useState<BuilderGroupId>('design');
+  const { locale, t } = useI18n();
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -147,13 +160,13 @@ export default function ExposeBuilderClient({
         body: JSON.stringify(configuration),
       });
       if (!response.ok) {
-        toast.error('Die Exposé-Konfiguration konnte nicht gespeichert werden.');
+        toast.error(t('builder.saveFailed'));
         return;
       }
       setSavedSnapshot(configuration);
-      toast.success('Exposé-Konfiguration gespeichert');
+      toast.success(t('builder.saved'));
     } catch {
-      toast.error('Die Exposé-Konfiguration konnte nicht gespeichert werden.');
+      toast.error(t('builder.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -169,19 +182,19 @@ export default function ExposeBuilderClient({
           body: JSON.stringify(configuration),
         });
         if (!response.ok) {
-          toast.error('Die Exposé-Konfiguration konnte nicht gespeichert werden.');
+          toast.error(t('builder.saveFailed'));
           return;
         }
         setSavedSnapshot(configuration);
       }
       const filename = await downloadPdf(property.id);
       if (filename === null) {
-        toast.error('Das PDF konnte nicht erstellt werden. Bitte versuchen Sie es erneut.');
+        toast.error(t('builder.pdfFailed'));
         return;
       }
-      toast.success(`PDF erstellt: ${filename}`);
+      toast.success(t('builder.pdfCreated', { filename }));
     } catch {
-      toast.error('Das PDF konnte nicht erstellt werden. Bitte versuchen Sie es erneut.');
+      toast.error(t('builder.pdfFailed'));
     } finally {
       setExporting(false);
     }
@@ -193,48 +206,53 @@ export default function ExposeBuilderClient({
         <div className="flex min-w-0 items-center gap-4">
           <Button variant="outline" size="sm" asChild>
             <Link href={`/create/${property.id}`}>
-              <ArrowLeft className="size-4" /> <span className="hidden sm:inline">Assistent</span>
+              <ArrowLeft className="size-4" />{' '}
+              <span className="hidden sm:inline">{t('builder.backToWizard')}</span>
             </Link>
           </Button>
           <div className="hidden min-w-0 items-center gap-3 border-l pl-4 sm:flex">
             <VistaLogoLink href="/" />
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-foreground">Exposé Builder</p>
+              <p className="truncate text-sm font-medium text-foreground">{t('builder.title')}</p>
               <p className="truncate text-[11px] text-muted-foreground">
-                Vorlage: {selectedTemplate.label} · {configuration.sections.length} Abschnitte
+                {t('builder.subtitle', {
+                  template: t(selectedTemplate.label),
+                  count: configuration.sections.length,
+                })}
               </p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <LanguageSwitcher />
           <span className="hidden text-xs text-muted-foreground sm:block">
             {dirty ? (
-              <span className="text-amber-600">Ungespeicherte Änderungen</span>
+              <span className="text-amber-600">{t('builder.dirty')}</span>
             ) : (
               <span className="flex items-center gap-1.5">
-                <span className="size-1.5 rounded-full bg-emerald-500" /> Gespeichert
+                <span className="size-1.5 rounded-full bg-emerald-500" /> {t('builder.savedState')}
               </span>
             )}
           </span>
           <Button size="sm" onClick={save} disabled={saving || !dirty}>
             {saving ? (
               <>
-                <LoaderCircle className="size-4 animate-spin" /> Wird gespeichert…
+                <LoaderCircle className="size-4 animate-spin" /> {t('builder.saving')}
               </>
             ) : (
               <>
-                <Save className="size-4" /> Speichern
+                <Save className="size-4" /> {t('builder.save')}
               </>
             )}
           </Button>
           <Button size="sm" variant="outline" onClick={exportPdf} disabled={exporting}>
             {exporting ? (
               <>
-                <LoaderCircle className="size-4 animate-spin" /> PDF wird erstellt…
+                <LoaderCircle className="size-4 animate-spin" /> {t('builder.generatingPdf')}
               </>
             ) : (
               <>
-                <FileDown className="size-4" /> PDF erstellen
+                <FileDown className="size-4" /> {t('builder.createPdf')}
               </>
             )}
           </Button>
@@ -245,7 +263,7 @@ export default function ExposeBuilderClient({
         <div className="grid gap-6 xl:grid-cols-[400px_minmax(0,1fr)]">
           <div className="space-y-5">
             <nav
-              aria-label="Exposé-Builder"
+              aria-label={t('builder.navLabel')}
               className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-card p-1.5 shadow-sm sm:grid-cols-4 xl:grid-cols-2"
             >
               {BUILDER_GROUPS.map((group) => {
@@ -264,14 +282,16 @@ export default function ExposeBuilderClient({
                     )}
                   >
                     <group.icon className="size-4 shrink-0" aria-hidden />
-                    <span className="truncate">{group.label}</span>
+                    <span className="truncate">{t(GROUP_KEYS[group.id])}</span>
                   </button>
                 );
               })}
             </nav>
 
             <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
-              {activeGroup === 'design' && <TemplatePicker value={configuration.template} onChange={setTemplate} />}
+              {activeGroup === 'design' && (
+                <TemplatePicker value={configuration.template} onChange={setTemplate} />
+              )}
               {activeGroup === 'sections' && (
                 <ExposeSidebar
                   sections={configuration.sections}
@@ -308,7 +328,7 @@ export default function ExposeBuilderClient({
 
             <Button variant="outline" size="sm" className="w-full xl:hidden" asChild>
               <Link href={`/preview/${property.id}`}>
-                <FileDown className="size-4" /> Vorschau & PDF öffnen
+                <FileDown className="size-4" /> {t('builder.openPreviewMobile')}
               </Link>
             </Button>
           </div>
@@ -316,10 +336,10 @@ export default function ExposeBuilderClient({
           <section className="hidden min-w-0 rounded-xl border border-border bg-muted/40 p-4 shadow-sm lg:block sm:p-8">
             <div className="mx-auto mb-5 flex max-w-[794px] items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Live-Vorschau
+                {t('builder.livePreview')}
               </p>
               <p className="text-[11px] text-muted-foreground">
-                {selectedTemplate.label} · aktualisiert sich während der Bearbeitung
+                {t('builder.previewNote', { template: t(selectedTemplate.label) })}
               </p>
             </div>
             <div className="max-h-[calc(100vh-220px)] overflow-y-auto rounded-lg">
@@ -328,6 +348,7 @@ export default function ExposeBuilderClient({
                 marketingContent={effective}
                 expose={configuration}
                 media={media}
+                translations={{ locale, t }}
               />
             </div>
           </section>

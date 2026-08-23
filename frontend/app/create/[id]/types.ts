@@ -1,3 +1,5 @@
+import { defaultLocale, translate, type Locale, type TranslationKey } from '@/lib/i18n/core';
+
 export type ImageCategory = 'exterior' | 'interior' | 'floor_plan' | 'document';
 
 /** One editable marketing field with its provenance (ai | user). */
@@ -473,93 +475,86 @@ export type ExternalResearch = {
 };
 
 export const PROPERTY_TYPES = [
-  ['apartment', 'Wohnung'],
-  ['house', 'Haus'],
-  ['villa', 'Villa'],
-  ['penthouse', 'Penthouse'],
-  ['semi-detached', 'Doppelhaushälfte'],
-  ['terraced', 'Reihenhaus'],
-  ['other', 'Sonstiges'],
+  ['apartment', 'propertyType.apartment'],
+  ['house', 'propertyType.house'],
+  ['villa', 'propertyType.villa'],
+  ['penthouse', 'propertyType.penthouse'],
+  ['semi-detached', 'propertyType.semiDetached'],
+  ['terraced', 'propertyType.terraced'],
+  ['other', 'propertyType.other'],
 ] as const;
 
 /**
  * Normalized property subtypes per property type. The first tuple entry is the
  * canonical stored value (what the AI returns, see prompt.ts and
- * WIZARD_FIELD_TARGETS); the second is the German label shown in the wizard.
- * Values and labels live together here so the UI never hard-codes either in
- * more than one place.
+ * WIZARD_FIELD_TARGETS); the second is the translation key of the label shown
+ * in the wizard. Values and label keys live together here so the UI never
+ * hard-codes either in more than one place.
  */
-export const PROPERTY_SUBTYPES: Record<string, ReadonlyArray<readonly [string, string]>> = {
+export const PROPERTY_SUBTYPES: Record<string, ReadonlyArray<readonly [string, TranslationKey]>> = {
   apartment: [
-    ['condominium', 'Eigentumswohnung'],
-    ['groundFloorApartment', 'Erdgeschosswohnung'],
-    ['highGroundFloor', 'Hochparterre'],
-    ['storeyApartment', 'Etagenwohnung'],
-    ['maisonette', 'Maisonette'],
-    ['loft', 'Loft'],
-    ['terraceApartment', 'Terrassenwohnung'],
-    ['penthouse', 'Penthouse'],
-    ['atticApartment', 'Dachgeschoss'],
-    ['basementApartment', 'Souterrain'],
+    ['condominium', 'propertySubtype.condominium'],
+    ['groundFloorApartment', 'propertySubtype.groundFloorApartment'],
+    ['highGroundFloor', 'propertySubtype.highGroundFloor'],
+    ['storeyApartment', 'propertySubtype.storeyApartment'],
+    ['maisonette', 'propertySubtype.maisonette'],
+    ['loft', 'propertySubtype.loft'],
+    ['terraceApartment', 'propertySubtype.terraceApartment'],
+    ['penthouse', 'propertySubtype.penthouse'],
+    ['atticApartment', 'propertySubtype.atticApartment'],
+    ['basementApartment', 'propertySubtype.basementApartment'],
   ],
   house: [
-    ['singleFamilyHouse', 'Einfamilienhaus'],
-    ['semiDetached', 'Doppelhaushälfte'],
-    ['terraced', 'Reihenhaus'],
-    ['endTerraceHouse', 'Reihenendhaus'],
-    ['townhouse', 'Stadthaus'],
-    ['bungalow', 'Bungalow'],
-    ['villa', 'Villa'],
-    ['countryHouse', 'Landhaus'],
-    ['multiFamilyHouse', 'Mehrfamilienhaus'],
+    ['singleFamilyHouse', 'propertySubtype.singleFamilyHouse'],
+    ['semiDetached', 'propertySubtype.semiDetached'],
+    ['terraced', 'propertySubtype.terraced'],
+    ['endTerraceHouse', 'propertySubtype.endTerraceHouse'],
+    ['townhouse', 'propertySubtype.townhouse'],
+    ['bungalow', 'propertySubtype.bungalow'],
+    ['villa', 'propertySubtype.villa'],
+    ['countryHouse', 'propertySubtype.countryHouse'],
+    ['multiFamilyHouse', 'propertySubtype.multiFamilyHouse'],
   ],
-  villa: [['villa', 'Villa']],
-  penthouse: [['penthouse', 'Penthouse']],
-  'semi-detached': [['semiDetached', 'Doppelhaushälfte']],
+  villa: [['villa', 'propertySubtype.villa']],
+  penthouse: [['penthouse', 'propertySubtype.penthouse']],
+  'semi-detached': [['semiDetached', 'propertySubtype.semiDetached']],
   terraced: [
-    ['terraced', 'Reihenhaus'],
-    ['endTerraceHouse', 'Reihenendhaus'],
+    ['terraced', 'propertySubtype.terraced'],
+    ['endTerraceHouse', 'propertySubtype.endTerraceHouse'],
   ],
   other: [],
 };
-
-/** Resolves a stored subtype value (normalized or German) to its German label. */
-export function subtypeLabel(propertyType: string, value?: string | null): string {
-  if (!value) return '';
-  const options = PROPERTY_SUBTYPES[propertyType] ?? [];
-  return options.find(([key, label]) => key === value || label === value)?.[1] ?? value;
-}
 
 /** Resolves a stored subtype value to its normalized key (for Select values). */
 export function subtypeKey(propertyType: string, value?: string | null): string {
   if (!value) return '';
   const options = PROPERTY_SUBTYPES[propertyType] ?? [];
-  return options.find(([key, label]) => key === value || label === value)?.[0] ?? value;
+  return options.find(([key]) => key === value)?.[0] ?? value;
 }
 
 export function propertySubtypeOptions(
   propertyType: string,
-): ReadonlyArray<readonly [string, string]> {
+): ReadonlyArray<readonly [string, TranslationKey]> {
   return PROPERTY_SUBTYPES[propertyType] ?? [];
 }
 
 export const PROPERTY_USAGE_TYPES = [
-  ['ownerOccupied', 'Selbst genutzt'],
-  ['rental', 'Vermietet'],
-  ['investment', 'Kapitalanlage'],
-  ['mixed', 'Teilweise selbst genutzt'],
+  ['ownerOccupied', 'usageType.ownerOccupied'],
+  ['rental', 'usageType.rental'],
+  ['investment', 'usageType.investment'],
+  ['mixed', 'usageType.mixed'],
 ] as const;
 
 export const PROPERTY_CONDITIONS = [
-  ['unknown', 'Keine Angabe'],
-  ['firstOccupancy', 'Erstbezug'],
-  ['firstOccupancyAfterRenovation', 'Erstbezug nach Sanierung'],
-  ['wellMaintained', 'Gepflegt'],
-  ['modernized', 'Modernisiert'],
-  ['newLike', 'Neuwertig'],
-  ['needsRenovation', 'Renovierungsbedürftig'],
-  ['renovated', 'Renoviert'],
-  ['fullyRenovated', 'Vollständig renoviert'],
+  ['unknown', 'condition.unknown'],
+  ['firstOccupancy', 'condition.firstOccupancy'],
+  ['firstOccupancyAfterRenovation', 'condition.firstOccupancyAfterRenovation'],
+  ['wellMaintained', 'condition.wellMaintained'],
+  ['modernized', 'condition.modernized'],
+  ['newLike', 'condition.newLike'],
+  ['needsRenovation', 'condition.needsRenovation'],
+  ['renovated', 'condition.renovated'],
+  ['fullyRenovated', 'condition.fullyRenovated'],
 ] as const;
 
 /** Legacy condition values mapped onto the normalized domain condition set. */
@@ -571,7 +566,8 @@ const LEGACY_CONDITION_MAP: Record<string, string> = {
   'needs-renovation': 'needsRenovation',
 };
 
-export function conditionLabel(value?: string | null): string {
+/** Resolves a stored condition value to its translation key. */
+export function conditionLabel(value?: string | null): TranslationKey | string {
   if (!value) return '';
   const normalized = LEGACY_CONDITION_MAP[value] ?? value;
   return PROPERTY_CONDITIONS.find(([key]) => key === normalized)?.[1] ?? value;
@@ -583,74 +579,74 @@ export function normalizeCondition(value?: string | null): string {
 }
 
 export const BUILDING_STATUSES = [
-  ['new', 'Neubau'],
-  ['existing', 'Bestand'],
+  ['new', 'buildingStatus.new'],
+  ['existing', 'buildingStatus.existing'],
 ] as const;
 
 export const RENOVATION_STATUSES = [
-  ['firstOccupancyAfterRenovation', 'Erstbezug nach Sanierung'],
-  ['modernized', 'Modernisiert'],
-  ['renovated', 'Renoviert'],
-  ['fullyRenovated', 'Vollständig renoviert'],
+  ['firstOccupancyAfterRenovation', 'renovationStatus.firstOccupancyAfterRenovation'],
+  ['modernized', 'renovationStatus.modernized'],
+  ['renovated', 'renovationStatus.renovated'],
+  ['fullyRenovated', 'renovationStatus.fullyRenovated'],
 ] as const;
 
 export const ENERGY_CERTIFICATE_TYPES = [
-  ['needs_based', 'Bedarfsausweis'],
-  ['consumption_based', 'Verbrauchsausweis'],
-  ['not_available', 'Nicht verfügbar'],
-  ['unknown', 'Unbekannt'],
+  ['needs_based', 'energyCertificateType.needs_based'],
+  ['consumption_based', 'energyCertificateType.consumption_based'],
+  ['not_available', 'energyCertificateType.not_available'],
+  ['unknown', 'energyCertificateType.unknown'],
 ] as const;
 
 export const ENERGY_SOURCES = [
-  ['gas', 'Gas'],
-  ['oil', 'Öl'],
-  ['district_heating', 'Fernwärme'],
-  ['heat_pump', 'Wärmepumpe'],
-  ['electricity', 'Strom'],
-  ['wood', 'Holz'],
-  ['pellets', 'Pellets'],
-  ['other', 'Sonstige'],
+  ['gas', 'energySource.gas'],
+  ['oil', 'energySource.oil'],
+  ['district_heating', 'energySource.district_heating'],
+  ['heat_pump', 'energySource.heat_pump'],
+  ['electricity', 'energySource.electricity'],
+  ['wood', 'energySource.wood'],
+  ['pellets', 'energySource.pellets'],
+  ['other', 'energySource.other'],
 ] as const;
 
 export const FEATURE_OPTIONS = [
-  ['balcony', 'Balkon'],
-  ['terrace', 'Terrasse'],
-  ['garden', 'Garten'],
-  ['garage', 'Garage'],
-  ['parking', 'Stellplatz'],
-  ['elevator', 'Aufzug'],
-  ['basement', 'Keller'],
-  ['attic', 'Dachgeschoss'],
-  ['fitted-kitchen', 'Einbauküche'],
-  ['underfloor-heating', 'Fußbodenheizung'],
-  ['air-conditioning', 'Klimaanlage'],
-  ['guest-toilet', 'Gäste-WC'],
-  ['shower', 'Dusche'],
-  ['bathtub', 'Badewanne'],
-  ['carport', 'Carport'],
-  ['accessible', 'Barrierefrei'],
-  ['storage', 'Abstellraum'],
-  ['wardrobes', 'Einbauschränke'],
-  ['smart-home', 'Smart Home'],
-  ['energy-efficient', 'Energieeffizient'],
+  ['balcony', 'feature.balcony'],
+  ['terrace', 'feature.terrace'],
+  ['garden', 'feature.garden'],
+  ['garage', 'feature.garage'],
+  ['parking', 'feature.parking'],
+  ['elevator', 'feature.elevator'],
+  ['basement', 'feature.basement'],
+  ['attic', 'feature.attic'],
+  ['fitted-kitchen', 'feature.fitted-kitchen'],
+  ['underfloor-heating', 'feature.underfloor-heating'],
+  ['air-conditioning', 'feature.air-conditioning'],
+  ['guest-toilet', 'feature.guest-toilet'],
+  ['shower', 'feature.shower'],
+  ['bathtub', 'feature.bathtub'],
+  ['carport', 'feature.carport'],
+  ['accessible', 'feature.accessible'],
+  ['storage', 'feature.storage'],
+  ['wardrobes', 'feature.wardrobes'],
+  ['smart-home', 'feature.smart-home'],
+  ['energy-efficient', 'feature.energy-efficient'],
 ] as const;
 
 export const STEPS = [
-  'Dokumente',
-  'Objekt',
-  'Gebäude',
-  'Ausstattung',
-  'Energie',
-  'Finanzen',
-  'Recht & Zusätzliches',
-  'Lage',
-  'Ihre Angaben',
-  'Exposé-Inhalt',
-  'Fotos',
-  'Pläne & Dokumente',
-  'Agent',
-  'Prüfung',
-];
+  'wizard.steps.documents',
+  'wizard.steps.object',
+  'wizard.steps.building',
+  'wizard.steps.features',
+  'wizard.steps.energy',
+  'wizard.steps.financial',
+  'wizard.steps.legal',
+  'wizard.steps.location',
+  'wizard.steps.yourDetails',
+  'wizard.steps.marketing',
+  'wizard.steps.photos',
+  'wizard.steps.plans',
+  'wizard.steps.agent',
+  'wizard.steps.review',
+] as const;
 
 export type DocumentStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type DocumentType =
@@ -763,134 +759,135 @@ export type DocumentRecord = {
   updatedAt: string;
 };
 
-export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
-  grundbuchauszug: 'Grundbuchauszug',
-  grundriss: 'Grundriss',
-  energieausweis: 'Energieausweis',
-  expose: 'Exposé',
-  lageplan: 'Lageplan / Flurkarte',
-  wohnflaechenberechnung: 'Wohnflächenberechnung',
-  bauplan: 'Bauplan',
-  kaufvertrag: 'Kaufvertrag',
-  mietvertrag: 'Mietvertrag',
-  teilungserklaerung: 'Teilungserklärung',
-  property_photo: 'Immobilienfoto',
-  other: 'Sonstiges',
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, TranslationKey> = {
+  grundbuchauszug: 'documentType.grundbuchauszug',
+  grundriss: 'documentType.grundriss',
+  energieausweis: 'documentType.energieausweis',
+  expose: 'documentType.expose',
+  lageplan: 'documentType.lageplan',
+  wohnflaechenberechnung: 'documentType.wohnflaechenberechnung',
+  bauplan: 'documentType.bauplan',
+  kaufvertrag: 'documentType.kaufvertrag',
+  mietvertrag: 'documentType.mietvertrag',
+  teilungserklaerung: 'documentType.teilungserklaerung',
+  property_photo: 'documentType.property_photo',
+  other: 'documentType.other',
 };
 
-/** German display labels for the AI photo classification. */
-export const PHOTO_TYPE_LABELS: Record<PhotoType, string> = {
-  exterior: 'Außenansicht',
-  living_room: 'Wohnzimmer',
-  bedroom: 'Schlafzimmer',
-  kitchen: 'Küche',
-  bathroom: 'Badezimmer',
-  hallway: 'Diele / Flur',
-  office: 'Arbeitszimmer',
-  dining_room: 'Esszimmer',
-  balcony: 'Balkon',
-  terrace: 'Terrasse',
-  garden: 'Garten',
-  view: 'Ausblick',
-  garage: 'Garage',
-  parking: 'Stellplatz',
-  basement: 'Keller',
-  utility_room: 'Hauswirtschaftsraum',
-  other: 'Sonstiges',
+/** Translation keys for the AI photo classification labels. */
+export const PHOTO_TYPE_LABELS: Record<PhotoType, TranslationKey> = {
+  exterior: 'photoType.exterior',
+  living_room: 'photoType.living_room',
+  bedroom: 'photoType.bedroom',
+  kitchen: 'photoType.kitchen',
+  bathroom: 'photoType.bathroom',
+  hallway: 'photoType.hallway',
+  office: 'photoType.office',
+  dining_room: 'photoType.dining_room',
+  balcony: 'photoType.balcony',
+  terrace: 'photoType.terrace',
+  garden: 'photoType.garden',
+  view: 'photoType.view',
+  garage: 'photoType.garage',
+  parking: 'photoType.parking',
+  basement: 'photoType.basement',
+  utility_room: 'photoType.utility_room',
+  other: 'photoType.other',
 };
 
-/** German display labels for the AI photo tags. */
-export const PHOTO_TAG_LABELS: Record<string, string> = {
-  'fitted-kitchen': 'Einbauküche',
-  'parquet-floor': 'Parkettboden',
-  'laminate-floor': 'Laminatboden',
-  tiles: 'Fliesen',
-  balcony: 'Balkon',
-  terrace: 'Terrasse',
-  garden: 'Garten',
-  bathtub: 'Badewanne',
-  shower: 'Dusche',
-  'guest-toilet': 'Gäste-WC',
-  fireplace: 'Kamin',
-  'large-windows': 'Große Fenster',
-  'built-in-wardrobes': 'Einbauschränke',
-  garage: 'Garage',
-  parking: 'Stellplatz',
+/** Translation keys for the AI photo tags. */
+export const PHOTO_TAG_LABELS: Record<string, TranslationKey> = {
+  'fitted-kitchen': 'photoTag.fitted-kitchen',
+  'parquet-floor': 'photoTag.parquet-floor',
+  'laminate-floor': 'photoTag.laminate-floor',
+  tiles: 'photoTag.tiles',
+  balcony: 'photoTag.balcony',
+  terrace: 'photoTag.terrace',
+  garden: 'photoTag.garden',
+  bathtub: 'photoTag.bathtub',
+  shower: 'photoTag.shower',
+  'guest-toilet': 'photoTag.guest-toilet',
+  fireplace: 'photoTag.fireplace',
+  'large-windows': 'photoTag.large-windows',
+  'built-in-wardrobes': 'photoTag.built-in-wardrobes',
+  garage: 'photoTag.garage',
+  parking: 'photoTag.parking',
 };
 
-export function photoTypeLabel(type: PhotoType | null | undefined): string {
+/** Translation key for a photo type, falling back to the raw type. */
+export function photoTypeLabel(type: PhotoType | null | undefined): TranslationKey | string {
   if (!type) return '';
   return PHOTO_TYPE_LABELS[type] ?? type;
 }
 
-export const LEGAL_FLAG_LABELS: Record<string, string> = {
-  usufruct: 'Nießbrauch',
-  leasehold: 'Erbbaurecht',
-  foreclosure: 'Zwangsversteigerung',
-  heritageProtection: 'Denkmalschutz',
+export const LEGAL_FLAG_LABELS: Record<string, TranslationKey> = {
+  usufruct: 'legalFlag.usufruct',
+  leasehold: 'legalFlag.leasehold',
+  foreclosure: 'legalFlag.foreclosure',
+  heritageProtection: 'legalFlag.heritageProtection',
 };
 
-/** German display label for an additional-information key extracted from documents. */
-export function additionalInfoLabel(key: string): string {
-  const labels: Record<string, string> = {
-    parcelNumber: 'Flurstück',
-    plotNumber: 'Flurstück',
-    landRegisterDistrict: 'Gemarkung / Amtsgericht',
-    landRegisterSheet: 'Grundbuchblatt',
-    owners: 'Eingetragene Eigentümer',
-    registeredOwners: 'Eingetragene Eigentümer',
-    owner_name: 'Eigentümer',
-    encumbrances: 'Eingetragene Belastungen',
-    registeredEncumbrances: 'Eingetragene Belastungen',
-    landCharges: 'Grundschulden',
-    registeredLandCharges: 'Grundschulden',
-    easements: 'Wegerechte / Dienstbarkeiten',
-    rightsOfWay: 'Wegerechte',
-    buildingRestrictions: 'Baulasten',
-    usufruct: 'Nießbrauch',
-    leasehold: 'Erbbaurecht',
-    foreclosure: 'Zwangsversteigerung',
-    heritageProtection: 'Denkmalschutz',
-    orientation: 'Ausrichtung',
-    owner: 'Eigentümer',
-    landRegister: 'Grundbuch',
-    municipal_district: 'Verwaltungsbezirk',
-    cadastral_flur: 'Flur',
-    cadastral_gemarkung: 'Gemarkung',
-    building_plot_area: 'Baugrundstück',
-    projected_building_footprint: 'Geplante Bebauungsfläche',
-    projected_building_dimensions: 'Gebäudemaße',
-    document_date: 'Datum',
-    wegAdministrator: 'WEG-Verwaltung',
-    specialUseRights: 'Sondernutzungsrechte',
-    specialUseRight: 'Sondernutzungsrecht',
-    coOwnership: 'Miteigentumsanteil',
-    ownershipStructure: 'Eigentümerstruktur',
-    wegInformation: 'WEG-Informationen',
-    legalRestrictions: 'Rechtliche Einschränkungen',
-    houseRules: 'Hausordnung',
-    registryCourt: 'Amtsgericht',
-    landRegisterDistrictOrLocation: 'Gemarkung / Ort',
-    encumbrancesAndRestrictions: 'Eingetragene Belastungen',
-    additionalRestriction: 'Weitere Einschränkung',
-    documentDate: 'Datum',
-    cadastralDistrict: 'Gemarkung',
-    cadastralFlur: 'Flur',
-    buildablePlotArea: 'Baugrundstück',
-    projectedBuildingDimensions: 'Gebäudemaße',
-    registeredOwner: 'Eingetragene Eigentümer',
-    approvalInformation: 'Genehmigung',
-    planDate: 'Plangebäudedatum',
-    calculationDate: 'Berechnungsdatum',
-    calculatedBy: 'Berechnet von',
-    listedRooms: 'Aufgeführte Räume',
-    primaryEnergyDemand: 'Primärenergiebedarf',
-    numberOfApartments: 'Anzahl Wohnungen',
-    energyCertificateIssuer: 'Aussteller',
-    registrationNumber: 'Registriernummer',
-    flur: 'Flur',
-    ownershipTransferDate: 'Eigentumsübertragung',
-    legalInformation: 'Rechtliche Informationen',
+/** Translation key for an additional-information key extracted from documents. */
+export function additionalInfoLabel(key: string): TranslationKey | string {
+  const labels: Record<string, TranslationKey> = {
+    parcelNumber: 'additionalInfo.parcelNumber',
+    plotNumber: 'additionalInfo.plotNumber',
+    landRegisterDistrict: 'additionalInfo.landRegisterDistrict',
+    landRegisterSheet: 'additionalInfo.landRegisterSheet',
+    owners: 'additionalInfo.owners',
+    registeredOwners: 'additionalInfo.registeredOwners',
+    owner_name: 'additionalInfo.owner_name',
+    encumbrances: 'additionalInfo.encumbrances',
+    registeredEncumbrances: 'additionalInfo.registeredEncumbrances',
+    landCharges: 'additionalInfo.landCharges',
+    registeredLandCharges: 'additionalInfo.registeredLandCharges',
+    easements: 'additionalInfo.easements',
+    rightsOfWay: 'additionalInfo.rightsOfWay',
+    buildingRestrictions: 'additionalInfo.buildingRestrictions',
+    usufruct: 'additionalInfo.usufruct',
+    leasehold: 'additionalInfo.leasehold',
+    foreclosure: 'additionalInfo.foreclosure',
+    heritageProtection: 'additionalInfo.heritageProtection',
+    orientation: 'additionalInfo.orientation',
+    owner: 'additionalInfo.owner',
+    landRegister: 'additionalInfo.landRegister',
+    municipal_district: 'additionalInfo.municipal_district',
+    cadastral_flur: 'additionalInfo.cadastral_flur',
+    cadastral_gemarkung: 'additionalInfo.cadastral_gemarkung',
+    building_plot_area: 'additionalInfo.building_plot_area',
+    projected_building_footprint: 'additionalInfo.projected_building_footprint',
+    projected_building_dimensions: 'additionalInfo.projected_building_dimensions',
+    document_date: 'additionalInfo.document_date',
+    wegAdministrator: 'additionalInfo.wegAdministrator',
+    specialUseRights: 'additionalInfo.specialUseRights',
+    specialUseRight: 'additionalInfo.specialUseRight',
+    coOwnership: 'additionalInfo.coOwnership',
+    ownershipStructure: 'additionalInfo.ownershipStructure',
+    wegInformation: 'additionalInfo.wegInformation',
+    legalRestrictions: 'additionalInfo.legalRestrictions',
+    houseRules: 'additionalInfo.houseRules',
+    registryCourt: 'additionalInfo.registryCourt',
+    landRegisterDistrictOrLocation: 'additionalInfo.landRegisterDistrictOrLocation',
+    encumbrancesAndRestrictions: 'additionalInfo.encumbrancesAndRestrictions',
+    additionalRestriction: 'additionalInfo.additionalRestriction',
+    documentDate: 'additionalInfo.documentDate',
+    cadastralDistrict: 'additionalInfo.cadastralDistrict',
+    cadastralFlur: 'additionalInfo.cadastralFlur',
+    buildablePlotArea: 'additionalInfo.buildablePlotArea',
+    projectedBuildingDimensions: 'additionalInfo.projectedBuildingDimensions',
+    registeredOwner: 'additionalInfo.registeredOwner',
+    approvalInformation: 'additionalInfo.approvalInformation',
+    planDate: 'additionalInfo.planDate',
+    calculationDate: 'additionalInfo.calculationDate',
+    calculatedBy: 'additionalInfo.calculatedBy',
+    listedRooms: 'additionalInfo.listedRooms',
+    primaryEnergyDemand: 'additionalInfo.primaryEnergyDemand',
+    numberOfApartments: 'additionalInfo.numberOfApartments',
+    energyCertificateIssuer: 'additionalInfo.energyCertificateIssuer',
+    registrationNumber: 'additionalInfo.registrationNumber',
+    flur: 'additionalInfo.flur',
+    ownershipTransferDate: 'additionalInfo.ownershipTransferDate',
+    legalInformation: 'additionalInfo.legalInformation',
   };
   return labels[key] ?? key;
 }
@@ -1000,14 +997,19 @@ export const initialPayload = (property: Property): PropertyPayload => {
   };
 };
 
-export const pretty = (value: string | number | null | undefined) =>
-  value === null || value === undefined || value === '' ? 'Nicht angegeben' : String(value);
+export const pretty = (
+  value: string | number | null | undefined,
+  locale: Locale = defaultLocale,
+) =>
+  value === null || value === undefined || value === ''
+    ? translate(locale, 'common.notSpecified')
+    : String(value);
 
-export const money = (value?: number | null) =>
+export const money = (value?: number | null, locale: Locale = defaultLocale) =>
   value
-    ? new Intl.NumberFormat('de-DE', {
+    ? new Intl.NumberFormat(locale, {
         style: 'currency',
         currency: 'EUR',
         maximumFractionDigits: 0,
       }).format(value)
-    : 'Nicht angegeben';
+    : translate(locale, 'common.notSpecified');

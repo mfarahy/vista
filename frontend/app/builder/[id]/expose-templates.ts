@@ -1,8 +1,14 @@
-import type { EffectiveMarketingContent, ExposeConfiguration, ExposeMedia, ExposeTemplateId } from './expose-model';
+import type {
+  EffectiveMarketingContent,
+  ExposeConfiguration,
+  ExposeMedia,
+  ExposeTemplateId,
+} from './expose-model';
 import { ModernExposeTemplate } from './components/modern-expose-template';
 import { ClassicExposeTemplate } from './components/classic-expose-template';
 import { ElegantExposeTemplate } from './components/elegant-expose-template';
 import type { Property } from '../../create/[id]/types';
+import type { Translator } from '@/lib/i18n/core';
 
 /**
  * Exposé template registry (Phase 11).
@@ -22,6 +28,8 @@ export type ExposeTemplateProps = {
   marketingContent: EffectiveMarketingContent;
   expose: ExposeConfiguration;
   media: ExposeMedia;
+  /** Locale-bound translator for the rendered document (defaults to English). */
+  translations?: Translator;
 };
 
 export type ExposeTemplateDefinition = {
@@ -34,20 +42,20 @@ export type ExposeTemplateDefinition = {
 export const EXPOSE_TEMPLATES: ExposeTemplateDefinition[] = [
   {
     id: 'modern',
-    label: 'Modern',
-    description: 'Kontrastreiche Titelseite mit dunklem Design',
+    label: 'templates.modern',
+    description: 'templates.modernDescription',
     component: ModernExposeTemplate,
   },
   {
     id: 'classic',
-    label: 'Klassisch',
-    description: 'Traditionelles Exposé für klassische Vermittlung',
+    label: 'templates.classic',
+    description: 'templates.classicDescription',
     component: ClassicExposeTemplate,
   },
   {
     id: 'elegant',
-    label: 'Elegant',
-    description: 'Editorial-Design für hochwertige Immobilien',
+    label: 'templates.elegant',
+    description: 'templates.elegantDescription',
     component: ElegantExposeTemplate,
   },
 ];

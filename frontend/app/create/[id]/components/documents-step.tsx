@@ -14,6 +14,7 @@ import {
 import { apiAssetUrl, apiFetch } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { defaultLocale, translate, useI18n, type Locale, type TranslationKey } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { DocumentRecord } from '../types';
@@ -28,7 +29,8 @@ import {
   additionalInfoLabel,
   conditionLabel,
   photoTypeLabel,
-  subtypeLabel,
+  propertySubtypeOptions,
+  subtypeKey,
 } from '../types';
 import { Section } from './ui';
 import {
@@ -43,115 +45,127 @@ import {
 const ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
 
 /** Categories of the "Gefundene Informationen" overview (spec §16). */
-const FOUND_CATEGORIES: Array<{ label: string; fields: Array<[string, string]> }> = [
+const FOUND_CATEGORIES: Array<{
+  category: 'address' | 'object' | 'building' | 'financials' | 'energy';
+  fields: string[];
+}> = [
   {
-    label: 'Adresse',
+    category: 'address',
+    fields: ['street', 'houseNumber', 'postalCode', 'city', 'district', 'state', 'country'],
+  },
+  {
+    category: 'object',
     fields: [
-      ['street', 'Straße'],
-      ['houseNumber', 'Hausnummer'],
-      ['postalCode', 'PLZ'],
-      ['city', 'Ort'],
-      ['district', 'Stadtteil'],
-      ['state', 'Bundesland'],
-      ['country', 'Land'],
+      'propertyType',
+      'propertySubtype',
+      'usageType',
+      'livingArea',
+      'usableArea',
+      'plotArea',
+      'rooms',
+      'bedrooms',
+      'bathrooms',
+      'guestToilets',
+      'floor',
     ],
   },
   {
-    label: 'Objekt',
+    category: 'building',
     fields: [
-      ['propertyType', 'Objektart'],
-      ['propertySubtype', 'Objektunterart'],
-      ['usageType', 'Verwendungszweck'],
-      ['livingArea', 'Wohnfläche'],
-      ['usableArea', 'Nutzfläche'],
-      ['plotArea', 'Grundstücksfläche'],
-      ['rooms', 'Zimmer'],
-      ['bedrooms', 'Schlafzimmer'],
-      ['bathrooms', 'Badezimmer'],
-      ['guestToilets', 'Gäste-WCs'],
-      ['floor', 'Etage'],
+      'yearBuilt',
+      'buildingStatus',
+      'condition',
+      'renovationStatus',
+      'lastModernizationYear',
+      'numberOfFloors',
+      'basement',
+      'attic',
     ],
   },
   {
-    label: 'Gebäude',
+    category: 'financials',
     fields: [
-      ['yearBuilt', 'Baujahr'],
-      ['buildingStatus', 'Objektstatus'],
-      ['condition', 'Zustand'],
-      ['renovationStatus', 'Sanierungsstatus'],
-      ['lastModernizationYear', 'Letzte Modernisierung'],
-      ['numberOfFloors', 'Etagen'],
-      ['basement', 'Keller'],
-      ['attic', 'Dachgeschoss'],
+      'askingPrice',
+      'pricePerM2',
+      'monthlyRent',
+      'annualRent',
+      'additionalCosts',
+      'deposit',
+      'commissionRate',
+      'commissionPayer',
+      'hausgeld',
+      'maintenanceReserve',
+      'coOwnershipShare',
+      'grossYieldTarget',
+      'grossYieldActual',
+      'availableFrom',
     ],
   },
   {
-    label: 'Finanzen',
+    category: 'energy',
     fields: [
-      ['askingPrice', 'Kaufpreis'],
-      ['pricePerM2', 'Kaufpreis / m²'],
-      ['monthlyRent', 'Kaltmiete'],
-      ['annualRent', 'Jahresmiete'],
-      ['additionalCosts', 'Nebenkosten'],
-      ['deposit', 'Kaution'],
-      ['commissionRate', 'Provisionssatz'],
-      ['commissionPayer', 'Provisionszahler'],
-      ['hausgeld', 'Hausgeld'],
-      ['maintenanceReserve', 'Instandhaltungsrücklage'],
-      ['coOwnershipShare', 'Miteigentumsanteil'],
-      ['grossYieldTarget', 'Bruttorendite (Soll)'],
-      ['grossYieldActual', 'Bruttorendite (Ist)'],
-      ['availableFrom', 'Verfügbar ab'],
-    ],
-  },
-  {
-    label: 'Energie',
-    fields: [
-      ['energyClass', 'Effizienzklasse'],
-      ['energyDemand', 'Endenergiebedarf'],
-      ['energyConsumption', 'Endenergieverbrauch'],
-      ['heatingType', 'Heizungsart'],
-      ['primaryEnergySource', 'Energieträger'],
-      ['yearOfConstruction', 'Baujahr laut Ausweis'],
-      ['certificateType', 'Ausweistyp'],
-      ['certificateDate', 'Ausgestellt am'],
-      ['certificateValidUntil', 'Gültig bis'],
-      ['hotWaterIncluded', 'Warmwasser enthalten'],
+      'energyClass',
+      'energyDemand',
+      'energyConsumption',
+      'heatingType',
+      'primaryEnergySource',
+      'yearOfConstruction',
+      'certificateType',
+      'certificateDate',
+      'certificateValidUntil',
+      'hotWaterIncluded',
     ],
   },
 ];
 
-function formatFoundValue(field: string, value: string | number | boolean | null): string {
-  if (typeof value === 'boolean') return formatExtractedValue(value);
+function formatFoundValue(
+  field: string,
+  value: string | number | boolean | null,
+  locale: Locale = defaultLocale,
+): string {
+  if (typeof value === 'boolean') return formatExtractedValue(value, locale);
   const text = String(value);
-  const enumLabel = (
-    options: ReadonlyArray<readonly [string, string]>,
-    key: string,
-  ) => options.find(([option]) => option === key)?.[1];
-  const labeled: Record<string, string | undefined> = {
-    propertyType: enumLabel(PROPERTY_TYPES as ReadonlyArray<readonly [string, string]>, text),
-    buildingStatus: enumLabel(BUILDING_STATUSES as ReadonlyArray<readonly [string, string]>, text),
-    certificateType: enumLabel(
-      ENERGY_CERTIFICATE_TYPES as ReadonlyArray<readonly [string, string]>,
+  const enumKey = (options: ReadonlyArray<readonly [string, TranslationKey]>, key: string) =>
+    options.find(([option]) => option === key)?.[1];
+  const labeled: Record<string, TranslationKey | string | undefined> = {
+    propertyType: enumKey(PROPERTY_TYPES as ReadonlyArray<readonly [string, TranslationKey]>, text),
+    buildingStatus: enumKey(
+      BUILDING_STATUSES as ReadonlyArray<readonly [string, TranslationKey]>,
       text,
     ),
-    primaryEnergySource: enumLabel(
-      ENERGY_SOURCES as ReadonlyArray<readonly [string, string]>,
+    certificateType: enumKey(
+      ENERGY_CERTIFICATE_TYPES as ReadonlyArray<readonly [string, TranslationKey]>,
       text,
     ),
-    commissionPayer: { buyer: 'Käufer', seller: 'Verkäufer', both: 'Beide' }[text],
+    primaryEnergySource: enumKey(
+      ENERGY_SOURCES as ReadonlyArray<readonly [string, TranslationKey]>,
+      text,
+    ),
+    commissionPayer: {
+      buyer: 'finance.buyer',
+      seller: 'finance.seller',
+      both: 'finance.both',
+    }[text],
   };
-  const knownLabel = labeled[field];
-  if (knownLabel) return knownLabel;
+  const knownKey = labeled[field];
+  if (knownKey) return translate(locale, knownKey);
   if (field === 'propertySubtype') {
     for (const type of Object.keys(PROPERTY_SUBTYPES)) {
-      const label = subtypeLabel(type, text);
-      if (label && label !== text) return label;
+      const key = subtypeKey(type, text);
+      const entry = propertySubtypeOptions(type).find(([optionKey]) => optionKey === key);
+      if (entry) {
+        const label = translate(locale, entry[1]);
+        if (label !== text) return label;
+      }
     }
     return text;
   }
-  if (field === 'condition') return conditionLabel(text) || text;
-  const number = typeof value === 'number' ? value : Number(text.replace(/\./g, '').replace(',', '.'));
+  if (field === 'condition') {
+    const key = conditionLabel(text);
+    return key ? translate(locale, key) : text;
+  }
+  const number =
+    typeof value === 'number' ? value : Number(text.replace(/\./g, '').replace(',', '.'));
   if (Number.isFinite(number)) {
     const moneyFields = new Set([
       'askingPrice',
@@ -163,29 +177,35 @@ function formatFoundValue(field: string, value: string | number | boolean | null
       'hausgeld',
       'maintenanceReserve',
     ]);
-    const percentFields = new Set([
-      'commissionRate',
-      'grossYieldTarget',
-      'grossYieldActual',
-    ]);
+    const percentFields = new Set(['commissionRate', 'grossYieldTarget', 'grossYieldActual']);
     if (moneyFields.has(field)) {
-      return `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(number)} €`;
+      return translate(locale, 'finance.formatEuro', {
+        value: new Intl.NumberFormat(locale === 'de' ? 'de-DE' : 'en-US', {
+          maximumFractionDigits: 0,
+        }).format(number),
+      });
     }
     if (percentFields.has(field)) {
-      return `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(number)} %`;
+      return translate(locale, 'finance.percent', {
+        value: new Intl.NumberFormat(locale === 'de' ? 'de-DE' : 'en-US', {
+          maximumFractionDigits: 0,
+        }).format(number),
+      });
     }
     const areaFields = new Set(['livingArea', 'usableArea', 'plotArea', 'gardenArea']);
-    if (areaFields.has(field)) return `${formatExtractedValue(value)} m²`;
+    if (areaFields.has(field))
+      return `${formatExtractedValue(value, locale)} ${translate(locale, 'expose.units.sqm')}`;
     if (field === 'energyDemand' || field === 'energyConsumption')
-      return `${formatExtractedValue(value)} kWh/(m²·a)`;
+      return `${formatExtractedValue(value, locale)} ${translate(locale, 'expose.units.kwhWithDot')}`;
   }
-  return formatExtractedValue(value);
+  return formatExtractedValue(value, locale);
 }
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+function formatSize(bytes: number, locale: Locale = defaultLocale): string {
+  if (bytes < 1024) return `${bytes} ${translate(locale, 'documentsStep.fileSize.B')}`;
+  if (bytes < 1024 * 1024)
+    return `${(bytes / 1024).toFixed(0)} ${translate(locale, 'documentsStep.fileSize.KB')}`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} ${translate(locale, 'documentsStep.fileSize.MB')}`;
 }
 
 function isImage(mimeType: string): boolean {
@@ -210,6 +230,7 @@ export function StepDocuments({
   const [error, setError] = useState('');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const { t, locale } = useI18n();
 
   const notify = useCallback(
     (list: DocumentRecord[]) => {
@@ -228,14 +249,14 @@ export function StepDocuments({
         const list = (await response.json()) as DocumentRecord[];
         if (!cancelled) notify(list);
       } catch {
-        setError('Die Dokumente konnten nicht geladen werden.');
+        setError(t('documentsStep.loadFailed'));
       }
     }
     load();
     return () => {
       cancelled = true;
     };
-  }, [propertyId]);
+  }, [propertyId, t]);
 
   const sourcesByField = useMemo(
     () => groupCandidatesByField(collectWizardFieldCandidates(documents)),
@@ -244,7 +265,7 @@ export function StepDocuments({
 
   const foundCategories = FOUND_CATEGORIES.map((category) => ({
     ...category,
-    found: category.fields.filter(([field]) => sourcesByField[field]?.length),
+    found: category.fields.filter((field) => sourcesByField[field]?.length),
   })).filter((category) => category.found.length > 0);
   const hasFoundInfo = foundCategories.length > 0;
 
@@ -275,7 +296,7 @@ export function StepDocuments({
       });
       if (!response.ok) {
         const result = await response.json().catch(() => ({}));
-        setError(result.error || 'Die Dokumente konnten nicht hochgeladen werden.');
+        setError(result.error || t('documentsStep.uploadFailed'));
       } else {
         const uploaded = (await response.json()) as DocumentRecord[];
         if (Array.isArray(uploaded) && uploaded.length) {
@@ -283,7 +304,7 @@ export function StepDocuments({
         }
       }
     } catch {
-      setError('Die Dokumente konnten nicht hochgeladen werden.');
+      setError(t('documentsStep.uploadFailed'));
     }
     setUploading(false);
     setUploadingCount(0);
@@ -299,7 +320,7 @@ export function StepDocuments({
       const updated = (await response.json()) as DocumentRecord;
       notify(documents.map((document) => (document.id === updated.id ? updated : document)));
     } catch {
-      setError('Das Dokument konnte nicht erneut analysiert werden.');
+      setError(t('documentsStep.reanalyzeFailed'));
     }
   }
 
@@ -311,10 +332,10 @@ export function StepDocuments({
       if (response.ok) {
         setConfirmingId(null);
         notify(documents.filter((document) => document.id !== documentId));
-        toast.success('Dokument entfernt');
-      } else setError('Das Dokument konnte nicht entfernt werden.');
+        toast.success(t('documentsStep.removed'));
+      } else setError(t('documentsStep.removeFailed'));
     } catch {
-      setError('Das Dokument konnte nicht entfernt werden.');
+      setError(t('documentsStep.removeFailed'));
     }
   }
 
@@ -328,8 +349,8 @@ export function StepDocuments({
 
   return (
     <Section
-      title="Dokumente"
-      description="Laden Sie alle Unterlagen, Pläne oder Fotos hoch, die Sie zur Immobilie haben. Vista analysiert sie und übernimmt die gefundenen Angaben in den Assistenten."
+      title={t('documentsStep.sectionTitle')}
+      description={t('documentsStep.sectionDescription')}
     >
       <div className="space-y-6">
         <div
@@ -354,10 +375,10 @@ export function StepDocuments({
             <UploadCloud className="size-6" aria-hidden />
           </span>
           <p className="mt-4 text-sm font-semibold text-foreground">
-            Laden Sie alles hoch, was Sie zu dieser Immobilie haben
+            {t('documentsStep.dropzoneHeading')}
           </p>
           <p className="mt-1 max-w-md text-sm text-muted-foreground">
-            Vista ordnet die Dokumente und füllt die restlichen Schritte im Assistenten damit vor.
+            {t('documentsStep.dropzoneText')}
           </p>
           <Button
             type="button"
@@ -370,7 +391,7 @@ export function StepDocuments({
             ) : (
               <UploadCloud className="size-4" />
             )}
-            {uploading ? 'Wird hochgeladen…' : 'Dokumente hochladen'}
+            {uploading ? t('documentsStep.uploading') : t('documentsStep.uploadDocuments')}
           </Button>
           <input
             ref={fileRef}
@@ -383,10 +404,7 @@ export function StepDocuments({
               event.target.value = '';
             }}
           />
-          <p className="mt-3 text-xs text-muted-foreground">
-            Per Drag &amp; Drop oder Auswahl hinzufügen · PDF, JPG, PNG oder WEBP · max. 25 MB pro
-            Datei
-          </p>
+          <p className="mt-3 text-xs text-muted-foreground">{t('documentsStep.dropzoneHint')}</p>
         </div>
 
         {error && (
@@ -399,21 +417,24 @@ export function StepDocuments({
           <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
             <LoaderCircle className="size-4 animate-spin" />
             {uploadingCount > 0
-              ? `${uploadingCount} ${uploadingCount === 1 ? 'Dokument' : 'Dokumente'} werden analysiert…`
-              : 'Wird analysiert…'}
+              ? uploadingCount === 1
+                ? t('documentsStep.analyzingCountOne', { count: uploadingCount })
+                : t('documentsStep.analyzingCount', { count: uploadingCount })
+              : t('documentsStep.analyzing')}
           </p>
         )}
 
         {!documents.length && !uploading ? (
           <div className="flex flex-col items-center justify-center rounded-xl border bg-muted/20 px-6 py-12 text-center">
             <FileText className="size-6 text-muted-foreground" aria-hidden />
-            <p className="mt-3 text-sm font-semibold text-foreground">Noch keine Dokumente</p>
+            <p className="mt-3 text-sm font-semibold text-foreground">
+              {t('documentsStep.emptyTitle')}
+            </p>
             <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-              Laden Sie Ihre Unterlagen, Pläne oder Fotos zur Immobilie hoch. Vista ordnet sie und
-              nutzt die Informationen zum Ausfüllen des Assistenten.
+              {t('documentsStep.emptyDescription')}
             </p>
             <Button type="button" className="mt-5" onClick={() => fileRef.current?.click()}>
-              <UploadCloud className="size-4" /> Dokumente hochladen
+              <UploadCloud className="size-4" /> {t('documentsStep.uploadButton')}
             </Button>
           </div>
         ) : null}
@@ -439,20 +460,21 @@ export function StepDocuments({
               <span className="grid size-6 place-items-center rounded-full bg-primary text-primary-foreground">
                 <Check className="size-3.5" aria-hidden />
               </span>
-              <p className="font-semibold text-foreground">Informationen gefunden</p>
+              <p className="font-semibold text-foreground">{t('documentsStep.successHeading')}</p>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Vista hat Ihre Dokumente verstanden und in {analyzedCount}{' '}
-              {analyzedCount === 1 ? 'Dokument' : 'Dokumenten'} verwertbare Informationen gefunden.
+              {analyzedCount === 1
+                ? t('documentsStep.successTextOne', { count: analyzedCount })
+                : t('documentsStep.successText', { count: analyzedCount })}
             </p>
             <div className="mt-4 grid gap-6 sm:grid-cols-2">
               {foundCategories.map((category) => (
-                <div key={category.label}>
+                <div key={category.category}>
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {category.label}
+                    {t(`documentsStep.foundCategories.${category.category}`)}
                   </p>
                   <ul className="mt-2 space-y-1">
-                    {category.found.map(([field, label]) => {
+                    {category.found.map((field) => {
                       const sources = sourcesByField[field];
                       const value = pickDefault(sources)?.value;
                       if (value == null) return null;
@@ -461,12 +483,12 @@ export function StepDocuments({
                           key={field}
                           className="flex items-baseline justify-between gap-3 text-sm"
                         >
-                          <span className="text-foreground">{label}</span>
+                          <span className="text-foreground">{t(wizardFieldLabel(field))}</span>
                           <span className="text-right font-medium text-foreground">
-                            {formatFoundValue(field, value)}
+                            {formatFoundValue(field, value, locale)}
                             {sources.length > 1 && (
                               <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                                · {sources.length} Quellen
+                                {t('documentsStep.sourcesCount', { count: sources.length })}
                               </span>
                             )}
                           </span>
@@ -483,13 +505,9 @@ export function StepDocuments({
         {conflicts.length > 0 && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-5">
             <p className="inline-flex items-center gap-2 font-semibold text-amber-800">
-              <AlertTriangle className="size-4" /> Unterschiedliche Werte in Ihren Dokumenten
-              gefunden
+              <AlertTriangle className="size-4" /> {t('documentsStep.conflictHeading')}
             </p>
-            <p className="mt-1 text-sm text-amber-700">
-              Zu einigen Angaben finden sich unterschiedliche Werte. Sie können sie später im
-              Assistenten prüfen und anpassen.
-            </p>
+            <p className="mt-1 text-sm text-amber-700">{t('documentsStep.conflictText')}</p>
             <ul className="mt-4 space-y-3">
               {conflicts.map(({ field, sources }) => {
                 const differing = sources.filter(
@@ -501,9 +519,9 @@ export function StepDocuments({
                 return (
                   <li key={field}>
                     <p className="text-sm font-semibold text-foreground">
-                      {conflictLabel(field)}{' '}
+                      {t(conflictLabel(field))}{' '}
                       <span className="font-normal text-muted-foreground">
-                        · {formatExtractedValue(sources[0].value)}
+                        · {formatExtractedValue(sources[0].value, locale)}
                       </span>
                     </p>
                     {differing.length > 1 && (
@@ -514,7 +532,7 @@ export function StepDocuments({
                             className="text-xs text-amber-700"
                           >
                             <span className="font-semibold text-amber-800">
-                              {formatExtractedValue(source.value)}
+                              {formatExtractedValue(source.value, locale)}
                             </span>{' '}
                             · {source.sourceFilename}
                           </li>
@@ -546,6 +564,7 @@ function DocumentCard({
   onRetry: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { t, locale } = useI18n();
   const image = isImage(document.mimeType);
   const analyzing = document.status === 'pending' || document.status === 'processing';
   const analyzed = document.status === 'completed' && document.understandingResult;
@@ -583,7 +602,8 @@ function DocumentCard({
               {document.filename}
             </p>
             <p className="text-xs text-muted-foreground">
-              {image ? 'Bild' : 'Dokument'} · {formatSize(document.size)}
+              {image ? t('documentsStep.imageLabel') : t('documentsStep.documentLabel')} ·{' '}
+              {formatSize(document.size, locale)}
             </p>
           </div>
         </div>
@@ -592,7 +612,7 @@ function DocumentCard({
             type="button"
             variant="ghost"
             size="icon-xs"
-            aria-label={`${document.filename} entfernen`}
+            aria-label={t('common.removeFile', { name: document.filename })}
             className="text-muted-foreground hover:text-destructive"
             onClick={onToggleConfirm}
           >
@@ -603,7 +623,7 @@ function DocumentCard({
               type="button"
               variant="ghost"
               size="icon-xs"
-              aria-label={`${document.filename} ansehen`}
+              aria-label={t('common.viewFile', { name: document.filename })}
               aria-expanded={open}
               className="text-muted-foreground"
               onClick={() => setOpen((current) => !current)}
@@ -616,13 +636,13 @@ function DocumentCard({
 
       {confirming && (
         <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-          <p className="text-sm text-destructive">Dieses Dokument von der Immobilie entfernen?</p>
+          <p className="text-sm text-destructive">{t('common.deleteConfirmation')}</p>
           <div className="mt-2 flex gap-2">
             <Button type="button" variant="destructive" size="sm" onClick={onRemove}>
-              Entfernen
+              {t('common.remove')}
             </Button>
             <Button type="button" variant="outline" size="sm" onClick={onToggleConfirm}>
-              Abbrechen
+              {t('common.cancel')}
             </Button>
           </div>
         </div>
@@ -630,19 +650,19 @@ function DocumentCard({
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {document.documentType && document.documentType !== 'other' && (
-          <Badge variant="secondary">{DOCUMENT_TYPE_LABELS[document.documentType]}</Badge>
+          <Badge variant="secondary">{t(DOCUMENT_TYPE_LABELS[document.documentType])}</Badge>
         )}
         {analyzed && (
           <Badge
             variant="outline"
             className="border-transparent bg-primary/10 font-medium text-primary"
           >
-            <Check className="size-3" /> Analysiert
+            <Check className="size-3" /> {t('documentsStep.statusAnalyzed')}
           </Badge>
         )}
         {document.status === 'completed' && !document.understandingResult && (
           <Badge variant="outline" className="text-muted-foreground">
-            <Check className="size-3" /> Analysiert
+            <Check className="size-3" /> {t('documentsStep.statusAnalyzed')}
           </Badge>
         )}
         {failed && (
@@ -650,12 +670,12 @@ function DocumentCard({
             variant="outline"
             className="border-transparent bg-destructive/10 font-medium text-destructive"
           >
-            Analyse fehlgeschlagen
+            {t('documentsStep.statusFailed')}
           </Badge>
         )}
         {analyzing && (
           <Badge variant="outline" className="text-muted-foreground">
-            <LoaderCircle className="size-3 animate-spin" /> Wird analysiert…
+            <LoaderCircle className="size-3 animate-spin" /> {t('documentsStep.statusAnalyzing')}
           </Badge>
         )}
       </div>
@@ -671,13 +691,13 @@ function DocumentCard({
       )}
 
       {photoType && (
-        <p className="mt-2 text-sm font-medium text-foreground">{photoTypeLabel(photoType)}</p>
+        <p className="mt-2 text-sm font-medium text-foreground">{t(photoTypeLabel(photoType))}</p>
       )}
       {photoTags.length > 0 && (
         <div className="mt-1 flex flex-wrap gap-1.5">
           {photoTags.map((tag) => (
             <Badge key={tag} variant="outline" className="font-normal text-muted-foreground">
-              {PHOTO_TAG_LABELS[tag] ?? tag}
+              {t(PHOTO_TAG_LABELS[tag] ?? tag)}
             </Badge>
           ))}
         </div>
@@ -694,7 +714,7 @@ function DocumentCard({
           {document.understandingResult.summary ? (
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Zusammenfassung
+                {t('common.summary')}
               </p>
               <p className="mt-1 text-xs leading-4 text-foreground">
                 {document.understandingResult.summary}
@@ -704,21 +724,21 @@ function DocumentCard({
           {document.understandingResult.wizardFields?.length ? (
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Gefundene Informationen
+                {t('common.foundInformation')}
               </p>
               <ul className="mt-1 space-y-1">
                 {document.understandingResult.wizardFields.map((field, index) => (
                   <li key={`${field.field}-${index}`} className="text-xs leading-5">
                     <span className="font-medium text-foreground">
-                      {wizardFieldLabel(field.field)}
+                      {t(wizardFieldLabel(field.field))}
                     </span>
                     <span className="text-muted-foreground">
                       {' '}
-                      → {formatExtractedValue(field.value)}
+                      → {formatExtractedValue(field.value, locale)}
                     </span>
                     {field.evidence && (
                       <span className="block text-muted-foreground">
-                        Quelle: “{field.evidence}”
+                        {t('documentsStep.detailSource', { evidence: field.evidence })}
                       </span>
                     )}
                   </li>
@@ -729,15 +749,17 @@ function DocumentCard({
           {document.understandingResult.additionalInformation?.length ? (
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Zusätzliche Informationen
+                {t('common.additionalInformation')}
               </p>
               <ul className="mt-1 space-y-1">
                 {document.understandingResult.additionalInformation.map((info, index) => (
                   <li key={`${info.key}-${index}`} className="text-xs leading-5">
-                    <span className="font-medium text-foreground">{additionalInfoLabel(info.key)}</span>
+                    <span className="font-medium text-foreground">
+                      {t(additionalInfoLabel(info.key))}
+                    </span>
                     <span className="text-muted-foreground">
                       {' '}
-                      → {formatExtractedValue(info.value)}
+                      → {formatExtractedValue(info.value, locale)}
                     </span>
                   </li>
                 ))}
@@ -755,7 +777,7 @@ function DocumentCard({
           className="mt-2 h-auto justify-start p-0 text-primary"
           onClick={onRetry}
         >
-          <RefreshCw className="size-3.5" /> Erneut analysieren
+          <RefreshCw className="size-3.5" /> {t('documentsStep.retryAnalysis')}
         </Button>
       )}
     </div>

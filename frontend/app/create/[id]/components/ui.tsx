@@ -1,14 +1,8 @@
 import { useRef, useState } from 'react';
-import {
-  Calendar,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Info,
-  Sparkles,
-} from 'lucide-react';
+import { Calendar, Check, ChevronLeft, ChevronRight, Info, Sparkles } from 'lucide-react';
 import { apiAssetUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input as ShadInput } from '@/components/ui/input';
@@ -23,12 +17,7 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
-import type {
-  ImageCategory,
-  PhotoUnderstanding,
-  PropertyImage,
-  UploadImages,
-} from '../types';
+import type { ImageCategory, PhotoUnderstanding, PropertyImage, UploadImages } from '../types';
 import { PHOTO_TAG_LABELS, photoTypeLabel } from '../types';
 
 export function Section({
@@ -250,11 +239,12 @@ export function Select({
   placeholder?: string;
   hint?: string;
 }) {
+  const { t } = useI18n();
   return (
     <Field label={label} hint={hint}>
       <SelectRoot value={value || undefined} onValueChange={(v) => onChange(v)}>
         <SelectTrigger className="w-full">
-          <SelectValue placeholder={placeholder ?? 'Select an option'} />
+          <SelectValue placeholder={placeholder ?? t('common.selectOption')} />
         </SelectTrigger>
         <SelectContent>
           {options
@@ -307,15 +297,16 @@ export function SectionNotes({
   onChange: (value: string) => void;
   placeholder?: string;
 }) {
+  const { t } = useI18n();
   return (
     <div className="mt-7 rounded-lg border border-dashed bg-muted/40 p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Ihre Notizen / Highlights
+        {t('common.yourNotesHighlights')}
       </p>
       <ShadTextarea
         className="mt-3 w-full resize-y bg-card"
         value={value ?? ''}
-        placeholder={placeholder ?? 'Zusätzliche Angaben oder Highlights zu diesem Abschnitt…'}
+        placeholder={placeholder ?? t('common.notesPlaceholderDefault')}
         onChange={(event) => onChange(event.target.value)}
       />
     </div>
@@ -332,6 +323,7 @@ export function DatePicker({
   placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const { t, locale } = useI18n();
   const parse = (iso: string | null | undefined) => {
     if (!iso) return null;
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
@@ -352,13 +344,17 @@ export function DatePicker({
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate();
-  const weekdayLabels = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  const weekdayLabels = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(2024, 0, 7);
+    date.setDate(date.getDate() + index);
+    return new Intl.DateTimeFormat(locale, { weekday: 'narrow' }).format(date);
+  });
   const display = selected
-    ? selected.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    ? selected.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
     : '';
 
   return (
-    <Field label="Available from">
+    <Field label={t('common.availableFrom')}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -366,7 +362,7 @@ export function DatePicker({
             variant="outline"
             className="w-full justify-between font-normal text-foreground"
           >
-            {display ? display : (placeholder ?? 'Select a date')}
+            {display ? display : (placeholder ?? t('common.selectDate'))}
             <Calendar className="size-4 text-muted-foreground" aria-hidden />
           </Button>
         </PopoverTrigger>
@@ -381,7 +377,7 @@ export function DatePicker({
               <ChevronLeft className="size-4" />
             </Button>
             <span className="text-sm font-semibold">
-              {view.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              {view.toLocaleDateString(locale, { month: 'long', year: 'numeric' })}
             </span>
             <Button
               type="button"
@@ -393,8 +389,8 @@ export function DatePicker({
             </Button>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-muted-foreground">
-            {weekdayLabels.map((label) => (
-              <span key={label} className="py-1">
+            {weekdayLabels.map((label, index) => (
+              <span key={index} className="py-1">
                 {label}
               </span>
             ))}
@@ -440,7 +436,7 @@ export function DatePicker({
                 setOpen(false);
               }}
             >
-              Clear
+              {t('common.clear')}
             </Button>
             <Button
               type="button"
@@ -451,7 +447,7 @@ export function DatePicker({
                 setOpen(false);
               }}
             >
-              Today
+              {t('common.today')}
             </Button>
           </div>
         </PopoverContent>
@@ -478,9 +474,10 @@ export function EnergyClassPicker({
     { key: 'G', color: '#dd3c3c' },
     { key: 'H', color: '#9c1f1f' },
   ];
+  const { t } = useI18n();
   return (
     <div className="space-y-2">
-      <span className="text-sm font-medium text-foreground">Energieeffizienzklasse</span>
+      <span className="text-sm font-medium text-foreground">{t('fields.efficiencyClass')}</span>
       <div className="grid grid-cols-9 gap-1.5">
         {classes.map((entry) => {
           const active = value === entry.key;
@@ -504,7 +501,7 @@ export function EnergyClassPicker({
         })}
       </div>
       <p className="text-xs text-muted-foreground">
-        {value ? `Ausgewählte Klasse: ${value}` : 'Energieeffizienzklasse auswählen'}
+        {value ? t('media.selectedEnergyClass', { value }) : t('media.selectEnergyClass')}
       </p>
     </div>
   );
@@ -538,6 +535,7 @@ export function PhotoSection({
   photoMetadata?: Map<string, PhotoUnderstanding>;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const { t } = useI18n();
   const sectionImages = images.filter(
     (image) => image.category === category && (image.subcategory ?? '') === subcategory,
   );
@@ -549,7 +547,7 @@ export function PhotoSection({
       <div className="mb-3 flex items-center justify-between gap-2">
         <h3 className="truncate text-sm font-semibold text-foreground">{title}</h3>
         <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
-          Hochladen
+          {t('media.upload')}
         </Button>
         <input
           ref={fileRef}
@@ -572,23 +570,23 @@ export function PhotoSection({
             >
               <img
                 src={apiAssetUrl(image.url)}
-                alt={image.caption || subcategory || 'Objektfoto'}
+                alt={image.caption || subcategory || t('media.photo')}
                 className="h-32 w-full object-cover"
               />
               {metadataFor(image) && (
                 <div className="border-t border-border bg-muted/40 px-2.5 py-2 text-xs">
                   <p className="flex items-center gap-1 text-muted-foreground">
-                    <Sparkles className="size-3" aria-hidden /> KI-Erkennung
+                    <Sparkles className="size-3" aria-hidden /> {t('media.aiDetection')}
                   </p>
                   {metadataFor(image)?.photoType && (
                     <p className="mt-0.5 font-medium text-foreground">
-                      {photoTypeLabel(metadataFor(image)?.photoType)}
+                      {t(photoTypeLabel(metadataFor(image)?.photoType))}
                     </p>
                   )}
                   {metadataFor(image)?.photoTags.length ? (
                     <p className="mt-0.5 text-muted-foreground">
-                      {metadataFor(image)?.photoTags
-                        .map((entry) => PHOTO_TAG_LABELS[entry.tag] ?? entry.tag)
+                      {metadataFor(image)
+                        ?.photoTags.map((entry) => t(PHOTO_TAG_LABELS[entry.tag] ?? entry.tag))
                         .join(' · ')}
                     </p>
                   ) : null}
@@ -606,14 +604,14 @@ export function PhotoSection({
                   size="xs"
                   onClick={() => cover(image.id)}
                 >
-                  {image.isCover ? 'Titelfoto ✓' : 'Als Titelfoto'}
+                  {image.isCover ? `${t('media.coverPhoto')} ✓` : t('media.setAsCover')}
                 </Button>
                 {suggestedFor(image) && !image.isCover && (
                   <span
                     className="inline-flex items-center gap-1 rounded-md border border-amber-300/60 bg-amber-50 px-2 text-xs text-amber-800"
                     title={suggestedFor(image)?.coverSuitabilityReason ?? undefined}
                   >
-                    ✨ Als Titelbild empfohlen
+                    {t('media.recommendedCover')}
                   </span>
                 )}
                 <Button
@@ -623,13 +621,13 @@ export function PhotoSection({
                   className="text-destructive hover:text-destructive"
                   onClick={() => removeImage(image.id)}
                 >
-                  Entfernen
+                  {t('common.remove')}
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-xs"
-                  aria-label="Nach oben verschieben"
+                  aria-label={t('media.moveUp')}
                   onClick={() => moveImage(globalIndex(image.id), -1)}
                 >
                   <ChevronLeft className="size-3" />
@@ -638,7 +636,7 @@ export function PhotoSection({
                   type="button"
                   variant="ghost"
                   size="icon-xs"
-                  aria-label="Nach unten verschieben"
+                  aria-label={t('media.moveDown')}
                   onClick={() => moveImage(globalIndex(image.id), 1)}
                 >
                   <ChevronRight className="size-3" />
@@ -648,7 +646,7 @@ export function PhotoSection({
           ))}
         </div>
       ) : (
-        <p className="py-2 text-sm text-muted-foreground">Noch keine Fotos in diesem Abschnitt.</p>
+        <p className="py-2 text-sm text-muted-foreground">{t('media.emptySection')}</p>
       )}
     </div>
   );
