@@ -1,4 +1,4 @@
-import type { PropertyImage, UploadImages } from '../types';
+import type { PhotoUnderstanding, PropertyImage, UploadImages } from '../types';
 import { PhotoSection, Section, SectionNotes } from './ui';
 
 export function StepPhotos({
@@ -10,6 +10,7 @@ export function StepPhotos({
   moveImage,
   noteValue,
   setNote,
+  coverSuggestions,
 }: {
   images: PropertyImage[];
   rooms?: number | null;
@@ -19,6 +20,11 @@ export function StepPhotos({
   moveImage: (index: number, direction: -1 | 1) => Promise<void>;
   noteValue: (key: string) => string;
   setNote: (key: string, value: string) => void;
+  /**
+   * AI cover suggestions keyed by photo filename (Phase 9). Only a subtle
+   * hint is shown; the cover is never selected automatically.
+   */
+  coverSuggestions?: Map<string, PhotoUnderstanding>;
 }) {
   const roomCount = Math.max(Number(rooms) || 0, 0);
   const interiorSections = [
@@ -62,6 +68,7 @@ export function StepPhotos({
                 removeImage={removeImage}
                 cover={cover}
                 moveImage={moveImage}
+                coverSuggestions={coverSuggestions}
               />
             ))}
           </div>
@@ -82,6 +89,7 @@ export function StepPhotos({
                 removeImage={removeImage}
                 cover={cover}
                 moveImage={moveImage}
+                coverSuggestions={coverSuggestions}
               />
             ))}
           </div>

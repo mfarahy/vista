@@ -103,6 +103,10 @@ export interface MarketingContentInput {
     rentPriceEur?: number;
     /** Rental security (Kaution) in EUR, only when explicitly stated. */
     depositEur?: number;
+    /** WEG facts for an Eigentumswohnung; only explicitly stated values. */
+    hausgeldEur?: number;
+    maintenanceReserveEur?: number;
+    coOwnershipShare?: string;
   };
   listing: {
     transactionType: string;
@@ -190,6 +194,9 @@ export function marketingContentInputOf(
       askingPriceEur: financial.askingPriceEur,
       rentPriceEur: rental?.monthlyRentEur,
       depositEur: rental?.depositEur,
+      hausgeldEur: property.weg?.hausgeldEur,
+      maintenanceReserveEur: property.weg?.maintenanceReserveEur,
+      coOwnershipShare: property.weg?.coOwnershipShare,
     },
     listing: {
       transactionType: listingModel.transactionType,

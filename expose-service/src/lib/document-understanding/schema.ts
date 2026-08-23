@@ -16,6 +16,7 @@ export const DOCUMENT_TYPES = [
   'bauplan',
   'kaufvertrag',
   'mietvertrag',
+  'teilungserklaerung',
   'property_photo',
   'other',
 ] as const;
@@ -137,10 +138,81 @@ export const WIZARD_FIELDS = [
   // Land / identification
   'parcelNumber',
   'plotNumber',
+  // WEG (Eigentumswohnung)
+  'hausgeld',
+  'maintenanceReserve',
+  'coOwnershipShare',
 ] as const;
 
 export type UnderstandingDocumentType = (typeof DOCUMENT_TYPES)[number];
 export type UnderstandingTag = (typeof DOCUMENT_TAGS)[number];
+
+/**
+ * Controlled photo classification for `property_photo` documents. Only
+ * categories useful for the current Exposé; the model picks exactly one.
+ */
+export const PHOTO_TYPES = [
+  'exterior',
+  'living_room',
+  'bedroom',
+  'kitchen',
+  'bathroom',
+  'hallway',
+  'office',
+  'dining_room',
+  'balcony',
+  'terrace',
+  'garden',
+  'view',
+  'garage',
+  'parking',
+  'basement',
+  'utility_room',
+  'other',
+] as const;
+
+/**
+ * Visually observable photo features. Only features that are clearly visible
+ * may be returned; measurements and legal/financial facts are never inferred
+ * from a photo.
+ */
+export const PHOTO_TAGS = [
+  'fitted-kitchen',
+  'parquet-floor',
+  'laminate-floor',
+  'tiles',
+  'balcony',
+  'terrace',
+  'garden',
+  'bathtub',
+  'shower',
+  'guest-toilet',
+  'fireplace',
+  'large-windows',
+  'built-in-wardrobes',
+  'garage',
+  'parking',
+] as const;
+
+export const COVER_SUITABILITY_VALUES = ['high', 'medium', 'low'] as const;
+
+export type PhotoType = (typeof PHOTO_TYPES)[number];
+export type PhotoTag = (typeof PHOTO_TAGS)[number];
+export type CoverSuitability = (typeof COVER_SUITABILITY_VALUES)[number];
+
+export const photoTagSchema = z.object({
+  tag: z.enum(PHOTO_TAGS),
+  /** Factual description of what is visibly present; never fabricated. */
+  evidence: z.string().min(1),
+});
+
+export const photoUnderstandingSchema = z.object({
+  photoType: z.enum(PHOTO_TYPES).nullable(),
+  photoTags: z.array(photoTagSchema).max(20).default([]),
+  visualDescription: z.string().nullable(),
+  coverSuitability: z.enum(COVER_SUITABILITY_VALUES).nullable(),
+  coverSuitabilityReason: z.string().nullable(),
+});
 
 export const wizardFieldSchema = z.object({
   field: z.enum(WIZARD_FIELDS),
@@ -165,6 +237,13 @@ export const documentUnderstandingSchema = z.object({
   keepInLibrary: z.boolean(),
   wizardFields: z.array(wizardFieldSchema).max(30),
   additionalInformation: z.array(additionalInfoSchema).max(30),
+  /**
+   * Visual analysis for `property_photo` documents. Null for all other
+   * document types. Kept nullable so records created before this phase stay
+   * readable without a migration.
+   */
+  photo: photoUnderstandingSchema.nullable().default(null),
 });
 
 export type DocumentUnderstandingStructured = z.infer<typeof documentUnderstandingSchema>;
+export type PhotoUnderstandingStructured = z.infer<typeof photoUnderstandingSchema>;

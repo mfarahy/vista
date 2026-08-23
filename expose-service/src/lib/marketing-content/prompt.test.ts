@@ -132,6 +132,36 @@ describe('marketing content prompt', () => {
     assert.doesNotMatch(buildUserMessage(input), /Kaution/);
   });
 
+  it('makes persisted WEG facts available to the marketing prompt', () => {
+    const property = propertyWith({
+      livingArea: 82,
+      exposeData: {
+        ...emptyExposeData(),
+        weg: { hausgeldEur: 350, maintenanceReserveEur: 85000, coOwnershipShare: '145/10.000' },
+      },
+    });
+    const input = buildMarketingContentInput(property);
+    assert.equal(input.property.hausgeldEur, 350);
+    assert.equal(input.property.maintenanceReserveEur, 85000);
+    assert.equal(input.property.coOwnershipShare, '145/10.000');
+    const message = buildUserMessage(input);
+    assert.match(message, /Hausgeld: 350 €\/Monat/);
+    assert.match(message, /Instandhaltungsrücklage: 85000 €/);
+    assert.match(message, /Miteigentumsanteil: 145\/10.000/);
+  });
+
+  it('never invents WEG facts that are not persisted', () => {
+    const property = propertyWith({ livingArea: 82 });
+    const input = buildMarketingContentInput(property);
+    assert.equal(input.property.hausgeldEur, undefined);
+    assert.equal(input.property.maintenanceReserveEur, undefined);
+    assert.equal(input.property.coOwnershipShare, undefined);
+    assert.doesNotMatch(
+      buildUserMessage(input),
+      /Hausgeld|Instandhaltungsrücklage|Miteigentumsanteil/,
+    );
+  });
+
   it('passes seller and user information as marketing context', () => {
     const property = propertyWith({
       sellerDescription: 'Wir haben den Garten besonders geliebt.',

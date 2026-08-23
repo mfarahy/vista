@@ -334,6 +334,19 @@ export const rentalDataSchema = z.object({
   annualRent: nonNegativeNumber,
 });
 
+/**
+ * WEG facts for an Eigentumswohnung (Phase 9). Only values explicitly stated
+ * in the documents are stored here; nothing is ever calculated.
+ */
+export const wegDataSchema = z.object({
+  /** Monthly Hausgeld / Wohngeld in EUR, only when explicitly stated. */
+  hausgeldEur: nonNegativeNumber,
+  /** Instandhaltungsrücklage in EUR, only when explicitly stated. */
+  maintenanceReserveEur: nonNegativeNumber,
+  /** Miteigentumsanteil preserved verbatim, e.g. "145/10.000". */
+  coOwnershipShare: optionalText(40),
+});
+
 export const investmentDataSchema = z.object({
   grossYieldTargetPercent: nonNegativeNumber,
   grossYieldActualPercent: nonNegativeNumber,
@@ -374,6 +387,7 @@ export const propertyExposeDataSchema = z.object({
   propertyDetails: propertyDetailsSchema,
   energy: energyDataSchema.nullable().optional(),
   rental: rentalDataSchema.optional(),
+  weg: wegDataSchema.optional(),
   investment: investmentDataSchema.optional(),
   rooms: z.array(roomDataSchema).max(100).default([]),
   equipment: z.array(equipmentDataSchema).max(200).default([]),
@@ -407,6 +421,7 @@ export type LocationIntelligence = z.infer<typeof locationIntelligenceSchema>;
 export type AgentData = z.infer<typeof agentDataSchema>;
 export type SystemBranding = z.infer<typeof systemBrandingSchema>;
 export type RentalData = z.infer<typeof rentalDataSchema>;
+export type WegData = z.infer<typeof wegDataSchema>;
 export type InvestmentData = z.infer<typeof investmentDataSchema>;
 export type LegalFlags = z.infer<typeof legalFlagsSchema>;
 export type PropertyExposeData = z.infer<typeof propertyExposeDataSchema>;
@@ -450,6 +465,7 @@ export const emptyExposeData = (): PropertyExposeData => ({
   },
   energy: null,
   rental: { isRented: null, furnished: null, annualRent: null },
+  weg: { hausgeldEur: null, maintenanceReserveEur: null, coOwnershipShare: null },
   investment: { grossYieldTargetPercent: null, grossYieldActualPercent: null },
   rooms: [],
   equipment: [],

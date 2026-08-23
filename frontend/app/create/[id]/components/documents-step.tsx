@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { DocumentRecord } from '../types';
-import { DOCUMENT_TYPE_LABELS } from '../types';
+import { DOCUMENT_TYPE_LABELS, PHOTO_TAG_LABELS, photoTypeLabel } from '../types';
 import { Section } from './ui';
 import {
   collectWizardFieldCandidates,
@@ -234,7 +234,11 @@ export function StepDocuments({
             disabled={uploading}
             onClick={() => fileRef.current?.click()}
           >
-            {uploading ? <LoaderCircle className="size-4 animate-spin" /> : <UploadCloud className="size-4" />}
+            {uploading ? (
+              <LoaderCircle className="size-4 animate-spin" />
+            ) : (
+              <UploadCloud className="size-4" />
+            )}
             {uploading ? 'Wird hochgeladen…' : 'Dokumente hochladen'}
           </Button>
           <input
@@ -308,8 +312,7 @@ export function StepDocuments({
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
               Vista hat Ihre Dokumente verstanden und in {analyzedCount}{' '}
-              {analyzedCount === 1 ? 'Dokument' : 'Dokumenten'} verwertbare Informationen
-              gefunden.
+              {analyzedCount === 1 ? 'Dokument' : 'Dokumenten'} verwertbare Informationen gefunden.
             </p>
             <div className="mt-4 grid gap-6 sm:grid-cols-2">
               {foundAddress.length > 0 && (
@@ -383,7 +386,10 @@ export function StepDocuments({
                     {differing.length > 1 && (
                       <ul className="mt-1 space-y-0.5">
                         {differing.slice(1).map((source, index) => (
-                          <li key={`${source.sourceDocumentId}-${index}`} className="text-xs text-amber-700">
+                          <li
+                            key={`${source.sourceDocumentId}-${index}`}
+                            className="text-xs text-amber-700"
+                          >
                             <span className="font-semibold text-amber-800">
                               {formatExtractedValue(source.value)}
                             </span>{' '}
@@ -426,6 +432,11 @@ function DocumentCard({
     : document.tags?.length
       ? document.tags
       : [];
+  // AI photo metadata (Phase 9): photo type and visible features are shown
+  // only for property photos and only when the analysis produced them.
+  const photo = document.understandingResult?.photo;
+  const photoType = document.documentType === 'property_photo' ? photo?.photoType : null;
+  const photoTags = photo?.photoTags?.length ? photo.photoTags.map((entry) => entry.tag) : [];
 
   return (
     <div className="flex flex-col rounded-xl border bg-card p-4">
@@ -499,7 +510,10 @@ function DocumentCard({
           <Badge variant="secondary">{DOCUMENT_TYPE_LABELS[document.documentType]}</Badge>
         )}
         {analyzed && (
-          <Badge variant="outline" className="border-transparent bg-primary/10 font-medium text-primary">
+          <Badge
+            variant="outline"
+            className="border-transparent bg-primary/10 font-medium text-primary"
+          >
             <Check className="size-3" /> Analysiert
           </Badge>
         )}
@@ -509,7 +523,10 @@ function DocumentCard({
           </Badge>
         )}
         {failed && (
-          <Badge variant="outline" className="border-transparent bg-destructive/10 font-medium text-destructive">
+          <Badge
+            variant="outline"
+            className="border-transparent bg-destructive/10 font-medium text-destructive"
+          >
             Analyse fehlgeschlagen
           </Badge>
         )}
@@ -525,6 +542,19 @@ function DocumentCard({
           {tags.map((tag) => (
             <Badge key={tag} variant="secondary" className="font-normal">
               {tag}
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      {photoType && (
+        <p className="mt-2 text-sm font-medium text-foreground">{photoTypeLabel(photoType)}</p>
+      )}
+      {photoTags.length > 0 && (
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          {photoTags.map((tag) => (
+            <Badge key={tag} variant="outline" className="font-normal text-muted-foreground">
+              {PHOTO_TAG_LABELS[tag] ?? tag}
             </Badge>
           ))}
         </div>

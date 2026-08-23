@@ -1,20 +1,31 @@
 import { LoaderCircle } from 'lucide-react';
-import type {
-  BorisEnrichment,
-  ExposeData,
-  PropertyPayload,
-  SetProperty,
-} from '../types';
+import type { BorisEnrichment, ExposeData, PropertyPayload, SetProperty } from '../types';
 import { LEGAL_FLAG_LABELS, additionalInfoLabel } from '../types';
 import type { AdditionalInfoCandidate, WizardFieldCandidate } from '../document-prefill';
 import { shouldShowInvestment } from '../wizard-steps';
-import { GroupCard, DateInput, Input, Section, SectionNotes, Select, Textarea, Toggle, UnitInput } from './ui';
+import {
+  GroupCard,
+  DateInput,
+  Input,
+  Section,
+  SectionNotes,
+  Select,
+  Textarea,
+  Toggle,
+  UnitInput,
+} from './ui';
 import { DocumentSources } from './document-sources';
 import { AddressIntelligencePanel } from './debug';
 
 function formatEuro(value?: number | null): string {
   if (value == null) return '';
   return `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(value)} €`;
+}
+
+function hasWegData(weg: ExposeData['weg'] | undefined): boolean {
+  return Boolean(
+    weg?.hausgeldEur != null || weg?.maintenanceReserveEur != null || weg?.coOwnershipShare != null,
+  );
 }
 
 export function StepFinancial({
@@ -44,8 +55,13 @@ export function StepFinancial({
     updateExposeData({ pricing: { ...pricing, ...patch } });
   const setRental = (patch: Partial<ExposeData['rental']>) =>
     updateExposeData({ rental: { ...(exposeData.rental ?? {}), ...patch } });
+  const setWeg = (patch: Partial<ExposeData['weg']>) =>
+    updateExposeData({ weg: { ...(exposeData.weg ?? {}), ...patch } });
   const setInvestment = (patch: Partial<ExposeData['investment']>) =>
     updateExposeData({ investment: { ...(exposeData.investment ?? {}), ...patch } });
+  // WEG information is primarily relevant for an Eigentumswohnung. For other
+  // property types it only appears when the documents actually produced data.
+  const showWeg = property.propertyType === 'apartment' || hasWegData(exposeData.weg);
 
   return (
     <Section
@@ -95,7 +111,9 @@ export function StepFinancial({
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
               {pricing.purchasePrice ? formatEuro(pricing.purchasePrice) : 'Noch kein Kaufpreis'} ·{' '}
-              {pricing.pricePerM2 ? `${formatEuro(pricing.pricePerM2)} / m²` : '€/m² nicht angegeben'}
+              {pricing.pricePerM2
+                ? `${formatEuro(pricing.pricePerM2)} / m²`
+                : '€/m² nicht angegeben'}
             </p>
           </GroupCard>
         ) : (
@@ -143,7 +161,9 @@ export function StepFinancial({
               </div>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              {property.coldRent ? `${formatEuro(property.coldRent)} Kaltmiete` : 'Noch keine Miete'}
+              {property.coldRent
+                ? `${formatEuro(property.coldRent)} Kaltmiete`
+                : 'Noch keine Miete'}
             </p>
           </GroupCard>
         )}
@@ -207,6 +227,49 @@ export function StepFinancial({
                   checked={pricing.commissionVatIncluded === true}
                   onChange={(checked) => setPricing({ commissionVatIncluded: checked || null })}
                 />
+              </div>
+            </div>
+          </GroupCard>
+        )}
+
+        {showWeg && (
+          <GroupCard
+            title="WEG / Hausgeld"
+            description="Angaben zur Eigentumswohnung (WEG). Nur Werte aus Ihren Unterlagen zählen — es wird nichts berechnet."
+          >
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <UnitInput
+                  label="Hausgeld / Monat"
+                  unit="€"
+                  type="number"
+                  value={exposeData.weg?.hausgeldEur}
+                  onChange={(value) => setWeg({ hausgeldEur: value ? Number(value) : null })}
+                  placeholder="z. B. 350"
+                />
+                <DocumentSources sources={sources?.hausgeld} />
+              </div>
+              <div>
+                <UnitInput
+                  label="Instandhaltungsrücklage"
+                  unit="€"
+                  type="number"
+                  value={exposeData.weg?.maintenanceReserveEur}
+                  onChange={(value) =>
+                    setWeg({ maintenanceReserveEur: value ? Number(value) : null })
+                  }
+                  placeholder="Nur wenn angegeben"
+                />
+                <DocumentSources sources={sources?.maintenanceReserve} />
+              </div>
+              <div>
+                <Input
+                  label="Miteigentumsanteil"
+                  value={exposeData.weg?.coOwnershipShare ?? ''}
+                  onChange={(value) => setWeg({ coOwnershipShare: value || null })}
+                  placeholder="z. B. 145/10.000"
+                />
+                <DocumentSources sources={sources?.coOwnershipShare} />
               </div>
             </div>
           </GroupCard>
@@ -357,9 +420,7 @@ export function StepLegal({
               />
             ))}
             {flagGroups.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                Keine rechtlichen Angaben vorhanden.
-              </p>
+              <p className="text-sm text-muted-foreground">Keine rechtlichen Angaben vorhanden.</p>
             )}
           </div>
           <div className="mt-4">

@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
-import type { ImageCategory, PropertyImage, UploadImages } from '../types';
+import type { ImageCategory, PhotoUnderstanding, PropertyImage, UploadImages } from '../types';
 
 export function Section({
   title,
@@ -405,7 +405,8 @@ export function DatePicker({
                   }}
                   className={cn(
                     'grid size-8 place-items-center rounded-md text-xs transition-colors hover:bg-accent',
-                    selectedDay && 'bg-primary font-semibold text-primary-foreground hover:bg-primary',
+                    selectedDay &&
+                      'bg-primary font-semibold text-primary-foreground hover:bg-primary',
                     current && !selectedDay && 'font-semibold text-primary',
                   )}
                 >
@@ -505,6 +506,7 @@ export function PhotoSection({
   removeImage,
   cover,
   moveImage,
+  coverSuggestions,
 }: {
   title: string;
   category: ImageCategory;
@@ -514,22 +516,19 @@ export function PhotoSection({
   removeImage: (id: string) => Promise<void>;
   cover: (id: string) => Promise<void>;
   moveImage: (index: number, direction: -1 | 1) => Promise<void>;
+  coverSuggestions?: Map<string, PhotoUnderstanding>;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const sectionImages = images.filter(
     (image) => image.category === category && (image.subcategory ?? '') === subcategory,
   );
   const globalIndex = (id: string) => images.findIndex((image) => image.id === id);
+  const suggestedFor = (image: PropertyImage) => coverSuggestions?.get(image.fileName) ?? null;
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h3 className="truncate text-sm font-semibold text-foreground">{title}</h3>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => fileRef.current?.click()}
-        >
+        <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
           Hochladen
         </Button>
         <input
@@ -547,7 +546,10 @@ export function PhotoSection({
       {sectionImages.length ? (
         <div className="grid gap-3 sm:grid-cols-2">
           {sectionImages.map((image) => (
-            <div key={image.id} className="overflow-hidden rounded-lg border border-border bg-background">
+            <div
+              key={image.id}
+              className="overflow-hidden rounded-lg border border-border bg-background"
+            >
               <img
                 src={apiAssetUrl(image.url)}
                 alt={image.caption || subcategory || 'Objektfoto'}
@@ -562,6 +564,14 @@ export function PhotoSection({
                 >
                   {image.isCover ? 'Titelfoto ✓' : 'Als Titelfoto'}
                 </Button>
+                {suggestedFor(image) && !image.isCover && (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-md border border-amber-300/60 bg-amber-50 px-2 text-xs text-amber-800"
+                    title={suggestedFor(image)?.coverSuitabilityReason ?? undefined}
+                  >
+                    ✨ Als Titelbild empfohlen
+                  </span>
+                )}
                 <Button
                   type="button"
                   variant="ghost"

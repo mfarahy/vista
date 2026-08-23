@@ -8,3 +8,5 @@ public/uploads/*
 dist
 *.tsbuildinfo
 .playwright-mcp
+# Phase 9 verification output
+data/photo-verify/

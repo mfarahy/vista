@@ -32,6 +32,7 @@ Regeln:
 - Ausstattungsbeschreibung: beschreibe nur die tatsächlich vorhandenen Merkmale (z. B. Einbauküche, Bad, Gäste-WC, Dusche, Badewanne, Heizung, Terrasse, Balkon, Garten, Garage, Carport, Stellplätze). Nicht vorhandene oder unbekannte Merkmale nicht erwähnen.
 - Lagebeschreibung: ausschließlich aus den strukturierten Lageangaben (Stadtteil, ÖPNV, Schulen, Kindergärten, Einkaufsmöglichkeiten, medizinische Versorgung, Freizeit, Lagebeschreibung). Keine Entfernungen oder Zeiten erfinden. Gibt es keine verwertbaren Lageangaben, gib für die Lagebeschreibung null zurück — fülle sie nicht mit allgemeinen Floskeln.
 - Verwende natürliche deutsche Immobilien-Terminologie (z. B. Wohnfläche, Grundstücksfläche, Baujahr, Zustand, Einbauküche, Gäste-WC, Energieeffizienzklasse, Endenergiebedarf).
+- WEG-Angaben (Hausgeld, Instandhaltungsrücklage, Miteigentumsanteil) dürfen nur dann erwähnt werden, wenn das Faktenblatt sie enthält. Erfinde niemals WEG-Vorteile, Rücklagenhöhen, Sondernutzungsrechte, Verwaltungsangaben oder Anlageimplikationen, die nicht im Faktenblatt stehen.
 
 Das Ergebnis muss exakt dem vorgegebenen JSON-Schema entsprechen.`;
 
@@ -146,6 +147,11 @@ function factsOf(input: MarketingContentInput): string {
     property.askingPriceEur != null ? `Kaufpreis: ${property.askingPriceEur} €` : '',
     property.rentPriceEur != null ? `Kaltmiete: ${property.rentPriceEur} €/Monat` : '',
     property.depositEur != null ? `Kaution: ${property.depositEur} €` : '',
+    property.hausgeldEur != null ? `Hausgeld: ${property.hausgeldEur} €/Monat` : '',
+    property.maintenanceReserveEur != null
+      ? `Instandhaltungsrücklage: ${property.maintenanceReserveEur} €`
+      : '',
+    property.coOwnershipShare ? `Miteigentumsanteil: ${property.coOwnershipShare}` : '',
     property.address.district ? `Stadtteil: ${property.address.district}` : '',
     property.address.city ? `Ort: ${property.address.city}` : '',
     property.address.postalCode ? `PLZ: ${property.address.postalCode}` : '',

@@ -49,6 +49,47 @@ export interface UnderstandingAdditionalInfo {
   evidence: string | null;
 }
 
+export type UnderstandingPhotoType =
+  | 'exterior'
+  | 'living_room'
+  | 'bedroom'
+  | 'kitchen'
+  | 'bathroom'
+  | 'hallway'
+  | 'office'
+  | 'dining_room'
+  | 'balcony'
+  | 'terrace'
+  | 'garden'
+  | 'view'
+  | 'garage'
+  | 'parking'
+  | 'basement'
+  | 'utility_room'
+  | 'other';
+
+export type UnderstandingCoverSuitability = 'high' | 'medium' | 'low';
+
+/** One visually observable photo feature with its visual evidence. */
+export interface UnderstandingPhotoTag {
+  tag: string;
+  evidence: string;
+}
+
+/**
+ * Visual analysis of a `property_photo` document. Every value is based on the
+ * actual image pixels; measurements and legal/financial facts are never
+ * inferred from a photo. Null when the document is not a property photo.
+ */
+export interface PhotoUnderstanding {
+  photoType: UnderstandingPhotoType | null;
+  photoTags: UnderstandingPhotoTag[];
+  /** Short factual description of what the photo shows (no marketing language). */
+  visualDescription: string | null;
+  coverSuitability: UnderstandingCoverSuitability | null;
+  coverSuitabilityReason: string | null;
+}
+
 export interface DocumentUnderstandingResult {
   /** Exactly one primary document type. */
   documentType: DocumentType;
@@ -62,6 +103,12 @@ export interface DocumentUnderstandingResult {
   wizardFields: UnderstandingWizardField[];
   /** Additional structured information not mapped to a wizard field. */
   additionalInformation: UnderstandingAdditionalInfo[];
+  /**
+   * Visual analysis for property photos. Optional for backward
+   * compatibility: records persisted before the photo phase have no photo
+   * metadata and remain fully readable.
+   */
+  photo?: PhotoUnderstanding | null;
 }
 
 export interface DocumentUnderstandingProvider {

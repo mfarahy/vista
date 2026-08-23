@@ -116,6 +116,20 @@ export interface PropertyModel {
       vatIncluded?: boolean;
     };
   };
+  /**
+   * WEG facts for an Eigentumswohnung (Phase 9). Only values explicitly stated
+   * in the documents; nothing is ever calculated. Legal/administrative WEG
+   * details (administrator, special use rights) stay in document-level
+   * additionalInformation instead.
+   */
+  weg?: {
+    /** Monthly Hausgeld / Wohngeld in EUR. */
+    hausgeldEur?: number;
+    /** Instandhaltungsrücklage in EUR. */
+    maintenanceReserveEur?: number;
+    /** Miteigentumsanteil preserved verbatim, e.g. "145/10.000". */
+    coOwnershipShare?: string;
+  };
   rental?: {
     isRented?: boolean;
     monthlyRentEur?: number;
@@ -204,7 +218,9 @@ function hasFeature(property: Property, feature: string): boolean {
 }
 
 function hasAnyValue(values: Record<string, unknown>): boolean {
-  return Object.values(values).some((value) => value !== undefined && value !== null && value !== '');
+  return Object.values(values).some(
+    (value) => value !== undefined && value !== null && value !== '',
+  );
 }
 
 function normalizeCondition(value: string | null | undefined): PropertyCondition {
@@ -285,6 +301,18 @@ export function buildPropertyModel(property: Property): PropertyModel {
         }
       : undefined;
 
+  const wegData = exposeData?.weg;
+  const weg =
+    wegData && hasAnyValue(wegData as unknown as Record<string, unknown>)
+      ? {
+          hausgeldEur: wegData.hausgeldEur ?? property.hausgeld ?? undefined,
+          maintenanceReserveEur: wegData.maintenanceReserveEur ?? undefined,
+          coOwnershipShare: wegData.coOwnershipShare ?? undefined,
+        }
+      : property.hausgeld != null
+        ? { hausgeldEur: property.hausgeld }
+        : undefined;
+
   const investment = exposeData?.investment
     ? {
         grossYieldTargetPercent: exposeData.investment.grossYieldTargetPercent ?? undefined,
@@ -354,12 +382,13 @@ export function buildPropertyModel(property: Property): PropertyModel {
             }
           : undefined,
       guestToilet: hasFeature(property, 'guest-toilet') ? true : undefined,
-      heating: energy?.primaryEnergySource || energy?.heatingType
-        ? {
-            type: energy.heatingType ?? undefined,
-            energySource: energy.primaryEnergySource ?? undefined,
-          }
-        : undefined,
+      heating:
+        energy?.primaryEnergySource || energy?.heatingType
+          ? {
+              type: energy.heatingType ?? undefined,
+              energySource: energy.primaryEnergySource ?? undefined,
+            }
+          : undefined,
       parking: {
         parkingSpaces: details?.parkingSpaceCount ?? undefined,
         garage:
@@ -374,29 +403,31 @@ export function buildPropertyModel(property: Property): PropertyModel {
       gardenAreaM2: gardenOutdoor?.area ?? undefined,
       orientation: gardenOutdoor?.orientation ?? undefined,
     },
-    energy: energy && hasAnyValue({
-      certificateType: energy.certificateType,
-      certificateDate: energy.certificateDate,
-      certificateValidUntil: energy.certificateValidUntil,
-      efficiencyClass: energy.efficiencyClass,
-      demandKwhPerM2A: energy.finalEnergyDemand,
-      consumptionKwhPerM2A: energy.finalEnergyConsumption,
-      primaryEnergySource: energy.primaryEnergySource,
-      heatingType: energy.heatingType,
-      hotWaterIncluded: energy.hotWaterIncluded,
-    })
-      ? {
-          certificateType: energy.certificateType ?? undefined,
-          certificateDate: energy.certificateDate ?? undefined,
-          certificateValidUntil: energy.certificateValidUntil ?? undefined,
-          efficiencyClass: energy.efficiencyClass ?? undefined,
-          demandKwhPerM2A: energy.finalEnergyDemand ?? undefined,
-          consumptionKwhPerM2A: energy.finalEnergyConsumption ?? undefined,
-          primaryEnergySource: energy.primaryEnergySource ?? undefined,
-          heatingType: energy.heatingType ?? undefined,
-          hotWaterIncluded: energy.hotWaterIncluded ?? undefined,
-        }
-      : undefined,
+    energy:
+      energy &&
+      hasAnyValue({
+        certificateType: energy.certificateType,
+        certificateDate: energy.certificateDate,
+        certificateValidUntil: energy.certificateValidUntil,
+        efficiencyClass: energy.efficiencyClass,
+        demandKwhPerM2A: energy.finalEnergyDemand,
+        consumptionKwhPerM2A: energy.finalEnergyConsumption,
+        primaryEnergySource: energy.primaryEnergySource,
+        heatingType: energy.heatingType,
+        hotWaterIncluded: energy.hotWaterIncluded,
+      })
+        ? {
+            certificateType: energy.certificateType ?? undefined,
+            certificateDate: energy.certificateDate ?? undefined,
+            certificateValidUntil: energy.certificateValidUntil ?? undefined,
+            efficiencyClass: energy.efficiencyClass ?? undefined,
+            demandKwhPerM2A: energy.finalEnergyDemand ?? undefined,
+            consumptionKwhPerM2A: energy.finalEnergyConsumption ?? undefined,
+            primaryEnergySource: energy.primaryEnergySource ?? undefined,
+            heatingType: energy.heatingType ?? undefined,
+            hotWaterIncluded: energy.hotWaterIncluded ?? undefined,
+          }
+        : undefined,
     financial: {
       askingPriceEur: askingPrice,
       pricePerM2Eur: pricePerM2,
@@ -410,8 +441,8 @@ export function buildPropertyModel(property: Property): PropertyModel {
           : commissionOf(pricing?.buyerCommission),
     },
     rental,
-    investment:
-      investment && hasAnyValue(investment) ? investment : undefined,
+    weg,
+    investment: investment && hasAnyValue(investment) ? investment : undefined,
     legal: legal && hasAnyValue(legal as Record<string, unknown>) ? legal : undefined,
     location: {
       district: exposeData?.location.district ?? undefined,
@@ -600,6 +631,10 @@ export const WIZARD_FIELD_TARGETS: Record<string, WizardFieldTarget> = {
   // Investment
   grossYieldTarget: { path: 'investment.grossYieldTargetPercent', transform: toNumber },
   grossYieldActual: { path: 'investment.grossYieldActualPercent', transform: toNumber },
+  // WEG (Eigentumswohnung)
+  hausgeld: { path: 'weg.hausgeldEur', transform: toNumber },
+  maintenanceReserve: { path: 'weg.maintenanceReserveEur', transform: toNumber },
+  coOwnershipShare: { path: 'weg.coOwnershipShare', transform: toString },
   // Legal
   usufruct: { path: 'legal.usufruct', transform: toBoolean },
   leasehold: { path: 'legal.leasehold', transform: toBoolean },

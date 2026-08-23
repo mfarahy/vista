@@ -1,17 +1,9 @@
 'use client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  FileText,
-  LoaderCircle,
-  Sparkles,
-  X,
-} from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, FileText, LoaderCircle, Sparkles, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -29,6 +21,7 @@ import type {
   ExternalGeocoding,
   ExternalResearch,
   MarketingContent,
+  PhotoUnderstanding,
   Property,
   PropertyPayload,
   StructuredAddress,
@@ -43,7 +36,13 @@ import {
   type AdditionalInfoCandidate,
   type WizardFieldCandidate,
 } from './document-prefill';
-import { stepStatus, stepStatusLabel, normalizeCertificateType, normalizeEnergySource, type WizardStepStatus } from './wizard-steps';
+import {
+  stepStatus,
+  stepStatusLabel,
+  normalizeCertificateType,
+  normalizeEnergySource,
+  type WizardStepStatus,
+} from './wizard-steps';
 import { StepBuilding, StepProperty, type AddressFieldState } from './components/basic-steps';
 import { StepEnergy, StepFeatures, StepAgent } from './components/feature-steps';
 import {
@@ -100,6 +99,22 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
   >({});
   const [documentRecords, setDocumentRecords] = useState<DocumentRecord[]>([]);
 
+  /**
+   * AI cover suggestions from property-photo documents (Phase 9). Only photos
+   * the model rates as "high" are suggested; the user stays in control and the
+   * actual cover is never changed automatically.
+   */
+  const coverSuggestions = useMemo(() => {
+    const byFilename = new Map<string, PhotoUnderstanding>();
+    for (const record of documentRecords) {
+      const photo = record.understandingResult?.photo;
+      if (photo && record.documentType === 'property_photo' && photo.coverSuitability === 'high') {
+        byFilename.set(record.filename, photo);
+      }
+    }
+    return byFilename;
+  }, [documentRecords]);
+
   // Load persisted documents and prefill empty wizard fields from their AI
   // understanding results. This is what makes prefill survive a page reload:
   // the user never has to re-upload or re-analyze anything.
@@ -140,7 +155,9 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       } catch (lookupError) {
         if (!controller.signal.aborted)
           setAddressError(
-            lookupError instanceof Error ? lookupError.message : 'Die Adresssuche ist fehlgeschlagen.',
+            lookupError instanceof Error
+              ? lookupError.message
+              : 'Die Adresssuche ist fehlgeschlagen.',
           );
       } finally {
         if (!controller.signal.aborted) setAddressLoading(false);
@@ -258,7 +275,9 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
   function applyExternalData(raw: Record<string, unknown>) {
     const geocoding = raw.geocoding as ExternalGeocoding | undefined;
     const research = raw.research as ExternalResearch | undefined;
-    const hasGeocoding = Boolean(geocoding?.coordinates || geocoding?.summary || geocoding?.facilities);
+    const hasGeocoding = Boolean(
+      geocoding?.coordinates || geocoding?.summary || geocoding?.facilities,
+    );
     if (!hasGeocoding && !research) return;
     setProperty((current) => {
       const data = current.exposeData ?? emptyExposeData(initialProperty);
@@ -282,7 +301,9 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         location.district = geocoding.address.district;
         changed = true;
       }
-      for (const [key, value] of Object.entries(surroundingsFromFacilities(geocoding?.facilities))) {
+      for (const [key, value] of Object.entries(
+        surroundingsFromFacilities(geocoding?.facilities),
+      )) {
         if (!surroundings[key] && value) {
           surroundings[key] = value;
           changed = true;
@@ -377,6 +398,9 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         additionalCosts: current.additionalCosts,
         furnished: data.rental?.furnished,
         availableFrom: current.availableFrom,
+        hausgeld: data.weg?.hausgeldEur,
+        maintenanceReserve: data.weg?.maintenanceReserveEur,
+        coOwnershipShare: data.weg?.coOwnershipShare,
         grossYieldTarget: data.investment?.grossYieldTargetPercent,
         grossYieldActual: data.investment?.grossYieldActualPercent,
         usufruct: data.additionalInformation?.legalFlags?.usufruct,
@@ -419,6 +443,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     const pricing = { ...data.pricing };
     const energy = data.energy ? { ...data.energy } : {};
     const rental = { ...(data.rental ?? {}) };
+    const weg = { ...(data.weg ?? {}) };
     const investment = { ...(data.investment ?? {}) };
     const legalFlags = { ...(data.additionalInformation.legalFlags ?? {}) };
     let addressChanged = false;
@@ -426,6 +451,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     let detailsChanged = false;
     let pricingChanged = false;
     let rentalChanged = false;
+    let wegChanged = false;
     let investmentChanged = false;
     let legalChanged = false;
     let basicChanged = false;
@@ -446,6 +472,12 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       if (value !== null && value !== undefined && value !== '' && rental[key] == null) {
         (rental as Record<string, string | number | boolean | null>)[key] = value;
         rentalChanged = true;
+      }
+    };
+    const setWeg = (key: keyof typeof weg, value: string | number | boolean | null) => {
+      if (value !== null && value !== undefined && value !== '' && weg[key] == null) {
+        (weg as Record<string, string | number | boolean | null>)[key] = value;
+        wegChanged = true;
       }
     };
     const setInvestment = (key: keyof typeof investment, value: string | number | boolean) => {
@@ -661,6 +693,15 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
           if (investment.grossYieldActualPercent == null)
             setInvestment('grossYieldActualPercent', Number(value));
           break;
+        case 'hausgeld':
+          setWeg('hausgeldEur', Number(value));
+          break;
+        case 'maintenanceReserve':
+          setWeg('maintenanceReserveEur', Number(value));
+          break;
+        case 'coOwnershipShare':
+          setWeg('coOwnershipShare', String(value));
+          break;
         case 'usufruct':
           if (value === true) setLegalFlag('usufruct', true);
           break;
@@ -739,6 +780,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     if (detailsChanged) data.propertyDetails = details;
     if (pricingChanged) data.pricing = pricing;
     if (rentalChanged) data.rental = rental;
+    if (wegChanged) data.weg = weg;
     if (investmentChanged) data.investment = investment;
     if (legalChanged) {
       data.additionalInformation = { ...data.additionalInformation, legalFlags };
@@ -768,10 +810,11 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       additionalCosts: next.additionalCosts ?? data.pricing.additionalCosts ?? null,
       buyerCommission: next.commission ?? data.pricing.buyerCommission ?? null,
     };
-    if (next.availableFrom) data.additionalInformation = {
-      ...data.additionalInformation,
-      availability: next.availableFrom,
-    };
+    if (next.availableFrom)
+      data.additionalInformation = {
+        ...data.additionalInformation,
+        availability: next.availableFrom,
+      };
 
     return { ...next, exposeData: data };
   }
@@ -1298,6 +1341,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                         moveImage={moveImage}
                         noteValue={noteValue}
                         setNote={setNote}
+                        coverSuggestions={coverSuggestions}
                       />
                     )}
                     {step === 11 && (

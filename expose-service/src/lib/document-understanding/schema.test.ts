@@ -5,6 +5,8 @@ import {
   DOCUMENT_TYPES,
   DOCUMENT_TAGS,
   WIZARD_FIELDS,
+  PHOTO_TYPES,
+  PHOTO_TAGS,
   documentUnderstandingSchema,
 } from './schema.js';
 
@@ -14,6 +16,7 @@ describe('document understanding schema', () => {
     assert.ok(DOCUMENT_TYPES.includes('expose'));
     assert.ok(DOCUMENT_TYPES.includes('energieausweis'));
     assert.ok(DOCUMENT_TYPES.includes('property_photo'));
+    assert.ok(DOCUMENT_TYPES.includes('teilungserklaerung'));
     assert.ok(DOCUMENT_TYPES.includes('other'));
   });
 
@@ -22,6 +25,24 @@ describe('document understanding schema', () => {
     assert.ok(DOCUMENT_TAGS.includes('energy'));
     assert.ok(DOCUMENT_TAGS.includes('living-area'));
     assert.ok(DOCUMENT_TAGS.includes('rooms'));
+  });
+
+  it('exposes the WEG wizard fields for Eigentumswohnung extraction', () => {
+    for (const field of ['hausgeld', 'maintenanceReserve', 'coOwnershipShare']) {
+      assert.ok(
+        WIZARD_FIELDS.includes(field as (typeof WIZARD_FIELDS)[number]),
+        `${field} must exist`,
+      );
+    }
+  });
+
+  it('exposes a controlled photo type and tag taxonomy', () => {
+    for (const type of ['exterior', 'living_room', 'kitchen', 'bathroom', 'other']) {
+      assert.ok(PHOTO_TYPES.includes(type as (typeof PHOTO_TYPES)[number]), `photo type ${type}`);
+    }
+    for (const tag of ['fitted-kitchen', 'parquet-floor', 'bathtub', 'large-windows']) {
+      assert.ok(PHOTO_TAGS.includes(tag as (typeof PHOTO_TAGS)[number]), `photo tag ${tag}`);
+    }
   });
 
   it('accepts a valid structured result', () => {
@@ -163,5 +184,115 @@ describe('document understanding schema', () => {
     });
     assert.equal(result.wizardFields[0].value, null);
     assert.equal(result.wizardFields[0].evidence, null);
+  });
+
+  it('accepts photo metadata for property photos', () => {
+    const result = documentUnderstandingSchema.parse({
+      documentType: 'property_photo',
+      tags: ['property-photo', 'interior', 'kitchen'],
+      summary: 'Küchenfoto.',
+      keepInLibrary: true,
+      wizardFields: [],
+      additionalInformation: [],
+      photo: {
+        photoType: 'kitchen',
+        photoTags: [
+          {
+            tag: 'fitted-kitchen',
+            evidence: 'Einbauküche mit Hochschränken und Arbeitsplatte sichtbar.',
+          },
+          { tag: 'tiles', evidence: 'Fliesen an der Arbeitsfläche sichtbar.' },
+        ],
+        visualDescription:
+          'Heller Wohnbereich mit Parkettboden, großen Fenstern und Zugang zu einem Balkon.',
+        coverSuitability: 'high',
+        coverSuitabilityReason: 'Zentraler Bildausschnitt, gut belichtet.',
+      },
+    });
+    assert.equal(result.photo?.photoType, 'kitchen');
+    assert.equal(result.photo?.photoTags.length, 2);
+    assert.equal(result.photo?.photoTags[0].tag, 'fitted-kitchen');
+    assert.equal(result.photo?.coverSuitability, 'high');
+  });
+
+  it('keeps photo metadata null for non-photo documents', () => {
+    const result = documentUnderstandingSchema.parse({
+      documentType: 'teilungserklaerung',
+      tags: ['ownership', 'legal'],
+      summary: 'Teilungserklärung.',
+      keepInLibrary: true,
+      wizardFields: [
+        {
+          field: 'coOwnershipShare',
+          value: '145/10.000',
+          evidence: '145/10.000 Miteigentumsanteile',
+        },
+      ],
+      additionalInformation: [],
+    });
+    assert.equal(result.photo, null);
+  });
+
+  it('rejects photo tags outside the controlled set', () => {
+    assert.throws(() =>
+      documentUnderstandingSchema.parse({
+        documentType: 'property_photo',
+        tags: [],
+        summary: '',
+        keepInLibrary: true,
+        wizardFields: [],
+        additionalInformation: [],
+        photo: {
+          photoType: 'kitchen',
+          photoTags: [{ tag: 'swimming-pool', evidence: 'Pool sichtbar.' }],
+        },
+      }),
+    );
+  });
+
+  it('rejects a photo type outside the controlled set', () => {
+    assert.throws(() =>
+      documentUnderstandingSchema.parse({
+        documentType: 'property_photo',
+        tags: [],
+        summary: '',
+        keepInLibrary: true,
+        wizardFields: [],
+        additionalInformation: [],
+        photo: { photoType: 'attic_room', photoTags: [] },
+      }),
+    );
+  });
+
+  it('accepts a WEG extraction result with the new wizard fields', () => {
+    const result = documentUnderstandingSchema.parse({
+      documentType: 'teilungserklaerung',
+      tags: ['ownership', 'legal'],
+      summary: 'Teilungserklärung mit WEG-Angaben.',
+      keepInLibrary: true,
+      wizardFields: [
+        { field: 'hausgeld', value: 350, evidence: 'Hausgeld: 350,00 €' },
+        {
+          field: 'maintenanceReserve',
+          value: 85000,
+          evidence: 'Instandhaltungsrücklage: 85.000 €',
+        },
+        {
+          field: 'coOwnershipShare',
+          value: '145/10.000',
+          evidence: '145/10.000 Miteigentumsanteile',
+        },
+      ],
+      additionalInformation: [
+        {
+          key: 'wegAdministrator',
+          value: 'Hausverwaltung Mustermann GmbH',
+          evidence: 'Verwalter: Hausverwaltung Mustermann GmbH',
+        },
+      ],
+    });
+    assert.equal(result.wizardFields.length, 3);
+    assert.equal(result.wizardFields[0].value, 350);
+    assert.equal(result.additionalInformation[0].key, 'wegAdministrator');
   });
 });

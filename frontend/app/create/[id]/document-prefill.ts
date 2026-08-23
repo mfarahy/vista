@@ -94,6 +94,9 @@ export const WIZARD_FIELD_LABELS: Record<string, string> = {
   availableFrom: 'Verfügbar ab',
   grossYieldTarget: 'Bruttorendite (Soll)',
   grossYieldActual: 'Bruttorendite (Ist)',
+  hausgeld: 'Hausgeld',
+  maintenanceReserve: 'Instandhaltungsrücklage',
+  coOwnershipShare: 'Miteigentumsanteil',
   usufruct: 'Nießbrauch',
   leasehold: 'Erbbaurecht',
   foreclosure: 'Zwangsversteigerung',
@@ -164,9 +167,7 @@ export function groupCandidatesByField(
  *   2. otherwise the first candidate in document order.
  * Never random.
  */
-export function pickDefault(
-  sources: WizardFieldCandidate[],
-): WizardFieldCandidate | undefined {
+export function pickDefault(sources: WizardFieldCandidate[]): WizardFieldCandidate | undefined {
   return sources.find((source) => source.evidence) ?? sources[0];
 }
 
@@ -174,9 +175,7 @@ export function pickDefault(
  * Collects every non-empty additional-information entry across all persisted
  * documents, preserving the source document and its AI-provided evidence.
  */
-export function collectAdditionalInformation(
-  records: DocumentRecord[],
-): AdditionalInfoCandidate[] {
+export function collectAdditionalInformation(records: DocumentRecord[]): AdditionalInfoCandidate[] {
   const candidates: AdditionalInfoCandidate[] = [];
   for (const record of records) {
     if (record.status !== 'completed') continue;

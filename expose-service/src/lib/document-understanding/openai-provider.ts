@@ -80,6 +80,15 @@ export class OpenAIDocumentUnderstandingProvider implements DocumentUnderstandin
       keepInLibrary: structured.keepInLibrary,
       wizardFields: structured.wizardFields.map((field) => ({ ...field })),
       additionalInformation: structured.additionalInformation.map((info) => ({ ...info })),
+      photo: structured.photo
+        ? {
+            photoType: structured.photo.photoType,
+            photoTags: structured.photo.photoTags.map((tag) => ({ ...tag })),
+            visualDescription: structured.photo.visualDescription,
+            coverSuitability: structured.photo.coverSuitability,
+            coverSuitabilityReason: structured.photo.coverSuitabilityReason,
+          }
+        : null,
     };
   }
 }

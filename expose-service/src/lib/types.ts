@@ -243,6 +243,7 @@ export type DocumentType =
   | 'bauplan'
   | 'kaufvertrag'
   | 'mietvertrag'
+  | 'teilungserklaerung'
   | 'property_photo'
   | 'other';
 

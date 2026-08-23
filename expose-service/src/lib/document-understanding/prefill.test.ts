@@ -309,6 +309,50 @@ describe('computePrefillDefaults', () => {
     assert.equal(defaults.deposit, 2670, 'first evidence-bearing candidate is the default');
   });
 
+  it('preserves conflicting Hausgeld candidates from two WEG documents', () => {
+    const documents = [
+      recordWithUnderstanding('teil', {
+        documentType: 'teilungserklaerung',
+        tags: [],
+        summary: '',
+        keepInLibrary: true,
+        wizardFields: [{ field: 'hausgeld', value: 350, evidence: 'Hausgeld: 350 €' }],
+        additionalInformation: [],
+      }),
+      recordWithUnderstanding('hausgeld', {
+        documentType: 'other',
+        tags: [],
+        summary: '',
+        keepInLibrary: true,
+        wizardFields: [{ field: 'hausgeld', value: 375, evidence: 'monatliches Hausgeld 375 €' }],
+        additionalInformation: [],
+      }),
+    ];
+    const { valuesByField, defaults } = computePrefillDefaults(documents, {});
+    assert.deepEqual(
+      valuesByField.hausgeld.map((source) => source.value),
+      [350, 375],
+      'both Hausgeld candidates stay visible as sources',
+    );
+    assert.equal(defaults.hausgeld, 350, 'first evidence-bearing candidate is the default');
+  });
+
+  it('never overwrites a user-entered Hausgeld with a document value', () => {
+    const documents = [
+      recordWithUnderstanding('doc-a', {
+        documentType: 'teilungserklaerung',
+        tags: [],
+        summary: '',
+        keepInLibrary: true,
+        wizardFields: [{ field: 'hausgeld', value: 350, evidence: 'Hausgeld: 350 €' }],
+        additionalInformation: [],
+      }),
+    ];
+    const { defaults, valuesByField } = computePrefillDefaults(documents, { hausgeld: 400 });
+    assert.equal(defaults.hausgeld, undefined, 'user value 400 wins');
+    assert.equal(valuesByField.hausgeld.length, 1, 'the document still contributes a source');
+  });
+
   it('a document without an understanding result produces no fake fields', () => {
     const { defaults, valuesByField } = computePrefillDefaults(
       [

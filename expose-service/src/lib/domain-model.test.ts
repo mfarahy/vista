@@ -647,10 +647,12 @@ describe('Domain separation', () => {
     });
 
     const domain = buildDomainModel(property);
-    assert.deepEqual(
-      Object.keys(domain).sort(),
-      ['expose', 'listing', 'marketingContent', 'property'],
-    );
+    assert.deepEqual(Object.keys(domain).sort(), [
+      'expose',
+      'listing',
+      'marketingContent',
+      'property',
+    ]);
 
     domain.listing.status = 'archived';
     domain.marketingContent.title = 'Edited by user';
@@ -757,5 +759,38 @@ describe('AI extraction mapping target', () => {
     ]);
     assert.equal(model.address.city, 'Berlin');
     assert.equal(model.legal, undefined);
+  });
+
+  it('maps WEG wizard fields onto the weg section', () => {
+    const model = applyWizardFieldsToModel(buildPropertyModel(propertyWith()), [
+      { field: 'hausgeld', value: 350 },
+      { field: 'maintenanceReserve', value: 85000 },
+      { field: 'coOwnershipShare', value: '145/10.000' },
+    ]);
+    assert.equal(model.weg?.hausgeldEur, 350);
+    assert.equal(model.weg?.maintenanceReserveEur, 85000);
+    assert.equal(model.weg?.coOwnershipShare, '145/10.000');
+  });
+
+  it('maps persisted exposeData.weg onto the weg section', () => {
+    const property = propertyWith({
+      exposeData: exposeDataWith({
+        weg: { hausgeldEur: 350, maintenanceReserveEur: 85000, coOwnershipShare: '145/10.000' },
+      }),
+    });
+    const model = buildPropertyModel(property);
+    assert.equal(model.weg?.hausgeldEur, 350);
+    assert.equal(model.weg?.maintenanceReserveEur, 85000);
+    assert.equal(model.weg?.coOwnershipShare, '145/10.000');
+  });
+
+  it('falls back to the legacy flat hausgeld field', () => {
+    const model = buildPropertyModel(propertyWith({ hausgeld: 390 }));
+    assert.equal(model.weg?.hausgeldEur, 390);
+  });
+
+  it('omits the weg section when no WEG data exists', () => {
+    const model = buildPropertyModel(propertyWith());
+    assert.equal(model.weg, undefined);
   });
 });

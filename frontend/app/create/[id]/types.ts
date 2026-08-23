@@ -148,6 +148,16 @@ export type RentalData = {
   annualRent?: number | null;
 };
 
+/** WEG facts for an Eigentumswohnung; only explicitly stated values. */
+export type WegData = {
+  /** Monthly Hausgeld / Wohngeld in EUR. */
+  hausgeldEur?: number | null;
+  /** Instandhaltungsrücklage in EUR. */
+  maintenanceReserveEur?: number | null;
+  /** Miteigentumsanteil preserved verbatim, e.g. "145/10.000". */
+  coOwnershipShare?: string | null;
+};
+
 export type InvestmentData = {
   grossYieldTargetPercent?: number | null;
   grossYieldActualPercent?: number | null;
@@ -223,6 +233,7 @@ export type ExposeData = {
   };
   energy?: EnergyData | null;
   rental?: RentalData;
+  weg?: WegData;
   investment?: InvestmentData;
   rooms: Array<{
     id?: string;
@@ -391,9 +402,7 @@ export const PROPERTY_SUBTYPES: Record<string, ReadonlyArray<readonly [string, s
 export function subtypeLabel(propertyType: string, value?: string | null): string {
   if (!value) return '';
   const options = PROPERTY_SUBTYPES[propertyType] ?? [];
-  return (
-    options.find(([key, label]) => key === value || label === value)?.[1] ?? value
-  );
+  return options.find(([key, label]) => key === value || label === value)?.[1] ?? value;
 }
 
 /** Resolves a stored subtype value to its normalized key (for Select values). */
@@ -529,6 +538,7 @@ export type DocumentType =
   | 'bauplan'
   | 'kaufvertrag'
   | 'mietvertrag'
+  | 'teilungserklaerung'
   | 'property_photo'
   | 'other';
 
@@ -565,6 +575,40 @@ export type UnderstandingAdditionalInfo = {
   evidence: string | null;
 };
 
+export type PhotoType =
+  | 'exterior'
+  | 'living_room'
+  | 'bedroom'
+  | 'kitchen'
+  | 'bathroom'
+  | 'hallway'
+  | 'office'
+  | 'dining_room'
+  | 'balcony'
+  | 'terrace'
+  | 'garden'
+  | 'view'
+  | 'garage'
+  | 'parking'
+  | 'basement'
+  | 'utility_room'
+  | 'other';
+
+export type PhotoTag = {
+  tag: string;
+  /** Factual description of what is visibly present. */
+  evidence: string;
+};
+
+/** Visual analysis of a property_photo document. */
+export type PhotoUnderstanding = {
+  photoType: PhotoType | null;
+  photoTags: PhotoTag[];
+  visualDescription: string | null;
+  coverSuitability: 'high' | 'medium' | 'low' | null;
+  coverSuitabilityReason: string | null;
+};
+
 export type DocumentUnderstandingResult = {
   documentType: DocumentType;
   tags: string[];
@@ -572,6 +616,8 @@ export type DocumentUnderstandingResult = {
   keepInLibrary: boolean;
   wizardFields: UnderstandingWizardField[];
   additionalInformation: UnderstandingAdditionalInfo[];
+  /** Optional for backward compatibility with records from earlier phases. */
+  photo?: PhotoUnderstanding | null;
 };
 
 export type DocumentRecord = {
@@ -602,9 +648,55 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   bauplan: 'Bauplan',
   kaufvertrag: 'Kaufvertrag',
   mietvertrag: 'Mietvertrag',
+  teilungserklaerung: 'Teilungserklärung',
   property_photo: 'Property photo',
   other: 'Other',
 };
+
+/** German display labels for the AI photo classification. */
+export const PHOTO_TYPE_LABELS: Record<PhotoType, string> = {
+  exterior: 'Außenansicht',
+  living_room: 'Wohnzimmer',
+  bedroom: 'Schlafzimmer',
+  kitchen: 'Küche',
+  bathroom: 'Badezimmer',
+  hallway: 'Diele / Flur',
+  office: 'Arbeitszimmer',
+  dining_room: 'Esszimmer',
+  balcony: 'Balkon',
+  terrace: 'Terrasse',
+  garden: 'Garten',
+  view: 'Ausblick',
+  garage: 'Garage',
+  parking: 'Stellplatz',
+  basement: 'Keller',
+  utility_room: 'Hauswirtschaftsraum',
+  other: 'Sonstiges',
+};
+
+/** German display labels for the AI photo tags. */
+export const PHOTO_TAG_LABELS: Record<string, string> = {
+  'fitted-kitchen': 'Einbauküche',
+  'parquet-floor': 'Parkettboden',
+  'laminate-floor': 'Laminatboden',
+  tiles: 'Fliesen',
+  balcony: 'Balkon',
+  terrace: 'Terrasse',
+  garden: 'Garten',
+  bathtub: 'Badewanne',
+  shower: 'Dusche',
+  'guest-toilet': 'Gäste-WC',
+  fireplace: 'Kamin',
+  'large-windows': 'Große Fenster',
+  'built-in-wardrobes': 'Einbauschränke',
+  garage: 'Garage',
+  parking: 'Stellplatz',
+};
+
+export function photoTypeLabel(type: PhotoType | null | undefined): string {
+  if (!type) return '';
+  return PHOTO_TYPE_LABELS[type] ?? type;
+}
 
 export const LEGAL_FLAG_LABELS: Record<string, string> = {
   usufruct: 'Nießbrauch',
@@ -644,6 +736,14 @@ export function additionalInfoLabel(key: string): string {
     projected_building_footprint: 'Geplante Bebauungsfläche',
     projected_building_dimensions: 'Gebäudemaße',
     document_date: 'Datum',
+    wegAdministrator: 'WEG-Verwaltung',
+    specialUseRights: 'Sondernutzungsrechte',
+    specialUseRight: 'Sondernutzungsrecht',
+    coOwnership: 'Miteigentumsanteil',
+    ownershipStructure: 'Eigentümerstruktur',
+    wegInformation: 'WEG-Informationen',
+    legalRestrictions: 'Rechtliche Einschränkungen',
+    houseRules: 'Hausordnung',
   };
   return labels[key] ?? key;
 }
@@ -696,6 +796,7 @@ export const emptyExposeData = (property: Property): ExposeData => ({
   },
   energy: null,
   rental: { isRented: null, furnished: null, annualRent: null },
+  weg: { hausgeldEur: null, maintenanceReserveEur: null, coOwnershipShare: null },
   investment: { grossYieldTargetPercent: null, grossYieldActualPercent: null },
   rooms: [],
   equipment: [],

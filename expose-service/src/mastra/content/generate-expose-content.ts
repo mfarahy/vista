@@ -118,6 +118,7 @@ function fact(labelName: string, value: string | number | null | undefined) {
 
 function facts(data: PropertyExposeData) {
   const details = data.propertyDetails;
+  const weg = data.weg;
   return [
     fact(
       'Objektart',
@@ -145,6 +146,13 @@ function facts(data: PropertyExposeData) {
       data.pricing.purchasePrice != null ? euro.format(data.pricing.purchasePrice) : null,
     ),
     fact('Käuferprovision', data.pricing.buyerCommission),
+    // WEG facts for an Eigentumswohnung: only rendered when explicitly stated.
+    fact('Hausgeld', weg?.hausgeldEur != null ? euro.format(weg.hausgeldEur) : null),
+    fact(
+      'Instandhaltungsrücklage',
+      weg?.maintenanceReserveEur != null ? euro.format(weg.maintenanceReserveEur) : null,
+    ),
+    fact('Miteigentumsanteil', weg?.coOwnershipShare),
   ].filter((item): item is { label: string; value: string } => item !== null);
 }
 
