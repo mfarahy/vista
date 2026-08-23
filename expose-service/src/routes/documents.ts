@@ -13,9 +13,11 @@ import {
   removeDocument,
 } from '../lib/store.js';
 import { getParam, sendError, asyncHandler, loadProperty } from '../lib/http.js';
+import { getLogger } from '../lib/logger.js';
 import { createDocumentAnalysisProvider } from '../lib/document-analysis/index.js';
 import { createDocumentUnderstandingProvider } from '../lib/document-understanding/index.js';
 import { runDocumentPipeline } from '../lib/document-understanding/pipeline.js';
+import { DOCUMENT_ANALYSIS_CONCURRENCY, mapWithConcurrency } from '../lib/concurrency.js';
 import type { DocumentRecord } from '../lib/types.js';
 
 export const documentsRouter = Router();
@@ -66,19 +68,45 @@ documentsRouter.post(
     }
 
     await fs.mkdir(uploadPath, { recursive: true });
-    const results: DocumentRecord[] = [];
-    for (const file of files) {
+
+    // Persist every file and create the document records first (serialized),
+    // then run the expensive OCR + AI analyses with bounded concurrency. The
+    // per-document pipeline isolates failures, so one failed document never
+    // cancels the others. Result order follows the upload order.
+    const records = new Array<DocumentRecord>(files.length);
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
       const name = `${randomUUID()}-${sanitizeFileName(file.originalname)}`;
       await fs.writeFile(path.join(uploadPath, name), file.buffer);
-      const record = await createDocument(property.id, {
+      records[index] = await createDocument(property.id, {
         filename: file.originalname,
         mimeType: file.mimetype,
         size: file.size,
         url: `/uploads/${name}`,
       });
-      const updated = await analyzeRecord(record, file.buffer, file.mimetype);
-      if (updated) results.push(updated);
     }
+    const results = await mapWithConcurrency(
+      files,
+      DOCUMENT_ANALYSIS_CONCURRENCY,
+      async (file, index) => {
+        try {
+          return (
+            (await analyzeRecord(records[index], file.buffer, file.mimetype)) ?? records[index]
+          );
+        } catch (error) {
+          getLogger().error(
+            { err: error, documentId: records[index].id },
+            'Document analysis crashed for document {documentId}',
+          );
+          return (
+            (await updateDocument(records[index].id, {
+              status: 'failed',
+              error: 'The document could not be analyzed.',
+            })) ?? records[index]
+          );
+        }
+      },
+    );
     res.status(201).json(results);
   }),
 );

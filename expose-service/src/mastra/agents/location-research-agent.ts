@@ -5,6 +5,7 @@ import {
   getCachedLocationResearch,
   setCachedLocationResearch,
 } from '../../lib/location-research-cache.js';
+import { filterClaimsForLocation } from '../../lib/location-relevance.js';
 import { getLogger, trackExternalCall } from '../../lib/logger.js';
 import {
   locationResearchSchema,
@@ -61,7 +62,8 @@ const officialDomains = [
 const queries = [
   [
     'mikrolage',
-    (area: string, city: string) => `"${area}" ${city} Lage Wohnumfeld Infrastruktur`,
+    (area: string, city: string, postalCode: string) =>
+      `"${area}" ${[city, postalCode].filter(Boolean).join(' ')} Lage Wohnumfeld Infrastruktur`,
     'advanced',
   ],
   [
@@ -71,33 +73,42 @@ const queries = [
   ],
   [
     'transport',
-    (area: string, city: string) =>
-      `"${area}" ${city} öffentliche Verkehrsmittel S-Bahn U-Bahn Tram Bus`,
+    (area: string, city: string, postalCode: string) =>
+      `"${area}" ${[city, postalCode].filter(Boolean).join(' ')} öffentliche Verkehrsmittel S-Bahn U-Bahn Tram Bus`,
     'basic',
   ],
   [
     'education',
-    (area: string, city: string) => `"${area}" ${city} Schulen Kindergärten Bildung`,
+    (area: string, city: string, postalCode: string) =>
+      `"${area}" ${[city, postalCode].filter(Boolean).join(' ')} Schulen Kindergärten Bildung`,
     'basic',
   ],
   [
     'shopping',
-    (area: string, city: string) =>
-      `"${area}" ${city} Einkaufsmöglichkeiten Supermarkt Einzelhandel`,
+    (area: string, city: string, postalCode: string) =>
+      `"${area}" ${[city, postalCode].filter(Boolean).join(' ')} Einkaufsmöglichkeiten Supermarkt Einzelhandel`,
     'basic',
   ],
   [
     'recreation',
-    (area: string, city: string) => `"${area}" ${city} Parks Freizeit Sport Kultur`,
+    (area: string, city: string, postalCode: string) =>
+      `"${area}" ${[city, postalCode].filter(Boolean).join(' ')} Parks Freizeit Sport Kultur`,
     'basic',
   ],
 ] as const;
 
+/**
+ * Builds the focused research queries. The most specific known location is
+ * preferred (neighborhood > district > city) and the postal code narrows the
+ * area-specific queries further. Street and house number stay out of the
+ * queries on purpose: they are not needed for district-level research and must
+ * not expose personal address details.
+ */
 export function buildLocationResearchQueries(input: LocationResearchInput) {
   const area = input.neighborhood || input.district || input.city;
   return queries.map(([category, build, searchDepth]) => ({
     category,
-    query: build(area, input.city),
+    query: build(area, input.city, input.postalCode),
     searchDepth,
   }));
 }
@@ -249,10 +260,14 @@ export async function researchLocation(
       );
     })
     .filter((claim) => claim.statement.length > 20 && claim.sources.length > 0);
+  // Only claims plausibly about the property's actual location are kept.
+  // Wrong-district results (for example Prenzlauer Berg for a Neukölln
+  // property) are dropped deterministically; city-wide facts stay valid.
+  const relevantClaims = filterClaimsForLocation(claims, validated);
   const section = (category: ResearchClaim['category']) => ({
-    claims: claims.filter((claim) => claim.category === category),
-    summary: claims.filter((claim) => claim.category === category).length
-      ? `${claims.filter((claim) => claim.category === category).length} belegte Rechercheaussage(n).`
+    claims: relevantClaims.filter((claim) => claim.category === category),
+    summary: relevantClaims.filter((claim) => claim.category === category).length
+      ? `${relevantClaims.filter((claim) => claim.category === category).length} belegte Rechercheaussage(n).`
       : undefined,
   });
   const research = locationResearchSchema.parse({
@@ -260,15 +275,15 @@ export async function researchLocation(
     mikrolage: section('mikrolage'),
     makrolage: section('makrolage'),
     infrastructure: {
-      transport: claims.filter((claim) => claim.category === 'transport'),
-      education: claims.filter((claim) => claim.category === 'education'),
-      shopping: claims.filter((claim) => claim.category === 'shopping'),
-      healthcare: claims.filter((claim) => claim.category === 'healthcare'),
-      recreation: claims.filter((claim) => claim.category === 'recreation'),
+      transport: relevantClaims.filter((claim) => claim.category === 'transport'),
+      education: relevantClaims.filter((claim) => claim.category === 'education'),
+      shopping: relevantClaims.filter((claim) => claim.category === 'shopping'),
+      healthcare: relevantClaims.filter((claim) => claim.category === 'healthcare'),
+      recreation: relevantClaims.filter((claim) => claim.category === 'recreation'),
     },
     sources,
-    confidence: claims.length
-      ? claims.reduce((sum, claim) => sum + claim.confidence, 0) / claims.length
+    confidence: relevantClaims.length
+      ? relevantClaims.reduce((sum, claim) => sum + claim.confidence, 0) / relevantClaims.length
       : 0,
   });
   getLogger().info(
@@ -277,7 +292,8 @@ export async function researchLocation(
       cacheKey: locationResearchCacheKey(validated),
       searches: results.length,
       sources: sources.length,
-      claims: claims.length,
+      claims: relevantClaims.length,
+      filteredClaims: claims.length - relevantClaims.length,
     },
     'Location research completed for property {propertyId}',
   );

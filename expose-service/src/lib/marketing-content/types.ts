@@ -101,6 +101,8 @@ export interface MarketingContentInput {
     primaryEnergySource?: string;
     askingPriceEur?: number;
     rentPriceEur?: number;
+    /** Rental security (Kaution) in EUR, only when explicitly stated. */
+    depositEur?: number;
   };
   listing: {
     transactionType: string;
@@ -187,6 +189,7 @@ export function marketingContentInputOf(
       primaryEnergySource: energy?.primaryEnergySource,
       askingPriceEur: financial.askingPriceEur,
       rentPriceEur: rental?.monthlyRentEur,
+      depositEur: rental?.depositEur,
     },
     listing: {
       transactionType: listingModel.transactionType,

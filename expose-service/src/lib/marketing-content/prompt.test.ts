@@ -110,6 +110,28 @@ describe('marketing content prompt', () => {
     assert.match(message, /Stadtteil: Buckow/);
   });
 
+  it('makes the persisted deposit available as a structured rental fact', () => {
+    const property = propertyWith({
+      transactionType: 'rent',
+      coldRent: 890,
+      deposit: 2670,
+      livingArea: 72,
+    });
+    const input = buildMarketingContentInput(property);
+    assert.equal(input.property.rentPriceEur, 890);
+    assert.equal(input.property.depositEur, 2670);
+    const message = buildUserMessage(input);
+    assert.match(message, /Kaltmiete: 890 €\/Monat/);
+    assert.match(message, /Kaution: 2670 €/);
+  });
+
+  it('never invents a deposit that is not persisted', () => {
+    const property = propertyWith({ transactionType: 'rent', coldRent: 890 });
+    const input = buildMarketingContentInput(property);
+    assert.equal(input.property.depositEur, undefined);
+    assert.doesNotMatch(buildUserMessage(input), /Kaution/);
+  });
+
   it('passes seller and user information as marketing context', () => {
     const property = propertyWith({
       sellerDescription: 'Wir haben den Garten besonders geliebt.',

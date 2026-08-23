@@ -132,6 +132,7 @@ export function StepFinancial({
                   onChange={(value) => set('deposit', value ? Number(value) : null)}
                   placeholder="Optional"
                 />
+                <DocumentSources sources={sources?.deposit} />
               </div>
               <div>
                 <DateInput
@@ -257,6 +258,17 @@ export function StepFinancial({
                   onChange={(value) => set('additionalCosts', value ? Number(value) : null)}
                   placeholder="Optional"
                 />
+              </div>
+              <div>
+                <UnitInput
+                  label="Kaution"
+                  unit="€"
+                  type="number"
+                  value={property.deposit}
+                  onChange={(value) => set('deposit', value ? Number(value) : null)}
+                  placeholder="Optional"
+                />
+                <DocumentSources sources={sources?.deposit} />
               </div>
               <div>
                 <DateInput

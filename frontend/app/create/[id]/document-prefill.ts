@@ -89,6 +89,7 @@ export const WIZARD_FIELD_LABELS: Record<string, string> = {
   monthlyRent: 'Kaltmiete',
   annualRent: 'Jahresmiete',
   additionalCosts: 'Nebenkosten',
+  deposit: 'Kaution',
   furnished: 'Möbliert',
   availableFrom: 'Verfügbar ab',
   grossYieldTarget: 'Bruttorendite (Soll)',

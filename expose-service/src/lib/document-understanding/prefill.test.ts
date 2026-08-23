@@ -281,6 +281,34 @@ describe('computePrefillDefaults', () => {
     assert.equal(valuesByField.livingArea.length, 2, 'new document still contributes a candidate');
   });
 
+  it('preserves conflicting deposit candidates from multiple documents', () => {
+    const documents = [
+      recordWithUnderstanding('doc-a', {
+        documentType: 'mietvertrag',
+        tags: [],
+        summary: '',
+        keepInLibrary: true,
+        wizardFields: [{ field: 'deposit', value: 2670, evidence: 'Kaution: 2.670 €' }],
+        additionalInformation: [],
+      }),
+      recordWithUnderstanding('doc-b', {
+        documentType: 'mietvertrag',
+        tags: [],
+        summary: '',
+        keepInLibrary: true,
+        wizardFields: [{ field: 'deposit', value: 3000, evidence: 'Mietkaution: 3.000 €' }],
+        additionalInformation: [],
+      }),
+    ];
+    const { valuesByField, defaults } = computePrefillDefaults(documents, {});
+    assert.deepEqual(
+      valuesByField.deposit.map((source) => source.value),
+      [2670, 3000],
+      'both deposit candidates stay available',
+    );
+    assert.equal(defaults.deposit, 2670, 'first evidence-bearing candidate is the default');
+  });
+
   it('a document without an understanding result produces no fake fields', () => {
     const { defaults, valuesByField } = computePrefillDefaults(
       [

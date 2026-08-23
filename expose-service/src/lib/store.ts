@@ -117,7 +117,24 @@ async function writeDB(db: DB) {
   await fs.mkdir(path.dirname(dataPath), { recursive: true });
   await fs.writeFile(dataPath, JSON.stringify(db, null, 2));
 }
-export async function createProperty(): Promise<Property> {
+
+/**
+ * Serializes store writes that run concurrently (for example the per-document
+ * status updates of a parallel upload batch). The JSON store is not safe for
+ * concurrent read-modify-write cycles, so writes are chained while the
+ * expensive OCR/AI work stays parallel.
+ */
+let writeChain: Promise<unknown> = Promise.resolve();
+function serializedWrite<T>(write: () => Promise<T>): Promise<T> {
+  const next = writeChain.then(write, write);
+  writeChain = next.catch(() => undefined);
+  return next;
+}
+
+export function createProperty(): Promise<Property> {
+  return serializedWrite(() => createPropertyNow());
+}
+async function createPropertyNow(): Promise<Property> {
   const db = await readDB();
   const now = new Date().toISOString();
   const property: Property = {
@@ -150,7 +167,13 @@ export async function getProperty(id: string): Promise<Property | null> {
   getLogger().debug({ id, found: Boolean(property) }, 'getProperty {id}');
   return property;
 }
-export async function updateProperty(
+export function updateProperty(
+  id: string,
+  payload: PropertyPayload,
+): Promise<Property | null> {
+  return serializedWrite(() => updatePropertyNow(id, payload));
+}
+async function updatePropertyNow(
   id: string,
   payload: PropertyPayload,
 ): Promise<Property | null> {
@@ -196,7 +219,13 @@ export async function updateProperty(
   );
   return updated;
 }
-export async function addImage(
+export function addImage(
+  id: string,
+  image: Omit<PropertyImage, 'id'>,
+): Promise<PropertyImage | null> {
+  return serializedWrite(() => addImageNow(id, image));
+}
+async function addImageNow(
   id: string,
   image: Omit<PropertyImage, 'id'>,
 ): Promise<PropertyImage | null> {
@@ -223,7 +252,10 @@ export async function addImage(
   );
   return record;
 }
-export async function removeImage(id: string, imageId: string): Promise<PropertyImage | null> {
+export function removeImage(id: string, imageId: string): Promise<PropertyImage | null> {
+  return serializedWrite(() => removeImageNow(id, imageId));
+}
+async function removeImageNow(id: string, imageId: string): Promise<PropertyImage | null> {
   const db = await readDB();
   const property = db.properties.find((item) => item.id === id);
   if (!property) {
@@ -251,7 +283,10 @@ export async function removeImage(id: string, imageId: string): Promise<Property
   );
   return image ?? null;
 }
-export async function reorderImages(id: string, imageIds: string[]): Promise<Property | null> {
+export function reorderImages(id: string, imageIds: string[]): Promise<Property | null> {
+  return serializedWrite(() => reorderImagesNow(id, imageIds));
+}
+async function reorderImagesNow(id: string, imageIds: string[]): Promise<Property | null> {
   const db = await readDB();
   const property = db.properties.find((item) => item.id === id);
   if (!property) {
@@ -274,7 +309,10 @@ export async function reorderImages(id: string, imageIds: string[]): Promise<Pro
   );
   return property;
 }
-export async function setCover(id: string, imageId: string): Promise<Property | null> {
+export function setCover(id: string, imageId: string): Promise<Property | null> {
+  return serializedWrite(() => setCoverNow(id, imageId));
+}
+async function setCoverNow(id: string, imageId: string): Promise<Property | null> {
   const db = await readDB();
   const property = db.properties.find((item) => item.id === id);
   if (!property) {
@@ -290,7 +328,10 @@ export async function setCover(id: string, imageId: string): Promise<Property | 
   getLogger().info({ id, imageId }, 'Set cover image {imageId} for property {id}');
   return property;
 }
-export async function saveExpose(id: string, content: StoredExposeContent): Promise<Expose | null> {
+export function saveExpose(id: string, content: StoredExposeContent): Promise<Expose | null> {
+  return serializedWrite(() => saveExposeNow(id, content));
+}
+async function saveExposeNow(id: string, content: StoredExposeContent): Promise<Expose | null> {
   const db = await readDB();
   const property = db.properties.find((item) => item.id === id);
   if (!property) {
@@ -329,7 +370,13 @@ export async function getExposeConfiguration(id: string): Promise<ExposeConfigur
  * content. Only the presentation configuration is stored — never Property or
  * MarketingContent copies.
  */
-export async function saveExposeConfiguration(
+export function saveExposeConfiguration(
+  id: string,
+  configuration: ExposeConfiguration,
+): Promise<ExposeConfiguration | null> {
+  return serializedWrite(() => saveExposeConfigurationNow(id, configuration));
+}
+async function saveExposeConfigurationNow(
   id: string,
   configuration: ExposeConfiguration,
 ): Promise<ExposeConfiguration | null> {
@@ -365,7 +412,13 @@ export async function saveExposeConfiguration(
  * Property data is never touched by marketing generation; this only stores the
  * separate MarketingContent layer.
  */
-export async function saveMarketingContent(
+export function saveMarketingContent(
+  id: string,
+  content: MarketingContentRecord,
+): Promise<Property | null> {
+  return serializedWrite(() => saveMarketingContentNow(id, content));
+}
+async function saveMarketingContentNow(
   id: string,
   content: MarketingContentRecord,
 ): Promise<Property | null> {
@@ -396,7 +449,13 @@ function contentSourcesOf(content: MarketingContentRecord): Record<string, strin
   };
 }
 
-export async function saveLocationIntelligence(
+export function saveLocationIntelligence(
+  id: string,
+  intelligence: LocationIntelligence | null,
+): Promise<Property | null> {
+  return serializedWrite(() => saveLocationIntelligenceNow(id, intelligence));
+}
+async function saveLocationIntelligenceNow(
   id: string,
   intelligence: LocationIntelligence | null,
 ): Promise<Property | null> {
@@ -418,7 +477,13 @@ export async function saveLocationIntelligence(
   return property;
 }
 
-export async function saveLocationResearch(
+export function saveLocationResearch(
+  id: string,
+  research: LocationResearch | null,
+): Promise<Property | null> {
+  return serializedWrite(() => saveLocationResearchNow(id, research));
+}
+async function saveLocationResearchNow(
   id: string,
   research: LocationResearch | null,
 ): Promise<Property | null> {
@@ -433,7 +498,13 @@ export async function saveLocationResearch(
   return property;
 }
 
-export async function saveBorisEnrichment(
+export function saveBorisEnrichment(
+  id: string,
+  enrichment: BorisEnrichment | null,
+): Promise<Property | null> {
+  return serializedWrite(() => saveBorisEnrichmentNow(id, enrichment));
+}
+async function saveBorisEnrichmentNow(
   id: string,
   enrichment: BorisEnrichment | null,
 ): Promise<Property | null> {
@@ -457,7 +528,18 @@ export async function getDocument(documentId: string): Promise<DocumentRecord | 
   return db.documents.find((document) => document.id === documentId) ?? null;
 }
 
-export async function createDocument(
+export function createDocument(
+  propertyId: string,
+  input: {
+    filename: string;
+    mimeType: string;
+    size: number;
+    url: string;
+  },
+): Promise<DocumentRecord> {
+  return serializedWrite(() => createDocumentNow(propertyId, input));
+}
+async function createDocumentNow(
   propertyId: string,
   input: {
     filename: string;
@@ -506,6 +588,13 @@ export async function updateDocument(
     understandingError?: string | null;
   },
 ): Promise<DocumentRecord | null> {
+  return serializedWrite(() => updateDocumentNow(documentId, patch));
+}
+
+async function updateDocumentNow(
+  documentId: string,
+  patch: Parameters<typeof updateDocument>[1],
+): Promise<DocumentRecord | null> {
   const db = await readDB();
   const record = db.documents.find((document) => document.id === documentId);
   if (!record) {
@@ -521,7 +610,10 @@ export async function updateDocument(
   return record;
 }
 
-export async function removeDocument(documentId: string): Promise<DocumentRecord | null> {
+export function removeDocument(documentId: string): Promise<DocumentRecord | null> {
+  return serializedWrite(() => removeDocumentNow(documentId));
+}
+async function removeDocumentNow(documentId: string): Promise<DocumentRecord | null> {
   const db = await readDB();
   const index = db.documents.findIndex((document) => document.id === documentId);
   if (index < 0) {

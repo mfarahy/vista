@@ -29,7 +29,7 @@ For images (photos and floor plans) use both the OCR text and the actual image p
 
 Do not extract values merely because a number or word appears near a field. Distinguish the property's actual address from references to other streets, legal references, page numbers, register numbers, dates, monetary values, and unrelated text.
 
-Understand common German real-estate terminology (for example Wohnfläche, Nutzfläche, Grundstücksfläche, Zimmer, Baujahr, Erstbezug, Bestandsimmobilie, Modernisiert, Renovierungsbedürftig, Eigentumswohnung, Erdgeschosswohnung, Maisonette, Penthouse, Einfamilienhaus, Doppelhaushälfte, Reihenmittelhaus, Reihenendhaus, Bungalow, Villa, Mehrfamilienhaus, Energieausweis, Bedarfsausweis, Verbrauchsausweis, Endenergiebedarf, Endenergieverbrauch, Energieeffizienzklasse, Primärenergieträger, Kaufpreis, Kaltmiete, Nebenkosten, Maklerprovision, Bruttorendite, Nießbrauch, Erbbaurecht, Zwangsversteigerung, Baulast, Grundschuld, Vorkaufsrecht, Wegerecht, Flurstück, Flur, Gemarkung, Grundbuch, Blatt, Bestandsverzeichnis).
+Understand common German real-estate terminology (for example Wohnfläche, Nutzfläche, Grundstücksfläche, Zimmer, Baujahr, Erstbezug, Bestandsimmobilie, Modernisiert, Renovierungsbedürftig, Eigentumswohnung, Erdgeschosswohnung, Maisonette, Penthouse, Einfamilienhaus, Doppelhaushälfte, Reihenmittelhaus, Reihenendhaus, Bungalow, Villa, Mehrfamilienhaus, Energieausweis, Bedarfsausweis, Verbrauchsausweis, Endenergiebedarf, Endenergieverbrauch, Energieeffizienzklasse, Primärenergieträger, Kaufpreis, Kaltmiete, Nebenkosten, Maklerprovision, Bruttorendite, Nießbrauch, Erbbaurecht, Zwangsversteigerung, Baulast, Grundschuld, Vorkaufsrecht, Wegerecht, Flurstück, Flur, Gemarkung, Grundbuch, Blatt, Bestandsverzeichnis, Kaution, Mietkaution, Mietsicherheit, Kautionsbetrag, Sicherheitsleistung).
 
 Normalize numeric values to machine-friendly numbers: strip units and German formatting.
   "107 m²" → 107
@@ -40,7 +40,7 @@ Keep the unit in the schema definition, not inside the value. Do not silently co
 
 Normalize dates to the format YYYY-MM-DD. For example "08.02.2026" → "2026-02-08". Never invent dates.
 
-wizard field names are short flat keys (for example "street", "houseNumber", "livingArea", "usableArea", "plotArea", "rooms", "bedrooms", "bathrooms", "guestToilets", "yearBuilt", "condition", "buildingStatus", "basement", "attic", "balcony", "terrace", "garden", "gardenArea", "askingPrice", "pricePerM2", "commissionRate", "commissionPayer", "isRented", "monthlyRent", "additionalCosts", "furnished", "availableFrom", "grossYieldTarget", "grossYieldActual", "certificateType", "certificateDate", "certificateValidUntil", "energyClass", "energyDemand", "energyConsumption", "primaryEnergySource", "heatingType", "hotWaterIncluded", "transactionType", "propertyType", "propertySubtype", "usageType", "usufruct", "leasehold", "foreclosure", "heritageProtection"). Use exactly these names; never invent dotted or parallel names.
+wizard field names are short flat keys (for example "street", "houseNumber", "livingArea", "usableArea", "plotArea", "rooms", "bedrooms", "bathrooms", "guestToilets", "yearBuilt", "condition", "buildingStatus", "basement", "attic", "balcony", "terrace", "garden", "gardenArea", "askingPrice", "pricePerM2", "commissionRate", "commissionPayer", "isRented", "monthlyRent", "additionalCosts", "deposit", "furnished", "availableFrom", "grossYieldTarget", "grossYieldActual", "certificateType", "certificateDate", "certificateValidUntil", "energyClass", "energyDemand", "energyConsumption", "primaryEnergySource", "heatingType", "hotWaterIncluded", "transactionType", "propertyType", "propertySubtype", "usageType", "usufruct", "leasehold", "foreclosure", "heritageProtection"). Use exactly these names; never invent dotted or parallel names.
 
 Classify the property with normalized enum values, not German display labels:
   Reiheneckhaus → propertyType "house", propertySubtype "endTerraceHouse"
@@ -77,6 +77,8 @@ heatingType is the German heating-system name as written in the document (for ex
 
 Extract rental values only when explicitly present (Kaltmiete, Warmmiete, Nebenkosten, vermietet, frei, möbliert). Do not infer rental status from unrelated statements.
 
+Extract the rental deposit ("deposit") only when a security amount is explicitly associated with the rental security (for example "Kaution", "Mietkaution", "Mietsicherheit", "Kautionsbetrag", "Sicherheitsleistung"). Normalize it to a plain numeric EUR value ("2.670 €" → 2670). Never calculate the deposit from the monthly rent or from any other amount. Do not treat unrelated amounts as the deposit: Kaltmiete, Nebenkosten, Warmmiete, Gesamtmiete, Maklerprovision and Kaufpreis are never the deposit. If the document states no rental security amount, return null.
+
 Extract investment yield only when explicitly stated (Bruttorendite, Bruttorendite (soll), Bruttorendite (ist)). Never calculate yield.
 
 Understand what each document type contains and prioritize accordingly:
@@ -85,6 +87,7 @@ Understand what each document type contains and prioritize accordingly:
 - Grundriss: rooms, living area, building floors, basement, attic, layout. Use both OCR text and image pixels. Do not invent dimensions that are not present.
 - Wohnflächenberechnung: living area, usable area, room areas, calculation details. Treat this document as strong evidence for the living area.
 - Energieausweis: certificate type/date/validity, efficiency class, demand/consumption, primary energy source, heating type, hot-water inclusion. Keep demand and consumption separate.
+- Mietvertrag: rental terms when explicitly stated (Kaltmiete, Nebenkosten, Kaution/Mietkaution/Mietsicherheit, furnished, availability, rental start). The deposit is extracted only when a security amount is explicitly stated; it is never derived from the rent.
 - Exposé: factual information when clearly stated (address, property type/subtype, areas, rooms, year built, condition, features, outdoor, energy, price, commission, availability, rental information, location facts). Distinguish factual statements from marketing language: "Großzügiges, familienfreundliches Traumhaus" is marketing language, not a factual field. Do not convert claims such as "Traumhafte Lage" or "ideal für Familien" into factual fields.
 - Property photo: classify visible features (exterior, interior, kitchen, bathroom, garden, terrace, balcony, garage, floor plan). Do not infer measurements such as living area, plot area, rooms or year built from photographs.
 

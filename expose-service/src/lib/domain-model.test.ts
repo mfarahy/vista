@@ -63,6 +63,29 @@ function exposeDataWith(overrides: Partial<PropertyExposeData>): PropertyExposeD
 }
 
 describe('PropertyModel: property variants', () => {
+  it('maps the persisted deposit into the rental section', () => {
+    const property = propertyWith({
+      transactionType: 'rent',
+      coldRent: 890,
+      deposit: 2670,
+    });
+    const model = buildPropertyModel(property);
+    assert.equal(model.rental?.monthlyRentEur, 890);
+    assert.equal(model.rental?.depositEur, 2670);
+  });
+
+  it('keeps the rental deposit absent when no deposit is persisted', () => {
+    const model = buildPropertyModel(propertyWith({ transactionType: 'rent', coldRent: 890 }));
+    assert.equal(model.rental?.depositEur, undefined);
+  });
+
+  it('maps the extracted deposit wizard field onto rental.depositEur', () => {
+    const model = applyWizardFieldsToModel(buildPropertyModel(propertyWith()), [
+      { field: 'deposit', value: 2670 },
+    ]);
+    assert.equal(model.rental?.depositEur, 2670);
+  });
+
   it('represents an apartment for sale', () => {
     const property = propertyWith({
       id: 'apartment-sale',

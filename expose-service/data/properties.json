@@ -1,6 +1,108 @@
 {
   "properties": [
     {
+      "id": "8b70a2f5-f44b-4af9-9d83-e47000af939e",
+      "propertyType": "apartment",
+      "transactionType": "sale",
+      "selectedFeatures": [],
+      "surroundings": {},
+      "tone": "professional",
+      "language": "de",
+      "images": [],
+      "roomsData": [],
+      "exposeData": {
+        "basicInformation": {
+          "propertyType": "apartment",
+          "propertySubtype": null,
+          "title": null,
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "pricing": {
+          "purchasePrice": null,
+          "rentPrice": null,
+          "additionalCosts": null,
+          "buyerCommission": null,
+          "sellerCommission": null,
+          "pricePerM2": null,
+          "commissionRate": null,
+          "commissionPayer": null,
+          "commissionVatIncluded": null
+        },
+        "propertyDetails": {
+          "livingArea": null,
+          "plotArea": null,
+          "usableArea": null,
+          "rooms": null,
+          "bedrooms": null,
+          "bathrooms": null,
+          "guestToilets": null,
+          "yearBuilt": null,
+          "completionYear": null,
+          "floor": null,
+          "numberOfFloors": null,
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "bodenrichtwert": null,
+          "buildingStatus": null,
+          "renovationStatus": null,
+          "lastModernizationYear": null
+        },
+        "energy": null,
+        "rental": {
+          "isRented": null,
+          "furnished": null,
+          "annualRent": null
+        },
+        "investment": {
+          "grossYieldTargetPercent": null,
+          "grossYieldActualPercent": null
+        },
+        "rooms": [],
+        "equipment": [],
+        "outdoorAreas": [],
+        "parking": {
+          "garageCount": null,
+          "parkingSpaceCount": null,
+          "description": null
+        },
+        "description": {
+          "short": null,
+          "long": null
+        },
+        "location": {
+          "address": {
+            "country": "Deutschland"
+          }
+        },
+        "images": [],
+        "floorPlans": [],
+        "maps": [],
+        "additionalInformation": {
+          "additionalInformation": null,
+          "legalNotes": null,
+          "sellerNotes": null,
+          "commissionNotes": null,
+          "availability": null,
+          "notes": {},
+          "legalFlags": {
+            "usufruct": null,
+            "leasehold": null,
+            "foreclosure": null,
+            "heritageProtection": null
+          }
+        },
+        "systemBranding": {
+          "companyName": "Vista",
+          "processSteps": []
+        }
+      },
+      "expose": null,
+      "createdAt": "2026-08-22T14:34:43.783Z",
+      "updatedAt": "2026-08-22T14:34:43.783Z"
+    },
+    {
       "id": "8d4affa8-dd23-4b0d-8650-5b2ef247e466",
       "propertyType": "apartment",
       "transactionType": "sale",

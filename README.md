@@ -34,6 +34,7 @@ Then open `http://localhost:3000` and select **New Exposé**.
 - `PLACES_USER_AGENT`: user agent for Overpass
 - `LOCATION_SEARCH_RADIUS_METERS`: search radius, default `1000`
 - `LOCATION_FACILITY_CATEGORIES`: comma-separated POI categories
+- `DOCUMENT_ANALYSIS_CONCURRENCY`: maximum parallel document analyses per upload batch, default `3`
 - `MAP_ATTRIBUTION`: attribution for the local map fallback
 - `FRONTEND_URL`: base URL of the Next.js app that hosts the PDF print route, default `http://localhost:3000`
 - `BORIS_BASE_URL`: optional Brandenburg BORIS OGC API endpoint for Bodenrichtwert enrichment (default `https://ogc-api.geobasis-bb.de/boris`)

@@ -121,6 +121,8 @@ export interface PropertyModel {
     monthlyRentEur?: number;
     annualRentEur?: number;
     additionalCostsEur?: number;
+    /** Rental security (Kaution) in EUR, only when explicitly stated. */
+    depositEur?: number;
     furnished?: boolean;
     availableFrom?: string;
   };
@@ -270,12 +272,14 @@ export function buildPropertyModel(property: Property): PropertyModel {
     (rentalData ? hasAnyValue(rentalData as unknown as Record<string, unknown>) : false) ||
     property.transactionType === 'rent' ||
     pricing?.rentPrice != null ||
-    property.coldRent != null
+    property.coldRent != null ||
+    property.deposit != null
       ? {
           isRented: rentalData?.isRented ?? undefined,
           monthlyRentEur: pricing?.rentPrice ?? property.coldRent ?? undefined,
           annualRentEur: rentalData?.annualRent ?? undefined,
           additionalCostsEur: pricing?.additionalCosts ?? undefined,
+          depositEur: property.deposit ?? undefined,
           furnished: rentalData?.furnished ?? undefined,
           availableFrom: property.availableFrom ?? undefined,
         }
@@ -590,6 +594,7 @@ export const WIZARD_FIELD_TARGETS: Record<string, WizardFieldTarget> = {
   monthlyRent: { path: 'rental.monthlyRentEur', transform: toNumber },
   annualRent: { path: 'rental.annualRentEur', transform: toNumber },
   additionalCosts: { path: 'rental.additionalCostsEur', transform: toNumber },
+  deposit: { path: 'rental.depositEur', transform: toNumber },
   furnished: { path: 'rental.furnished', transform: toBoolean },
   availableFrom: { path: 'rental.availableFrom', transform: toString },
   // Investment

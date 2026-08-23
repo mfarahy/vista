@@ -107,4 +107,47 @@ describe('location research', () => {
     await assert.rejects(() => researchLocation(input), /TAVILY_API_KEY/);
     if (previous) process.env.TAVILY_API_KEY = previous;
   });
+
+  it('drops claims about a different district and keeps city-wide facts', async () => {
+    clearLocationResearchCache();
+    const wrongDistrictProvider: LocationResearchProvider = {
+      async search() {
+        return {
+          results: [
+            {
+              title: 'Quelle für die falsche Gegend',
+              url: 'https://www.berlin.de/prenzlauer-berg/',
+              content:
+                'Prenzlauer Berg bietet zahlreiche Cafés, Restaurants und ein lebendiges kulturelles Angebot für die ganze Familie.',
+              score: 0.9,
+            },
+            {
+              title: 'Stadtweite Quelle',
+              url: 'https://www.berlin.de/verkehr/',
+              content:
+                'Berlin verfügt über ein dichtes U-Bahn- und S-Bahn-Netz, das alle Stadtteile miteinander verbindet.',
+              score: 0.8,
+            },
+          ],
+        };
+      },
+      async extract() {
+        return { results: [] };
+      },
+    };
+    const research = await researchLocation(input, { provider: wrongDistrictProvider });
+    const allClaims = [
+      ...research.mikrolage.claims,
+      ...research.makrolage.claims,
+      ...Object.values(research.infrastructure).flat(),
+    ];
+    assert.ok(
+      allClaims.every((claim) => !claim.statement.includes('Prenzlauer Berg')),
+      'claims about a different district must be filtered out',
+    );
+    assert.ok(
+      allClaims.some((claim) => claim.statement.includes('U-Bahn')),
+      'city-wide claims stay available',
+    );
+  });
 });

@@ -74,6 +74,7 @@ export function StepDocuments({
 }) {
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadingCount, setUploadingCount] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState('');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -129,29 +130,32 @@ export function StepDocuments({
   async function uploadFiles(files: FileList | null) {
     if (!files?.length) return;
     setUploading(true);
+    setUploadingCount(files.length);
     setError('');
-    const added: DocumentRecord[] = [];
-    for (const file of [...files]) {
-      const body = new FormData();
-      body.append('files', file);
-      try {
-        const response = await apiFetch(`/api/properties/${propertyId}/documents`, {
-          method: 'POST',
-          body,
-        });
-        if (!response.ok) {
-          const result = await response.json().catch(() => ({}));
-          setError(result.error || 'Das Dokument konnte nicht hochgeladen werden.');
-          continue;
-        }
+    // All files go into one batch request: the backend analyzes them with
+    // bounded concurrency (OCR + AI in parallel, persistence serialized) and
+    // returns the results in the original upload order.
+    const body = new FormData();
+    for (const file of [...files]) body.append('files', file);
+    try {
+      const response = await apiFetch(`/api/properties/${propertyId}/documents`, {
+        method: 'POST',
+        body,
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        setError(result.error || 'Die Dokumente konnten nicht hochgeladen werden.');
+      } else {
         const uploaded = (await response.json()) as DocumentRecord[];
-        if (Array.isArray(uploaded)) added.push(...uploaded);
-      } catch {
-        setError('Das Dokument konnte nicht hochgeladen werden.');
+        if (Array.isArray(uploaded) && uploaded.length) {
+          notify([...uploaded, ...documents]);
+        }
       }
+    } catch {
+      setError('Die Dokumente konnten nicht hochgeladen werden.');
     }
     setUploading(false);
-    if (added.length) notify([...added, ...documents]);
+    setUploadingCount(0);
   }
 
   async function retry(documentId: string) {
@@ -256,9 +260,12 @@ export function StepDocuments({
           </p>
         )}
 
-        {uploading && documents.length > 0 && (
+        {uploading && (
           <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-            <LoaderCircle className="size-4 animate-spin" /> Wird analysiert…
+            <LoaderCircle className="size-4 animate-spin" />
+            {uploadingCount > 0
+              ? `${uploadingCount} ${uploadingCount === 1 ? 'Dokument' : 'Dokumente'} werden analysiert…`
+              : 'Wird analysiert…'}
           </p>
         )}
 

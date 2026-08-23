@@ -83,6 +83,16 @@ describe('document understanding prompt', () => {
     assert.match(prompt, /Energieausweis/);
   });
 
+  it('covers the Kaution terminology and the deposit extraction rule', () => {
+    const prompt = buildSystemPrompt();
+    for (const term of ['Kaution', 'Mietkaution', 'Mietsicherheit', 'Kautionsbetrag', 'Sicherheitsleistung']) {
+      assert.match(prompt, new RegExp(term));
+    }
+    assert.match(prompt, /deposit/);
+    assert.match(prompt, /never calculate the deposit/i);
+    assert.match(prompt, /do not treat unrelated amounts as the deposit/i);
+  });
+
   it('requires concise supporting evidence and null when undeterminable', () => {
     const prompt = buildSystemPrompt();
     assert.match(prompt, /every non-null extracted value must include concise supporting evidence/i);

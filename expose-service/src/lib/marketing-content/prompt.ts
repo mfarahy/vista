@@ -145,6 +145,7 @@ function factsOf(input: MarketingContentInput): string {
       : '',
     property.askingPriceEur != null ? `Kaufpreis: ${property.askingPriceEur} €` : '',
     property.rentPriceEur != null ? `Kaltmiete: ${property.rentPriceEur} €/Monat` : '',
+    property.depositEur != null ? `Kaution: ${property.depositEur} €` : '',
     property.address.district ? `Stadtteil: ${property.address.district}` : '',
     property.address.city ? `Ort: ${property.address.city}` : '',
     property.address.postalCode ? `PLZ: ${property.address.postalCode}` : '',

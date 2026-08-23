@@ -71,6 +71,13 @@ Kaltmiete: 950 €
 Bruttorendite (soll): 4,5 %
 Bruttorendite (ist): 5,4 %`;
 
+const MIETVERTRAG_OCR = `Mietvertrag
+Wohnung in Berlin-Neukölln
+Kaltmiete: 890 €
+Nebenkosten: 210 €
+Kaution: 2.670 €
+Mietbeginn: 01.09.2026`;
+
 function makeFakeClient(parsed: unknown): OpenAI {
   return {
     chat: {
@@ -550,6 +557,165 @@ describe('Rental and investment extraction', () => {
     assert.equal(model.investment?.grossYieldActualPercent, 5.4);
     assert.equal(model.rental?.monthlyRentEur, 950);
     assert.equal(model.rental?.isRented, true);
+  });
+});
+
+describe('Mietvertrag: deposit (Kaution) extraction', () => {
+  beforeEach(() => {
+    process.env.OPENAI_API_KEY = 'test-key';
+  });
+  afterEach(() => {
+    process.env.OPENAI_API_KEY = originalKey;
+  });
+
+  it('extracts Kaltmiete, Nebenkosten and Kaution from a Mietvertrag', async () => {
+    const result = await runExtraction(
+      {
+        documentType: 'mietvertrag',
+        tags: ['rooms', 'building'],
+        summary: 'Rental contract with rent, running costs and deposit.',
+        keepInLibrary: true,
+        wizardFields: [
+          { field: 'monthlyRent', value: 890, evidence: 'Kaltmiete: 890 €' },
+          { field: 'additionalCosts', value: 210, evidence: 'Nebenkosten: 210 €' },
+          { field: 'deposit', value: 2670, evidence: 'Kaution: 2.670 €' },
+          { field: 'availableFrom', value: '2026-09-01', evidence: 'Mietbeginn: 01.09.2026' },
+        ],
+        additionalInformation: [],
+      },
+      {
+        documentId: 'doc-mietvertrag',
+        filename: 'mietvertrag.pdf',
+        mimeType: 'application/pdf',
+        text: MIETVERTRAG_OCR,
+      },
+    );
+
+    const model = modelAfter(result);
+    assert.equal(model.rental?.monthlyRentEur, 890);
+    assert.equal(model.rental?.additionalCostsEur, 210);
+    assert.equal(model.rental?.depositEur, 2670);
+    assert.equal(model.rental?.availableFrom, '2026-09-01');
+
+    const deposit = fieldsOf(result).get('deposit');
+    assert.equal(deposit?.value, 2670);
+    assert.equal(deposit?.evidence, 'Kaution: 2.670 €');
+  });
+
+  it('keeps the deposit null when the document states no security amount', async () => {
+    const result = await runExtraction(
+      {
+        documentType: 'mietvertrag',
+        tags: [],
+        summary: 'Rental contract without a stated deposit.',
+        keepInLibrary: true,
+        wizardFields: [
+          { field: 'monthlyRent', value: 890, evidence: 'Kaltmiete: 890 €' },
+          { field: 'additionalCosts', value: 210, evidence: 'Nebenkosten: 210 €' },
+          { field: 'deposit', value: null, evidence: null },
+        ],
+        additionalInformation: [],
+      },
+      {
+        documentId: 'doc-mietvertrag',
+        filename: 'mietvertrag.pdf',
+        mimeType: 'application/pdf',
+        text: MIETVERTRAG_OCR,
+      },
+    );
+
+    const deposit = fieldsOf(result).get('deposit');
+    assert.equal(deposit?.value, null);
+    const model = modelAfter(result);
+    assert.equal(model.rental?.depositEur, undefined, 'no deposit is inferred');
+  });
+
+  it('does not confuse Kaufpreis, Kaltmiete, Nebenkosten or Kaution', async () => {
+    const result = await runExtraction(
+      {
+        documentType: 'expose',
+        tags: ['rooms', 'building'],
+        summary: 'Exposé containing several distinct monetary amounts.',
+        keepInLibrary: true,
+        wizardFields: [
+          { field: 'askingPrice', value: 240000, evidence: 'Kaufpreis: 240.000 €' },
+          { field: 'monthlyRent', value: 890, evidence: 'Kaltmiete: 890 €' },
+          { field: 'additionalCosts', value: 210, evidence: 'Nebenkosten: 210 €' },
+          { field: 'deposit', value: 2670, evidence: 'Die Mietkaution beträgt 2.670 €.' },
+        ],
+        additionalInformation: [],
+      },
+      {
+        documentId: 'doc-amounts',
+        filename: 'expose.pdf',
+        mimeType: 'application/pdf',
+        text:
+          'Kaufpreis: 240.000 €\nKaltmiete: 890 €\nNebenkosten: 210 €\nDie Mietkaution beträgt 2.670 €.',
+      },
+    );
+
+    const model = modelAfter(result);
+    assert.equal(model.financial.askingPriceEur, 240000);
+    assert.equal(model.rental?.monthlyRentEur, 890);
+    assert.equal(model.rental?.additionalCostsEur, 210);
+    assert.equal(model.rental?.depositEur, 2670);
+    assert.equal(model.financial.askingPriceEur, 240000, 'Kaufpreis stays in financial');
+    assert.equal(model.rental?.depositEur, 2670, 'Kaution stays in rental');
+  });
+
+  it('every non-null deposit value carries evidence', async () => {
+    const result = await runExtraction(
+      {
+        documentType: 'mietvertrag',
+        tags: [],
+        summary: 'Rental contract with deposit.',
+        keepInLibrary: true,
+        wizardFields: [
+          { field: 'deposit', value: 3000, evidence: 'Mietkaution: 3.000,00 EUR' },
+        ],
+        additionalInformation: [],
+      },
+      {
+        documentId: 'doc-mietvertrag',
+        filename: 'mietvertrag.pdf',
+        mimeType: 'application/pdf',
+        text: 'Mietkaution: 3.000,00 EUR',
+      },
+    );
+
+    for (const field of result.wizardFields) {
+      if (field.value !== null && field.field === 'deposit') {
+        assert.ok(field.evidence, 'a non-null deposit must carry evidence');
+      }
+    }
+  });
+
+it('normalizes German monetary formats to a plain EUR number', async () => {
+    const result = await runExtraction(
+      {
+        documentType: 'mietvertrag',
+        tags: [],
+        summary: 'Rental contract.',
+        keepInLibrary: true,
+        wizardFields: [{ field: 'deposit', value: 2670, evidence: 'Kaution: 2.670,00 EUR' }],
+        additionalInformation: [],
+      },
+      {
+        documentId: 'doc-mietvertrag',
+        filename: 'mietvertrag.pdf',
+        mimeType: 'application/pdf',
+        text: 'Kaution: 2.670,00 EUR',
+      },
+    );
+
+    const model = modelAfter(result);
+    assert.equal(model.rental?.depositEur, 2670);
+  });
+});
+
+describe('No hallucination', () => {
+  beforeEach(() => {
+    process.env.OPENAI_API_KEY = 'test-key';
   });
 });
 

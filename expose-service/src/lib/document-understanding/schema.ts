@@ -121,6 +121,7 @@ export const WIZARD_FIELDS = [
   'monthlyRent',
   'annualRent',
   'additionalCosts',
+  'deposit',
   'furnished',
   'availableFrom',
   // Investment
