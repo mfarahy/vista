@@ -480,7 +480,7 @@ export function EnergyClassPicker({
   ];
   return (
     <div className="space-y-2">
-      <span className="text-sm font-medium text-foreground">Energy efficiency class</span>
+      <span className="text-sm font-medium text-foreground">Energieeffizienzklasse</span>
       <div className="grid grid-cols-9 gap-1.5">
         {classes.map((entry) => {
           const active = value === entry.key;
@@ -504,7 +504,7 @@ export function EnergyClassPicker({
         })}
       </div>
       <p className="text-xs text-muted-foreground">
-        {value ? `Selected class: ${value}` : 'Select an energy efficiency class'}
+        {value ? `Ausgewählte Klasse: ${value}` : 'Energieeffizienzklasse auswählen'}
       </p>
     </div>
   );

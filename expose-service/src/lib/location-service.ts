@@ -97,7 +97,7 @@ export async function resolveLocation(
   if (!validAddress(address))
     return {
       intelligence: null,
-      error: 'Location could not be resolved. Please provide an address.',
+      error: 'Der Standort konnte nicht ermittelt werden. Bitte geben Sie eine Adresse an.',
     };
   if (!options.refresh) {
     const cached = cachedLocation(property, address, radiusMeters);
@@ -107,10 +107,10 @@ export async function resolveLocation(
   let geocoding;
   try {
     geocoding = await (options.geocoder || getGeocodingProvider()).geocode(address);
-  } catch (error) {
+  } catch {
     return {
       intelligence: null,
-      error: error instanceof Error ? error.message : 'Location could not be resolved.',
+      error: 'Der Standort konnte nicht ermittelt werden.',
     };
   }
   if (

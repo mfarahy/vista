@@ -27,10 +27,10 @@ export default function CreatePage() {
               <AlertTriangle className="size-6" />
             </span>
             <p className="mt-4 text-sm text-destructive">
-              The draft could not be created. Please try again.
+              Der Entwurf konnte nicht erstellt werden. Bitte versuchen Sie es erneut.
             </p>
             <Button className="mt-5" onClick={() => window.location.reload()}>
-              Try again
+              Erneut versuchen
             </Button>
           </div>
         ) : (
@@ -38,7 +38,7 @@ export default function CreatePage() {
             <span className="grid size-12 place-items-center rounded-xl bg-primary/10 text-primary">
               <LoaderCircle className="size-6 animate-spin" />
             </span>
-            <p className="mt-4 text-sm text-muted-foreground">Preparing your exposé…</p>
+            <p className="mt-4 text-sm text-muted-foreground">Ihr Exposé wird vorbereitet…</p>
           </div>
         )}
       </div>

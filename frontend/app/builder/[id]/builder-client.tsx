@@ -147,8 +147,7 @@ export default function ExposeBuilderClient({
         body: JSON.stringify(configuration),
       });
       if (!response.ok) {
-        const result = (await response.json().catch(() => null)) as { error?: string } | null;
-        toast.error(result?.error || 'Die Exposé-Konfiguration konnte nicht gespeichert werden.');
+        toast.error('Die Exposé-Konfiguration konnte nicht gespeichert werden.');
         return;
       }
       setSavedSnapshot(configuration);

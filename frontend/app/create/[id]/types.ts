@@ -656,8 +656,8 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   kaufvertrag: 'Kaufvertrag',
   mietvertrag: 'Mietvertrag',
   teilungserklaerung: 'Teilungserklärung',
-  property_photo: 'Property photo',
-  other: 'Other',
+  property_photo: 'Immobilienfoto',
+  other: 'Sonstiges',
 };
 
 /** German display labels for the AI photo classification. */
@@ -751,6 +751,28 @@ export function additionalInfoLabel(key: string): string {
     wegInformation: 'WEG-Informationen',
     legalRestrictions: 'Rechtliche Einschränkungen',
     houseRules: 'Hausordnung',
+    registryCourt: 'Amtsgericht',
+    landRegisterDistrictOrLocation: 'Gemarkung / Ort',
+    encumbrancesAndRestrictions: 'Eingetragene Belastungen',
+    additionalRestriction: 'Weitere Einschränkung',
+    documentDate: 'Datum',
+    cadastralDistrict: 'Gemarkung',
+    cadastralFlur: 'Flur',
+    buildablePlotArea: 'Baugrundstück',
+    projectedBuildingDimensions: 'Gebäudemaße',
+    registeredOwner: 'Eingetragene Eigentümer',
+    approvalInformation: 'Genehmigung',
+    planDate: 'Plangebäudedatum',
+    calculationDate: 'Berechnungsdatum',
+    calculatedBy: 'Berechnet von',
+    listedRooms: 'Aufgeführte Räume',
+    primaryEnergyDemand: 'Primärenergiebedarf',
+    numberOfApartments: 'Anzahl Wohnungen',
+    energyCertificateIssuer: 'Aussteller',
+    registrationNumber: 'Registriernummer',
+    flur: 'Flur',
+    ownershipTransferDate: 'Eigentumsübertragung',
+    legalInformation: 'Rechtliche Informationen',
   };
   return labels[key] ?? key;
 }
@@ -861,7 +883,7 @@ export const initialPayload = (property: Property): PropertyPayload => {
 };
 
 export const pretty = (value: string | number | null | undefined) =>
-  value === null || value === undefined || value === '' ? 'Not provided' : String(value);
+  value === null || value === undefined || value === '' ? 'Nicht angegeben' : String(value);
 
 export const money = (value?: number | null) =>
   value
@@ -870,4 +892,4 @@ export const money = (value?: number | null) =>
         currency: 'EUR',
         maximumFractionDigits: 0,
       }).format(value)
-    : 'Not provided';
+    : 'Nicht angegeben';

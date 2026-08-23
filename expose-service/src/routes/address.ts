@@ -12,7 +12,7 @@ addressRouter.get(
     try {
       res.json(await searchAddressSuggestions(query));
     } catch (error) {
-      sendError(res, 502, errorMessage(error, 'Address lookup could not be completed.'));
+      sendError(res, 502, errorMessage(error, 'Die Adresssuche konnte nicht abgeschlossen werden.'));
     }
   }),
 );

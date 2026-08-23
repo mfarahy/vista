@@ -212,7 +212,8 @@ export function normalizeEnergySource(value: string | null | undefined): string 
   if (lowered.includes('strom') || lowered.includes('elektro')) return 'electricity';
   if (lowered.includes('pellet')) return 'pellets';
   if (lowered.includes('holz')) return 'wood';
-  if (lowered.includes('heizung') || lowered.includes('sonst')) return 'other';
+  if (lowered.includes('heizung')) return null;
+  if (lowered.includes('sonst')) return 'other';
   return null;
 }
 

@@ -115,7 +115,11 @@ async function readDB(): Promise<DB> {
 }
 async function writeDB(db: DB) {
   await fs.mkdir(path.dirname(dataPath), { recursive: true });
-  await fs.writeFile(dataPath, JSON.stringify(db, null, 2));
+  // Atomic replace: a torn write must never leave a partially written JSON file
+  // that the next write would overwrite with an empty database.
+  const tempPath = `${dataPath}.tmp`;
+  await fs.writeFile(tempPath, JSON.stringify(db, null, 2));
+  await fs.rename(tempPath, dataPath);
 }
 
 /**

@@ -381,9 +381,9 @@ describe('print route template rendering', () => {
     assert.ok(energy.includes('Bedarfsausweis'));
     assert.ok(energy.includes('78,5'));
     assert.ok(energy.includes('Ausstellungsdatum'));
-    assert.ok(energy.includes('2024-03-01'));
+    assert.ok(energy.includes('01.03.2024'));
     assert.ok(energy.includes('Gültig bis'));
-    assert.ok(energy.includes('2034-03-01'));
+    assert.ok(energy.includes('01.03.2034'));
     assert.ok(energy.includes('Energieträger'));
     assert.ok(energy.includes('Fernwärme'));
     assert.ok(energy.includes('eff-B active'), 'the efficiency class segment is highlighted');

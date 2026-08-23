@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 
 import {
   createProperty,
@@ -80,10 +80,10 @@ export function propertiesRouter(options: PropertiesRouterOptions = {}): Router 
       try {
         const payload = propertySchema.parse(req.body) as PropertyPayload;
         const property = await updateProperty(getParam(req, 'id'), payload);
-        if (!property) return sendError(res, 404, 'Not found');
+        if (!property) return sendError(res, 404, 'Nicht gefunden');
         res.json(property);
       } catch (error) {
-        sendError(res, 400, errorMessage(error, 'Invalid request'));
+        sendError(res, 400, errorMessage(error, 'Ungültige Anfrage'));
       }
     }),
   );
@@ -103,10 +103,10 @@ export function propertiesRouter(options: PropertiesRouterOptions = {}): Router 
       try {
         const content = exposeContentSchema.parse(req.body);
         const expose = await saveExpose(getParam(req, 'id'), content);
-        if (!expose) return sendError(res, 404, 'Not found');
+        if (!expose) return sendError(res, 404, 'Nicht gefunden');
         res.json(expose);
       } catch (error) {
-        sendError(res, 400, errorMessage(error, 'Invalid content'));
+        sendError(res, 400, errorMessage(error, 'Ungültiger Inhalt'));
       }
     }),
   );
@@ -127,10 +127,10 @@ export function propertiesRouter(options: PropertiesRouterOptions = {}): Router 
       try {
         const configuration = exposeConfigurationSchema.parse(req.body);
         const saved = await saveExposeConfiguration(getParam(req, 'id'), configuration);
-        if (!saved) return sendError(res, 404, 'Not found');
+        if (!saved) return sendError(res, 404, 'Nicht gefunden');
         res.json(saved);
       } catch (error) {
-        sendError(res, 400, errorMessage(error, 'Invalid expose configuration'));
+        sendError(res, 400, errorMessage(error, 'Ungültige Exposé-Konfiguration'));
       }
     }),
   );
@@ -143,7 +143,7 @@ export function propertiesRouter(options: PropertiesRouterOptions = {}): Router 
       try {
         res.json(await generateMetadata(property));
       } catch (error) {
-        sendError(res, 502, errorMessage(error, 'AI could not generate the metadata'));
+        sendError(res, 502, errorMessage(error, 'Die KI konnte die Metadaten nicht erzeugen.'));
       }
     }),
   );
@@ -165,7 +165,7 @@ export function propertiesRouter(options: PropertiesRouterOptions = {}): Router 
         await saveExpose(property.id, content);
         res.json(content);
       } catch (error) {
-        sendError(res, 502, errorMessage(error, 'AI could not respond'));
+        sendError(res, 502, errorMessage(error, 'Die KI konnte nicht antworten.'));
       }
     }),
   );
@@ -219,7 +219,7 @@ export function propertiesRouter(options: PropertiesRouterOptions = {}): Router 
             Number(longitude) < -180 ||
             Number(longitude) > 180
           ) {
-            return sendError(res, 400, 'Coordinates are invalid.');
+            return sendError(res, 400, 'Die Koordinaten sind ungültig.');
           }
         }
         const intelligence =
@@ -235,11 +235,11 @@ export function propertiesRouter(options: PropertiesRouterOptions = {}): Router 
                   radiusMeters: body.radiusMeters,
                 })
               ).intelligence;
-        if (!intelligence) return sendError(res, 422, 'Location could not be resolved.');
+        if (!intelligence) return sendError(res, 422, 'Der Standort konnte nicht ermittelt werden.');
         const saved = await saveLocationIntelligence(property.id, intelligence);
         res.json(saved?.exposeData?.location.intelligence || intelligence);
       } catch (error) {
-        sendError(res, 502, errorMessage(error, 'Location could not be resolved.'));
+        sendError(res, 502, errorMessage(error, 'Der Standort konnte nicht ermittelt werden.'));
       }
     }),
   );
@@ -252,11 +252,11 @@ export function propertiesRouter(options: PropertiesRouterOptions = {}): Router 
       try {
         const result = await resolveLocation(property, { refresh: true });
         if (!result.intelligence)
-          return sendError(res, 422, result.error || 'Location could not be resolved.');
+          return sendError(res, 422, result.error || 'Der Standort konnte nicht ermittelt werden.');
         const saved = await saveLocationIntelligence(property.id, result.intelligence);
         res.json(saved?.exposeData?.location.intelligence || result.intelligence);
       } catch (error) {
-        sendError(res, 502, errorMessage(error, 'Location could not be resolved.'));
+        sendError(res, 502, errorMessage(error, 'Der Standort konnte nicht ermittelt werden.'));
       }
     }),
   );
@@ -277,7 +277,7 @@ export function propertiesRouter(options: PropertiesRouterOptions = {}): Router 
       if (!property) return;
       const address = property.exposeData?.location.address;
       if (!address?.city || !address.postalCode) {
-        return sendError(res, 422, 'A city and postal code are required for location research.');
+        return sendError(res, 422, 'Für die Standortrecherche werden Stadt und Postleitzahl benötigt.');
       }
       try {
         const input = locationResearchInputSchema.parse({
@@ -297,7 +297,7 @@ export function propertiesRouter(options: PropertiesRouterOptions = {}): Router 
         const saved = await saveLocationResearch(property.id, research);
         res.json(saved?.exposeData?.location.research || research);
       } catch (error) {
-        sendError(res, 502, errorMessage(error, 'Location research could not be completed.'));
+        sendError(res, 502, errorMessage(error, 'Die Standortrecherche konnte nicht abgeschlossen werden.'));
       }
     }),
   );
@@ -340,13 +340,13 @@ export function propertiesRouter(options: PropertiesRouterOptions = {}): Router 
       const caption = typeof req.body?.caption === 'string' ? req.body.caption : null;
 
       if (!(IMAGE_CATEGORIES as readonly string[]).includes(category)) {
-        return sendError(res, 400, 'A semantic image category is required');
+        return sendError(res, 400, 'Eine Bildkategorie ist erforderlich');
       }
-      if (!files.length) return sendError(res, 400, 'No images found');
+      if (!files.length) return sendError(res, 400, 'Keine Bilder gefunden');
       for (const file of files) {
         if (!isAllowedImageMime(file.mimetype))
-          return sendError(res, 400, 'Only JPG, PNG and WEBP are supported');
-        if (file.size > MAX_IMAGE_BYTES) return sendError(res, 400, 'Images may be up to 15 MB');
+          return sendError(res, 400, 'Nur JPG, PNG und WEBP werden unterstützt');
+        if (file.size > MAX_IMAGE_BYTES) return sendError(res, 400, 'Bilder dürfen maximal 15 MB groß sein');
       }
 
       const hasCover = property.images.some((image) => image.isCover);
@@ -371,7 +371,7 @@ export function propertiesRouter(options: PropertiesRouterOptions = {}): Router 
       if (!property) return;
       const imageId = getParam(req, 'imageId');
       const image = property.images.find((item) => item.id === imageId);
-      if (!image) return sendError(res, 404, 'Not found');
+      if (!image) return sendError(res, 404, 'Nicht gefunden');
       await removeImageRecord(property.id, imageId);
       res.json({ ok: true });
     }),
@@ -380,9 +380,9 @@ export function propertiesRouter(options: PropertiesRouterOptions = {}): Router 
   propertiesRouter.put(
     '/api/properties/:id/images/:imageId',
     asyncHandler(async (req, res) => {
-      if (!req.body?.cover) return sendError(res, 400, 'Invalid action');
+      if (!req.body?.cover) return sendError(res, 400, 'Ungültige Aktion');
       const property = await setCover(getParam(req, 'id'), getParam(req, 'imageId'));
-      if (!property) return sendError(res, 404, 'Not found');
+      if (!property) return sendError(res, 404, 'Nicht gefunden');
       res.json(property.images);
     }),
   );
@@ -394,7 +394,7 @@ export function propertiesRouter(options: PropertiesRouterOptions = {}): Router 
         getParam(req, 'id'),
         Array.isArray(req.body?.imageIds) ? req.body.imageIds : [],
       );
-      if (!property) return sendError(res, 404, 'Not found');
+      if (!property) return sendError(res, 404, 'Nicht gefunden');
       res.json(property.images);
     }),
   );

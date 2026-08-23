@@ -56,7 +56,7 @@ describe('POST /api/properties/:id/pdf', () => {
       method: 'POST',
     });
     assert.equal(response.status, 404);
-    assert.deepEqual(await response.json(), { error: 'Not found' });
+    assert.deepEqual(await response.json(), { error: 'Nicht gefunden' });
   });
 
   it('returns a PDF with the correct content type and sanitized filename', async () => {

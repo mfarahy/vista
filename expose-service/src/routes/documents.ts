@@ -59,12 +59,12 @@ documentsRouter.post(
     if (!property) return;
 
     const files = Array.isArray(req.files) ? req.files : [];
-    if (!files.length) return sendError(res, 400, 'No documents found');
+    if (!files.length) return sendError(res, 400, 'Keine Dokumente gefunden');
     for (const file of files) {
       if (!ALLOWED_DOCUMENT_MIMES.has(file.mimetype))
-        return sendError(res, 400, 'Only PDF, JPG, PNG and WEBP are supported');
+        return sendError(res, 400, 'Nur PDF, JPG, PNG und WEBP werden unterstützt');
       if (file.size > MAX_DOCUMENT_BYTES)
-        return sendError(res, 400, 'Documents may be up to 25 MB');
+        return sendError(res, 400, 'Dokumente dürfen maximal 25 MB groß sein');
     }
 
     await fs.mkdir(uploadPath, { recursive: true });
@@ -101,7 +101,7 @@ documentsRouter.post(
           return (
             (await updateDocument(records[index].id, {
               status: 'failed',
-              error: 'The document could not be analyzed.',
+              error: 'Das Dokument konnte nicht analysiert werden.',
             })) ?? records[index]
           );
         }
@@ -117,7 +117,7 @@ documentsRouter.get(
     const property = await loadProperty(req, res);
     if (!property) return;
     const document = await getDocument(getParam(req, 'documentId'));
-    if (!document || document.propertyId !== property.id) return sendError(res, 404, 'Not found');
+    if (!document || document.propertyId !== property.id) return sendError(res, 404, 'Nicht gefunden');
     res.json(document);
   }),
 );
@@ -128,14 +128,14 @@ documentsRouter.post(
     const property = await loadProperty(req, res);
     if (!property) return;
     const document = await getDocument(getParam(req, 'documentId'));
-    if (!document || document.propertyId !== property.id) return sendError(res, 404, 'Not found');
+    if (!document || document.propertyId !== property.id) return sendError(res, 404, 'Nicht gefunden');
 
     const filePath = path.join(uploadPath, path.basename(document.url));
     let content: Buffer;
     try {
       content = await fs.readFile(filePath);
     } catch {
-      return sendError(res, 422, 'The document file is missing.');
+      return sendError(res, 422, 'Die Dokumentdatei fehlt.');
     }
     const updated = await analyzeRecord(document, content, document.mimeType);
     res.json(updated);
@@ -148,7 +148,7 @@ documentsRouter.delete(
     const property = await loadProperty(req, res);
     if (!property) return;
     const document = await getDocument(getParam(req, 'documentId'));
-    if (!document || document.propertyId !== property.id) return sendError(res, 404, 'Not found');
+    if (!document || document.propertyId !== property.id) return sendError(res, 404, 'Nicht gefunden');
     await removeDocument(document.id);
     await fs.rm(path.join(uploadPath, path.basename(document.url)), { force: true });
     res.json({ ok: true });

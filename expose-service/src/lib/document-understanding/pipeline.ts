@@ -45,7 +45,7 @@ export async function runDocumentPipeline(
     );
     return deps.update(record.id, {
       status: 'failed',
-      error: 'The document could not be analyzed.',
+      error: 'Das Dokument konnte nicht analysiert werden.',
     });
   }
 

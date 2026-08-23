@@ -25,6 +25,7 @@ import {
   PHOTO_TAG_LABELS,
   PROPERTY_SUBTYPES,
   PROPERTY_TYPES,
+  additionalInfoLabel,
   conditionLabel,
   photoTypeLabel,
   subtypeLabel,
@@ -561,7 +562,7 @@ function DocumentCard({
   const photoTags = photo?.photoTags?.length ? photo.photoTags.map((entry) => entry.tag) : [];
 
   return (
-    <div className="flex flex-col rounded-xl border bg-card p-4">
+    <div className="flex min-w-0 flex-col rounded-xl border bg-card p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-3">
           {image ? (
@@ -733,7 +734,7 @@ function DocumentCard({
               <ul className="mt-1 space-y-1">
                 {document.understandingResult.additionalInformation.map((info, index) => (
                   <li key={`${info.key}-${index}`} className="text-xs leading-5">
-                    <span className="font-medium text-foreground">{info.key}</span>
+                    <span className="font-medium text-foreground">{additionalInfoLabel(info.key)}</span>
                     <span className="text-muted-foreground">
                       {' '}
                       → {formatExtractedValue(info.value)}

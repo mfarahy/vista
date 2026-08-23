@@ -403,8 +403,10 @@ describe('energy presentation', () => {
       },
     });
     const facts = energyFacts(property);
-    assert.ok(facts.some((fact) => fact.label === 'Ausstellungsdatum' && fact.value === '2024-03-01'));
-    assert.ok(facts.some((fact) => fact.label === 'Gültig bis' && fact.value === '2034-03-01'));
+    assert.ok(
+      facts.some((fact) => fact.label === 'Ausstellungsdatum' && fact.value === '01.03.2024'),
+    );
+    assert.ok(facts.some((fact) => fact.label === 'Gültig bis' && fact.value === '01.03.2034'));
     assert.ok(facts.some((fact) => fact.label === 'Endenergiebedarf' && fact.value === '78,5 kWh/(m²a)'));
   });
 

@@ -1,0 +1,40 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 729 >>
+stream
+BT /F1 11 Tf 50 750 Td (WOHNFLÄCHENBERECHNUNG nach DIN 277 und WoFlV) Tj ET
+BT /F1 11 Tf 50 733 Td (Objekt: Weserstrasse 42, 12045 Berlin) Tj ET
+BT /F1 11 Tf 50 716 Td (Einfamilienhaus mit Einliegerwohnung) Tj ET
+BT /F1 11 Tf 50 699 Td (Erdgeschoss: Wohnzimmer 32 m², Esszimmer 14 m², Kueche 12 m², Diele 8 m²) Tj ET
+BT /F1 11 Tf 50 682 Td (Obergeschoss: Schlafzimmer 16 m², Kinderzimmer 12 m², Arbeitszimmer 11 m², Bad 7 m²) Tj ET
+BT /F1 11 Tf 50 665 Td (Dachgeschoss: Gästezimmer 10 m², Abstellraum 5 m²) Tj ET
+BT /F1 11 Tf 50 648 Td (Keller: Heizungsraum, Waschkueche, Vorratsraum) Tj ET
+BT /F1 11 Tf 50 631 Td (Gesamtwohnflaeche: 145 m²) Tj ET
+BT /F1 11 Tf 50 614 Td (Berechnet am 10.02.2025 von Architekturbuero Weber) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000001021 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1091
+%%EOF

@@ -116,6 +116,8 @@ export function formatExtractedValue(value: string | number | boolean | null | u
   if (value === null || value === undefined || value === '') return '—';
   if (value === true) return 'Ja';
   if (value === false) return 'Nein';
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value))
+    return `${value.slice(8, 10)}.${value.slice(5, 7)}.${value.slice(0, 4)}`;
   return String(value);
 }
 

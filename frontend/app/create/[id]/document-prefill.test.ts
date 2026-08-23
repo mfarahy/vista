@@ -271,6 +271,8 @@ describe('computeWizardPrefills', () => {
     assert.equal(formatExtractedValue(false), 'Nein');
     assert.equal(formatExtractedValue(null), '—');
     assert.equal(formatExtractedValue(145), '145');
+    assert.equal(formatExtractedValue('2024-03-01'), '01.03.2024');
+    assert.equal(formatExtractedValue('2025-12-31'), '31.12.2025');
   });
 });
 

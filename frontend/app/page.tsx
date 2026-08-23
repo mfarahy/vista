@@ -47,7 +47,7 @@ export default async function Home() {
             </Button>
             <Button asChild>
               <Link href="/create">
-                New exposé <ArrowRight className="size-4" />
+                Neues Exposé <ArrowRight className="size-4" />
               </Link>
             </Button>
           </div>
@@ -57,36 +57,37 @@ export default async function Home() {
       <section className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 sm:px-8 lg:grid-cols-2 lg:py-24">
         <div>
           <span className="inline-flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-xs font-medium text-primary">
-            <Sparkles className="size-3.5" /> Real-estate exposés, made simple
+            <Sparkles className="size-3.5" /> Immobilien-Exposés, einfach erstellt
           </span>
           <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-tight text-foreground sm:text-5xl">
-            Your property, presented <span className="text-primary">professionally</span>.
+            Ihre Immobilie, <span className="text-primary">professionell präsentiert</span>.
           </h1>
           <p className="mt-4 max-w-lg text-base leading-7 text-muted-foreground">
-            Create a polished exposé in a few steps. Upload your documents, enter the facts once,
-            and Vista writes a compelling story for your home — ready for portals and PDF export.
+            Erstellen Sie in wenigen Schritten ein hochwertiges Exposé. Laden Sie Ihre Unterlagen
+            hoch, erfassen Sie die Fakten einmal — und Vista schreibt eine überzeugende
+            Präsentation für Ihre Immobilie. Bereit für Portale und PDF-Export.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button size="lg" asChild>
               <Link href="/create">
-                Create exposé <ArrowRight className="size-4" />
+                Exposé erstellen <ArrowRight className="size-4" />
               </Link>
             </Button>
             <Button size="lg" variant="outline" asChild>
-              <Link href="/demo">View demo</Link>
+              <Link href="/demo">Demo ansehen</Link>
             </Button>
           </div>
           <p className="mt-6 text-sm text-muted-foreground">
-            Works in German and English. No design skills required.
+            Keine Designkenntnisse erforderlich.
           </p>
         </div>
 
         <div className="hidden rounded-2xl border bg-card p-6 shadow-sm lg:block">
           <div className="space-y-3">
             {[
-              { icon: FileUp, title: 'Upload your documents', text: 'Grundbuch, Grundriss, Energieausweis' },
-              { icon: Sparkles, title: 'AI refines your copy', text: 'Professional text at the click of a button' },
-              { icon: FileDown, title: 'Export to PDF', text: 'Ready for portals and prospective buyers' },
+              { icon: FileUp, title: 'Unterlagen hochladen', text: 'Grundbuch, Grundriss, Energieausweis' },
+              { icon: Sparkles, title: 'KI verfasst Ihre Texte', text: 'Professionelle Texte auf Knopfdruck' },
+              { icon: FileDown, title: 'Export als PDF', text: 'Bereit für Portale und Interessenten' },
             ].map((step) => (
               <div key={step.title} className="flex gap-4 rounded-xl border bg-background p-4">
                 <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -107,14 +108,14 @@ export default async function Home() {
           <div className="mb-6 flex items-end justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                Your drafts
+                Ihre Entwürfe
               </p>
               <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">
-                Recently edited
+                Zuletzt bearbeitet
               </h2>
             </div>
             <Link href="/create" className="text-sm font-medium text-primary hover:underline">
-              New exposé →
+              Neues Exposé →
             </Link>
           </div>
           {properties.length ? (
@@ -126,18 +127,18 @@ export default async function Home() {
                 >
                   <div className="mb-4 flex items-center justify-between">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-                      <FileText className="size-3" /> Draft
+                      <FileText className="size-3" /> Entwurf
                     </span>
                     <Building2 className="size-4 text-muted-foreground" aria-hidden />
                   </div>
                   <h3 className="text-lg font-semibold text-foreground">
                     <Link href={`/create/${property.id}`} className="hover:text-primary">
-                      {property.city || 'New property'}
+                      {property.city || 'Neues Objekt'}
                     </Link>
                   </h3>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {property.livingArea ? `${property.livingArea} m² · ` : ''}
-                    {property.images.length} photos
+                    {property.images.length} Fotos
                   </p>
                   <div className="mt-4 flex gap-2">
                     <Button variant="outline" size="sm" asChild>
@@ -155,9 +156,9 @@ export default async function Home() {
           ) : (
             <EmptyState
               icon={ImageIcon}
-              title="No exposé created yet"
-              description="Start with your property details and create your first draft."
-              actionLabel="Create exposé"
+              title="Noch kein Exposé erstellt"
+              description="Geben Sie die Angaben zu Ihrer Immobilie ein und erstellen Sie Ihren ersten Entwurf."
+              actionLabel="Exposé erstellen"
               href="/create"
             />
           )}

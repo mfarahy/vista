@@ -20,10 +20,11 @@ floorplanRouter.post(
   upload.single('image'),
   asyncHandler(async (req, res) => {
     const file = req.file;
-    if (!file) return sendError(res, 400, 'An image file is required');
+    if (!file) return sendError(res, 400, 'Eine Bilddatei ist erforderlich');
     if (!isAllowedImageMime(file.mimetype))
-      return sendError(res, 400, 'Only JPG, PNG and WEBP are supported');
-    if (file.size > MAX_IMAGE_BYTES) return sendError(res, 400, 'Images may be up to 15 MB');
+      return sendError(res, 400, 'Nur JPG, PNG und WEBP werden unterstützt');
+    if (file.size > MAX_IMAGE_BYTES)
+      return sendError(res, 400, 'Bilder dürfen maximal 15 MB groß sein');
 
     const body = req.body || {};
     try {
@@ -51,7 +52,7 @@ floorplanRouter.post(
       res.json({ url: `/uploads/${name}`, falUrl: result.imageUrl, seed: result.seed });
     } catch (error) {
       getLogger().error({ err: error }, 'Floor plan conversion failed');
-      sendError(res, 502, errorMessage(error, 'Floor plan conversion could not be completed.'));
+      sendError(res, 502, errorMessage(error, 'Die Umwandlung des Grundrisses konnte nicht abgeschlossen werden.'));
     }
   }),
 );

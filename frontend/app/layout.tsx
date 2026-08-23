@@ -9,12 +9,12 @@ const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
   title: 'Vista',
-  description: 'Real estate exposé editor',
+  description: 'Immobilien-Exposés professionell erstellen',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn('font-sans', geist.variable)}>
+    <html lang="de" suppressHydrationWarning className={cn('font-sans', geist.variable)}>
       <body>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           {children}

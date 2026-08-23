@@ -54,6 +54,9 @@ Classify the property with normalized enum values, not German display labels:
   Villa → propertyType "house", propertySubtype "villa"
   Mehrfamilienhaus → propertyType "house", propertySubtype "multiFamilyHouse"
 
+Map building status to the normalized buildingStatus enum: "Neubau", "neuerrichtet", "Neubaufertigstellung" → "new"; "Bestandsimmobilie", "Bestandsgebäude" → "existing". The data model supports only "new" and "existing": for a planned or under-construction building ("geplant", "im Bau", "Projekt"), return null instead of inventing a third value.
+Normalize commissionPayer to exactly one of "buyer", "seller", "both" ("Käuferprovision" → "buyer", "Verkäuferprovision" → "seller"). Return null when no payer is stated; never invent a value.
+
 Map condition statements to the normalized condition enum:
   gepflegt → "wellMaintained"
   modernisiert → "modernized"

@@ -405,6 +405,19 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     defaults: Record<string, string | number | boolean>,
   ): PropertyPayload {
     if (!Object.keys(defaults).length) return current;
+    // Strict numeric coercion for the prefill boundary: AI values that are not
+    // numbers (for example a boolean guestToilets) must never be coerced into
+    // misleading counts like 1 or 0, and they must not create false provenance.
+    const toFiniteNumber = (value: string | number | boolean): number | null => {
+      if (typeof value === 'boolean' || value === null || value === undefined) return null;
+      const num = typeof value === 'number' ? value : Number(value);
+      return Number.isFinite(num) ? num : null;
+    };
+    // Enum values the persistence layer accepts. An AI value outside these sets
+    // would fail the backend validation and break the autosave, so it is
+    // skipped here at the prefill boundary instead.
+    const buildingStatusValues = ['new', 'existing'];
+    const commissionPayerValues = ['buyer', 'seller', 'both'];
     const next = { ...current };
     // Never mutate the incoming state: updater functions must stay pure
     // (React StrictMode invokes them twice in development). The prefill below
@@ -518,39 +531,57 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
           }
           break;
         }
-        case 'livingArea':
-          if (next.livingArea == null) next.livingArea = Number(value);
+        case 'livingArea': {
+          const num = toFiniteNumber(value);
+          if (num != null && next.livingArea == null) next.livingArea = num;
           break;
-        case 'usableArea':
-          if (details.usableArea == null) {
-            details.usableArea = Number(value);
+        }
+        case 'usableArea': {
+          const num = toFiniteNumber(value);
+          if (num != null && details.usableArea == null) {
+            details.usableArea = num;
             detailsChanged = true;
           }
           break;
-        case 'plotArea':
-          if (next.plotArea == null) next.plotArea = Number(value);
+        }
+        case 'plotArea': {
+          const num = toFiniteNumber(value);
+          if (num != null && next.plotArea == null) next.plotArea = num;
           break;
-        case 'rooms':
-          if (next.rooms == null) next.rooms = Number(value);
+        }
+        case 'rooms': {
+          const num = toFiniteNumber(value);
+          if (num != null && next.rooms == null) next.rooms = num;
           break;
-        case 'bedrooms':
-          if (next.bedrooms == null) next.bedrooms = Number(value);
+        }
+        case 'bedrooms': {
+          const num = toFiniteNumber(value);
+          if (num != null && next.bedrooms == null) next.bedrooms = num;
           break;
-        case 'bathrooms':
-          if (next.bathrooms == null) next.bathrooms = Number(value);
+        }
+        case 'bathrooms': {
+          const num = toFiniteNumber(value);
+          if (num != null && next.bathrooms == null) next.bathrooms = num;
           break;
-        case 'guestToilets':
-          if (details.guestToilets == null) {
-            details.guestToilets = Number(value);
+        }
+        case 'guestToilets': {
+          const num = toFiniteNumber(value);
+          if (num != null && details.guestToilets == null) {
+            details.guestToilets = num;
             detailsChanged = true;
           }
           break;
-        case 'yearBuilt':
-          if (next.constructionYear == null) next.constructionYear = Number(value);
+        }
+        case 'yearBuilt': {
+          const num = toFiniteNumber(value);
+          if (num != null && next.constructionYear == null) next.constructionYear = num;
           break;
-        case 'numberOfFloors':
-          if (next.totalFloors == null) next.totalFloors = Number(value);
+        }
+        case 'numberOfFloors': {
+          const num = toFiniteNumber(value);
+          if (num != null && next.totalFloors == null) next.totalFloors = num;
           break;
+        }
         case 'floor':
           if (!next.floor) next.floor = String(value);
           break;
@@ -558,8 +589,12 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
           if (!next.condition) next.condition = String(value);
           break;
         case 'buildingStatus':
-          if (details.buildingStatus == null) {
-            details.buildingStatus = String(value) as 'new' | 'existing';
+          if (
+            details.buildingStatus == null &&
+            typeof value === 'string' &&
+            buildingStatusValues.includes(value)
+          ) {
+            details.buildingStatus = value as 'new' | 'existing';
             detailsChanged = true;
           }
           break;
@@ -569,42 +604,58 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
             detailsChanged = true;
           }
           break;
-        case 'lastModernizationYear':
-          if (details.lastModernizationYear == null) {
-            details.lastModernizationYear = Number(value);
+        case 'lastModernizationYear': {
+          const num = toFiniteNumber(value);
+          if (num != null && details.lastModernizationYear == null) {
+            details.lastModernizationYear = num;
             detailsChanged = true;
           }
           break;
-        case 'askingPrice':
-          if (next.askingPrice == null) next.askingPrice = Number(value);
+        }
+        case 'askingPrice': {
+          const num = toFiniteNumber(value);
+          if (num != null && next.askingPrice == null) next.askingPrice = num;
           break;
-        case 'pricePerM2':
-          if (pricing.pricePerM2 == null) {
-            pricing.pricePerM2 = Number(value);
+        }
+        case 'pricePerM2': {
+          const num = toFiniteNumber(value);
+          if (num != null && pricing.pricePerM2 == null) {
+            pricing.pricePerM2 = num;
             pricingChanged = true;
           }
           break;
-        case 'commissionRate':
-          if (pricing.commissionRate == null) {
-            pricing.commissionRate = Number(value);
+        }
+        case 'commissionRate': {
+          const num = toFiniteNumber(value);
+          if (num != null && pricing.commissionRate == null) {
+            pricing.commissionRate = num;
             pricingChanged = true;
           }
           break;
+        }
         case 'commissionPayer':
-          if (!pricing.commissionPayer) {
-            pricing.commissionPayer = String(value) as ExposeData['pricing']['commissionPayer'];
+          if (
+            !pricing.commissionPayer &&
+            typeof value === 'string' &&
+            commissionPayerValues.includes(value)
+          ) {
+            pricing.commissionPayer = value as ExposeData['pricing']['commissionPayer'];
             pricingChanged = true;
           }
           break;
         case 'energyClass':
           setEnergy('efficiencyClass', String(value));
           break;
-        case 'energyConsumption':
-          setEnergy('finalEnergyConsumption', Number(value));
+        case 'energyConsumption': {
+          const num = toFiniteNumber(value);
+          if (num != null) setEnergy('finalEnergyConsumption', num);
           break;
-        case 'energyDemand':
-          setEnergy('finalEnergyDemand', Number(value));
+        }
+        case 'energyDemand': {
+          const num = toFiniteNumber(value);
+          if (num != null) setEnergy('finalEnergyDemand', num);
           break;
+        }
         case 'certificateType': {
           const normalized = normalizeCertificateType(String(value));
           if (normalized) setEnergy('certificateType', normalized);
@@ -631,9 +682,11 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
           if (source) setEnergy('primaryEnergySource', source);
           break;
         }
-        case 'yearOfConstruction':
-          setEnergy('yearOfConstruction', Number(value));
+        case 'yearOfConstruction': {
+          const num = toFiniteNumber(value);
+          if (num != null) setEnergy('yearOfConstruction', num);
           break;
+        }
         case 'hotWaterIncluded':
           if (value === true && energy.hotWaterIncluded !== true) {
             setEnergy('hotWaterIncluded', true);
@@ -642,36 +695,50 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
         case 'isRented':
           if (value === true && rental.isRented !== true) setRental('isRented', true);
           break;
-        case 'monthlyRent':
-          if (next.transactionType === 'rent' && next.coldRent == null)
-            next.coldRent = Number(value);
+        case 'monthlyRent': {
+          const num = toFiniteNumber(value);
+          if (next.transactionType === 'rent' && next.coldRent == null && num != null)
+            next.coldRent = num;
           break;
-        case 'annualRent':
-          if (rental.annualRent == null) setRental('annualRent', Number(value));
+        }
+        case 'annualRent': {
+          const num = toFiniteNumber(value);
+          if (num != null) setRental('annualRent', num);
           break;
-        case 'additionalCosts':
-          if (next.additionalCosts == null) next.additionalCosts = Number(value);
+        }
+        case 'additionalCosts': {
+          const num = toFiniteNumber(value);
+          if (next.additionalCosts == null && num != null) next.additionalCosts = num;
           break;
+        }
         case 'furnished':
           if (value === true && rental.furnished !== true) setRental('furnished', true);
           break;
         case 'availableFrom':
           if (!next.availableFrom) next.availableFrom = String(value);
           break;
-        case 'grossYieldTarget':
-          if (investment.grossYieldTargetPercent == null)
-            setInvestment('grossYieldTargetPercent', Number(value));
+        case 'grossYieldTarget': {
+          const num = toFiniteNumber(value);
+          if (investment.grossYieldTargetPercent == null && num != null)
+            setInvestment('grossYieldTargetPercent', num);
           break;
-        case 'grossYieldActual':
-          if (investment.grossYieldActualPercent == null)
-            setInvestment('grossYieldActualPercent', Number(value));
+        }
+        case 'grossYieldActual': {
+          const num = toFiniteNumber(value);
+          if (investment.grossYieldActualPercent == null && num != null)
+            setInvestment('grossYieldActualPercent', num);
           break;
-        case 'hausgeld':
-          setWeg('hausgeldEur', Number(value));
+        }
+        case 'hausgeld': {
+          const num = toFiniteNumber(value);
+          if (num != null) setWeg('hausgeldEur', num);
           break;
-        case 'maintenanceReserve':
-          setWeg('maintenanceReserveEur', Number(value));
+        }
+        case 'maintenanceReserve': {
+          const num = toFiniteNumber(value);
+          if (num != null) setWeg('maintenanceReserveEur', num);
           break;
+        }
         case 'coOwnershipShare':
           setWeg('coOwnershipShare', String(value));
           break;
@@ -861,7 +928,8 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       method: 'POST',
     });
     const result = await response.json();
-    if (!response.ok) setError(result.error || 'Die KI konnte keinen Titel erzeugen.');
+    if (!response.ok)
+      setError('Die KI konnte keinen Titel erzeugen. Bitte versuchen Sie es erneut.');
     else {
       updateExposeData({
         basicInformation: {
@@ -906,7 +974,8 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       body: JSON.stringify({ action }),
     });
     const result = await response.json();
-    if (!response.ok) setError(result.error || 'Die KI konnte den Text nicht erstellen.');
+    if (!response.ok)
+      setError('Die KI konnte den Text nicht erstellen. Bitte versuchen Sie es erneut.');
     else {
       setContent(result);
       setStep(CONTENT_STEP);
@@ -923,7 +992,8 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       { method: 'POST' },
     );
     const result = await response.json();
-    if (!response.ok) setError(result.error || 'Der Exposé-Inhalt konnte nicht erzeugt werden.');
+    if (!response.ok)
+      setError('Der Exposé-Inhalt konnte nicht erzeugt werden. Bitte versuchen Sie es erneut.');
     else setMarketingContent(result);
     setMarketingLoading(false);
   }
@@ -961,7 +1031,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       body,
     });
     const result = await response.json();
-    if (!response.ok) setError(result.error);
+    if (!response.ok) setError('Die Fotos konnten nicht hochgeladen werden.');
     else setImages((current) => [...current, ...result]);
   }
 

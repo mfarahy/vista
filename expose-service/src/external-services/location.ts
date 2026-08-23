@@ -216,7 +216,7 @@ class NominatimGeocodingProvider implements GeocodingProvider {
       results.find(
         (item) => Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon)),
       );
-    if (!first) throw new Error('Location could not be resolved');
+    if (!first) throw new Error('Der Standort konnte nicht ermittelt werden');
     const resultRoad = first.address?.road;
     const exactHouseMatch =
       first.address?.house_number === normalized.houseNumber &&

@@ -15,6 +15,7 @@ import {
   ENERGY_CERTIFICATE_TYPES,
   ENERGY_SOURCES,
   FEATURE_OPTIONS,
+  RENOVATION_STATUSES,
   conditionLabel,
   subtypeLabel,
 } from '../types';
@@ -120,6 +121,12 @@ function enumLabel(
 ): string | undefined {
   const option = options.find(([key, label]) => key === value || label === value);
   return option ? option[1] : undefined;
+}
+
+/** German label for the persisted commission payer ("buyer" → "Käufer"). */
+function commissionPayerLabel(value?: string | null): string | undefined {
+  const labels: Record<string, string> = { buyer: 'Käufer', seller: 'Verkäufer', both: 'Beide' };
+  return value ? labels[value] : undefined;
 }
 
 export function Review({
@@ -294,7 +301,7 @@ export function Review({
               enumLabel(BUILDING_STATUSES, data.propertyDetails.buildingStatus),
             )}
             {row('Zustand', conditionLabel(property.condition))}
-            {row('Sanierungsstatus', data.propertyDetails.renovationStatus)}
+            {row('Sanierungsstatus', enumLabel(RENOVATION_STATUSES, data.propertyDetails.renovationStatus))}
             {row('Letzte Modernisierung', data.propertyDetails.lastModernizationYear)}
             {row('Etagen', data.propertyDetails.numberOfFloors ?? property.totalFloors)}
             {row('Keller', property.selectedFeatures.includes('basement') ? 'Ja' : null)}
@@ -349,7 +356,7 @@ export function Review({
                 )}
                 {row('Kaufpreis / m²', data.pricing.pricePerM2 ? money(data.pricing.pricePerM2) : null)}
                 {row('Provision (%)', data.pricing.commissionRate)}
-                {row('Provisionszahler', data.pricing.commissionPayer)}
+                {row('Provisionszahler', commissionPayerLabel(data.pricing.commissionPayer))}
                 {row('Nebenkosten', property.additionalCosts ? money(property.additionalCosts) : null)}
               </>
             ) : (
@@ -476,10 +483,19 @@ export function Review({
           'Ihre Notizen',
           -1,
           <div className="space-y-3 text-sm text-muted-foreground">
-            {(['features', 'energy', 'legal', 'photos', 'plans', 'agent'] as const).map((key) =>
+            {(
+              [
+                ['features', 'Ausstattung'],
+                ['energy', 'Energie'],
+                ['legal', 'Recht & Zusätzliches'],
+                ['photos', 'Fotos'],
+                ['plans', 'Pläne & Dokumente'],
+                ['agent', 'Agent'],
+              ] as const
+            ).map(([key, label]) =>
               noteValue(key) ? (
                 <p key={key}>
-                  <span className="font-medium text-foreground capitalize">{key}: </span>
+                  <span className="font-medium text-foreground">{label}: </span>
                   {noteValue(key)}
                 </p>
               ) : null,

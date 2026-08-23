@@ -398,10 +398,19 @@ export function energyFacts(property: Property): ExposeFact[] {
   if (energy.heatingType)
     facts.push({ label: 'Heizungsart', value: energy.heatingType });
   if (energy.certificateDate)
-    facts.push({ label: 'Ausstellungsdatum', value: energy.certificateDate });
+    facts.push({
+      label: 'Ausstellungsdatum',
+      value: germanDate(energy.certificateDate),
+    });
   if (energy.certificateValidUntil)
-    facts.push({ label: 'Gültig bis', value: energy.certificateValidUntil });
+    facts.push({ label: 'Gültig bis', value: germanDate(energy.certificateValidUntil) });
   return facts;
+}
+
+/** Formats an ISO date (YYYY-MM-DD) as a German date (TT.MM.JJJJ). */
+export function germanDate(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  return match ? `${match[3]}.${match[2]}.${match[1]}` : value;
 }
 
 /**

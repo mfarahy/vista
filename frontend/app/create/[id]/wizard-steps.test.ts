@@ -195,6 +195,12 @@ describe('AI value normalization', () => {
     assert.equal(normalizeEnergySource('Fernwärme'), 'district_heating');
     assert.equal(normalizeEnergySource('gas'), 'gas');
     assert.equal(normalizeEnergySource('heat_pump'), 'heat_pump');
+    // A heating system name like "Zentralheizung" is NOT an energy source and
+    // must not be mapped to "other" (Phase 12 regression: it previously
+    // overwrote the real AI value "gas" in the prefill).
+    assert.equal(normalizeEnergySource('Zentralheizung'), null);
+    assert.equal(normalizeEnergySource('Gasetagenheizung'), 'gas');
+    assert.equal(normalizeEnergySource('Sonstige'), 'other');
     assert.equal(normalizeEnergySource(''), null);
     assert.equal(normalizeEnergySource(null), null);
   });
