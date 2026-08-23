@@ -16,6 +16,7 @@ import type {
 import type { ExposeConfiguration } from './expose-configuration.js';
 import type { DocumentUnderstandingResult } from './document-understanding/types.js';
 import type { MarketingContentRecord } from './marketing-content/types.js';
+import type { FloorPlan3DRecord } from './floorplan-3d/types.js';
 import { emptyExposeData } from './expose-data.js';
 import { addressFromLegacy, addressKey } from '../external-services/location.js';
 import type { LocationIntelligence } from './expose-data.js';
@@ -451,6 +452,48 @@ function contentSourcesOf(content: MarketingContentRecord): Record<string, strin
     equipmentDescription: content.equipmentDescription.source,
     locationDescription: content.locationDescription?.source ?? 'none',
   };
+}
+
+/**
+ * Persists the floor plan 3D generation record on the property. The completed
+ * model is stored so the Expose can reuse it without calling the provider
+ * again; a failed generation keeps the 2D floor plan as the fallback.
+ */
+export function saveFloorPlan3D(
+  id: string,
+  record: FloorPlan3DRecord,
+): Promise<Property | null> {
+  return serializedWrite(() => saveFloorPlan3DNow(id, record));
+}
+async function saveFloorPlan3DNow(id: string, record: FloorPlan3DRecord): Promise<Property | null> {
+  const db = await readDB();
+  const property = db.properties.find((item) => item.id === id);
+  if (!property) {
+    getLogger().warn({ id }, 'saveFloorPlan3D property not found for {id}');
+    return null;
+  }
+  property.floorPlan3D = record;
+  property.updatedAt = new Date().toISOString();
+  await writeDB(db);
+  getLogger().info(
+    {
+      id,
+      status: record.status,
+      provider: record.provider,
+      sourceImageId: record.sourceImageId,
+    },
+    'Saved floor plan 3D {status} record for property {id}',
+  );
+  return property;
+}
+
+/**
+ * Reads the persisted floor plan 3D generation record of a property, or null
+ * when generation was never started.
+ */
+export async function getFloorPlan3D(id: string): Promise<FloorPlan3DRecord | null> {
+  const property = await getProperty(id);
+  return property?.floorPlan3D ?? null;
 }
 
 export function saveLocationIntelligence(

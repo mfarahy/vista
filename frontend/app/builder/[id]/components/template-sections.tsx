@@ -1,6 +1,8 @@
-import type { DocumentRecord, Property, PropertyImage } from '../../../create/[id]/types';
-import { apiAssetUrl } from '@/lib/api';
+import type { DocumentRecord, FloorPlan3DRecord, Property, PropertyImage } from '../../../create/[id]/types';
+import { apiAssetUrl, apiFetch } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useEffect, useState } from 'react';
+import FloorPlan3DViewer from '@/components/floorplan-3d-viewer';
 import {
   Baby,
   GraduationCap,
@@ -327,24 +329,75 @@ export function GallerySection({
   );
 }
 
-export function FloorplanSection({ images }: { images: PropertyImage[] }) {
+/**
+ * Floor plan section of the Exposé. Prefers the generated interactive 3D
+ * floor plan when one is completed; otherwise renders the original 2D floor
+ * plan images. While generation is pending (and not in static/print mode) a
+ * small hint is shown above the 2D plan and the status is polled so the 3D
+ * model appears as soon as it is ready. The static PDF render never shows the
+ * WebGL viewer and always keeps the 2D plan.
+ */
+export function FloorplanSection({
+  property,
+  images,
+  staticRender,
+}: {
+  property: Property;
+  images: PropertyImage[];
+  staticRender?: boolean;
+}) {
   const plans = floorplanImages(images);
+  const [record, setRecord] = useState<FloorPlan3DRecord | null>(property.floorPlan3D ?? null);
+
+  useEffect(() => {
+    setRecord(property.floorPlan3D ?? null);
+  }, [property.floorPlan3D]);
+
+  useEffect(() => {
+    if (staticRender || record?.status !== 'pending') return;
+    const timer = setInterval(async () => {
+      try {
+        const response = await apiFetch(`/api/properties/${property.id}/floorplan3d`);
+        if (!response.ok) return;
+        const next = (await response.json()) as FloorPlan3DRecord | null;
+        setRecord(next);
+      } catch {
+        // Polling is best-effort; the 2D plan stays the fallback.
+      }
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [staticRender, record?.status, property.id]);
+
   if (!plans.length) return null;
+
+  const model = record?.status === 'completed' && record.model ? record.model : null;
+  const interactive = !staticRender;
+
   return (
     <Section id="floorplans" kicker="GRUNDRISSE" title="Grundrisse">
       <div className="expose-floorplans">
-        {plans.map((image) => (
-          <figure key={image.id} className="expose-floorplan-figure">
-            <img
-              src={apiAssetUrl(image.url)}
-              alt={image.caption || image.fileName || 'Grundriss'}
-            />
-            {image.caption && (
-              <figcaption className="expose-figure-caption">{image.caption}</figcaption>
-            )}
+        {model && interactive ? (
+          <figure className="expose-floorplan-figure">
+            <FloorPlan3DViewer model={model} />
+            <figcaption className="expose-figure-caption">3D-Grundriss</figcaption>
           </figure>
-        ))}
+        ) : (
+          plans.map((image) => (
+            <figure key={image.id} className="expose-floorplan-figure">
+              <img
+                src={apiAssetUrl(image.url)}
+                alt={image.caption || image.fileName || 'Grundriss'}
+              />
+              {image.caption && (
+                <figcaption className="expose-figure-caption">{image.caption}</figcaption>
+              )}
+            </figure>
+          ))
+        )}
       </div>
+      {interactive && record?.status === 'pending' && (
+        <p className="expose-floorplan-pending">3D-Grundriss wird erstellt…</p>
+      )}
     </Section>
   );
 }

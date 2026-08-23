@@ -23,6 +23,7 @@ export default function ExposePrintClient({
       marketingContent={marketingContent}
       expose={expose}
       documents={documents}
+      staticRender
     />
   );
 }

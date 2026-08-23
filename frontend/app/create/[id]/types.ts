@@ -111,6 +111,7 @@ export type Property = {
   createdAt?: string;
   updatedAt?: string;
   exposeData?: ExposeData;
+  floorPlan3D?: FloorPlan3DRecord | null;
 };
 
 export type PropertyImage = {
@@ -125,6 +126,64 @@ export type PropertyImage = {
   category?: ImageCategory | string | null;
   subcategory?: string | null;
   caption?: string | null;
+};
+
+export type FloorPlan3DStatus = 'pending' | 'completed' | 'failed';
+
+export type FloorPlan3DPoint = { x: number; y: number };
+
+export type FloorPlan3DRoom = {
+  id: string;
+  name: string;
+  level: number;
+  x: number;
+  y: number;
+  width: number;
+  depth: number;
+  height: number;
+  areaM2: number | null;
+};
+
+export type FloorPlan3DWall = {
+  id: string;
+  level: number;
+  from: FloorPlan3DPoint;
+  to: FloorPlan3DPoint;
+  thickness: number;
+  height: number;
+};
+
+export type FloorPlan3DOpening = {
+  id: string;
+  level: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+};
+
+/** Canonical 3D floor plan model produced by the backend provider. */
+export type FloorPlan3DModel = {
+  unit: 'm';
+  rooms: FloorPlan3DRoom[];
+  walls: FloorPlan3DWall[];
+  doors: FloorPlan3DOpening[];
+  windows: FloorPlan3DOpening[];
+};
+
+/**
+ * Persisted 3D floor plan generation record on the property. `model` is only
+ * set when generation completed; `error` only when it failed.
+ */
+export type FloorPlan3DRecord = {
+  status: FloorPlan3DStatus;
+  provider: string;
+  sourceImageId: string;
+  model: FloorPlan3DModel | null;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type EnergyData = {

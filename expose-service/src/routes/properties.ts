@@ -40,6 +40,11 @@ import {
   generateMarketingContent,
   InsufficientPropertyInfoError,
 } from '../lib/marketing-content/service.js';
+import { generateFloorPlan3D } from '../lib/floorplan-3d/service.js';
+import {
+  floorPlan3DPendingRecord,
+  floorPlan3DProviderName,
+} from '../lib/floorplan-3d/index.js';
 
 export interface PropertiesRouterOptions {
   /** Injectable PDF renderer; defaults to the Playwright implementation. */
@@ -360,6 +365,19 @@ export function propertiesRouter(options: PropertiesRouterOptions = {}): Router 
         },
         hasCover,
       );
+
+      const floorPlans = images.filter((image) => image.category === 'floor_plan');
+      if (
+        floorPlans.length &&
+        (!property.floorPlan3D || property.floorPlan3D.status === 'failed')
+      ) {
+        getLogger().info(
+          { propertyId: property.id, imageId: floorPlans[0].id },
+          'Auto-triggering floor plan 3D generation after upload',
+        );
+        void generateFloorPlan3D(property.id, floorPlans[0]);
+      }
+
       res.status(201).json(images);
     }),
   );
@@ -396,6 +414,34 @@ export function propertiesRouter(options: PropertiesRouterOptions = {}): Router 
       );
       if (!property) return sendError(res, 404, 'Nicht gefunden');
       res.json(property.images);
+    }),
+  );
+
+  propertiesRouter.get(
+    '/api/properties/:id/floorplan3d',
+    asyncHandler(async (req, res) => {
+      const property = await loadProperty(req, res);
+      if (!property) return;
+      res.json(property.floorPlan3D ?? null);
+    }),
+  );
+
+  propertiesRouter.post(
+    '/api/properties/:id/floorplan3d',
+    asyncHandler(async (req, res) => {
+      const property = await loadProperty(req, res);
+      if (!property) return;
+      const existing = property.floorPlan3D;
+      if (existing?.status === 'pending' || existing?.status === 'completed') {
+        return res.json(existing);
+      }
+      const plan = property.images.find((image) => image.category === 'floor_plan');
+      if (!plan) {
+        return sendError(res, 422, 'Es wurde noch kein Grundriss hochgeladen.');
+      }
+      const pending = floorPlan3DPendingRecord(floorPlan3DProviderName(), plan.id);
+      void generateFloorPlan3D(property.id, plan);
+      res.status(202).json(pending);
     }),
   );
 

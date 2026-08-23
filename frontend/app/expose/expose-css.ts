@@ -480,6 +480,75 @@ export const EXPOSE_CSS = `
     text-align: center;
     margin-top: 10px;
   }
+  .expose-floorplan-pending {
+    margin-top: 12px;
+    text-align: center;
+    font-size: 11.5px;
+    color: var(--expose-muted);
+  }
+
+  /* ---------- Floor plan 3D viewer ---------- */
+
+  .floorplan-3d-scene {
+    position: relative;
+    width: 100%;
+    border: 1px solid var(--expose-line, #e8e4dc);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .floorplan-3d-canvas {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+  }
+  .floorplan-3d-hint {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid var(--expose-line, #e8e4dc);
+    font-size: 10px;
+    color: var(--expose-muted, #8a8478);
+    pointer-events: none;
+  }
+  .floorplan-3d-label {
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--expose-line, #e8e4dc);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--expose-text, #26302a);
+    white-space: nowrap;
+  }
+  .floorplan-3d-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    background: var(--expose-surface, #faf8f3);
+    border: 1px solid var(--expose-line, #e8e4dc);
+    border-radius: 4px;
+    font-size: 11.5px;
+    color: var(--expose-muted, #8a8478);
+  }
+  .floorplan-3d-loading-spinner {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid var(--expose-line, #e8e4dc);
+    border-top-color: var(--expose-accent, #1f6f54);
+    animation: floorplan-3d-spin 0.8s linear infinite;
+  }
+  @keyframes floorplan-3d-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
   /* ---------- Documents ---------- */
 

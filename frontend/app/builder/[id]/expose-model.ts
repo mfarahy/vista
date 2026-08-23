@@ -1,5 +1,6 @@
 import type {
   DocumentRecord,
+  FloorPlan3DRecord,
   MarketingContent,
   NearbyFacility,
   Property,
@@ -207,6 +208,11 @@ export type ExposeFact = { label: string; value: string };
 export type ExposeMedia = {
   images: PropertyImage[];
   documents: DocumentRecord[];
+  /**
+   * Static rendering (PDF print route): the interactive 3D floor plan viewer
+   * is skipped so the PDF keeps the reliable 2D plan images.
+   */
+  staticRender?: boolean;
 };
 
 export type ExposePriceFacts = {
@@ -647,6 +653,16 @@ export function fullAddressLines(property: Property): string[] {
 /** Floorplan images that can be rendered directly in the template. */
 export function floorplanImages(images: PropertyImage[]): PropertyImage[] {
   return images.filter((image) => image.category === 'floor_plan');
+}
+
+/**
+ * The generated 3D floor plan record when it is usable in the Exposé: status
+ * `completed` with a model. Pending or failed generation returns null, so the
+ * template falls back to the 2D floor plan.
+ */
+export function completedFloorPlan3D(property: Property): FloorPlan3DRecord | null {
+  const record = property.floorPlan3D;
+  return record?.status === 'completed' && record.model ? record : null;
 }
 
 /**

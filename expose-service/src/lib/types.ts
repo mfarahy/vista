@@ -7,6 +7,7 @@ import type {
 import type { LocationResearch } from '../mastra/schemas/location-research.js';
 import type { DocumentUnderstandingResult } from './document-understanding/types.js';
 import type { MarketingContentRecord } from './marketing-content/types.js';
+import type { FloorPlan3DRecord } from './floorplan-3d/types.js';
 import type { ExposeConfiguration } from './expose-configuration.js';
 
 export { emptyExposeData, propertyExposeDataSchema } from './expose-data.js';
@@ -133,6 +134,11 @@ export interface Property {
    * factual Property data: generation never modifies the Property model.
    */
   marketingContent?: MarketingContentRecord | null;
+  /**
+   * Generated 3D floor plan (status + model). The Expose prefers this over
+   * the 2D floor plan images; a failed generation keeps the 2D fallback.
+   */
+  floorPlan3D?: FloorPlan3DRecord | null;
   createdAt?: string;
   updatedAt?: string;
   exposeData?: PropertyExposeData;

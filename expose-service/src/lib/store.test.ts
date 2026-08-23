@@ -10,6 +10,42 @@ process.env.DATA_DIR = tempDir;
 const { createProperty, createDocument, listDocuments, updateDocument } = await import(
   './store.js'
 );
+const { getFloorPlan3D, saveFloorPlan3D } = await import('./store.js');
+import type { FloorPlan3DRecord } from './floorplan-3d/types.js';
+
+function sampleRecord(status: FloorPlan3DRecord['status']): FloorPlan3DRecord {
+  const now = new Date().toISOString();
+  return {
+    status,
+    provider: 'openai',
+    sourceImageId: 'image-1',
+    model:
+      status === 'completed'
+        ? {
+            unit: 'm',
+            rooms: [
+              {
+                id: 'room-1',
+                name: 'Wohnzimmer',
+                level: 0,
+                x: 3,
+                y: 2,
+                width: 6,
+                depth: 4,
+                height: 2.5,
+                areaM2: null,
+              },
+            ],
+            walls: [],
+            doors: [],
+            windows: [],
+          }
+        : null,
+    error: status === 'failed' ? 'openai exploded' : null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
 
 describe('JSON store concurrency safety', () => {
   let propertyId: string;
@@ -70,5 +106,43 @@ describe('JSON store concurrency safety', () => {
       assert.equal(found.status, 'completed');
       assert.ok(found.tags?.length, 'update must not be lost');
     }
+  });
+});
+
+describe('floor plan 3D records', () => {
+  let propertyId: string;
+
+  before(async () => {
+    const property = await createProperty();
+    propertyId = property.id;
+  });
+
+  after(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('returns null before generation was started', async () => {
+    assert.equal(await getFloorPlan3D(propertyId), null);
+  });
+
+  it('persists pending, completed, and failed status transitions', async () => {
+    await saveFloorPlan3D(propertyId, sampleRecord('pending'));
+    let record = await getFloorPlan3D(propertyId);
+    assert.equal(record?.status, 'pending');
+    assert.equal(record?.model, null);
+    assert.equal(record?.sourceImageId, 'image-1');
+    assert.equal(record?.provider, 'openai');
+
+    await saveFloorPlan3D(propertyId, sampleRecord('completed'));
+    record = await getFloorPlan3D(propertyId);
+    assert.equal(record?.status, 'completed');
+    assert.equal(record?.model?.rooms[0].name, 'Wohnzimmer');
+    assert.equal(record?.error, null);
+
+    await saveFloorPlan3D(propertyId, sampleRecord('failed'));
+    record = await getFloorPlan3D(propertyId);
+    assert.equal(record?.status, 'failed');
+    assert.equal(record?.model, null);
+    assert.match(record?.error ?? '', /openai exploded/);
   });
 });

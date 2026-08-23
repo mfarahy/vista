@@ -435,6 +435,80 @@ describe('print route template rendering', () => {
     );
   });
 
+  it('keeps the 2D floor plan in the static PDF render even when a 3D model exists', () => {
+    const property = makeProperty({
+      floorPlan3D: {
+        status: 'completed',
+        provider: 'openai',
+        sourceImageId: 'plan-1',
+        model: {
+          unit: 'm',
+          rooms: [
+            {
+              id: 'room-1',
+              name: 'Wohnzimmer',
+              level: 0,
+              x: 3,
+              y: 2,
+              width: 6,
+              depth: 4,
+              height: 2.5,
+              areaM2: null,
+            },
+          ],
+          walls: [],
+          doors: [],
+          windows: [],
+        },
+        error: null,
+        createdAt: '2026-08-23T10:00:00.000Z',
+        updatedAt: '2026-08-23T10:00:00.000Z',
+      },
+      images: [
+        makeImage({
+          id: 'plan-1',
+          url: '/uploads/plan.png',
+          category: 'floor_plan',
+          caption: 'Grundriss Erdgeschoss',
+        }),
+      ],
+    });
+    const html = render({
+      property,
+      media: { images: property.images, documents, staticRender: true },
+    });
+    const plans = html.slice(html.indexOf('id="expose-floorplans"'), html.indexOf('id="expose-documents"'));
+    assert.ok(plans.includes('/uploads/plan.png'), 'the 2D plan must remain the PDF fallback');
+    assert.ok(!plans.includes('floorplan-3d-scene'), 'the WebGL viewer must not render in the PDF');
+    assert.ok(!plans.includes('3D-Grundriss wird erstellt'), 'no pending hint in static renders');
+  });
+
+  it('renders the 2D plan with a loading hint while generation is pending', () => {
+    const property = makeProperty({
+      floorPlan3D: {
+        status: 'pending',
+        provider: 'openai',
+        sourceImageId: 'plan-1',
+        model: null,
+        error: null,
+        createdAt: '2026-08-23T10:00:00.000Z',
+        updatedAt: '2026-08-23T10:00:00.000Z',
+      },
+      images: [
+        makeImage({
+          id: 'plan-1',
+          url: '/uploads/plan.png',
+          category: 'floor_plan',
+        }),
+      ],
+    });
+    const html = render({ property });
+    const plans = html.slice(html.indexOf('id="expose-floorplans"'), html.indexOf('id="expose-documents"'));
+    assert.ok(plans.includes('/uploads/plan.png'), 'the 2D plan is the fallback while pending');
+    assert.ok(plans.includes('3D-Grundriss wird erstellt'), 'a loading hint is shown while pending');
+    assert.ok(!plans.includes('floorplan-3d-scene'), 'no viewer before generation completes');
+  });
+
   it('renders the default sections in the improved hierarchy order', () => {
     const exposeData = makeProperty().exposeData;
     const property = makeProperty({

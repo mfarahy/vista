@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import type {
+  FloorPlan3DRecord,
   LocationIntelligence,
   MarketingContent,
   NearbyFacility,
@@ -10,6 +11,7 @@ import type {
 } from '../../create/[id]/types';
 import {
   EXPOSE_SECTION_TYPES,
+  completedFloorPlan3D,
   coverFacts,
   coverImageOf,
   defaultExposeConfiguration,
@@ -698,5 +700,66 @@ describe('nearby facility formatting', () => {
     assert.equal(travelModeLabel('bike'), 'mit dem Fahrrad');
     assert.equal(travelModeLabel('car'), 'mit dem Auto');
     assert.equal(travelModeLabel('transit'), 'mit Bus & Bahn');
+  });
+});
+
+describe('floor plan 3D fallback', () => {
+  function record(status: FloorPlan3DRecord['status']): FloorPlan3DRecord {
+    const now = '2026-08-23T10:00:00.000Z';
+    return {
+      status,
+      provider: 'openai',
+      sourceImageId: 'plan-1',
+      model:
+        status === 'completed'
+          ? {
+              unit: 'm',
+              rooms: [
+                {
+                  id: 'room-1',
+                  name: 'Wohnzimmer',
+                  level: 0,
+                  x: 3,
+                  y: 2,
+                  width: 6,
+                  depth: 4,
+                  height: 2.5,
+                  areaM2: 24,
+                },
+              ],
+              walls: [],
+              doors: [],
+              windows: [],
+            }
+          : null,
+      error: status === 'failed' ? 'openai exploded' : null,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  it('returns the record when generation completed', () => {
+    const property = makeProperty({ floorPlan3D: record('completed') });
+    const result = completedFloorPlan3D(property);
+    assert.ok(result);
+    assert.equal(result?.status, 'completed');
+    assert.equal(result?.model?.rooms[0].name, 'Wohnzimmer');
+  });
+
+  it('returns null while generation is pending', () => {
+    assert.equal(completedFloorPlan3D(makeProperty({ floorPlan3D: record('pending') })), null);
+  });
+
+  it('returns null when generation failed, keeping the 2D plan as fallback', () => {
+    assert.equal(completedFloorPlan3D(makeProperty({ floorPlan3D: record('failed') })), null);
+  });
+
+  it('returns null when no generation record exists', () => {
+    assert.equal(completedFloorPlan3D(makeProperty()), null);
+  });
+
+  it('returns null when a completed record carries no model', () => {
+    const broken = { ...record('completed'), model: null };
+    assert.equal(completedFloorPlan3D(makeProperty({ floorPlan3D: broken })), null);
   });
 });

@@ -711,7 +711,14 @@ export function ClassicExposeTemplate({
             case 'gallery':
               return <GallerySection key={section.id} property={property} expose={expose} />;
             case 'floorplans':
-              return <FloorplanSection key={section.id} images={media.images} />;
+              return (
+                <FloorplanSection
+                  key={section.id}
+                  property={property}
+                  images={media.images}
+                  staticRender={media.staticRender}
+                />
+              );
             case 'documents':
               return <DocumentsSection key={section.id} records={media.documents} />;
             case 'contact':

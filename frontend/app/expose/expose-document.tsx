@@ -62,13 +62,16 @@ export default function ExposeDocument({
   marketingContent,
   expose,
   documents,
+  staticRender,
 }: {
   property: Property;
   marketingContent: EffectiveMarketingContent;
   expose: ExposeConfiguration;
   documents: DocumentRecord[];
+  /** Static rendering (PDF print): skips interactive components like the 3D viewer. */
+  staticRender?: boolean;
 }) {
-  const media: ExposeMedia = { images: property.images, documents };
+  const media: ExposeMedia = { images: property.images, documents, staticRender };
   const Template = getExposeTemplate(expose.template).component;
   return (
     <main className="expose-print">
