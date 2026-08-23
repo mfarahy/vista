@@ -16,8 +16,8 @@ export function ExposeSidebar({
   onMove,
 }: {
   sections: ExposeSection[];
-  selectedId: string;
-  onSelect: (id: string) => void;
+  selectedId?: string;
+  onSelect?: (id: string) => void;
   onToggle: (id: string) => void;
   onMove: (id: string, direction: -1 | 1) => void;
 }) {
@@ -59,24 +59,35 @@ export function ExposeSidebar({
                 <ChevronDown className="size-3.5" aria-hidden />
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => onSelect(section.id)}
-              className="min-w-0 flex-1 px-1 text-left"
-              aria-current={selected ? 'true' : undefined}
-            >
-              <span
-                className={cn(
-                  'block truncate text-sm',
-                  selected ? 'font-semibold text-primary' : 'font-medium text-foreground',
-                )}
+            {onSelect ? (
+              <button
+                type="button"
+                onClick={() => onSelect(section.id)}
+                className="min-w-0 flex-1 px-1 text-left"
+                aria-current={selected ? 'true' : undefined}
               >
-                {SECTION_LABELS[section.type]}
-              </span>
-              <span className="block truncate text-[11px] text-muted-foreground">
-                {SECTION_DESCRIPTIONS[section.type]}
-              </span>
-            </button>
+                <span
+                  className={cn(
+                    'block truncate text-sm',
+                    selected ? 'font-semibold text-primary' : 'font-medium text-foreground',
+                  )}
+                >
+                  {SECTION_LABELS[section.type]}
+                </span>
+                <span className="block truncate text-[11px] text-muted-foreground">
+                  {SECTION_DESCRIPTIONS[section.type]}
+                </span>
+              </button>
+            ) : (
+              <div className="min-w-0 flex-1 px-1 text-left">
+                <span className="block truncate text-sm font-medium text-foreground">
+                  {SECTION_LABELS[section.type]}
+                </span>
+                <span className="block truncate text-[11px] text-muted-foreground">
+                  {SECTION_DESCRIPTIONS[section.type]}
+                </span>
+              </div>
+            )}
             <label
               className="flex shrink-0 cursor-pointer items-center gap-1.5 pr-1"
               title={section.visible ? 'Im Exposé anzeigen' : 'Im Exposé ausblenden'}

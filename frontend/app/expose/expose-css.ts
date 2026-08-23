@@ -73,10 +73,20 @@ export const EXPOSE_CSS = `
     top: 26px;
     left: 56px;
     z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     color: #ffffff;
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.42em;
+  }
+  .expose-cover-logo {
+    height: 26px;
+    width: auto;
+    max-width: 120px;
+    object-fit: contain;
+    filter: brightness(0) invert(1);
   }
   .expose-cover-copy {
     flex: 1;
@@ -438,6 +448,14 @@ export const EXPOSE_CSS = `
     max-width: 430px;
     border-top: 2px solid var(--expose-accent);
     padding-top: 22px;
+  }
+  .expose-contact-logo {
+    display: block;
+    height: 30px;
+    width: auto;
+    max-width: 150px;
+    object-fit: contain;
+    margin-bottom: 14px;
   }
   .expose-contact-name {
     margin: 0;

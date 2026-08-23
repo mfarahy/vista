@@ -34,7 +34,9 @@ Image uploads require `category` (`exterior`, `interior`, `floor_plan`, or `docu
 
 ## Template boundary
 
-`frontend/app/builder/[id]/components/modern-expose-template.tsx` is the single source of truth for the Exposé visual content. The Builder preview and the PDF print route (`frontend/app/expose/print/[id]`) render the same component; only print-specific CSS (A4 pagination, page breaks) differs. `POST /api/properties/:id/pdf` opens the print route in Playwright/Chromium, waits for `window.__EXPOSE_READY__`, and returns the A4 PDF. The legacy `expose-service/src/lib/expose-template.ts` HTML template remains only for the older `/preview/[id]` page.
+`frontend/app/builder/[id]/expose-templates.ts` is the small Exposé template registry (Phase 11): `modern`, `classic`, and `elegant` — each an id, label, and pure-presentation React component. The templates consume the same normalized Exposé data (`expose-model.ts`), share the section bodies from `components/template-sections.tsx` (visibility, ordering, facts, pricing, energy, media, contact), and differ only in presentation: each ships its own stylesheet and cover. `modern` remains the default; unknown template values fall back to it.
+
+The Builder preview, the review preview page (`/preview/[id]`), and the PDF print route (`/expose/print/[id]`) all resolve the template through this registry — there is never a separate template implementation for the PDF. Only print-specific CSS (A4 pagination, page breaks) differs. `POST /api/properties/:id/pdf` opens the print route in Playwright/Chromium, waits for `window.__EXPOSE_READY__`, and returns the A4 PDF. The legacy `expose-service/src/lib/expose-template.ts` HTML template remains only for the older `/preview/[id]` page.
 
 ## Mastra boundary
 

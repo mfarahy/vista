@@ -3,8 +3,10 @@ import { describe, it } from 'node:test';
 
 import {
   EXPOSE_SECTION_TYPES,
+  EXPOSE_TEMPLATE_IDS,
   defaultExposeConfiguration,
   defaultExposeSections,
+  exposeBrandingSchema,
   exposeConfigurationSchema,
   exposeContentOverridesSchema,
   exposeSectionSchema,
@@ -22,6 +24,23 @@ describe('expose configuration model', () => {
     assert.equal(configuration.selectedCoverImageId, undefined);
     assert.equal(configuration.galleryImageIds, undefined);
     assert.equal(configuration.contentOverrides, undefined);
+    assert.equal(configuration.branding, undefined);
+  });
+
+  it('registers all three templates with modern as the default', () => {
+    assert.deepEqual(EXPOSE_TEMPLATE_IDS, ['modern', 'classic', 'elegant']);
+    for (const template of EXPOSE_TEMPLATE_IDS) {
+      const parsed = exposeConfigurationSchema.parse({
+        template,
+        sections: defaultExposeSections(),
+      });
+      assert.equal(parsed.template, template);
+    }
+  });
+
+  it('accepts configurations persisted before the template concept', () => {
+    const parsed = exposeConfigurationSchema.parse({ sections: defaultExposeSections() });
+    assert.equal(parsed.template, 'modern');
   });
 
   it('default sections have stable ids matching their type', () => {
@@ -53,6 +72,47 @@ describe('expose configuration model', () => {
         sections: [{ id: 'x', type: 'unknown', visible: true }],
       }),
     );
+  });
+
+  it('validates branding with optional fields and empty-string clearances', () => {
+    const parsed = exposeBrandingSchema.parse({
+      companyName: 'Muster Immobilien GmbH',
+      logoUrl: 'https://example.com/logo.png',
+      phone: '+49 30 123456',
+      email: 'kontakt@example.com',
+      website: 'https://www.example.com',
+    });
+    assert.equal(parsed.companyName, 'Muster Immobilien GmbH');
+    assert.equal(parsed.logoUrl, 'https://example.com/logo.png');
+    assert.equal(parsed.phone, '+49 30 123456');
+    assert.equal(parsed.email, 'kontakt@example.com');
+    assert.equal(parsed.website, 'https://www.example.com');
+  });
+
+  it('accepts an empty branding object and empty-string email/website clearances', () => {
+    assert.deepEqual(exposeBrandingSchema.parse({}), {});
+    const parsed = exposeBrandingSchema.parse({ email: '', website: '' });
+    assert.equal(parsed.email, '');
+    assert.equal(parsed.website, '');
+  });
+
+  it('rejects invalid branding values and unknown branding keys', () => {
+    assert.throws(() => exposeBrandingSchema.parse({ email: 'keine-mail' }));
+    assert.throws(() => exposeBrandingSchema.parse({ website: 'javascript:alert(1)' }));
+    assert.throws(() => exposeBrandingSchema.parse({ madeUpField: 'x' }));
+    // logoUrl is a plain string; unsafe schemes are rejected at render time.
+    assert.equal(exposeBrandingSchema.parse({ logoUrl: 'javascript:alert(1)' }).logoUrl, 'javascript:alert(1)');
+  });
+
+  it('persists branding inside a full configuration round trip', () => {
+    const configuration = {
+      template: 'classic',
+      sections: defaultExposeSections(),
+      branding: { companyName: 'Vista Premium' },
+    } as const;
+    const parsed = exposeConfigurationSchema.parse(configuration);
+    assert.equal(parsed.template, 'classic');
+    assert.equal(parsed.branding?.companyName, 'Vista Premium');
   });
 
   it('rejects duplicate or missing sections', () => {

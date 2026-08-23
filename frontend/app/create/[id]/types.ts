@@ -84,7 +84,7 @@ export type Property = {
     template: 'modern';
     content: ExposeContent | null;
     configuration?: {
-      template: 'modern';
+      template: 'modern' | 'classic' | 'elegant';
       sections: Array<{ id: string; type: string; visible: boolean }>;
       selectedCoverImageId?: string;
       galleryImageIds?: string[];
@@ -95,6 +95,13 @@ export type Property = {
         propertyDescription?: string;
         equipmentDescription?: string;
         locationDescription?: string;
+      };
+      branding?: {
+        companyName?: string;
+        logoUrl?: string;
+        phone?: string;
+        email?: string;
+        website?: string;
       };
     } | null;
     pdfUrl?: string | null;

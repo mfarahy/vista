@@ -1,4 +1,4 @@
-import type { MarketingContent, Property, PropertyImage } from '../../create/[id]/types';
+import type { DocumentRecord, MarketingContent, Property, PropertyImage } from '../../create/[id]/types';
 import {
   ENERGY_CERTIFICATE_TYPES,
   ENERGY_SOURCES,
@@ -10,13 +10,40 @@ import {
 } from '../../create/[id]/types';
 
 /**
- * Expose configuration model for the Exposé Builder (Phase 5A).
+ * Expose configuration model for the Exposé Builder (Phase 5A, extended in
+ * Phase 11 with the template registry and Exposé-local branding).
  *
  * The configuration only references Property data (image ids) and carries
- * lightweight content overrides. The Builder never mutates the Property model
- * or the MarketingContent record; at render time the effective content is
- * "Expose override, fallback to MarketingContent".
+ * lightweight content overrides plus optional branding. The Builder never
+ * mutates the Property model or the MarketingContent record; at render time
+ * the effective content is "Expose override, fallback to MarketingContent"
+ * and the effective branding is "Expose branding, fallback to Agent profile".
  */
+
+/** Templates the Builder can render. `modern` remains the default. */
+export const EXPOSE_TEMPLATE_IDS = ['modern', 'classic', 'elegant'] as const;
+
+export type ExposeTemplateId = (typeof EXPOSE_TEMPLATE_IDS)[number];
+
+/** Safe fallback for unknown or missing template values. */
+export function normalizeTemplateId(value: unknown): ExposeTemplateId {
+  return EXPOSE_TEMPLATE_IDS.includes(value as ExposeTemplateId)
+    ? (value as ExposeTemplateId)
+    : 'modern';
+}
+
+/**
+ * Exposé-local branding. All fields are optional; missing values fall back to
+ * the Agent profile (and finally the system branding) at render time. The
+ * Agent profile is never modified by the Builder.
+ */
+export type ExposeBranding = {
+  companyName?: string;
+  logoUrl?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+};
 
 export const EXPOSE_SECTION_TYPES = [
   'cover',
@@ -50,11 +77,12 @@ export type ExposeContentOverrides = {
 };
 
 export type ExposeConfiguration = {
-  template: 'modern';
+  template: ExposeTemplateId;
   sections: ExposeSection[];
   selectedCoverImageId?: string;
   galleryImageIds?: string[];
   contentOverrides?: ExposeContentOverrides;
+  branding?: ExposeBranding;
 };
 
 export const SECTION_LABELS: Record<ExposeSectionType, string> = {
@@ -101,12 +129,24 @@ export function visibleSections(configuration: ExposeConfiguration): ExposeSecti
 /**
  * Lightweight runtime guard for configurations loaded from the API. The
  * backend validates with Zod; this check protects the client against
- * unexpected shapes without duplicating the full schema.
+ * unexpected shapes without duplicating the full schema. Unknown or missing
+ * template values fall back to "modern" (see normalizeTemplateId).
  */
 export function isExposeConfiguration(value: unknown): value is ExposeConfiguration {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<ExposeConfiguration>;
-  if (candidate.template !== 'modern') return false;
+  if (
+    candidate.template != null &&
+    !EXPOSE_TEMPLATE_IDS.includes(candidate.template as ExposeTemplateId)
+  ) {
+    return false;
+  }
+  if (
+    candidate.branding != null &&
+    (typeof candidate.branding !== 'object' || Array.isArray(candidate.branding))
+  ) {
+    return false;
+  }
   if (!Array.isArray(candidate.sections)) return false;
   return candidate.sections.every(
     (section) =>
@@ -155,6 +195,12 @@ export function effectiveMarketingContent(
 }
 
 export type ExposeFact = { label: string; value: string };
+
+/** Media available to a template: property images and library documents. */
+export type ExposeMedia = {
+  images: PropertyImage[];
+  documents: DocumentRecord[];
+};
 
 export type ExposePriceFacts = {
   primary: ExposeFact;
@@ -227,6 +273,27 @@ export function propertyFacts(property: Property): ExposeFact[] {
   if (bathrooms != null) facts.push({ label: 'Bäder', value: formatNumber(bathrooms) });
   if (yearBuilt != null) facts.push({ label: 'Baujahr', value: year(yearBuilt) });
   if (condition) facts.push({ label: 'Zustand', value: condition });
+  facts.push(...wegFacts(property));
+  return facts;
+}
+
+/**
+ * WEG facts for a condominium (Eigentumswohnung). Only explicitly persisted
+ * values are rendered — nothing is derived. Falls back to the legacy
+ * `hausgeld` property field when the structured WEG value is absent.
+ */
+export function wegFacts(property: Property): ExposeFact[] {
+  const weg = property.exposeData?.weg;
+  const facts: ExposeFact[] = [];
+  const hausgeld = weg?.hausgeldEur ?? property.hausgeld;
+  if (hausgeld != null) facts.push({ label: 'Hausgeld', value: formatMoney(hausgeld) });
+  if (weg?.maintenanceReserveEur != null)
+    facts.push({
+      label: 'Instandhaltungsrücklage',
+      value: formatMoney(weg.maintenanceReserveEur),
+    });
+  if (weg?.coOwnershipShare)
+    facts.push({ label: 'Miteigentumsanteil', value: weg.coOwnershipShare });
   return facts;
 }
 
@@ -438,4 +505,64 @@ export function fullAddressLines(property: Property): string[] {
 /** Floorplan images that can be rendered directly in the template. */
 export function floorplanImages(images: PropertyImage[]): PropertyImage[] {
   return images.filter((image) => image.category === 'floor_plan');
+}
+
+/**
+ * Guards an image URL before it is used in an `<img>` src attribute. Only
+ * http(s) URLs and absolute paths are accepted — anything else (javascript:,
+ * data:, ...) is rejected so user-controlled branding can never inject
+ * scripts or break the document.
+ */
+export function safeImageUrl(value?: string | null): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('/')) return trimmed;
+  return undefined;
+}
+
+/** Guards a website URL: only http(s) URLs are accepted as usable links. */
+function safeWebsiteUrl(value?: string | null): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  return /^https?:\/\//i.test(trimmed) ? trimmed : undefined;
+}
+
+export type EffectiveBranding = {
+  companyName: string;
+  logoUrl?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+};
+
+const nonEmpty = (value?: string | null) => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+};
+
+/**
+ * Resolves the branding shown in the Exposé: an Expose configuration value
+ * wins, otherwise the Agent profile (company, logo, contact) is used, and the
+ * system branding only provides the final company-name fallback. The Property
+ * and Agent profile are never modified.
+ */
+export function effectiveBranding(
+  property: Property,
+  configuration: ExposeConfiguration,
+): EffectiveBranding {
+  const branding = configuration.branding ?? {};
+  const agent = property.exposeData?.agent;
+  const system = property.exposeData?.systemBranding;
+  return {
+    companyName:
+      nonEmpty(branding.companyName) ??
+      nonEmpty(agent?.company) ??
+      nonEmpty(system?.companyName) ??
+      '',
+    logoUrl: safeImageUrl(branding.logoUrl) ?? safeImageUrl(agent?.logo),
+    phone: nonEmpty(branding.phone) ?? nonEmpty(agent?.phone),
+    email: nonEmpty(branding.email) ?? nonEmpty(agent?.email),
+    website: safeWebsiteUrl(branding.website) ?? safeWebsiteUrl(agent?.website),
+  };
 }

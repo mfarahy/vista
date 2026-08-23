@@ -6,11 +6,11 @@ import { renderToString } from 'react-dom/server';
 import type { DocumentRecord, Property, PropertyImage } from '../../create/[id]/types';
 import {
   ModernExposeTemplate,
-  type ExposeMedia,
 } from '../../builder/[id]/components/modern-expose-template';
 import type {
   EffectiveMarketingContent,
   ExposeConfiguration,
+  ExposeMedia,
 } from '../../builder/[id]/expose-model';
 import {
   defaultExposeConfiguration,

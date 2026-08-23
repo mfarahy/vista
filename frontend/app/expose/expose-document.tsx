@@ -4,18 +4,16 @@ import type { DocumentRecord, Property } from '../create/[id]/types';
 import type {
   EffectiveMarketingContent,
   ExposeConfiguration,
+  ExposeMedia,
 } from '../builder/[id]/expose-model';
-import {
-  ModernExposeTemplate,
-  type ExposeMedia,
-} from '../builder/[id]/components/modern-expose-template';
+import { getExposeTemplate } from '../builder/[id]/expose-templates';
 import { PRINT_CSS } from './print/print-css';
 
 /**
  * The rendered Exposé document shared by the print route (PDF export) and the
- * review preview page: the exact same `ModernExposeTemplate` the Builder
- * previews, plus the print pagination CSS. No Builder UI is ever rendered
- * here.
+ * review preview page: the exact same template the Builder previews (resolved
+ * through the template registry), plus the print pagination CSS. No Builder
+ * UI is ever rendered here.
  *
  * Sets `window.__EXPOSE_READY__ = true` once fonts and all rendered images
  * are loaded, so the Playwright PDF renderer knows the page is fully
@@ -71,10 +69,11 @@ export default function ExposeDocument({
   documents: DocumentRecord[];
 }) {
   const media: ExposeMedia = { images: property.images, documents };
+  const Template = getExposeTemplate(expose.template).component;
   return (
     <main className="expose-print">
       <style>{PRINT_CSS}</style>
-      <ModernExposeTemplate
+      <Template
         property={property}
         marketingContent={marketingContent}
         expose={expose}

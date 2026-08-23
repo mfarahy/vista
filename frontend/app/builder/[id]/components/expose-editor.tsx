@@ -5,26 +5,33 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import type { MarketingContent, Property } from '../../../create/[id]/types';
+import type { Property } from '../../../create/[id]/types';
 import { Field } from '../../../create/[id]/components/ui';
 import type {
   EffectiveMarketingContent,
+  ExposeBranding,
   ExposeConfiguration,
   ExposeContentOverrides,
-  ExposeSection,
 } from '../expose-model';
 import {
   energyFacts,
   equipmentFeatures,
   floorplanImages,
-  fullAddressLines,
   galleryImagesOf,
   locationLine,
   photoImages,
   propertyFacts,
   summaryFacts,
 } from '../expose-model';
-import type { ExposeMedia } from './modern-expose-template';
+import type { ExposeMedia } from '../expose-model';
+
+/**
+ * Exposé Builder editor panes (Phase 11). The Builder is organized into
+ * groups — Design, Abschnitte, Inhalt, Medien, Markenauftritt, Objektdaten,
+ * Kontakt — instead of per-section panes. Facts stay read-only
+ * (Nur-Lese · Objektdaten); only marketing copy, media references, template,
+ * and branding are editable.
+ */
 
 function EditableTag() {
   return (
@@ -93,162 +100,25 @@ function FactList({
   );
 }
 
-export function ExposeEditor({
-  section,
-  property,
-  marketingContent,
-  effective,
-  configuration,
-  media,
-  setOverride,
-  setCoverImageId,
-  toggleGalleryImage,
-}: {
-  section: ExposeSection;
-  property: Property;
-  marketingContent: MarketingContent | null;
-  effective: EffectiveMarketingContent;
-  configuration: ExposeConfiguration;
-  media: ExposeMedia;
-  setOverride: (key: keyof ExposeContentOverrides, value: string | string[]) => void;
-  setCoverImageId: (id: string) => void;
-  toggleGalleryImage: (id: string) => void;
-}) {
-  switch (section.type) {
-    case 'cover':
-      return (
-        <CoverEditor
-          property={property}
-          configuration={configuration}
-          effective={effective}
-          setOverride={setOverride}
-          setCoverImageId={setCoverImageId}
-        />
-      );
-    case 'highlights':
-      return (
-        <HighlightsEditor
-          highlights={effective.highlights}
-          setOverride={setOverride}
-          marketingFallback={marketingContent?.highlights.value.length ? true : false}
-        />
-      );
-    case 'property':
-      return (
-        <PropertyEditor
-          property={property}
-          description={effective.propertyDescription}
-          setOverride={setOverride}
-        />
-      );
-    case 'equipment':
-      return (
-        <EquipmentEditor
-          property={property}
-          description={effective.equipmentDescription}
-          setOverride={setOverride}
-        />
-      );
-    case 'location':
-      return (
-        <LocationEditor
-          property={property}
-          description={effective.locationDescription}
-          setOverride={setOverride}
-        />
-      );
-    case 'facts':
-      return (
-        <EditorShell title="Faktenübersicht" tag={<ReadonlyTag />}>
-          <FactList facts={summaryFacts(property)} sourceNote="Aus Ihren Objektdaten. Änderungen bitte im Assistenten vornehmen." />
-        </EditorShell>
-      );
-    case 'energy':
-      return (
-        <EditorShell title="Energieangaben" tag={<ReadonlyTag />}>
-          <FactList facts={energyFacts(property)} sourceNote="Aus Ihren Objektdaten. Änderungen bitte im Assistenten vornehmen." />
-        </EditorShell>
-      );
-    case 'gallery':
-      return (
-        <GalleryEditor
-          property={property}
-          configuration={configuration}
-          toggleGalleryImage={toggleGalleryImage}
-        />
-      );
-    case 'floorplans':
-      return <FloorplanEditor images={floorplanImages(media.images)} />;
-    case 'documents':
-      return <DocumentsEditor records={media.documents} />;
-    case 'contact':
-      return <ContactEditor property={property} />;
-    default:
-      return null;
-  }
-}
+const READONLY_SOURCE_NOTE = 'Aus Ihren Objektdaten. Änderungen bitte im Assistenten vornehmen.';
 
-function CoverEditor({
+/* ------------------------------------------------------------------ */
+/* Inhalt                                                              */
+/* ------------------------------------------------------------------ */
+
+export function ContentEditor({
   property,
-  configuration,
   effective,
   setOverride,
-  setCoverImageId,
+  marketingFallback,
 }: {
   property: Property;
-  configuration: ExposeConfiguration;
   effective: EffectiveMarketingContent;
   setOverride: (key: keyof ExposeContentOverrides, value: string | string[]) => void;
-  setCoverImageId: (id: string) => void;
+  marketingFallback: boolean;
 }) {
-  const photos = photoImages(property.images);
   return (
-    <div className="space-y-5">
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <p className="text-sm font-medium text-foreground">Titelfoto</p>
-          <span className="text-[11px] text-muted-foreground">
-            {photos.length} Fotos verfügbar
-          </span>
-        </div>
-        {photos.length ? (
-          <div className="grid grid-cols-4 gap-2">
-            {photos.map((image) => {
-              const selected = image.id === configuration.selectedCoverImageId;
-              return (
-                <button
-                  key={image.id}
-                  type="button"
-                  onClick={() => setCoverImageId(image.id)}
-                  aria-label={`${image.caption || image.fileName} als Titelfoto wählen`}
-                  aria-pressed={selected}
-                  className={cn(
-                    'relative overflow-hidden rounded-lg border-2 transition-colors',
-                    selected
-                      ? 'border-primary ring-2 ring-primary/30'
-                      : 'border-transparent hover:border-border',
-                  )}
-                >
-                  <img
-                    src={apiAssetUrl(image.url)}
-                    alt={image.caption || image.fileName || 'Foto'}
-                    className="aspect-square w-full object-cover"
-                  />
-                  {selected && (
-                    <span className="absolute inset-x-0 bottom-0 bg-primary/90 py-0.5 text-center text-[10px] font-semibold text-primary-foreground">
-                      Titelbild
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-            Keine Fotos vorhanden. Fotos bitte im Assistenten hochladen.
-          </p>
-        )}
-      </div>
+    <div className="space-y-6">
       <EditorShell title="Titel & Untertitel" tag={<EditableTag />}>
         <div className="space-y-4">
           <Field label="Titel" hint="Bearbeitet nur dieses Exposé — der KI-Inhalt bleibt erhalten.">
@@ -266,41 +136,52 @@ function CoverEditor({
             />
           </Field>
           <Field label="Ort">
-            <Input value={locationLine(property)} readOnly className="bg-muted/40 text-muted-foreground" />
+            <Input
+              value={locationLine(property)}
+              readOnly
+              className="bg-muted/40 text-muted-foreground"
+            />
           </Field>
         </div>
       </EditorShell>
-    </div>
-  );
-}
-
-function PropertyEditor({
-  property,
-  description,
-  setOverride,
-}: {
-  property: Property;
-  description: string;
-  setOverride: (key: keyof ExposeContentOverrides, value: string | string[]) => void;
-}) {
-  return (
-    <div className="space-y-5">
-      <EditorShell title="Objektdaten" tag={<ReadonlyTag />}>
-        <FactList
-          facts={propertyFacts(property)}
-          sourceNote="Aus Ihren Objektdaten. Änderungen bitte im Assistenten vornehmen."
-        />
-      </EditorShell>
+      <HighlightsEditor
+        highlights={effective.highlights}
+        setOverride={setOverride}
+        marketingFallback={marketingFallback}
+      />
       <EditorShell title="Objektbeschreibung" tag={<EditableTag />}>
         <Field
           label="Beschreibung"
           hint="Marketing-Text für dieses Exposé. Der KI-Text bleibt im Assistenten erhalten."
         >
           <Textarea
-            value={description}
+            value={effective.propertyDescription}
             onChange={(event) => setOverride('propertyDescription', event.target.value)}
             rows={7}
             placeholder="z. B. Helle Räume, offener Grundriss und ein gepflegter Garten…"
+          />
+        </Field>
+      </EditorShell>
+      <EditorShell title="Ausstattungsbeschreibung" tag={<EditableTag />}>
+        <Field label="Beschreibung" hint="Marketing-Text für dieses Exposé.">
+          <Textarea
+            value={effective.equipmentDescription}
+            onChange={(event) => setOverride('equipmentDescription', event.target.value)}
+            rows={5}
+            placeholder="z. B. Moderne Einbauküche, Terrasse mit Gartenzugang…"
+          />
+        </Field>
+      </EditorShell>
+      <EditorShell title="Lagebeschreibung" tag={<EditableTag />}>
+        <Field
+          label="Beschreibung"
+          hint="Marketing-Text für dieses Exposé. Falls kein KI-Text existiert, können Sie hier einen eigenen formulieren."
+        >
+          <Textarea
+            value={effective.locationDescription}
+            onChange={(event) => setOverride('locationDescription', event.target.value)}
+            rows={5}
+            placeholder="z. B. Ruhige Wohngegend mit kurzen Wegen zu Geschäften…"
           />
         </Field>
       </EditorShell>
@@ -360,18 +241,247 @@ function HighlightsEditor({
   );
 }
 
-function EquipmentEditor({
+/* ------------------------------------------------------------------ */
+/* Medien                                                              */
+/* ------------------------------------------------------------------ */
+
+export function MediaEditor({
   property,
-  description,
-  setOverride,
+  configuration,
+  setCoverImageId,
+  toggleGalleryImage,
 }: {
   property: Property;
-  description: string;
-  setOverride: (key: keyof ExposeContentOverrides, value: string | string[]) => void;
+  configuration: ExposeConfiguration;
+  setCoverImageId: (id: string) => void;
+  toggleGalleryImage: (id: string) => void;
 }) {
+  const photos = photoImages(property.images);
+  const selected = new Set(galleryImagesOf(property, configuration).map((image) => image.id));
+  return (
+    <div className="space-y-6">
+      <EditorShell
+        title="Titelfoto"
+        tag={
+          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+            Auswahl für dieses Exposé
+          </span>
+        }
+      >
+        <p className="text-xs text-muted-foreground">
+          Das Titelfoto erscheint auf der Titelseite. Es bleibt beim Wechsel der Vorlage
+          unverändert.
+        </p>
+        {photos.length ? (
+          <div className="grid grid-cols-4 gap-2">
+            {photos.map((image) => {
+              const isCover = image.id === configuration.selectedCoverImageId;
+              return (
+                <button
+                  key={image.id}
+                  type="button"
+                  onClick={() => setCoverImageId(image.id)}
+                  aria-label={`${image.caption || image.fileName} als Titelfoto wählen`}
+                  aria-pressed={isCover}
+                  className={cn(
+                    'relative overflow-hidden rounded-lg border-2 transition-colors',
+                    isCover
+                      ? 'border-primary ring-2 ring-primary/30'
+                      : 'border-transparent hover:border-border',
+                  )}
+                >
+                  <img
+                    src={apiAssetUrl(image.url)}
+                    alt={image.caption || image.fileName || 'Foto'}
+                    className="aspect-square w-full object-cover"
+                  />
+                  {isCover && (
+                    <span className="absolute inset-x-0 bottom-0 bg-primary/90 py-0.5 text-center text-[10px] font-semibold text-primary-foreground">
+                      Titelbild
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+            Keine Fotos vorhanden. Fotos bitte im Assistenten hochladen.
+          </p>
+        )}
+      </EditorShell>
+      <EditorShell
+        title="Galerie"
+        tag={
+          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+            Auswahl für dieses Exposé
+          </span>
+        }
+      >
+        <p className="text-xs text-muted-foreground">
+          Wählen Sie, welche Fotos in der Galerie erscheinen. Das Titelfoto ist davon unabhängig
+          und wird beim Vorlagenwechsel nicht verändert.
+        </p>
+        {photos.length ? (
+          <div className="grid grid-cols-4 gap-2">
+            {photos.map((image) => {
+              const included = selected.has(image.id);
+              return (
+                <button
+                  key={image.id}
+                  type="button"
+                  onClick={() => toggleGalleryImage(image.id)}
+                  aria-label={`${image.caption || image.fileName} ${included ? 'aus' : 'in'} der Galerie`}
+                  aria-pressed={included}
+                  className={cn(
+                    'relative overflow-hidden rounded-lg border-2 transition-colors',
+                    included
+                      ? 'border-primary ring-2 ring-primary/30'
+                      : 'border-transparent opacity-55 hover:opacity-90',
+                  )}
+                >
+                  <img
+                    src={apiAssetUrl(image.url)}
+                    alt={image.caption || image.fileName || 'Foto'}
+                    className="aspect-square w-full object-cover"
+                  />
+                  <span
+                    className={cn(
+                      'absolute right-1 top-1 grid size-5 place-items-center rounded-full text-[10px] font-bold text-white',
+                      included ? 'bg-primary' : 'bg-black/40',
+                    )}
+                  >
+                    {included ? '✓' : ''}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+            Keine Fotos vorhanden. Fotos bitte im Assistenten hochladen.
+          </p>
+        )}
+      </EditorShell>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Markenauftritt                                                      */
+/* ------------------------------------------------------------------ */
+
+export function BrandingEditor({
+  property,
+  configuration,
+  setBranding,
+}: {
+  property: Property;
+  configuration: ExposeConfiguration;
+  setBranding: (key: keyof ExposeBranding, value: string) => void;
+}) {
+  const agent = property.exposeData?.agent;
+  const system = property.exposeData?.systemBranding;
+  const branding = configuration.branding ?? {};
+  const agentCompany = agent?.company || system?.companyName || '';
+  const hasAgentData = Boolean(
+    agentCompany || agent?.phone || agent?.email || agent?.website || agent?.logo,
+  );
+  return (
+    <div className="space-y-6">
+      <p className="text-xs leading-5 text-muted-foreground">
+        {hasAgentData
+          ? 'Felder sind vorbelegt aus dem Agent-Profil (Ihre Angaben). Leere Felder verwenden weiterhin die Agent-Daten; Ihre Eingaben gelten nur für dieses Exposé.'
+          : 'Keine Agent-Daten hinterlegt. Alle Angaben hier gelten nur für dieses Exposé.'}
+      </p>
+      <EditorShell title="Firmenname" tag={<EditableTag />}>
+        <Field label="Firmenname" hint="Erscheint auf der Titelseite und im Kontaktbereich.">
+          <Input
+            value={branding.companyName ?? ''}
+            onChange={(event) => setBranding('companyName', event.target.value)}
+            placeholder={agentCompany || 'z. B. Muster Immobilien GmbH'}
+          />
+        </Field>
+      </EditorShell>
+      <EditorShell title="Logo" tag={<EditableTag />}>
+        <Field
+          label="Logo-URL"
+          hint="Bitte eine direkte Bild-URL (https://…). Das Logo erscheint nur auf der Titelseite und im Kontaktbereich."
+        >
+          <Input
+            value={branding.logoUrl ?? ''}
+            onChange={(event) => setBranding('logoUrl', event.target.value)}
+            placeholder={agent?.logo || 'https://…'}
+          />
+        </Field>
+        {branding.logoUrl?.trim() && (
+          <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <p className="mb-2 text-[11px] text-muted-foreground">Vorschau:</p>
+            <img
+              src={apiAssetUrl(branding.logoUrl)}
+              alt="Logo-Vorschau"
+              className="max-h-14 object-contain"
+              onError={(event) => {
+                (event.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          </div>
+        )}
+      </EditorShell>
+      <EditorShell title="Kontakt" tag={<EditableTag />}>
+        <div className="space-y-4">
+          <Field label="Telefon">
+            <Input
+              value={branding.phone ?? ''}
+              onChange={(event) => setBranding('phone', event.target.value)}
+              placeholder={agent?.phone || '+49 …'}
+            />
+          </Field>
+          <Field label="E-Mail">
+            <Input
+              type="email"
+              value={branding.email ?? ''}
+              onChange={(event) => setBranding('email', event.target.value)}
+              placeholder={agent?.email || 'kontakt@…'}
+            />
+          </Field>
+          <Field label="Website">
+            <Input
+              value={branding.website ?? ''}
+              onChange={(event) => setBranding('website', event.target.value)}
+              placeholder={agent?.website || 'https://…'}
+            />
+          </Field>
+        </div>
+      </EditorShell>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Objektdaten                                                         */
+/* ------------------------------------------------------------------ */
+
+export function FactsEditor({
+  property,
+  media,
+}: {
+  property: Property;
+  media: ExposeMedia;
+}) {
+  const plans = floorplanImages(media.images);
   const features = equipmentFeatures(property);
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      <EditorShell title="Faktenübersicht" tag={<ReadonlyTag />}>
+        <FactList facts={summaryFacts(property)} sourceNote={READONLY_SOURCE_NOTE} />
+      </EditorShell>
+      <EditorShell title="Objektdaten" tag={<ReadonlyTag />}>
+        <FactList facts={propertyFacts(property)} sourceNote={READONLY_SOURCE_NOTE} />
+      </EditorShell>
+      <EditorShell title="Energieangaben" tag={<ReadonlyTag />}>
+        <FactList facts={energyFacts(property)} sourceNote={READONLY_SOURCE_NOTE} />
+      </EditorShell>
       <EditorShell title="Ausstattungsmerkmale" tag={<ReadonlyTag />}>
         {features.length ? (
           <ul className="flex flex-wrap gap-2">
@@ -388,151 +498,33 @@ function EquipmentEditor({
           <p className="text-sm text-muted-foreground">Keine Ausstattungsmerkmale hinterlegt.</p>
         )}
       </EditorShell>
-      <EditorShell title="Ausstattungsbeschreibung" tag={<EditableTag />}>
-        <Field label="Beschreibung" hint="Marketing-Text für dieses Exposé.">
-          <Textarea
-            value={description}
-            onChange={(event) => setOverride('equipmentDescription', event.target.value)}
-            rows={5}
-            placeholder="z. B. Moderne Einbauküche, Terrasse mit Gartenzugang…"
-          />
-        </Field>
-      </EditorShell>
-    </div>
-  );
-}
-
-function LocationEditor({
-  property,
-  description,
-  setOverride,
-}: {
-  property: Property;
-  description: string;
-  setOverride: (key: keyof ExposeContentOverrides, value: string | string[]) => void;
-}) {
-  const address = fullAddressLines(property);
-  const meaningful = address.length > 0 || locationLine(property);
-  return (
-    <div className="space-y-5">
-      <EditorShell title="Adresse" tag={<ReadonlyTag />}>
-        {meaningful ? (
-          <p className="text-sm text-foreground">{address.join(' · ') || locationLine(property)}</p>
-        ) : (
-          <p className="text-sm text-muted-foreground">Keine Adresse hinterlegt.</p>
-        )}
-      </EditorShell>
-      <EditorShell title="Lagebeschreibung" tag={<EditableTag />}>
-        <Field
-          label="Beschreibung"
-          hint="Marketing-Text für dieses Exposé. Falls kein KI-Text existiert, können Sie hier einen eigenen formulieren."
-        >
-          <Textarea
-            value={description}
-            onChange={(event) => setOverride('locationDescription', event.target.value)}
-            rows={5}
-            placeholder="z. B. Ruhige Wohngegend mit kurzen Wegen zu Geschäften…"
-          />
-        </Field>
-      </EditorShell>
-    </div>
-  );
-}
-
-function GalleryEditor({
-  property,
-  configuration,
-  toggleGalleryImage,
-}: {
-  property: Property;
-  configuration: ExposeConfiguration;
-  toggleGalleryImage: (id: string) => void;
-}) {
-  const photos = photoImages(property.images);
-  const selected = new Set(galleryImagesOf(property, configuration).map((image) => image.id));
-  return (
-    <EditorShell
-      title="Galerie"
-      tag={
-        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-          Auswahl für dieses Exposé
-        </span>
-      }
-    >
-      <p className="text-xs text-muted-foreground">
-        Wählen Sie, welche Fotos in der Galerie erscheinen. Das Titelfoto ist davon unabhängig.
-      </p>
-      {photos.length ? (
-        <div className="grid grid-cols-4 gap-2">
-          {photos.map((image) => {
-            const included = selected.has(image.id);
-            return (
-              <button
+      <EditorShell title="Grundrisse" tag={<ReadonlyTag />}>
+        {plans.length ? (
+          <ul className="space-y-2">
+            {plans.map((image) => (
+              <li
                 key={image.id}
-                type="button"
-                onClick={() => toggleGalleryImage(image.id)}
-                aria-label={`${image.caption || image.fileName} ${included ? 'aus' : 'in'} der Galerie`}
-                aria-pressed={included}
-                className={cn(
-                  'relative overflow-hidden rounded-lg border-2 transition-colors',
-                  included
-                    ? 'border-primary ring-2 ring-primary/30'
-                    : 'border-transparent opacity-55 hover:opacity-90',
-                )}
+                className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-sm"
               >
                 <img
                   src={apiAssetUrl(image.url)}
-                  alt={image.caption || image.fileName || 'Foto'}
-                  className="aspect-square w-full object-cover"
+                  alt={image.caption || image.fileName || 'Grundriss'}
+                  className="h-12 w-12 shrink-0 rounded object-cover"
                 />
-                <span
-                  className={cn(
-                    'absolute right-1 top-1 grid size-5 place-items-center rounded-full text-[10px] font-bold text-white',
-                    included ? 'bg-primary' : 'bg-black/40',
-                  )}
-                >
-                  {included ? '✓' : ''}
+                <span className="min-w-0 truncate font-medium text-foreground">
+                  {image.caption || image.fileName}
                 </span>
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-          Keine Fotos vorhanden. Fotos bitte im Assistenten hochladen.
-        </p>
-      )}
-    </EditorShell>
-  );
-}
-
-function FloorplanEditor({ images }: { images: Array<{ id: string; url: string; fileName: string; caption?: string | null }> }) {
-  return (
-    <EditorShell title="Grundrisse" tag={<ReadonlyTag />}>
-      {images.length ? (
-        <ul className="space-y-2">
-          {images.map((image) => (
-            <li
-              key={image.id}
-              className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-sm"
-            >
-              <img
-                src={apiAssetUrl(image.url)}
-                alt={image.caption || image.fileName || 'Grundriss'}
-                className="h-12 w-12 shrink-0 rounded object-cover"
-              />
-              <span className="min-w-0 truncate font-medium text-foreground">
-                {image.caption || image.fileName}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-          Keine Grundrisse vorhanden. Grundrisse bitte im Assistenten hochladen.
-        </p>
-      )}
-    </EditorShell>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+            Keine Grundrisse vorhanden. Grundrisse bitte im Assistenten hochladen.
+          </p>
+        )}
+      </EditorShell>
+      <DocumentsEditor records={media.documents} />
+    </div>
   );
 }
 
@@ -581,7 +573,11 @@ function DocumentsEditor({ records }: { records: ExposeMedia['documents'] }) {
   );
 }
 
-function ContactEditor({ property }: { property: Property }) {
+/* ------------------------------------------------------------------ */
+/* Kontakt                                                             */
+/* ------------------------------------------------------------------ */
+
+export function ContactEditor({ property }: { property: Property }) {
   const agent = property.exposeData?.agent;
   const address = agent?.address
     ? [
@@ -591,6 +587,10 @@ function ContactEditor({ property }: { property: Property }) {
     : [];
   return (
     <EditorShell title="Ansprechpartner" tag={<ReadonlyTag />}>
+      <p className="text-xs text-muted-foreground">
+        Kontaktdaten aus dem Agent-Profil. Änderungen bitte im Assistenten vornehmen — das
+        Exposé-Branding können Sie unter „Markenauftritt“ anpassen.
+      </p>
       {agent?.name || agent?.company ? (
         <div className="space-y-1 text-sm">
           {agent?.name && <p className="font-medium text-foreground">{agent.name}</p>}
