@@ -58,7 +58,9 @@ export const PRINT_CSS = `
   .expose-contact,
   .expose-gallery-figure,
   .expose-floorplan-figure,
-  .expose-document-row {
+  .expose-document-row,
+  .expose-location-map,
+  .expose-location-summary {
     break-inside: avoid;
     page-break-inside: avoid;
   }

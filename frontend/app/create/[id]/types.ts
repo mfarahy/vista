@@ -190,6 +190,63 @@ export type StructuredAddress = {
   longitude?: number | null;
 };
 
+export type TravelMode = 'foot' | 'bike' | 'car' | 'transit';
+
+/**
+ * Verified route from the property to a nearby facility. All values come from
+ * the routing provider — the Exposé never displays a facility without one.
+ */
+export type NearbyFacilityRoute = {
+  distanceMeters: number;
+  durationSeconds: number;
+  travelMode: TravelMode;
+  provider: string;
+};
+
+export type NearbyFacility = {
+  id: string;
+  name: string;
+  category: string;
+  latitude: number;
+  longitude: number;
+  address?: string;
+  distanceMeters: number;
+  distanceType: 'straight_line';
+  source: string;
+  route?: NearbyFacilityRoute;
+};
+
+export type NearbyFacilityGroups = {
+  shopping: NearbyFacility[];
+  education: NearbyFacility[];
+  transport: NearbyFacility[];
+  healthcare: NearbyFacility[];
+  recreation: NearbyFacility[];
+  dailyLife: NearbyFacility[];
+};
+
+export type LocationIntelligence = {
+  address: StructuredAddress;
+  coordinates: { latitude: number; longitude: number };
+  formattedAddress?: string;
+  source: 'geocoded' | 'manual';
+  geocodingProvider?: string;
+  confidence?: number;
+  matchType?: string;
+  verificationRequired: boolean;
+  facilities: NearbyFacilityGroups;
+  radiusMeters: number;
+  mapAsset?: {
+    assetId: string;
+    url: string;
+    mimeType: string;
+    caption: string;
+  };
+  summary: string;
+  generatedAt: string;
+  expiresAt: string;
+};
+
 export type AdditionalInformation = {
   additionalInformation?: string | null;
   legalNotes?: string | null;
@@ -266,6 +323,7 @@ export type ExposeData = {
     district?: string | null;
     neighborhood?: string | null;
     description?: string | null;
+    intelligence?: LocationIntelligence;
   };
   images: Array<Record<string, unknown>>;
   floorPlans: Array<Record<string, unknown>>;
@@ -333,6 +391,7 @@ export type ExternalFacility = {
   name?: string;
   category?: string;
   distanceMeters?: number;
+  route?: NearbyFacilityRoute;
 };
 
 export type ExternalGeocoding = {

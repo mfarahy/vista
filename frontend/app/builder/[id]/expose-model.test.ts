@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { MarketingContent, Property } from '../../create/[id]/types';
+import type {
+  LocationIntelligence,
+  MarketingContent,
+  NearbyFacility,
+  Property,
+  TravelMode,
+} from '../../create/[id]/types';
 import {
   EXPOSE_SECTION_TYPES,
   coverFacts,
@@ -10,12 +16,16 @@ import {
   defaultGalleryImageIds,
   effectiveMarketingContent,
   energyFacts,
+  formatNearbyDistance,
+  formatNearbyDuration,
   galleryImagesOf,
   isExposeConfiguration,
+  nearbyFacilityEntries,
   priceFacts,
   propertyFacts,
   structuredEquipment,
   summaryFacts,
+  travelModeLabel,
   visibleSections,
 } from './expose-model';
 
@@ -514,5 +524,179 @@ describe('persistence', () => {
     assert.deepEqual(restored, configuration);
     assert.equal(isExposeConfiguration(restored), true);
     assert.equal(restored.sections.find((section) => section.type === 'highlights')?.visible, false);
+  });
+});
+
+function facility(
+  category: string,
+  name: string,
+  routeDistance: number,
+  travelMode: TravelMode = 'foot',
+): NearbyFacility {
+  return {
+    id: `${category}-${name}`,
+    name,
+    category,
+    latitude: 52.52,
+    longitude: 13.405,
+    distanceMeters: Math.round(routeDistance * 0.9),
+    distanceType: 'straight_line',
+    source: 'test',
+    route: {
+      distanceMeters: routeDistance,
+      durationSeconds: Math.round((routeDistance / 80) * 60),
+      travelMode,
+      provider: 'test',
+    },
+  };
+}
+
+function intelligenceWith(
+  facilities: Partial<Record<keyof LocationIntelligence['facilities'], NearbyFacility[]>>,
+): LocationIntelligence {
+  const empty = {
+    shopping: [],
+    education: [],
+    transport: [],
+    healthcare: [],
+    recreation: [],
+    dailyLife: [],
+  };
+  return {
+    address: { country: 'Deutschland' },
+    coordinates: { latitude: 52.52, longitude: 13.405 },
+    source: 'manual',
+    verificationRequired: false,
+    facilities: { ...empty, ...facilities },
+    radiusMeters: 1000,
+    summary: 'Geprüfte Umgebung.',
+    generatedAt: '2026-01-01T00:00:00.000Z',
+    expiresAt: '2026-02-01T00:00:00.000Z',
+  };
+}
+
+function propertyWithIntelligence(
+  intelligence: LocationIntelligence | undefined,
+): Property {
+  return makeProperty({
+    exposeData: {
+      ...makeProperty().exposeData!,
+      location: { ...makeProperty().exposeData!.location, intelligence },
+    },
+  });
+}
+
+describe('nearby facility presentation', () => {
+  it('maps categories to a single verified facility each', () => {
+    const property = propertyWithIntelligence(
+      intelligenceWith({
+        shopping: [facility('supermarket', 'Lidl', 650)],
+        education: [facility('kindergarten', 'Kindergarten Sonnenschein', 900)],
+        transport: [
+          facility('train_station', 'S-Bahnhof', 1400, 'foot'),
+          facility('bus_stop', 'Bushaltestelle', 300, 'foot'),
+        ],
+        healthcare: [facility('hospital', 'Klinikum', 4800, 'car')],
+      }),
+    );
+    const entries = nearbyFacilityEntries(property);
+    assert.deepEqual(
+      entries.map((entry) => [entry.category, entry.place.name]),
+      [
+        ['transport', 'Bushaltestelle'],
+        ['supermarket', 'Lidl'],
+        ['kindergarten', 'Kindergarten Sonnenschein'],
+        ['healthcare', 'Klinikum'],
+      ],
+    );
+  });
+
+  it('omits categories without a verified route', () => {
+    const property = propertyWithIntelligence(
+      intelligenceWith({
+        shopping: [
+          {
+            ...facility('supermarket', 'Lidl', 650),
+            route: undefined,
+          },
+        ],
+        education: [facility('school', 'Grundschule am Park', 2100, 'bike')],
+      }),
+    );
+    const entries = nearbyFacilityEntries(property);
+    assert.deepEqual(
+      entries.map((entry) => entry.category),
+      ['school'],
+    );
+  });
+
+  it('sorts entries by routed distance and carries verified travel data', () => {
+    const property = propertyWithIntelligence(
+      intelligenceWith({
+        shopping: [facility('supermarket', 'Rewe', 1400, 'foot')],
+        education: [facility('kindergarten', 'Kita', 800)],
+        transport: [facility('train_station', 'S-Bahnhof', 2100, 'bike')],
+      }),
+    );
+    const entries = nearbyFacilityEntries(property);
+    assert.deepEqual(
+      entries.map((entry) => entry.place.name),
+      ['Kita', 'Rewe', 'S-Bahnhof'],
+    );
+    const rewe = entries.find((entry) => entry.place.name === 'Rewe');
+    assert.equal(rewe?.distanceMeters, 1400);
+    assert.equal(rewe?.durationSeconds, Math.round((1400 / 80) * 60));
+    assert.equal(rewe?.travelMode, 'foot');
+    assert.equal(rewe?.label, 'Supermarkt');
+  });
+
+  it('picks the closest routed candidate for grouped categories', () => {
+    const property = propertyWithIntelligence(
+      intelligenceWith({
+        shopping: [
+          facility('grocery', 'Späti', 400),
+          facility('supermarket', 'Aldi', 900),
+        ],
+        dailyLife: [
+          facility('restaurant', 'Gasthaus', 1500),
+          facility('cafe', 'Kaffeerösterei', 600),
+        ],
+      }),
+    );
+    const entries = nearbyFacilityEntries(property);
+    assert.deepEqual(
+      entries.map((entry) => [entry.category, entry.place.name]),
+      [
+        ['supermarket', 'Späti'],
+        ['dining', 'Kaffeerösterei'],
+      ],
+    );
+  });
+
+  it('returns an empty list without location intelligence', () => {
+    assert.deepEqual(nearbyFacilityEntries(makeProperty()), []);
+    assert.deepEqual(nearbyFacilityEntries(propertyWithIntelligence(undefined)), []);
+  });
+});
+
+describe('nearby facility formatting', () => {
+  it('formats distances in German units', () => {
+    assert.equal(formatNearbyDistance(650), '650 m');
+    assert.equal(formatNearbyDistance(654), '650 m');
+    assert.equal(formatNearbyDistance(1400), '1,4 km');
+    assert.equal(formatNearbyDistance(998), '1000 m');
+  });
+
+  it('formats durations as minutes with a one-minute floor', () => {
+    assert.equal(formatNearbyDuration(480), '8 Min.');
+    assert.equal(formatNearbyDuration(30), '1 Min.');
+    assert.equal(formatNearbyDuration(5400), '90 Min.');
+  });
+
+  it('labels travel modes in German', () => {
+    assert.equal(travelModeLabel('foot'), 'zu Fuß');
+    assert.equal(travelModeLabel('bike'), 'mit dem Fahrrad');
+    assert.equal(travelModeLabel('car'), 'mit dem Auto');
+    assert.equal(travelModeLabel('transit'), 'mit Bus & Bahn');
   });
 });

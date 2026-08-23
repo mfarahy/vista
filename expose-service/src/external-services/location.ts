@@ -5,7 +5,7 @@ import type {
   PropertyExposeData,
   StructuredAddress,
 } from '../lib/expose-data.js';
-import { trackExternalCall } from '../lib/logger.js';
+import { getLogger, trackExternalCall } from '../lib/logger.js';
 
 function endpointPath(url: string): string {
   try {
@@ -543,12 +543,21 @@ export async function searchNearbyFacilities(
   provider = getPlacesProvider(),
 ) {
   const facilities = emptyFacilities();
-  // Overpass instances enforce request-rate limits; keep the provider calls serialized.
+  // Overpass instances enforce request-rate limits; keep the provider calls
+  // serialized. A failing category is skipped with a warning — the Exposé
+  // must still work when one category has no usable result.
   const results: Place[][] = [];
   for (const category of selectedCategories()) {
-    results.push(
-      await provider.searchNearby(center.latitude, center.longitude, category, radiusMeters),
-    );
+    try {
+      results.push(
+        await provider.searchNearby(center.latitude, center.longitude, category, radiusMeters),
+      );
+    } catch (error) {
+      getLogger().warn(
+        { err: error, category, radiusMeters },
+        'Nearby-facility search failed for category {category}; category is skipped',
+      );
+    }
   }
   results.flat().forEach((place) => {
     place.distanceMeters = distanceMetersBetween(
@@ -586,31 +595,64 @@ class LocalStaticMapProvider implements MapProvider {
     const radius = options.radiusMeters || 1000;
     const latitudeScale = 111320;
     const longitudeScale = Math.max(111320 * Math.cos((center.latitude * Math.PI) / 180), 1);
+
+    // Fit the view to the property and the selected facilities (zoom/center
+    // always include both). Without facilities the default radius view is used.
+    const points = [
+      center,
+      ...markers.filter((marker) => marker.category !== 'property'),
+    ];
+    const latitudes = points.map((point) => point.latitude);
+    const longitudes = points.map((point) => point.longitude);
+    const minLat = Math.min(...latitudes);
+    const maxLat = Math.max(...latitudes);
+    const minLon = Math.min(...longitudes);
+    const maxLon = Math.max(...longitudes);
+    const spanLatMeters = Math.max((maxLat - minLat) * latitudeScale, radius * 0.4);
+    const spanLonMeters = Math.max(
+      (maxLon - minLon) * longitudeScale,
+      radius * 0.4,
+    );
+    const metersPerPixelX = spanLonMeters / (width * 0.68);
+    const metersPerPixelY = spanLatMeters / (height * 0.68);
+    const mapScale = Math.max(metersPerPixelX, metersPerPixelY, 1);
     const project = (point: Coordinates) => ({
-      x:
-        width / 2 +
-        (((point.longitude - center.longitude) * longitudeScale) / radius) * width * 0.36,
-      y:
-        height / 2 -
-        (((point.latitude - center.latitude) * latitudeScale) / radius) * height * 0.36,
+      x: width / 2 + ((point.longitude - center.longitude) * longitudeScale) / mapScale,
+      y: height / 2 - ((point.latitude - center.latitude) * latitudeScale) / mapScale,
     });
     const safePoint = (point: { x: number; y: number }) => ({
-      x: Math.max(28, Math.min(width - 28, point.x)),
-      y: Math.max(28, Math.min(height - 28, point.y)),
+      x: Math.max(64, Math.min(width - 64, point.x)),
+      y: Math.max(44, Math.min(height - 56, point.y)),
     });
-    const roads = Array.from({ length: 7 }, (_, index) => {
-      const y = ((index + 1) * height) / 8;
-      return `<path d="M0 ${y} C ${width * 0.25} ${y - 36} ${width * 0.7} ${y + 36} ${width} ${y - 8}"/>`;
-    }).join('');
+
+    // Subtle cartographic grid instead of synthetic roads: the schematic
+    // must never pretend to be a real street map.
+    const grid = Array.from({ length: Math.floor(width / 90) }, (_, index) => {
+      const x = (index + 1) * 90;
+      return `<line x1="${x}" y1="0" x2="${x}" y2="${height}" stroke="#dde5dd" stroke-width="1"/>`;
+    })
+      .concat(
+        Array.from({ length: Math.floor(height / 90) }, (_, index) => {
+          const y = (index + 1) * 90;
+          return `<line x1="0" y1="${y}" x2="${width}" y2="${y}" stroke="#dde5dd" stroke-width="1"/>`;
+        }),
+      )
+      .join('');
+
+    const radiusPixels = Math.min(width, height) * 0.3;
+    const radiusRing = `<circle cx="${width / 2}" cy="${height / 2}" r="${radiusPixels}" fill="none" stroke="#9db3a1" stroke-width="1.5" stroke-dasharray="4 8"/>`;
+
     const markerSvg = markers
       .map((marker) => {
         const point = safePoint(project(marker));
-        const property = marker.category === 'property';
-        const color = property ? '#26352b' : '#718b78';
-        return `<g><circle cx="${point.x}" cy="${point.y}" r="${property ? 13 : 8}" fill="${color}" stroke="#f8f8f4" stroke-width="4"/><text x="${point.x + 14}" y="${point.y + 4}" class="label">${escSvg(marker.label)}</text></g>`;
+        if (marker.category === 'property') {
+          return `<g><circle cx="${point.x}" cy="${point.y}" r="13" fill="#24352c" stroke="#f8f8f4" stroke-width="4"/><circle cx="${point.x}" cy="${point.y}" r="6" fill="#9db3a1"/><text x="${point.x}" y="${point.y + 34}" text-anchor="middle" class="label property-label">${escSvg(marker.label)}</text></g>`;
+        }
+        return `<g><circle cx="${point.x}" cy="${point.y}" r="8" fill="#5f7a68" stroke="#f8f8f4" stroke-width="3.5"/><text x="${point.x}" y="${point.y + 26}" text-anchor="middle" class="label">${escSvg(marker.label)}</text></g>`;
       })
       .join('');
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#e7eee8"/><g fill="none" stroke="#c1d0c4" stroke-width="14" opacity=".75">${roads}</g><g fill="none" stroke="#f8f8f4" stroke-width="4">${roads}</g><circle cx="${width / 2}" cy="${height / 2}" r="${Math.min(width, height) * 0.33}" fill="none" stroke="#91aa97" stroke-dasharray="5 9"/><g font-family="Arial, sans-serif" font-size="16" fill="#26352b">${markerSvg}</g><text x="28" y="${height - 26}" font-family="Arial, sans-serif" font-size="12" fill="#718078">Standortübersicht · ${escSvg(process.env.MAP_ATTRIBUTION || 'Vista')}</text></svg>`;
+    const legend = `<g class="legend"><rect x="28" y="24" width="${width - 56}" height="30" rx="15" fill="#f8f8f4" opacity="0.92"/><circle cx="48" cy="39" r="6" fill="#24352c" stroke="#f8f8f4" stroke-width="2"/><text x="60" y="43" class="legend-text">Immobilie</text><circle cx="130" cy="39" r="5" fill="#5f7a68" stroke="#f8f8f4" stroke-width="2"/><text x="140" y="43" class="legend-text">Umgebung</text><text x="${width - 34}" y="43" text-anchor="end" class="legend-text">Standortübersicht · ${escSvg(process.env.MAP_ATTRIBUTION || 'Vista')}</text></g>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#eef2ee"/><g>${grid}</g>${radiusRing}${legend}<g font-family="Arial, sans-serif">${markerSvg}</g><style>.label{font-size:12.5px;font-weight:600;fill:#24352c;letter-spacing:0.02em}.property-label{font-weight:700}.legend-text{font-size:11.5px;fill:#57625a;letter-spacing:0.03em}</style></svg>`;
     return {
       assetId: 'location-map',
       url: `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`,
@@ -620,35 +662,76 @@ class LocalStaticMapProvider implements MapProvider {
   }
 }
 
+export { getRoutingProvider } from './routing.js';
+export type { RouteResult, RoutingProvider, TravelMode } from './routing.js';
+
 export function getMapProvider(): MapProvider {
   return new LocalStaticMapProvider();
 }
 
-function nearest(
+/** The nearest facility of a group that has a verified route, if any. */
+function nearestRouted(
   facilities: LocationIntelligence['facilities'][keyof LocationIntelligence['facilities']],
 ) {
-  return facilities[0];
+  return facilities.find((place) => place.route);
 }
 
+const SUMMARY_GROUPS: Array<
+  [keyof LocationIntelligence['facilities'], string]
+> = [
+  ['shopping', 'Einkaufsmöglichkeiten'],
+  ['education', 'Bildungseinrichtungen'],
+  ['transport', 'öffentliche Verkehrsmittel'],
+  ['healthcare', 'Gesundheitsversorgung'],
+  ['recreation', 'Parks'],
+  ['dailyLife', 'Restaurants und Cafés'],
+];
+
+/** A foot route of up to 25 minutes counts as "zu Fuß erreichbar". */
+const WALKABLE_MAX_SECONDS = 25 * 60;
+
+function walkableGroups(facilities: LocationIntelligence['facilities']) {
+  return SUMMARY_GROUPS.filter(([group]) =>
+    facilities[group].some(
+      (place) =>
+        place.route?.travelMode === 'foot' &&
+        place.route.durationSeconds <= WALKABLE_MAX_SECONDS,
+    ),
+  ).map(([, label]) => label);
+}
+
+/** Joins German list items: "A", "A und B", "A, B und C". */
+export function joinGermanList(items: string[]) {
+  if (items.length <= 1) return items[0] || '';
+  if (items.length === 2) return `${items[0]} und ${items[1]}`;
+  return `${items.slice(0, -1).join(', ')} und ${items[items.length - 1]}`;
+}
+
+/**
+ * Deterministic location summary. Only facilities with a verified route are
+ * mentioned; categories that are reachable on foot are called out
+ * explicitly. Never invents distances or travel times.
+ */
 export function locationSummary(
   location: Pick<LocationIntelligence, 'facilities'> & {
     city?: string | null;
     district?: string | null;
   },
 ) {
-  const placeGroups = [
-    ['Einkaufsmöglichkeiten', nearest(location.facilities.shopping)],
-    ['Bildungseinrichtungen', nearest(location.facilities.education)],
-    ['öffentliche Verkehrsmittel', nearest(location.facilities.transport)],
-    ['Gesundheitsversorgung', nearest(location.facilities.healthcare)],
-    ['Parks', nearest(location.facilities.recreation)],
-  ].filter(([, place]) => place);
   const city = [location.city, location.district].filter(Boolean).join(', ');
-  if (!placeGroups.length)
-    return city
-      ? `Die Immobilie befindet sich in ${city}.`
-      : 'Zur Umgebung liegen derzeit keine geprüften Angaben vor.';
-  return `${city ? `Die Immobilie befindet sich in ${city}. ` : ''}${placeGroups.map(([label]) => label).join(', ')} sind in der ausgewählten Umgebung vertreten.`;
+  const locationPrefix = city ? `Die Immobilie befindet sich in ${city}. ` : '';
+  const capitalize = (value: string) => (value ? value[0].toUpperCase() + value.slice(1) : value);
+  const walkable = walkableGroups(location.facilities);
+  if (walkable.length) {
+    return `${locationPrefix}${capitalize(joinGermanList(walkable))} sind fußläufig erreichbar.`;
+  }
+  const routedGroups = SUMMARY_GROUPS.filter(([group]) => nearestRouted(location.facilities[group]));
+  if (routedGroups.length) {
+    return `${locationPrefix}${capitalize(joinGermanList(routedGroups.map(([, label]) => label)))} sind in der ausgewählten Umgebung vertreten.`;
+  }
+  return city
+    ? `Die Immobilie befindet sich in ${city}.`
+    : 'Zur Umgebung liegen derzeit keine geprüften Angaben vor.';
 }
 
 export function locationAddressFromData(data: PropertyExposeData): StructuredAddress {

@@ -1,20 +1,35 @@
 import type { DocumentRecord, Property, PropertyImage } from '../../../create/[id]/types';
 import { apiAssetUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import {
+  Baby,
+  GraduationCap,
+  Pill,
+  ShoppingCart,
+  Stethoscope,
+  TrainFront,
+  TreePine,
+  UtensilsCrossed,
+} from 'lucide-react';
 import type {
   EffectiveBranding,
   ExposeConfiguration,
   ExposeFact,
+  NearbyIcon,
 } from '../expose-model';
 import {
   energyFacts,
   floorplanImages,
+  formatNearbyDistance,
+  formatNearbyDuration,
   fullAddressLines,
   galleryImagesOf,
   locationLine,
+  nearbyFacilityEntries,
   propertyFacts,
   structuredEquipment,
   summaryFacts,
+  travelModeLabel,
 } from '../expose-model';
 
 /**
@@ -178,6 +193,48 @@ export function EquipmentSection({
   );
 }
 
+const NEARBY_ICONS: Record<NearbyIcon, typeof ShoppingCart> = {
+  supermarket: ShoppingCart,
+  kindergarten: Baby,
+  school: GraduationCap,
+  transport: TrainFront,
+  pharmacy: Pill,
+  healthcare: Stethoscope,
+  park: TreePine,
+  dining: UtensilsCrossed,
+};
+
+/**
+ * Nearby-facility list of the Location section. Only facilities with a
+ * verified route are rendered — every distance and travel time comes from
+ * the routing provider. A missing category simply renders no row.
+ */
+export function NearbyFacilityList({ property }: { property: Property }) {
+  const entries = nearbyFacilityEntries(property);
+  if (!entries.length) return null;
+  return (
+    <ul className="expose-nearby">
+      {entries.map((entry) => {
+        const Icon = NEARBY_ICONS[entry.icon];
+        return (
+          <li key={`${entry.category}-${entry.place.id}`} className="expose-nearby-row">
+            <span className="expose-nearby-icon">
+              <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
+            </span>
+            <span className="expose-nearby-info">
+              <span className="expose-nearby-name">{entry.place.name}</span>
+              <span className="expose-nearby-meta">
+                {entry.label} · {formatNearbyDistance(entry.distanceMeters)} ·{' '}
+                {formatNearbyDuration(entry.durationSeconds)} {travelModeLabel(entry.travelMode)}
+              </span>
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function LocationSection({
   property,
   description,
@@ -186,12 +243,40 @@ export function LocationSection({
   description: string;
 }) {
   const address = fullAddressLines(property);
+  const intelligence = property.exposeData?.location.intelligence;
+  const mapUrl = intelligence?.mapAsset?.url;
   const hasDescription = description.trim().length > 0;
-  if (!address.length && !locationLine(property) && !hasDescription) return null;
+  const hasMap = Boolean(mapUrl);
+  const hasNearby = nearbyFacilityEntries(property).length > 0;
+  const summary = intelligence?.summary?.trim();
+  if (
+    !address.length &&
+    !locationLine(property) &&
+    !hasDescription &&
+    !hasMap &&
+    !hasNearby
+  )
+    return null;
   return (
     <Section id="location" kicker="LAGE & UMWELT" title="Lage">
       {address.length > 0 && <p className="expose-location-address">{address.join(' · ')}</p>}
-      <Prose text={description} />
+      {(hasMap || hasNearby) && (
+        <div className="expose-location-layout">
+          {hasMap && (
+            <figure className="expose-location-map">
+              <img
+                src={apiAssetUrl(mapUrl as string)}
+                alt={intelligence?.mapAsset?.caption || 'Lage und Umgebung'}
+              />
+            </figure>
+          )}
+          <div className="expose-location-side">
+            {summary && <p className="expose-location-summary">{summary}</p>}
+            {hasNearby && <NearbyFacilityList property={property} />}
+          </div>
+        </div>
+      )}
+      <Prose text={description} className={cn((hasMap || hasNearby) && 'mt-7')} />
     </Section>
   );
 }

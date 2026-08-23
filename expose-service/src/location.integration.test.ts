@@ -3,9 +3,11 @@ import { describe, it } from 'node:test';
 import {
   getGeocodingProvider,
   getPlacesProvider,
+  getRoutingProvider,
   distanceMetersBetween,
   type GeocodingProvider,
   type PlacesProvider,
+  type RoutingProvider,
 } from './external-services/location.js';
 import { createManualLocation, resolveLocation } from './lib/location-service.js';
 import type { Property } from './lib/types.js';
@@ -68,8 +70,10 @@ describe('real location pipeline', { skip: skipReason }, () => {
     try {
       const realGeocoder = getGeocodingProvider();
       const realPlaces = getPlacesProvider();
+      const realRouting = getRoutingProvider();
       let geocodeCalls = 0;
       let placesCalls = 0;
+      let routingCalls = 0;
       const geocoder: GeocodingProvider = {
         geocode: async (address) => {
           geocodeCalls += 1;
@@ -82,8 +86,15 @@ describe('real location pipeline', { skip: skipReason }, () => {
           return realPlaces.searchNearby(latitude, longitude, category, radiusMeters);
         },
       };
+      const routing: RoutingProvider = {
+        supports: (mode) => realRouting.supports(mode),
+        route: async (from, to, mode) => {
+          routingCalls += 1;
+          return realRouting.route(from, to, mode);
+        },
+      };
 
-      const first = await resolveLocation(property, { geocoder, places, radiusMeters: 1000 });
+      const first = await resolveLocation(property, { geocoder, places, routing, radiusMeters: 1000 });
       assert.ok(first.intelligence, first.error);
       const location = first.intelligence!;
       assert.equal(location.geocodingProvider, 'nominatim');
@@ -109,6 +120,23 @@ describe('real location pipeline', { skip: skipReason }, () => {
       );
       assert.ok(location.mapAsset?.url.startsWith('data:image/svg+xml;base64,'));
 
+      if (process.env.ROUTING_PROVIDER?.toLowerCase() === 'osrm') {
+        assert.ok(routingCalls > 0, 'real routing provider was not called');
+        const routed = Object.values(location.facilities)
+          .flat()
+          .filter((place) => place.route);
+        assert.ok(routed.length > 0, 'no facility received a verified route');
+        assert.ok(
+          routed.every(
+            (place) =>
+              place.route!.provider === 'osrm' &&
+              place.route!.distanceMeters > 0 &&
+              place.route!.durationSeconds > 0,
+          ),
+          'every route carries provider data',
+        );
+      }
+
       const cachedProperty = {
         ...property,
         exposeData: {
@@ -118,14 +146,17 @@ describe('real location pipeline', { skip: skipReason }, () => {
       };
       geocodeCalls = 0;
       placesCalls = 0;
+      routingCalls = 0;
       const cached = await resolveLocation(cachedProperty, {
         geocoder,
         places,
+        routing,
         radiusMeters: 1000,
       });
       assert.equal(cached.intelligence?.generatedAt, location.generatedAt);
       assert.equal(geocodeCalls, 0, 'cached request called geocoder');
       assert.equal(placesCalls, 0, 'cached request called POI provider');
+      assert.equal(routingCalls, 0, 'cached request called routing provider');
 
       const changedProperty = {
         ...cachedProperty,

@@ -1,4 +1,11 @@
-import type { DocumentRecord, MarketingContent, Property, PropertyImage } from '../../create/[id]/types';
+import type {
+  DocumentRecord,
+  MarketingContent,
+  NearbyFacility,
+  Property,
+  PropertyImage,
+  TravelMode,
+} from '../../create/[id]/types';
 import {
   ENERGY_CERTIFICATE_TYPES,
   ENERGY_SOURCES,
@@ -499,6 +506,132 @@ export function locationLine(property: Property): string {
     property.exposeData?.location.address ??
     property.exposeData?.basicInformation.address;
   return [address?.district, address?.city].filter(Boolean).join(' · ');
+}
+
+/**
+ * Location & Nearby Amenities presentation (Phase 13).
+ *
+ * The Exposé shows exactly one verified facility per display category —
+ * the closest routed candidate. A facility without a verified route is never
+ * presented with distances or travel times. All values come from the
+ * structured LocationIntelligence payload; nothing is invented here.
+ */
+
+export type NearbyDisplayCategory =
+  | 'supermarket'
+  | 'kindergarten'
+  | 'school'
+  | 'transport'
+  | 'pharmacy'
+  | 'healthcare'
+  | 'park'
+  | 'dining';
+
+export type NearbyIcon =
+  | 'supermarket'
+  | 'kindergarten'
+  | 'school'
+  | 'transport'
+  | 'pharmacy'
+  | 'healthcare'
+  | 'park'
+  | 'dining';
+
+export type NearbyFacilityEntry = {
+  place: NearbyFacility;
+  category: NearbyDisplayCategory;
+  /** German category label, e.g. "Supermarkt" or "ÖPNV". */
+  label: string;
+  icon: NearbyIcon;
+  /** Routed distance in meters (from the routing provider). */
+  distanceMeters: number;
+  /** Routed duration in seconds (from the routing provider). */
+  durationSeconds: number;
+  travelMode: TravelMode;
+};
+
+/** Display categories with their candidate place categories, closest first. */
+export const NEARBY_DISPLAY_CATEGORIES: Record<
+  NearbyDisplayCategory,
+  { label: string; candidates: string[] }
+> = {
+  supermarket: { label: 'Supermarkt', candidates: ['supermarket', 'grocery'] },
+  kindergarten: { label: 'Kindergarten', candidates: ['kindergarten'] },
+  school: { label: 'Schule', candidates: ['school'] },
+  transport: {
+    label: 'ÖPNV',
+    candidates: ['train_station', 'subway', 'tram', 'bus_stop'],
+  },
+  pharmacy: { label: 'Apotheke', candidates: ['pharmacy'] },
+  healthcare: {
+    label: 'Arzt / Krankenhaus',
+    candidates: ['hospital', 'doctor'],
+  },
+  park: { label: 'Park', candidates: ['park', 'playground'] },
+  dining: { label: 'Restaurant / Café', candidates: ['restaurant', 'cafe'] },
+};
+
+function routedCandidates(property: Property): NearbyFacility[] {
+  const groups = property.exposeData?.location.intelligence?.facilities;
+  if (!groups) return [];
+  return Object.values(groups)
+    .flat()
+    .filter((place) => place.route != null);
+}
+
+/**
+ * Selects the closest verified facility per display category, sorted by
+ * routed distance. Categories without a routed result are omitted.
+ */
+export function nearbyFacilityEntries(property: Property): NearbyFacilityEntry[] {
+  const routed = routedCandidates(property);
+  const entries: NearbyFacilityEntry[] = [];
+  for (const [category, spec] of Object.entries(NEARBY_DISPLAY_CATEGORIES) as Array<
+    [NearbyDisplayCategory, { label: string; candidates: string[] }]
+  >) {
+    const place = routed
+      .filter((candidate) => spec.candidates.includes(candidate.category))
+      .sort(
+        (a, b) =>
+          (a.route?.distanceMeters ?? Infinity) - (b.route?.distanceMeters ?? Infinity),
+      )[0];
+    if (!place?.route) continue;
+    entries.push({
+      place,
+      category,
+      label: spec.label,
+      icon: category,
+      distanceMeters: place.route.distanceMeters,
+      durationSeconds: place.route.durationSeconds,
+      travelMode: place.route.travelMode,
+    });
+  }
+  return entries.sort((a, b) => a.distanceMeters - b.distanceMeters);
+}
+
+/** German distance formatting for the nearby list ("650 m", "1,4 km"). */
+export function formatNearbyDistance(meters: number): string {
+  if (meters < 1000) return `${Math.round(meters / 10) * 10} m`;
+  return `${(meters / 1000).toLocaleString('de-DE', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })} km`;
+}
+
+/** German duration formatting for the nearby list ("8 Min."). */
+export function formatNearbyDuration(seconds: number): string {
+  return `${Math.max(1, Math.round(seconds / 60))} Min.`;
+}
+
+/** German travel-mode label ("8 Min. zu Fuß"). */
+export function travelModeLabel(mode: TravelMode): string {
+  const labels: Record<TravelMode, string> = {
+    foot: 'zu Fuß',
+    bike: 'mit dem Fahrrad',
+    car: 'mit dem Auto',
+    transit: 'mit Bus & Bahn',
+  };
+  return labels[mode];
 }
 
 export function fullAddressLines(property: Property): string[] {

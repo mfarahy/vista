@@ -35,6 +35,15 @@ export const addressSchema = z.object({
   longitude: z.number().finite().min(-180).max(180).nullable().optional(),
 });
 
+export const travelModeSchema = z.enum(['foot', 'bike', 'car', 'transit']);
+export const routeSchema = z.object({
+  /** Routed distance in meters, as returned by the routing provider. */
+  distanceMeters: z.number().finite().nonnegative(),
+  /** Routed duration in seconds, as returned by the routing provider. */
+  durationSeconds: z.number().finite().nonnegative(),
+  travelMode: travelModeSchema,
+  provider: z.string().max(100),
+});
 export const placeCategorySchema = z.enum([
   'supermarket',
   'grocery',
@@ -66,6 +75,12 @@ export const placeSchema = z.object({
   distanceMeters: z.number().finite().nonnegative(),
   distanceType: z.literal('straight_line'),
   source: z.string().max(100),
+  /**
+   * Verified route to the property. Facilities without a route are never
+   * presented with distances or travel times in the Exposé; they exist in
+   * the data but are skipped by the rendering layer.
+   */
+  route: routeSchema.optional(),
 });
 export const locationIntelligenceSchema = z.object({
   address: addressSchema,
@@ -415,6 +430,8 @@ export type ExposeImage = z.infer<typeof exposeImageSchema>;
 export type LocationData = z.infer<typeof locationDataSchema>;
 export type BorisEnrichment = z.infer<typeof borisEnrichmentSchema>;
 export type StructuredAddress = z.infer<typeof addressSchema>;
+export type TravelMode = z.infer<typeof travelModeSchema>;
+export type Route = z.infer<typeof routeSchema>;
 export type PlaceCategory = z.infer<typeof placeCategorySchema>;
 export type Place = z.infer<typeof placeSchema>;
 export type LocationIntelligence = z.infer<typeof locationIntelligenceSchema>;

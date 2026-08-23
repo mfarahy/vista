@@ -324,6 +324,77 @@ export const EXPOSE_CSS = `
     font-weight: 600;
     color: var(--expose-ink);
   }
+  .expose-location-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 26px;
+    align-items: start;
+  }
+  .expose-location-map {
+    margin: 0;
+    break-inside: avoid;
+  }
+  .expose-location-map img {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--expose-line);
+    border-radius: 3px;
+    background: var(--expose-surface);
+  }
+  .expose-location-side {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .expose-location-summary {
+    margin: 0;
+    padding: 12px 14px;
+    background: var(--expose-surface);
+    border-left: 2px solid var(--expose-accent-soft);
+    color: var(--expose-ink-soft);
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+  .expose-nearby {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--expose-line);
+  }
+  .expose-nearby-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--expose-line);
+    break-inside: avoid;
+  }
+  .expose-nearby-icon {
+    flex: 0 0 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #e8eeea;
+    color: var(--expose-accent-soft);
+  }
+  .expose-nearby-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .expose-nearby-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--expose-ink);
+    line-height: 1.35;
+  }
+  .expose-nearby-meta {
+    color: var(--expose-muted);
+    font-size: 11.5px;
+    line-height: 1.45;
+  }
 
   /* ---------- Energy ---------- */
 

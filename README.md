@@ -32,6 +32,10 @@ Then open `http://localhost:3000` and select **New Exposé**.
 - `PLACES_PROVIDER`: optional `overpass` for structured POI searches
 - `PLACES_BASE_URL`: optional Overpass endpoint
 - `PLACES_USER_AGENT`: user agent for Overpass
+- `ROUTING_PROVIDER`: optional `osrm` for verified distances and travel times of nearby facilities (foot/bike/car; no public transport)
+- `ROUTING_FOOT_BASE_URL`: optional OSRM walking endpoint
+- `ROUTING_BIKE_BASE_URL`: optional OSRM cycling endpoint
+- `ROUTING_CAR_BASE_URL`: optional OSRM driving endpoint
 - `LOCATION_SEARCH_RADIUS_METERS`: search radius, default `1000`
 - `LOCATION_FACILITY_CATEGORIES`: comma-separated POI categories
 - `DOCUMENT_ANALYSIS_CONCURRENCY`: maximum parallel document analyses per upload batch, default `3`
@@ -39,7 +43,7 @@ Then open `http://localhost:3000` and select **New Exposé**.
 - `FRONTEND_URL`: base URL of the Next.js app that hosts the PDF print route, default `http://localhost:3000`
 - `BORIS_BASE_URL`: optional Brandenburg BORIS OGC API endpoint for Bodenrichtwert enrichment (default `https://ogc-api.geobasis-bb.de/boris`)
 
-The OpenStreetMap adapters use Nominatim for geocoding and Overpass for supermarkets, kindergartens, schools, public transit, pharmacies, parks, and restaurants/cafés. They are active only when the providers are explicitly configured. There is currently no external static map provider: the local, coordinate-aware SVG fallback is exposed for development and testing and must not be considered a real map-service integration.
+The OpenStreetMap adapters use Nominatim for geocoding and Overpass for supermarkets, kindergartens, schools, public transit, pharmacies, parks, and restaurants/cafés. They are active only when the providers are explicitly configured. Verified distances and travel times for the Exposé's Nearby Amenities section come from the OSRM routing endpoints (`ROUTING_PROVIDER=osrm`, walking/cycling/driving); without a routing provider, facilities are collected but never presented with distances or travel times. There is currently no external static map provider: the local, coordinate-aware SVG fallback is exposed for development and testing and must not be considered a real map-service integration.
 
 ## Tests
 
@@ -52,7 +56,7 @@ npm run test:unit
 The live location integration test is separate and requires network access and enabled providers. It uses the address from the Prisma test seed and writes the PDF output only to `/tmp`:
 
 ```bash
-RUN_LOCATION_INTEGRATION=1 GEOCODING_PROVIDER=nominatim PLACES_PROVIDER=overpass npm run test:integration
+RUN_LOCATION_INTEGRATION=1 GEOCODING_PROVIDER=nominatim PLACES_PROVIDER=overpass ROUTING_PROVIDER=osrm npm run test:integration
 ```
 
 Without these variables, integration tests are skipped. No API keys are logged or committed.

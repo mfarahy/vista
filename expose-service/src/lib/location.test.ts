@@ -5,8 +5,12 @@ import {
   distanceMetersBetween,
   formatDistance,
   getMapProvider,
+  joinGermanList,
+  locationSummary,
 } from '../external-services/location.js';
 import { createManualLocation, resolveLocation } from './location-service.js';
+import type { RouteResult, RoutingProvider, TravelMode } from '../external-services/routing.js';
+import type { LocationIntelligence, Place } from './expose-data.js';
 
 describe('location services', () => {
   it('normalizes a legacy address into structured fields', () => {
@@ -185,6 +189,10 @@ describe('location services', () => {
           },
         ],
       },
+      routing: {
+        supports: () => true,
+        route: async () => route('foot', 120, 90),
+      },
       mapProvider: {
         createStaticMap: async (center, markers) => {
           mapCenter = center;
@@ -228,5 +236,316 @@ describe('location services', () => {
     assert.match(firstSvg, /Immobilie/);
     assert.match(secondSvg, /Schule/);
     assert.notEqual(firstSvg, secondSvg);
+  });
+});
+
+function route(mode: TravelMode, distanceMeters: number, durationSeconds: number): RouteResult {
+  return { distanceMeters, durationSeconds, travelMode: mode, provider: 'test' };
+}
+
+function routingWith(routes: Partial<Record<TravelMode, RouteResult | Error>>): RoutingProvider {
+  return {
+    supports: (mode) => mode !== 'transit',
+    route: async (_from, _to, mode) => {
+      const result = routes[mode];
+      if (result instanceof Error) throw result;
+      if (!result) throw new Error(`unexpected mode ${mode}`);
+      return result;
+    },
+  };
+}
+
+function placesWith(categoryResults: Record<string, unknown>) {
+  return {
+    searchNearby: async (latitude: number, longitude: number, category: string) => {
+      const result = categoryResults[category];
+      if (result instanceof Error) throw result;
+      if (Array.isArray(result)) return result;
+      return [
+        {
+          id: category,
+          name: `${category} place`,
+          category,
+          latitude: latitude + 0.001,
+          longitude,
+          distanceMeters: 0,
+          distanceType: 'straight_line' as const,
+          source: 'mock',
+        },
+      ];
+    },
+  };
+}
+
+const routedProperty = {
+  address: 'Main Street 1',
+  zipCode: '10115',
+  city: 'Berlin',
+  district: null,
+  exposeData: {
+    basicInformation: {
+      address: {
+        street: 'Main Street',
+        houseNumber: '1',
+        postalCode: '10115',
+        city: 'Berlin',
+        district: null,
+        country: 'Deutschland',
+      },
+    },
+    location: {
+      address: {
+        street: 'Main Street',
+        houseNumber: '1',
+        postalCode: '10115',
+        city: 'Berlin',
+        district: null,
+        country: 'Deutschland',
+      },
+    },
+  },
+} as unknown as Parameters<typeof createManualLocation>[0];
+
+describe('nearby facility routing', () => {
+  it('attaches a verified route to the nearest facility of each category', async () => {
+    const intelligence = await createManualLocation(routedProperty, { latitude: 52.52, longitude: 13.405 }, {
+      places: placesWith({}),
+      routing: routingWith({ foot: route('foot', 120, 90) }),
+      mapProvider: {
+        createStaticMap: async () => ({
+          assetId: 'm',
+          url: 'data:image/svg+xml;base64,',
+          mimeType: 'image/svg+xml' as const,
+          caption: 'm',
+        }),
+      },
+    });
+    const supermarket = intelligence.facilities.shopping.find(
+      (place) => place.category === 'supermarket',
+    );
+    const kindergarten = intelligence.facilities.education.find(
+      (place) => place.category === 'kindergarten',
+    );
+    assert.deepEqual(supermarket?.route, route('foot', 120, 90));
+    assert.deepEqual(kindergarten?.route, route('foot', 120, 90));
+  });
+
+  it('only routes the closest candidate when several share a category', async () => {
+    const intelligence = await createManualLocation(routedProperty, { latitude: 52.52, longitude: 13.405 }, {
+      places: {
+        searchNearby: async (latitude: number, longitude: number, category: string) => {
+          if (category !== 'supermarket') return [];
+          return [
+            {
+              id: 'supermarket-far',
+              name: 'Far market',
+              category,
+              latitude: latitude + 0.05,
+              longitude,
+              distanceMeters: 0,
+              distanceType: 'straight_line' as const,
+              source: 'mock',
+            },
+            {
+              id: 'supermarket-near',
+              name: 'Near market',
+              category,
+              latitude: latitude + 0.001,
+              longitude,
+              distanceMeters: 0,
+              distanceType: 'straight_line' as const,
+              source: 'mock',
+            },
+          ];
+        },
+      },
+      routing: {
+        supports: () => true,
+        route: async () => route('foot', 111, 80),
+      },
+      mapProvider: {
+        createStaticMap: async () => ({
+          assetId: 'm',
+          url: 'data:image/svg+xml;base64,',
+          mimeType: 'image/svg+xml' as const,
+          caption: 'm',
+        }),
+      },
+    });
+    const facilities = intelligence.facilities.shopping;
+    const routed = facilities.filter((place) => place.route);
+    assert.equal(routed.length, 1);
+    assert.equal(routed[0]?.id, 'supermarket-near');
+  });
+
+  it('skips a facility when routing fails instead of fabricating a route', async () => {
+    const intelligence = await createManualLocation(routedProperty, { latitude: 52.52, longitude: 13.405 }, {
+      places: placesWith({}),
+      routing: routingWith({ foot: new Error('routing down'), car: new Error('routing down') }),
+      mapProvider: {
+        createStaticMap: async () => ({
+          assetId: 'm',
+          url: 'data:image/svg+xml;base64,',
+          mimeType: 'image/svg+xml' as const,
+          caption: 'm',
+        }),
+      },
+    });
+    const all = Object.values(intelligence.facilities).flat();
+    assert.ok(all.length > 0, 'facilities still exist without routes');
+    assert.ok(all.every((place) => place.route === undefined), 'no place carries a fake route');
+    assert.equal(intelligence.mapAsset?.url.startsWith('data:image/svg+xml;base64,'), true);
+  });
+
+  it('keeps resolution alive when one places category fails', async () => {
+    const intelligence = await createManualLocation(routedProperty, { latitude: 52.52, longitude: 13.405 }, {
+      places: placesWith({ school: new Error('overpass rate limit') }),
+      routing: routingWith({ foot: route('foot', 120, 90) }),
+      mapProvider: {
+        createStaticMap: async () => ({
+          assetId: 'm',
+          url: 'data:image/svg+xml;base64,',
+          mimeType: 'image/svg+xml' as const,
+          caption: 'm',
+        }),
+      },
+    });
+    assert.ok(
+      intelligence.facilities.shopping.some((place) => place.category === 'supermarket'),
+      'healthy categories are still resolved',
+    );
+    assert.equal(
+      intelligence.facilities.education.some((place) => place.category === 'school'),
+      false,
+      'failed category is skipped',
+    );
+    assert.ok(
+      intelligence.facilities.education.some((place) => place.category === 'kindergarten'),
+      'other categories of the same group are unaffected',
+    );
+  });
+
+  it('continues without a map when the map provider fails', async () => {
+    const intelligence = await createManualLocation(routedProperty, { latitude: 52.52, longitude: 13.405 }, {
+      places: placesWith({}),
+      routing: routingWith({ foot: route('foot', 120, 90) }),
+      mapProvider: {
+        createStaticMap: async () => {
+          throw new Error('map service down');
+        },
+      },
+    });
+    assert.ok(intelligence.facilities.shopping.length > 0);
+    assert.equal(intelligence.mapAsset, undefined);
+  });
+
+  it('returns an error for missing coordinates instead of failing silently', async () => {
+    const property = {
+      id: 'no-coords',
+      propertyType: 'apartment',
+      transactionType: 'sale',
+      selectedFeatures: [],
+      surroundings: {},
+      tone: 'professional',
+      language: 'de',
+      images: [],
+      roomsData: [],
+      exposeData: {
+        basicInformation: { address: { country: 'Deutschland' } },
+        location: { address: { country: 'Deutschland' } },
+      },
+    } as unknown as Parameters<typeof resolveLocation>[0];
+    const result = await resolveLocation(property, {
+      geocoder: {
+        geocode: async () => {
+          throw new Error('no address');
+        },
+      },
+    });
+    assert.equal(result.intelligence, null);
+    assert.ok(result.error);
+  });
+});
+
+describe('location summary (verified data only)', () => {
+  function facilitiesWith(
+    overrides: Partial<
+      Record<keyof LocationIntelligence['facilities'], Array<Partial<Place>>>
+    > = {},
+  ): LocationIntelligence['facilities'] {
+    const empty = {
+      shopping: [],
+      education: [],
+      transport: [],
+      healthcare: [],
+      recreation: [],
+      dailyLife: [],
+    };
+    return { ...empty, ...overrides } as LocationIntelligence['facilities'];
+  }
+
+  it('mentions only walking-reachable categories as fußläufig', () => {
+    const summary = locationSummary({
+      city: 'Berlin',
+      district: 'Neukölln',
+      facilities: facilitiesWith({
+        shopping: [
+          { category: 'supermarket', route: route('foot', 650, 480) },
+          { category: 'supermarket', route: undefined },
+        ],
+        education: [
+          { category: 'kindergarten', route: route('bike', 900, 240) },
+        ],
+        transport: [
+          { category: 'train_station', route: route('foot', 1400, 1100) },
+        ],
+      }),
+    });
+    assert.equal(
+      summary,
+      'Die Immobilie befindet sich in Berlin, Neukölln. Einkaufsmöglichkeiten und öffentliche Verkehrsmittel sind fußläufig erreichbar.',
+    );
+  });
+
+  it('ignores facilities without a route entirely', () => {
+    const summary = locationSummary({
+      city: 'Berlin',
+      facilities: facilitiesWith({
+        shopping: [{ category: 'supermarket', route: undefined }],
+        healthcare: [{ category: 'hospital', route: undefined }],
+      }),
+    });
+    assert.equal(summary, 'Die Immobilie befindet sich in Berlin.');
+  });
+
+  it('mentions verified groups when nothing is walkable', () => {
+    const summary = locationSummary({
+      city: 'Berlin',
+      facilities: facilitiesWith({
+        transport: [{ category: 'bus_stop', route: route('bike', 1600, 420) }],
+        healthcare: [{ category: 'hospital', route: route('car', 4800, 660) }],
+      }),
+    });
+    assert.equal(
+      summary,
+      'Die Immobilie befindet sich in Berlin. Öffentliche Verkehrsmittel und Gesundheitsversorgung sind in der ausgewählten Umgebung vertreten.',
+    );
+  });
+
+  it('does not call a long foot route walkable', () => {
+    const summary = locationSummary({
+      city: 'Berlin',
+      facilities: facilitiesWith({
+        shopping: [{ category: 'supermarket', route: route('foot', 1400, 2000) }],
+      }),
+    });
+    assert.ok(!summary.includes('fußläufig'));
+  });
+
+  it('joins German lists with und', () => {
+    assert.equal(joinGermanList(['A']), 'A');
+    assert.equal(joinGermanList(['A', 'B']), 'A und B');
+    assert.equal(joinGermanList(['A', 'B', 'C']), 'A, B und C');
+    assert.equal(joinGermanList([]), '');
   });
 });
