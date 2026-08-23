@@ -154,7 +154,7 @@ export function StepFeatures({
                 onChange={(value) => setGarden({ area: value ? Number(value) : null })}
                 placeholder="Optional"
               />
-              <DocumentSources sources={sources?.gardenArea} />
+              <DocumentSources sources={sources?.gardenArea} currentValue={garden?.area} />
             </div>
             <div>
               <Input
@@ -163,7 +163,7 @@ export function StepFeatures({
                 onChange={(value) => setGarden({ orientation: value || null })}
                 placeholder="z. B. Süd"
               />
-              <DocumentSources sources={sources?.orientation} />
+              <DocumentSources sources={sources?.orientation} currentValue={garden?.orientation} />
             </div>
           </div>
         </GroupCard>
@@ -201,7 +201,7 @@ export function StepFeatures({
                 onChange={(value) => updateEnergy({ heatingType: value || null })}
                 placeholder="z. B. Zentralheizung"
               />
-              <DocumentSources sources={sources?.heatingType} />
+              <DocumentSources sources={sources?.heatingType} currentValue={energy.heatingType} />
             </div>
             <div>
               <Select
@@ -215,7 +215,7 @@ export function StepFeatures({
                 placeholder="Auswählen"
                 options={ENERGY_SOURCES as unknown as ReadonlyArray<readonly [string, string]>}
               />
-              <DocumentSources sources={sources?.primaryEnergySource} />
+              <DocumentSources sources={sources?.primaryEnergySource} currentValue={energy.primaryEnergySource} />
             </div>
           </div>
         </GroupCard>
@@ -242,7 +242,10 @@ export function StepFeatures({
                 }
                 placeholder="1"
               />
-              <DocumentSources sources={sources?.parking} />
+              <DocumentSources
+                sources={sources?.parking}
+                currentValue={exposeData.propertyDetails.parkingSpaceCount}
+              />
             </div>
           </div>
         </GroupCard>
@@ -250,7 +253,11 @@ export function StepFeatures({
         {featureSources.length > 0 && (
           <div className="space-y-2">
             {featureSources.map((group) => (
-              <DocumentSources key={group[0].field} sources={group} />
+              <DocumentSources
+                key={group[0].field}
+                sources={group}
+                currentValue={has(group[0].field) ? true : null}
+              />
             ))}
           </div>
         )}
@@ -366,7 +373,7 @@ export function StepEnergy({
                 placeholder="Auswählen"
                 options={ENERGY_CERTIFICATE_TYPES as unknown as ReadonlyArray<readonly [string, string]>}
               />
-              <DocumentSources sources={sources?.certificateType} />
+              <DocumentSources sources={sources?.certificateType} currentValue={energy.certificateType} />
             </div>
             <div>
               <DateInput
@@ -374,7 +381,7 @@ export function StepEnergy({
                 value={energy.certificateDate}
                 onChange={(value) => patch({ certificateDate: value || null })}
               />
-              <DocumentSources sources={sources?.certificateDate} />
+              <DocumentSources sources={sources?.certificateDate} currentValue={energy.certificateDate} />
             </div>
             <div>
               <DateInput
@@ -382,7 +389,7 @@ export function StepEnergy({
                 value={energy.certificateValidUntil}
                 onChange={(value) => patch({ certificateValidUntil: value || null })}
               />
-              <DocumentSources sources={sources?.certificateValidUntil} />
+              <DocumentSources sources={sources?.certificateValidUntil} currentValue={energy.certificateValidUntil} />
             </div>
             <div>
               <Input
@@ -392,7 +399,7 @@ export function StepEnergy({
                 onChange={(value) => patch({ yearOfConstruction: number(value) })}
                 placeholder="z. B. 1969"
               />
-              <DocumentSources sources={sources?.yearOfConstruction} />
+              <DocumentSources sources={sources?.yearOfConstruction} currentValue={energy.yearOfConstruction} />
             </div>
           </div>
         </GroupCard>
@@ -408,7 +415,7 @@ export function StepEnergy({
                 onChange={(value) => patch({ finalEnergyDemand: number(value) })}
                 placeholder="z. B. 85"
               />
-              <DocumentSources sources={sources?.energyDemand} />
+              <DocumentSources sources={sources?.energyDemand} currentValue={energy.finalEnergyDemand} />
             </div>
             <div>
               <UnitInput
@@ -419,7 +426,7 @@ export function StepEnergy({
                 onChange={(value) => patch({ finalEnergyConsumption: number(value) })}
                 placeholder="Optional"
               />
-              <DocumentSources sources={sources?.energyConsumption} />
+              <DocumentSources sources={sources?.energyConsumption} currentValue={energy.finalEnergyConsumption} />
             </div>
             <div className="sm:col-span-2 lg:col-span-1">
               <Toggle
@@ -427,7 +434,7 @@ export function StepEnergy({
                 checked={energy.hotWaterIncluded === true}
                 onChange={(checked) => patch({ hotWaterIncluded: checked || null })}
               />
-              <DocumentSources sources={sources?.hotWaterIncluded} />
+              <DocumentSources sources={sources?.hotWaterIncluded} currentValue={energy.hotWaterIncluded} />
             </div>
           </div>
         </GroupCard>
@@ -441,7 +448,7 @@ export function StepEnergy({
                 onChange={(value) => patch({ heatingType: value || null })}
                 placeholder="z. B. Zentralheizung"
               />
-              <DocumentSources sources={sources?.heatingType} />
+              <DocumentSources sources={sources?.heatingType} currentValue={energy.heatingType} />
             </div>
             <div>
               <Select
@@ -455,14 +462,14 @@ export function StepEnergy({
                 placeholder="Auswählen"
                 options={ENERGY_SOURCES as unknown as ReadonlyArray<readonly [string, string]>}
               />
-              <DocumentSources sources={sources?.primaryEnergySource} />
+              <DocumentSources sources={sources?.primaryEnergySource} currentValue={energy.primaryEnergySource} />
             </div>
             <div className="sm:col-span-2 lg:col-span-1">
               <EnergyClassPicker
                 value={energy.efficiencyClass}
                 onChange={(value) => patch({ efficiencyClass: (value || null) as EnergyData['efficiencyClass'] })}
               />
-              <DocumentSources sources={sources?.energyClass} />
+              <DocumentSources sources={sources?.energyClass} currentValue={energy.efficiencyClass} />
             </div>
           </div>
         </GroupCard>

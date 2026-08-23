@@ -2,6 +2,7 @@ import { LoaderCircle } from 'lucide-react';
 import type { BorisEnrichment, ExposeData, PropertyPayload, SetProperty } from '../types';
 import { LEGAL_FLAG_LABELS, additionalInfoLabel } from '../types';
 import type { AdditionalInfoCandidate, WizardFieldCandidate } from '../document-prefill';
+import { wizardCurrentValues } from '../document-prefill';
 import { shouldShowInvestment } from '../wizard-steps';
 import {
   GroupCard,
@@ -62,6 +63,7 @@ export function StepFinancial({
   // WEG information is primarily relevant for an Eigentumswohnung. For other
   // property types it only appears when the documents actually produced data.
   const showWeg = property.propertyType === 'apartment' || hasWegData(exposeData.weg);
+  const currentValues = wizardCurrentValues(property);
 
   return (
     <Section
@@ -81,7 +83,7 @@ export function StepFinancial({
                   onChange={(value) => set('askingPrice', value ? Number(value) : null)}
                   placeholder="z. B. 440000"
                 />
-                <DocumentSources sources={sources?.askingPrice} />
+                <DocumentSources sources={sources?.askingPrice} currentValue={currentValues.askingPrice} />
               </div>
               <div>
                 <UnitInput
@@ -92,7 +94,7 @@ export function StepFinancial({
                   onChange={(value) => setPricing({ pricePerM2: value ? Number(value) : null })}
                   placeholder="Nur wenn angegeben"
                 />
-                <DocumentSources sources={sources?.pricePerM2} />
+                <DocumentSources sources={sources?.pricePerM2} currentValue={currentValues.pricePerM2} />
               </div>
               <div>
                 <UnitInput
@@ -128,7 +130,7 @@ export function StepFinancial({
                   onChange={(value) => set('coldRent', value ? Number(value) : null)}
                   placeholder="z. B. 1900"
                 />
-                <DocumentSources sources={sources?.monthlyRent} />
+                <DocumentSources sources={sources?.monthlyRent} currentValue={currentValues.monthlyRent} />
               </div>
               <div>
                 <UnitInput
@@ -139,7 +141,7 @@ export function StepFinancial({
                   onChange={(value) => set('additionalCosts', value ? Number(value) : null)}
                   placeholder="z. B. 350"
                 />
-                <DocumentSources sources={sources?.additionalCosts} />
+                <DocumentSources sources={sources?.additionalCosts} currentValue={currentValues.additionalCosts} />
               </div>
               <div>
                 <UnitInput
@@ -150,7 +152,7 @@ export function StepFinancial({
                   onChange={(value) => set('deposit', value ? Number(value) : null)}
                   placeholder="Optional"
                 />
-                <DocumentSources sources={sources?.deposit} />
+                <DocumentSources sources={sources?.deposit} currentValue={currentValues.deposit} />
               </div>
               <div>
                 <DateInput
@@ -201,7 +203,7 @@ export function StepFinancial({
                   onChange={(value) => setPricing({ commissionRate: value ? Number(value) : null })}
                   placeholder="z. B. 3,57"
                 />
-                <DocumentSources sources={sources?.commissionRate} />
+                <DocumentSources sources={sources?.commissionRate} currentValue={currentValues.commissionRate} />
               </div>
               <div>
                 <Select
@@ -219,7 +221,7 @@ export function StepFinancial({
                     ['both', 'Beide'],
                   ]}
                 />
-                <DocumentSources sources={sources?.commissionPayer} />
+                <DocumentSources sources={sources?.commissionPayer} currentValue={currentValues.commissionPayer} />
               </div>
               <div className="flex items-end pb-1">
                 <Toggle
@@ -247,7 +249,7 @@ export function StepFinancial({
                   onChange={(value) => setWeg({ hausgeldEur: value ? Number(value) : null })}
                   placeholder="z. B. 350"
                 />
-                <DocumentSources sources={sources?.hausgeld} />
+                <DocumentSources sources={sources?.hausgeld} currentValue={currentValues.hausgeld} />
               </div>
               <div>
                 <UnitInput
@@ -260,7 +262,7 @@ export function StepFinancial({
                   }
                   placeholder="Nur wenn angegeben"
                 />
-                <DocumentSources sources={sources?.maintenanceReserve} />
+                <DocumentSources sources={sources?.maintenanceReserve} currentValue={currentValues.maintenanceReserve} />
               </div>
               <div>
                 <Input
@@ -269,7 +271,7 @@ export function StepFinancial({
                   onChange={(value) => setWeg({ coOwnershipShare: value || null })}
                   placeholder="z. B. 145/10.000"
                 />
-                <DocumentSources sources={sources?.coOwnershipShare} />
+                <DocumentSources sources={sources?.coOwnershipShare} currentValue={currentValues.coOwnershipShare} />
               </div>
             </div>
           </GroupCard>
@@ -310,7 +312,7 @@ export function StepFinancial({
                   onChange={(value) => setRental({ annualRent: value ? Number(value) : null })}
                   placeholder="Optional"
                 />
-                <DocumentSources sources={sources?.annualRent} />
+                <DocumentSources sources={sources?.annualRent} currentValue={currentValues.annualRent} />
               </div>
               <div>
                 <UnitInput
@@ -331,7 +333,7 @@ export function StepFinancial({
                   onChange={(value) => set('deposit', value ? Number(value) : null)}
                   placeholder="Optional"
                 />
-                <DocumentSources sources={sources?.deposit} />
+                <DocumentSources sources={sources?.deposit} currentValue={currentValues.deposit} />
               </div>
               <div>
                 <DateInput
@@ -353,7 +355,7 @@ export function StepFinancial({
                   }
                   placeholder="Optional"
                 />
-                <DocumentSources sources={sources?.grossYieldTarget} />
+                <DocumentSources sources={sources?.grossYieldTarget} currentValue={currentValues.grossYieldTarget} />
               </div>
               <div>
                 <UnitInput
@@ -368,7 +370,7 @@ export function StepFinancial({
                   }
                   placeholder="Optional"
                 />
-                <DocumentSources sources={sources?.grossYieldActual} />
+                <DocumentSources sources={sources?.grossYieldActual} currentValue={currentValues.grossYieldActual} />
               </div>
             </div>
           </GroupCard>
@@ -424,10 +426,10 @@ export function StepLegal({
             )}
           </div>
           <div className="mt-4">
-            <DocumentSources sources={sources?.usufruct} />
-            <DocumentSources sources={sources?.leasehold} />
-            <DocumentSources sources={sources?.foreclosure} />
-            <DocumentSources sources={sources?.heritageProtection} />
+            <DocumentSources sources={sources?.usufruct} currentValue={flags.usufruct} />
+            <DocumentSources sources={sources?.leasehold} currentValue={flags.leasehold} />
+            <DocumentSources sources={sources?.foreclosure} currentValue={flags.foreclosure} />
+            <DocumentSources sources={sources?.heritageProtection} currentValue={flags.heritageProtection} />
           </div>
         </GroupCard>
 
@@ -529,6 +531,7 @@ export function StepLocation({
   onData?: (results: Record<string, unknown>) => void;
 }) {
   const surroundings = property.surroundings ?? {};
+  const currentValues = wizardCurrentValues(property);
   const setSurrounding = (key: string, value: string) =>
     set('surroundings', { ...surroundings, [key]: value });
   const rows: Array<[string, string, string]> = [
@@ -567,7 +570,7 @@ export function StepLocation({
                 }}
                 placeholder="z. B. Neukölln"
               />
-              <DocumentSources sources={sources?.district} />
+              <DocumentSources sources={sources?.district} currentValue={currentValues.district} />
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

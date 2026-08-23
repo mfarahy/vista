@@ -1,5 +1,6 @@
-import { LoaderCircle, Pencil, Sparkles } from 'lucide-react';
+import { AlertTriangle, Check, Info, LoaderCircle, Pencil, Sparkles } from 'lucide-react';
 import { apiAssetUrl } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input as ShadInput } from '@/components/ui/input';
 import { Textarea as ShadTextarea } from '@/components/ui/textarea';
@@ -17,7 +18,92 @@ import {
   conditionLabel,
   subtypeLabel,
 } from '../types';
+import { REVIEW_CATEGORIES, reviewCategoryStatuses, type ReviewIssue } from '../review-checklist';
 import { Section } from './ui';
+
+/**
+ * Compact attention list for the Prüfung step (Phase 10). Shows only
+ * information that deserves attention — missing important facts, document
+ * conflicts and analysis state — with a "Bearbeiten" action that navigates to
+ * the relevant wizard step. Nothing here blocks Exposé generation.
+ */
+function ReviewAttention({
+  issues,
+  onEdit,
+}: {
+  issues: ReviewIssue[];
+  onEdit: (step: number) => void;
+}) {
+  const statuses = reviewCategoryStatuses(issues);
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-semibold text-foreground">Prüfhinweise</span>
+        {!issues.length && <Check className="size-4 text-emerald-600" aria-hidden />}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2" aria-label="Status der Prüfbereiche">
+        {REVIEW_CATEGORIES.map((category) => {
+          const attention = statuses[category] === 'attention';
+          return (
+            <span
+              key={category}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium',
+                attention
+                  ? 'border-amber-300 bg-amber-50 text-amber-800'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-700',
+              )}
+            >
+              {attention ? (
+                <AlertTriangle className="size-3" aria-hidden />
+              ) : (
+                <Check className="size-3" aria-hidden />
+              )}
+              {category}
+            </span>
+          );
+        })}
+      </div>
+      {issues.length ? (
+        <ul className="mt-4 space-y-2.5">
+          {issues.map((issue) => (
+            <li
+              key={issue.id}
+              className="flex items-start justify-between gap-3 rounded-lg border bg-background/60 p-3.5"
+            >
+              <div className="flex min-w-0 items-start gap-2.5">
+                {issue.type === 'warning' ? (
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden />
+                ) : (
+                  <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">{issue.title}</p>
+                  {issue.detail && (
+                    <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{issue.detail}</p>
+                  )}
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => onEdit(issue.editStep)}
+              >
+                <Pencil className="size-3" /> Bearbeiten
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Keine offenen Hinweise — Ihre Angaben sind bereit für das Exposé.
+        </p>
+      )}
+    </div>
+  );
+}
 
 /** Renders the subtype only when it belongs to the chosen property type. */
 function subtypeDisplay(propertyType: string, value?: string | null): string | undefined {
@@ -44,6 +130,7 @@ export function Review({
   metadataLoading,
   updateExposeData,
   noteValue,
+  issues,
 }: {
   property: PropertyPayload;
   images: PropertyImage[];
@@ -52,6 +139,7 @@ export function Review({
   metadataLoading: boolean;
   updateExposeData: (patch: Partial<ExposeData>) => void;
   noteValue: (key: string) => string;
+  issues: ReviewIssue[];
 }) {
   const data = property.exposeData!;
   const title = data.basicInformation.title ?? '';
@@ -99,6 +187,7 @@ export function Review({
       description="Prüfen Sie alles und vervollständigen Sie den Objekttitel, bevor Sie die KI-Texte erzeugen."
     >
       <div className="space-y-5">
+        <ReviewAttention issues={issues} onEdit={onEdit} />
         <div className="rounded-xl border border-primary/25 bg-primary/[0.04] p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
             Objekttitel & Untertitel

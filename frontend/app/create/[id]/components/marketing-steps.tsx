@@ -2,6 +2,27 @@ import { LoaderCircle, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { MarketingContent } from '../types';
 import { GroupCard, Section, Input, Textarea } from './ui';
+import { marketingProvenanceLabel } from '../field-provenance';
+
+/**
+ * Subtle provenance label for a marketing-content field: "Von KI erstellt ·
+ * bearbeitbar" for AI drafts, "Von Ihnen bearbeitet" after an edit. The
+ * internal source record ("ai" | "user") is never shown.
+ */
+function ProvenanceLabel({ source }: { source: 'ai' | 'user' }) {
+  const user = source === 'user';
+  return (
+    <p
+      className={
+        user
+          ? 'mt-1.5 text-xs font-medium text-foreground'
+          : 'mt-1.5 text-xs text-muted-foreground'
+      }
+    >
+      {marketingProvenanceLabel(source)}
+    </p>
+  );
+}
 
 /**
  * Marketing-content review step ("Exposé-Inhalt"). A lightweight content
@@ -75,18 +96,24 @@ export function StepMarketingContent({
       <div className="space-y-5">
         <GroupCard title="Titel & Untertitel">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input
-              label="Titel"
-              value={content.title.value}
-              onChange={editText('title')}
-              placeholder="z. B. Gepflegtes Einfamilienhaus mit Garten und Garage"
-            />
-            <Input
-              label="Untertitel"
-              value={content.subtitle.value}
-              onChange={editText('subtitle')}
-              placeholder="z. B. Reiheneckhaus in Berlin-Buckow"
-            />
+            <div>
+              <Input
+                label="Titel"
+                value={content.title.value}
+                onChange={editText('title')}
+                placeholder="z. B. Gepflegtes Einfamilienhaus mit Garten und Garage"
+              />
+              <ProvenanceLabel source={content.title.source} />
+            </div>
+            <div>
+              <Input
+                label="Untertitel"
+                value={content.subtitle.value}
+                onChange={editText('subtitle')}
+                placeholder="z. B. Reiheneckhaus in Berlin-Buckow"
+              />
+              <ProvenanceLabel source={content.subtitle.source} />
+            </div>
           </div>
         </GroupCard>
 
@@ -135,6 +162,7 @@ export function StepMarketingContent({
           >
             <Plus className="size-4" /> Highlight hinzufügen
           </Button>
+          <ProvenanceLabel source={content.highlights.source} />
         </GroupCard>
 
         <GroupCard title="Objektbeschreibung">
@@ -144,6 +172,7 @@ export function StepMarketingContent({
             onChange={editText('propertyDescription')}
             rows={6}
           />
+          <ProvenanceLabel source={content.propertyDescription.source} />
         </GroupCard>
 
         <GroupCard title="Ausstattung">
@@ -154,6 +183,7 @@ export function StepMarketingContent({
             rows={5}
             hint="Beschreibt nur die tatsächlich vorhandenen Merkmale."
           />
+          <ProvenanceLabel source={content.equipmentDescription.source} />
         </GroupCard>
 
         <GroupCard title="Lage">
@@ -168,6 +198,9 @@ export function StepMarketingContent({
                 : 'Keine Lageinformationen vorhanden — bei Bedarf selbst ergänzen.'
             }
           />
+          {content.locationDescription && (
+            <ProvenanceLabel source={content.locationDescription.source} />
+          )}
         </GroupCard>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">

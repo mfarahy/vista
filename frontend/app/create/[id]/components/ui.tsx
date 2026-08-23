@@ -1,5 +1,12 @@
 import { useRef, useState } from 'react';
-import { Calendar, Check, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import {
+  Calendar,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  Sparkles,
+} from 'lucide-react';
 import { apiAssetUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -16,7 +23,13 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
-import type { ImageCategory, PhotoUnderstanding, PropertyImage, UploadImages } from '../types';
+import type {
+  ImageCategory,
+  PhotoUnderstanding,
+  PropertyImage,
+  UploadImages,
+} from '../types';
+import { PHOTO_TAG_LABELS, photoTypeLabel } from '../types';
 
 export function Section({
   title,
@@ -507,6 +520,7 @@ export function PhotoSection({
   cover,
   moveImage,
   coverSuggestions,
+  photoMetadata,
 }: {
   title: string;
   category: ImageCategory;
@@ -517,6 +531,11 @@ export function PhotoSection({
   cover: (id: string) => Promise<void>;
   moveImage: (index: number, direction: -1 | 1) => Promise<void>;
   coverSuggestions?: Map<string, PhotoUnderstanding>;
+  /**
+   * AI photo understanding keyed by filename (Phase 9/10). Shown as a subtle
+   * "KI-Erkennung" hint — an AI suggestion, never a Property fact.
+   */
+  photoMetadata?: Map<string, PhotoUnderstanding>;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const sectionImages = images.filter(
@@ -524,6 +543,7 @@ export function PhotoSection({
   );
   const globalIndex = (id: string) => images.findIndex((image) => image.id === id);
   const suggestedFor = (image: PropertyImage) => coverSuggestions?.get(image.fileName) ?? null;
+  const metadataFor = (image: PropertyImage) => photoMetadata?.get(image.fileName) ?? null;
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
@@ -555,6 +575,30 @@ export function PhotoSection({
                 alt={image.caption || subcategory || 'Objektfoto'}
                 className="h-32 w-full object-cover"
               />
+              {metadataFor(image) && (
+                <div className="border-t border-border bg-muted/40 px-2.5 py-2 text-xs">
+                  <p className="flex items-center gap-1 text-muted-foreground">
+                    <Sparkles className="size-3" aria-hidden /> KI-Erkennung
+                  </p>
+                  {metadataFor(image)?.photoType && (
+                    <p className="mt-0.5 font-medium text-foreground">
+                      {photoTypeLabel(metadataFor(image)?.photoType)}
+                    </p>
+                  )}
+                  {metadataFor(image)?.photoTags.length ? (
+                    <p className="mt-0.5 text-muted-foreground">
+                      {metadataFor(image)?.photoTags
+                        .map((entry) => PHOTO_TAG_LABELS[entry.tag] ?? entry.tag)
+                        .join(' · ')}
+                    </p>
+                  ) : null}
+                  {metadataFor(image)?.visualDescription && (
+                    <p className="mt-0.5 line-clamp-2 leading-4 text-muted-foreground">
+                      {metadataFor(image)?.visualDescription}
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="flex flex-wrap gap-1.5 p-2">
                 <Button
                   type="button"

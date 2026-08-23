@@ -19,6 +19,7 @@ import {
   subtypeLabel,
 } from '../types';
 import type { WizardFieldCandidate } from '../document-prefill';
+import { wizardCurrentValues } from '../document-prefill';
 import {
   GroupCard,
   Input,
@@ -52,17 +53,21 @@ const ADDRESS_FIELD_KEYS: Array<keyof StructuredAddress> = [
 
 function AddressDocumentSources({
   sources,
+  currentValues,
 }: {
   sources?: Record<string, WizardFieldCandidate[]>;
+  currentValues: Record<string, string | number | boolean | null | undefined>;
 }) {
-  const found = ADDRESS_FIELD_KEYS.map((key) => sources?.[key]).filter(
-    (group): group is WizardFieldCandidate[] => !!group?.length,
-  );
+  const found = ADDRESS_FIELD_KEYS.filter((key) => sources?.[key]?.length);
   if (!found.length) return null;
   return (
     <div className="mt-4 space-y-2 border-t pt-3">
-      {found.map((group) => (
-        <DocumentSources key={group[0].field} sources={group} />
+      {found.map((key) => (
+        <DocumentSources
+          key={key}
+          sources={sources?.[key]}
+          currentValue={currentValues[key]}
+        />
       ))}
     </div>
   );
@@ -71,9 +76,11 @@ function AddressDocumentSources({
 function AddressSection({
   addressState,
   sources,
+  currentValues,
 }: {
   addressState: AddressFieldState;
   sources?: Record<string, WizardFieldCandidate[]>;
+  currentValues: Record<string, string | number | boolean | null | undefined>;
 }) {
   const {
     query,
@@ -178,7 +185,7 @@ function AddressSection({
           <p className="mt-2 text-xs text-muted-foreground">
             Die strukturierte Adresse wird für Standort und Exposé weiterverwendet.
           </p>
-          <AddressDocumentSources sources={sources} />
+          <AddressDocumentSources sources={sources} currentValues={currentValues} />
         </div>
       )}
     </div>
@@ -226,6 +233,7 @@ export function StepProperty({
   const setDetails = (patch: Partial<ExposeData['propertyDetails']>) =>
     updateExposeData({ propertyDetails: { ...details, ...patch } });
 
+  const currentValues = wizardCurrentValues(property);
   const hasDocumentSources = sources && Object.keys(sources).length > 0;
 
   return (
@@ -260,7 +268,7 @@ export function StepProperty({
               );
             })}
           </div>
-          <DocumentSources sources={sources?.propertyType} />
+          <DocumentSources sources={sources?.propertyType} currentValue={currentValues.propertyType} />
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
               <Select
@@ -273,7 +281,7 @@ export function StepProperty({
                   label,
                 ])}
               />
-              <DocumentSources sources={sources?.propertySubtype} />
+              <DocumentSources sources={sources?.propertySubtype} currentValue={currentValues.propertySubtype} />
             </div>
             <div>
               <Select
@@ -290,7 +298,7 @@ export function StepProperty({
                 placeholder="Auswählen"
                 options={PROPERTY_USAGE_TYPES as unknown as ReadonlyArray<readonly [string, string]>}
               />
-              <DocumentSources sources={sources?.usageType} />
+              <DocumentSources sources={sources?.usageType} currentValue={currentValues.usageType} />
             </div>
           </div>
         </GroupCard>
@@ -322,14 +330,14 @@ export function StepProperty({
               );
             })}
           </div>
-          <DocumentSources sources={sources?.transactionType} />
+          <DocumentSources sources={sources?.transactionType} currentValue={currentValues.transactionType} />
         </GroupCard>
 
         <GroupCard
           title="Adresse"
           description="Die Adresse ist die Grundlage für Standort und Exposé."
         >
-          <AddressSection addressState={addressState} sources={sources} />
+          <AddressSection addressState={addressState} sources={sources} currentValues={currentValues} />
         </GroupCard>
 
         <GroupCard title="Flächen und Zimmer">
@@ -342,7 +350,7 @@ export function StepProperty({
                 onChange={(value) => set('livingArea', value ? Number(value) : null)}
                 placeholder="92"
               />
-              <DocumentSources sources={sources?.livingArea} />
+              <DocumentSources sources={sources?.livingArea} currentValue={currentValues.livingArea} />
             </div>
             <div>
               <UnitInput
@@ -352,7 +360,7 @@ export function StepProperty({
                 onChange={(value) => setDetails({ usableArea: value ? Number(value) : null })}
                 placeholder="Optional"
               />
-              <DocumentSources sources={sources?.usableArea} />
+              <DocumentSources sources={sources?.usableArea} currentValue={currentValues.usableArea} />
             </div>
             <div>
               <UnitInput
@@ -362,7 +370,7 @@ export function StepProperty({
                 onChange={(value) => set('plotArea', value ? Number(value) : null)}
                 placeholder="Optional"
               />
-              <DocumentSources sources={sources?.plotArea} />
+              <DocumentSources sources={sources?.plotArea} currentValue={currentValues.plotArea} />
             </div>
             <div>
               <UnitInput
@@ -373,7 +381,7 @@ export function StepProperty({
                 onChange={(value) => set('rooms', value ? Number(value) : null)}
                 placeholder="3"
               />
-              <DocumentSources sources={sources?.rooms} />
+              <DocumentSources sources={sources?.rooms} currentValue={currentValues.rooms} />
             </div>
             <div>
               <UnitInput
@@ -384,7 +392,7 @@ export function StepProperty({
                 onChange={(value) => set('bedrooms', value ? Number(value) : null)}
                 placeholder="2"
               />
-              <DocumentSources sources={sources?.bedrooms} />
+              <DocumentSources sources={sources?.bedrooms} currentValue={currentValues.bedrooms} />
             </div>
             <div>
               <UnitInput
@@ -395,7 +403,7 @@ export function StepProperty({
                 onChange={(value) => set('bathrooms', value ? Number(value) : null)}
                 placeholder="1"
               />
-              <DocumentSources sources={sources?.bathrooms} />
+              <DocumentSources sources={sources?.bathrooms} currentValue={currentValues.bathrooms} />
             </div>
             <div>
               <UnitInput
@@ -406,7 +414,7 @@ export function StepProperty({
                 onChange={(value) => setDetails({ guestToilets: value ? Number(value) : null })}
                 placeholder="Optional"
               />
-              <DocumentSources sources={sources?.guestToilets} />
+              <DocumentSources sources={sources?.guestToilets} currentValue={currentValues.guestToilets} />
             </div>
           </div>
         </GroupCard>
@@ -442,6 +450,7 @@ export function StepBuilding({
         : [...property.selectedFeatures, key],
     );
   const condition = normalizeCondition(property.condition);
+  const currentValues = wizardCurrentValues(property);
 
   return (
     <Section
@@ -459,7 +468,7 @@ export function StepBuilding({
                 onChange={(value) => set('constructionYear', value ? Number(value) : null)}
                 placeholder="z. B. 2018"
               />
-              <DocumentSources sources={sources?.yearBuilt} />
+              <DocumentSources sources={sources?.yearBuilt} currentValue={currentValues.yearBuilt} />
             </div>
             <div>
               <Select
@@ -469,7 +478,7 @@ export function StepBuilding({
                 placeholder="Auswählen"
                 options={BUILDING_STATUSES as unknown as ReadonlyArray<readonly [string, string]>}
               />
-              <DocumentSources sources={sources?.buildingStatus} />
+              <DocumentSources sources={sources?.buildingStatus} currentValue={currentValues.buildingStatus} />
             </div>
             <div>
               <Select
@@ -479,7 +488,7 @@ export function StepBuilding({
                 placeholder="Auswählen"
                 options={PROPERTY_CONDITIONS as unknown as ReadonlyArray<readonly [string, string]>}
               />
-              <DocumentSources sources={sources?.condition} />
+              <DocumentSources sources={sources?.condition} currentValue={currentValues.condition} />
             </div>
           </div>
         </GroupCard>
@@ -497,7 +506,7 @@ export function StepBuilding({
                 placeholder="Auswählen"
                 options={RENOVATION_STATUSES as unknown as ReadonlyArray<readonly [string, string]>}
               />
-              <DocumentSources sources={sources?.renovationStatus} />
+              <DocumentSources sources={sources?.renovationStatus} currentValue={currentValues.renovationStatus} />
             </div>
             <div>
               <Input
@@ -509,7 +518,7 @@ export function StepBuilding({
                 }
                 placeholder="z. B. 2019"
               />
-              <DocumentSources sources={sources?.lastModernizationYear} />
+              <DocumentSources sources={sources?.lastModernizationYear} currentValue={currentValues.lastModernizationYear} />
             </div>
           </div>
         </GroupCard>
@@ -529,7 +538,7 @@ export function StepBuilding({
                   onChange={(value) => set('totalFloors', value ? Number(value) : null)}
                   placeholder="2"
                 />
-                <DocumentSources sources={sources?.numberOfFloors} />
+                <DocumentSources sources={sources?.numberOfFloors} currentValue={currentValues.numberOfFloors} />
               </div>
               <Toggle
                 label="Keller"

@@ -1,4 +1,4 @@
-import type { DocumentRecord } from './types';
+import type { DocumentRecord, PropertyPayload } from './types';
 
 /**
  * Wizard-prefill helpers. Faithful port of the backend prefill rules
@@ -232,4 +232,78 @@ export function computeWizardPrefills(
     if (chosen) defaults[field] = chosen.value as string | number | boolean;
   }
   return { sourcesByField, defaults };
+}
+
+/**
+ * The current wizard values per extraction field, mapped from the reviewed
+ * Property payload (flat legacy fields + canonical exposeData). Used for the
+ * prefill guard and for field provenance — one mapping, shared by every step.
+ *
+ * The wizard boots with propertyType "apartment" and transactionType "sale"
+ * as implicit defaults, not user input; they map to "" so documents can
+ * prefill them, while an explicit user choice is never overwritten.
+ */
+export function wizardCurrentValues(
+  property: PropertyPayload,
+): Record<string, string | number | boolean | null | undefined> {
+  const data = property.exposeData;
+  if (!data) return {};
+  const address = data.basicInformation.address;
+  const details = data.propertyDetails;
+  return {
+    livingArea: property.livingArea ?? details.livingArea,
+    usableArea: details.usableArea,
+    plotArea: property.plotArea ?? details.plotArea,
+    rooms: property.rooms ?? details.rooms,
+    bedrooms: property.bedrooms ?? details.bedrooms,
+    bathrooms: property.bathrooms ?? details.bathrooms,
+    guestToilets: details.guestToilets,
+    yearBuilt: property.constructionYear ?? details.yearBuilt,
+    numberOfFloors: property.totalFloors ?? details.numberOfFloors,
+    floor: property.floor,
+    street: address.street,
+    houseNumber: address.houseNumber,
+    postalCode: address.postalCode,
+    city: address.city,
+    district: address.district,
+    state: address.state,
+    country: address.country,
+    condition: property.condition,
+    buildingStatus: details.buildingStatus,
+    renovationStatus: details.renovationStatus,
+    lastModernizationYear: details.lastModernizationYear,
+    usageType: data.basicInformation.usageType,
+    propertySubtype: data.basicInformation.propertySubtype,
+    propertyType: property.propertyType === 'apartment' ? '' : property.propertyType,
+    transactionType: property.transactionType === 'sale' ? '' : property.transactionType,
+    energyClass: data.energy?.efficiencyClass,
+    energyConsumption: data.energy?.finalEnergyConsumption,
+    energyDemand: data.energy?.finalEnergyDemand,
+    heatingType: data.energy?.heatingType,
+    primaryEnergySource: data.energy?.primaryEnergySource,
+    yearOfConstruction: data.energy?.yearOfConstruction,
+    certificateType: data.energy?.certificateType,
+    certificateDate: data.energy?.certificateDate,
+    certificateValidUntil: data.energy?.certificateValidUntil,
+    hotWaterIncluded: data.energy?.hotWaterIncluded,
+    askingPrice: property.askingPrice,
+    pricePerM2: data.pricing.pricePerM2,
+    commissionRate: data.pricing.commissionRate,
+    commissionPayer: data.pricing.commissionPayer,
+    isRented: data.rental?.isRented,
+    monthlyRent: property.coldRent,
+    annualRent: data.rental?.annualRent,
+    additionalCosts: property.additionalCosts,
+    furnished: data.rental?.furnished,
+    availableFrom: property.availableFrom,
+    hausgeld: data.weg?.hausgeldEur,
+    maintenanceReserve: data.weg?.maintenanceReserveEur,
+    coOwnershipShare: data.weg?.coOwnershipShare,
+    grossYieldTarget: data.investment?.grossYieldTargetPercent,
+    grossYieldActual: data.investment?.grossYieldActualPercent,
+    usufruct: data.additionalInformation?.legalFlags?.usufruct,
+    leasehold: data.additionalInformation?.legalFlags?.leasehold,
+    foreclosure: data.additionalInformation?.legalFlags?.foreclosure,
+    heritageProtection: data.additionalInformation?.legalFlags?.heritageProtection,
+  };
 }

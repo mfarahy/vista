@@ -33,9 +33,11 @@ import {
   computeWizardPrefills,
   groupAdditionalByKey,
   groupCandidatesByField,
+  wizardCurrentValues,
   type AdditionalInfoCandidate,
   type WizardFieldCandidate,
 } from './document-prefill';
+import { buildReviewIssues, type ReviewIssue } from './review-checklist';
 import {
   stepStatus,
   stepStatusLabel,
@@ -114,6 +116,39 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     }
     return byFilename;
   }, [documentRecords]);
+
+  /**
+   * AI photo understanding keyed by filename (Phase 10). Displayed as subtle
+   * "KI-Erkennung" hints in the Fotos step; never treated as Property facts.
+   */
+  const photoMetadata = useMemo(() => {
+    const byFilename = new Map<string, PhotoUnderstanding>();
+    for (const record of documentRecords) {
+      const photo = record.understandingResult?.photo;
+      if (photo && record.documentType === 'property_photo') {
+        byFilename.set(record.filename, photo);
+      }
+    }
+    return byFilename;
+  }, [documentRecords]);
+
+  const reviewIssues: ReviewIssue[] = useMemo(
+    () =>
+      buildReviewIssues({
+        property,
+        sourcesByField: fieldSources,
+        documents: {
+          total: documentRecords.length,
+          analyzed: documentRecords.filter((record) => record.status === 'completed').length,
+          failed: documentRecords.filter(
+            (record) => record.status === 'failed' || record.understandingError != null,
+          ).length,
+        },
+        imageCount: images.length,
+        marketingContentExists: Boolean(marketingContent),
+      }),
+    [property, fieldSources, documentRecords, images.length, marketingContent],
+  );
 
   // Load persisted documents and prefill empty wizard fields from their AI
   // understanding results. This is what makes prefill survive a page reload:
@@ -345,69 +380,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
     if (!Object.keys(sourcesByField).length) return;
 
     setProperty((current) => {
-      const data = current.exposeData ?? emptyExposeData(initialProperty);
-      const address = data.basicInformation.address;
-      const details = data.propertyDetails;
-      const currentValues: Record<string, unknown> = {
-        livingArea: current.livingArea ?? details.livingArea,
-        usableArea: details.usableArea,
-        plotArea: current.plotArea ?? details.plotArea,
-        rooms: current.rooms ?? details.rooms,
-        bedrooms: current.bedrooms ?? details.bedrooms,
-        bathrooms: current.bathrooms ?? details.bathrooms,
-        guestToilets: details.guestToilets,
-        yearBuilt: current.constructionYear ?? details.yearBuilt,
-        numberOfFloors: current.totalFloors ?? details.numberOfFloors,
-        floor: current.floor,
-        street: address.street,
-        houseNumber: address.houseNumber,
-        postalCode: address.postalCode,
-        city: address.city,
-        district: address.district,
-        state: address.state,
-        country: address.country,
-        condition: current.condition,
-        buildingStatus: details.buildingStatus,
-        renovationStatus: details.renovationStatus,
-        lastModernizationYear: details.lastModernizationYear,
-        usageType: data.basicInformation.usageType,
-        propertySubtype: data.basicInformation.propertySubtype,
-        // The wizard boots with propertyType "apartment" and transactionType
-        // "sale" as implicit defaults, not user input. Treat them as empty so a
-        // document that states "Haus" or "Miete" can prefill them (see the
-        // matching guard in applyPrefillToProperty).
-        propertyType: current.propertyType === 'apartment' ? '' : current.propertyType,
-        transactionType: current.transactionType === 'sale' ? '' : current.transactionType,
-        energyClass: data.energy?.efficiencyClass,
-        energyConsumption: data.energy?.finalEnergyConsumption,
-        energyDemand: data.energy?.finalEnergyDemand,
-        heatingType: data.energy?.heatingType,
-        primaryEnergySource: data.energy?.primaryEnergySource,
-        yearOfConstruction: data.energy?.yearOfConstruction,
-        certificateType: data.energy?.certificateType,
-        certificateDate: data.energy?.certificateDate,
-        certificateValidUntil: data.energy?.certificateValidUntil,
-        hotWaterIncluded: data.energy?.hotWaterIncluded,
-        askingPrice: current.askingPrice,
-        pricePerM2: data.pricing.pricePerM2,
-        commissionRate: data.pricing.commissionRate,
-        commissionPayer: data.pricing.commissionPayer,
-        isRented: data.rental?.isRented,
-        monthlyRent: current.coldRent,
-        annualRent: data.rental?.annualRent,
-        additionalCosts: current.additionalCosts,
-        furnished: data.rental?.furnished,
-        availableFrom: current.availableFrom,
-        hausgeld: data.weg?.hausgeldEur,
-        maintenanceReserve: data.weg?.maintenanceReserveEur,
-        coOwnershipShare: data.weg?.coOwnershipShare,
-        grossYieldTarget: data.investment?.grossYieldTargetPercent,
-        grossYieldActual: data.investment?.grossYieldActualPercent,
-        usufruct: data.additionalInformation?.legalFlags?.usufruct,
-        leasehold: data.additionalInformation?.legalFlags?.leasehold,
-        foreclosure: data.additionalInformation?.legalFlags?.foreclosure,
-        heritageProtection: data.additionalInformation?.legalFlags?.heritageProtection,
-      };
+      const currentValues: Record<string, unknown> = wizardCurrentValues(current);
       const { defaults } = computeWizardPrefills(records, currentValues);
       return applyPrefillToProperty(current, defaults);
     });
@@ -1342,6 +1315,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                         noteValue={noteValue}
                         setNote={setNote}
                         coverSuggestions={coverSuggestions}
+                        photoMetadata={photoMetadata}
                       />
                     )}
                     {step === 11 && (
@@ -1373,6 +1347,7 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                     metadataLoading={metadataLoading}
                     updateExposeData={updateExposeData}
                     noteValue={noteValue}
+                    issues={reviewIssues}
                   />
                 ) : (
                   <ContentEditor

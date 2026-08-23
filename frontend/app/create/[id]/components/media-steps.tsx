@@ -11,6 +11,7 @@ export function StepPhotos({
   noteValue,
   setNote,
   coverSuggestions,
+  photoMetadata,
 }: {
   images: PropertyImage[];
   rooms?: number | null;
@@ -25,6 +26,11 @@ export function StepPhotos({
    * hint is shown; the cover is never selected automatically.
    */
   coverSuggestions?: Map<string, PhotoUnderstanding>;
+  /**
+   * AI photo understanding keyed by filename (Phase 10). Shown as subtle
+   * "KI-Erkennung" hints that stay visually distinct from Property facts.
+   */
+  photoMetadata?: Map<string, PhotoUnderstanding>;
 }) {
   const roomCount = Math.max(Number(rooms) || 0, 0);
   const interiorSections = [
@@ -69,6 +75,7 @@ export function StepPhotos({
                 cover={cover}
                 moveImage={moveImage}
                 coverSuggestions={coverSuggestions}
+                photoMetadata={photoMetadata}
               />
             ))}
           </div>
@@ -90,6 +97,7 @@ export function StepPhotos({
                 cover={cover}
                 moveImage={moveImage}
                 coverSuggestions={coverSuggestions}
+                photoMetadata={photoMetadata}
               />
             ))}
           </div>

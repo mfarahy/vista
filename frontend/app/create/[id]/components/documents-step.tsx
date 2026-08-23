@@ -17,39 +17,169 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { DocumentRecord } from '../types';
-import { DOCUMENT_TYPE_LABELS, PHOTO_TAG_LABELS, photoTypeLabel } from '../types';
+import {
+  BUILDING_STATUSES,
+  DOCUMENT_TYPE_LABELS,
+  ENERGY_CERTIFICATE_TYPES,
+  ENERGY_SOURCES,
+  PHOTO_TAG_LABELS,
+  PROPERTY_SUBTYPES,
+  PROPERTY_TYPES,
+  conditionLabel,
+  photoTypeLabel,
+  subtypeLabel,
+} from '../types';
 import { Section } from './ui';
 import {
   collectWizardFieldCandidates,
   groupCandidatesByField,
   formatExtractedValue,
+  pickDefault,
   wizardFieldLabel,
   type WizardFieldCandidate,
 } from '../document-prefill';
 
 const ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
 
-const ADDRESS_FIELDS: Array<[string, string]> = [
-  ['street', 'Straße'],
-  ['houseNumber', 'Hausnummer'],
-  ['postalCode', 'PLZ'],
-  ['city', 'Ort'],
-  ['district', 'Stadtteil'],
-  ['state', 'Bundesland'],
-  ['country', 'Land'],
+/** Categories of the "Gefundene Informationen" overview (spec §16). */
+const FOUND_CATEGORIES: Array<{ label: string; fields: Array<[string, string]> }> = [
+  {
+    label: 'Adresse',
+    fields: [
+      ['street', 'Straße'],
+      ['houseNumber', 'Hausnummer'],
+      ['postalCode', 'PLZ'],
+      ['city', 'Ort'],
+      ['district', 'Stadtteil'],
+      ['state', 'Bundesland'],
+      ['country', 'Land'],
+    ],
+  },
+  {
+    label: 'Objekt',
+    fields: [
+      ['propertyType', 'Objektart'],
+      ['propertySubtype', 'Objektunterart'],
+      ['usageType', 'Verwendungszweck'],
+      ['livingArea', 'Wohnfläche'],
+      ['usableArea', 'Nutzfläche'],
+      ['plotArea', 'Grundstücksfläche'],
+      ['rooms', 'Zimmer'],
+      ['bedrooms', 'Schlafzimmer'],
+      ['bathrooms', 'Badezimmer'],
+      ['guestToilets', 'Gäste-WCs'],
+      ['floor', 'Etage'],
+    ],
+  },
+  {
+    label: 'Gebäude',
+    fields: [
+      ['yearBuilt', 'Baujahr'],
+      ['buildingStatus', 'Objektstatus'],
+      ['condition', 'Zustand'],
+      ['renovationStatus', 'Sanierungsstatus'],
+      ['lastModernizationYear', 'Letzte Modernisierung'],
+      ['numberOfFloors', 'Etagen'],
+      ['basement', 'Keller'],
+      ['attic', 'Dachgeschoss'],
+    ],
+  },
+  {
+    label: 'Finanzen',
+    fields: [
+      ['askingPrice', 'Kaufpreis'],
+      ['pricePerM2', 'Kaufpreis / m²'],
+      ['monthlyRent', 'Kaltmiete'],
+      ['annualRent', 'Jahresmiete'],
+      ['additionalCosts', 'Nebenkosten'],
+      ['deposit', 'Kaution'],
+      ['commissionRate', 'Provisionssatz'],
+      ['commissionPayer', 'Provisionszahler'],
+      ['hausgeld', 'Hausgeld'],
+      ['maintenanceReserve', 'Instandhaltungsrücklage'],
+      ['coOwnershipShare', 'Miteigentumsanteil'],
+      ['grossYieldTarget', 'Bruttorendite (Soll)'],
+      ['grossYieldActual', 'Bruttorendite (Ist)'],
+      ['availableFrom', 'Verfügbar ab'],
+    ],
+  },
+  {
+    label: 'Energie',
+    fields: [
+      ['energyClass', 'Effizienzklasse'],
+      ['energyDemand', 'Endenergiebedarf'],
+      ['energyConsumption', 'Endenergieverbrauch'],
+      ['heatingType', 'Heizungsart'],
+      ['primaryEnergySource', 'Energieträger'],
+      ['yearOfConstruction', 'Baujahr laut Ausweis'],
+      ['certificateType', 'Ausweistyp'],
+      ['certificateDate', 'Ausgestellt am'],
+      ['certificateValidUntil', 'Gültig bis'],
+      ['hotWaterIncluded', 'Warmwasser enthalten'],
+    ],
+  },
 ];
 
-const PROPERTY_FIELDS: Array<[string, string]> = [
-  ['livingArea', 'Wohnfläche'],
-  ['plotArea', 'Grundstücksfläche'],
-  ['rooms', 'Zimmer'],
-  ['bedrooms', 'Schlafzimmer'],
-  ['bathrooms', 'Badezimmer'],
-  ['yearBuilt', 'Baujahr'],
-  ['floor', 'Etage'],
-  ['numberOfFloors', 'Etagen'],
-  ['propertyType', 'Objektart'],
-];
+function formatFoundValue(field: string, value: string | number | boolean | null): string {
+  if (typeof value === 'boolean') return formatExtractedValue(value);
+  const text = String(value);
+  const enumLabel = (
+    options: ReadonlyArray<readonly [string, string]>,
+    key: string,
+  ) => options.find(([option]) => option === key)?.[1];
+  const labeled: Record<string, string | undefined> = {
+    propertyType: enumLabel(PROPERTY_TYPES as ReadonlyArray<readonly [string, string]>, text),
+    buildingStatus: enumLabel(BUILDING_STATUSES as ReadonlyArray<readonly [string, string]>, text),
+    certificateType: enumLabel(
+      ENERGY_CERTIFICATE_TYPES as ReadonlyArray<readonly [string, string]>,
+      text,
+    ),
+    primaryEnergySource: enumLabel(
+      ENERGY_SOURCES as ReadonlyArray<readonly [string, string]>,
+      text,
+    ),
+    commissionPayer: { buyer: 'Käufer', seller: 'Verkäufer', both: 'Beide' }[text],
+  };
+  const knownLabel = labeled[field];
+  if (knownLabel) return knownLabel;
+  if (field === 'propertySubtype') {
+    for (const type of Object.keys(PROPERTY_SUBTYPES)) {
+      const label = subtypeLabel(type, text);
+      if (label && label !== text) return label;
+    }
+    return text;
+  }
+  if (field === 'condition') return conditionLabel(text) || text;
+  const number = typeof value === 'number' ? value : Number(text.replace(/\./g, '').replace(',', '.'));
+  if (Number.isFinite(number)) {
+    const moneyFields = new Set([
+      'askingPrice',
+      'pricePerM2',
+      'monthlyRent',
+      'annualRent',
+      'additionalCosts',
+      'deposit',
+      'hausgeld',
+      'maintenanceReserve',
+    ]);
+    const percentFields = new Set([
+      'commissionRate',
+      'grossYieldTarget',
+      'grossYieldActual',
+    ]);
+    if (moneyFields.has(field)) {
+      return `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(number)} €`;
+    }
+    if (percentFields.has(field)) {
+      return `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(number)} %`;
+    }
+    const areaFields = new Set(['livingArea', 'usableArea', 'plotArea', 'gardenArea']);
+    if (areaFields.has(field)) return `${formatExtractedValue(value)} m²`;
+    if (field === 'energyDemand' || field === 'energyConsumption')
+      return `${formatExtractedValue(value)} kWh/(m²·a)`;
+  }
+  return formatExtractedValue(value);
+}
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -111,9 +241,11 @@ export function StepDocuments({
     [documents],
   );
 
-  const foundAddress = ADDRESS_FIELDS.filter(([field]) => sourcesByField[field]?.length);
-  const foundProperty = PROPERTY_FIELDS.filter(([field]) => sourcesByField[field]?.length);
-  const hasFoundInfo = foundAddress.length > 0 || foundProperty.length > 0;
+  const foundCategories = FOUND_CATEGORIES.map((category) => ({
+    ...category,
+    found: category.fields.filter(([field]) => sourcesByField[field]?.length),
+  })).filter((category) => category.found.length > 0);
+  const hasFoundInfo = foundCategories.length > 0;
 
   const conflicts = useMemo(() => {
     const list: Array<{ field: string; sources: WizardFieldCandidate[] }> = [];
@@ -123,9 +255,7 @@ export function StepDocuments({
     return list;
   }, [sourcesByField]);
 
-  const conflictLabel = (field: string) =>
-    [...ADDRESS_FIELDS, ...PROPERTY_FIELDS].find(([key]) => key === field)?.[1] ??
-    wizardFieldLabel(field);
+  const conflictLabel = (field: string) => wizardFieldLabel(field);
 
   async function uploadFiles(files: FileList | null) {
     if (!files?.length) return;
@@ -315,44 +445,36 @@ export function StepDocuments({
               {analyzedCount === 1 ? 'Dokument' : 'Dokumenten'} verwertbare Informationen gefunden.
             </p>
             <div className="mt-4 grid gap-6 sm:grid-cols-2">
-              {foundAddress.length > 0 && (
-                <div>
+              {foundCategories.map((category) => (
+                <div key={category.label}>
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Adresse
+                    {category.label}
                   </p>
-                  <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
-                    {ADDRESS_FIELDS.map(([field, label]) => {
+                  <ul className="mt-2 space-y-1">
+                    {category.found.map(([field, label]) => {
                       const sources = sourcesByField[field];
-                      if (!sources?.length) return null;
+                      const value = pickDefault(sources)?.value;
+                      if (value == null) return null;
                       return (
-                        <li key={field} className="inline-flex items-center gap-1.5 text-sm">
-                          <Check className="size-3.5 shrink-0 text-primary" aria-hidden />
+                        <li
+                          key={field}
+                          className="flex items-baseline justify-between gap-3 text-sm"
+                        >
                           <span className="text-foreground">{label}</span>
+                          <span className="text-right font-medium text-foreground">
+                            {formatFoundValue(field, value)}
+                            {sources.length > 1 && (
+                              <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                                · {sources.length} Quellen
+                              </span>
+                            )}
+                          </span>
                         </li>
                       );
                     })}
                   </ul>
                 </div>
-              )}
-              {foundProperty.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Objekt
-                  </p>
-                  <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
-                    {PROPERTY_FIELDS.map(([field, label]) => {
-                      const sources = sourcesByField[field];
-                      if (!sources?.length) return null;
-                      return (
-                        <li key={field} className="inline-flex items-center gap-1.5 text-sm">
-                          <Check className="size-3.5 shrink-0 text-primary" aria-hidden />
-                          <span className="text-foreground">{label}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
+              ))}
             </div>
           </div>
         )}
