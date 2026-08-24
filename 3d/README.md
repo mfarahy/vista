@@ -1,10 +1,28 @@
 # Deterministic Multi-Floor Villa (Phase 3)
 
-This isolated React, TypeScript, and Three.js prototype converts structured 2D architectural data into a deterministic multi-floor building model.
+This isolated React, TypeScript, and Three.js prototype converts structured 2D architectural data into a deterministic multi-floor building model. It adopts the data conventions and wall-opening segmentation approach from [openPlan3D](https://github.com/laanlabs/openPlan3D), whose upstream repository is an application rather than a distributable React library.
 
 ```text
 Building -> Floors -> FloorPlan2D -> validation -> 3D geometry -> Three.js viewer
 ```
+
+## openPlan3D adoption
+
+openPlan3D was selected because it defines a practical shared architectural model for `Floor`, `Wall`, `Door`, `Window`, and `Room`, renders the same floor data in 2D and 3D, and uses parametric door/window positions along walls. The upstream project is available at https://github.com/laanlabs/openPlan3D and is licensed under MIT; its attribution and license text are preserved in [OPENPLAN3D-LICENSE](OPENPLAN3D-LICENSE).
+
+This prototype reuses the upstream model conventions and the pure `buildWallSegments` rule extracted from `src/lib/components/viewer3d/ThreeViewer.svelte`. [openPlan3D.ts](src/openPlan3D.ts) is the deliberately small integration boundary: it converts the canonical meter model to upstream-style normalized openings and keeps the conversion deterministic. The React viewer remains local because the upstream viewer is coupled to Svelte stores and components. No upstream application shell, persistence, Firebase integration, furniture, or import pipeline is copied.
+
+## Architecture
+
+```text
+Building
+       -> Floor (explicit elevation in meters)
+              -> Room / Wall / Door / Window (one canonical 2D plan)
+                     -> openPlan3D adapter -> 2D conventions and wall segmentation
+                     -> local Three.js representation
+```
+
+The authored source of truth is `Building` in [floorPlan.ts](src/floorPlan.ts). The adapter is a derived representation for integration, not a second editable building model. The current prototype has no interactive 2D editor; the structured floor plan is the 2D representation consumed by the 3D renderer.
 
 ## Run locally
 
@@ -47,7 +65,7 @@ The generator never derives elevation from array order. The demo elevations are 
 
 ## Geometry and coordinates
 
-All plans use one global horizontal coordinate system. A plan point is local floor data with `x` east-west and `y` north-south. It maps to Three.js world coordinates as:
+All plans use one global horizontal coordinate system. A plan point is floor-local data in meters with `x` east-west and `y` north-south. This differs from upstream openPlan3D's editor convention, which stores `x/y` in centimeters; the adapter keeps the upstream normalized opening semantics while the canonical prototype remains in meters. It maps to Three.js world coordinates as:
 
 ```text
 worldX = planX
@@ -55,7 +73,7 @@ worldY = floor.elevation + localHeight
 worldZ = -planY
 ```
 
-The south-west plan corner is the shared `(0, 0)` horizontal origin. Three.js `Y` is up. Wall thickness and wall height remain in meters; openings split wall solids into deterministic segments.
+The south-west plan corner is the shared `(0, 0)` horizontal origin. Three.js `Y` is up. Wall thickness and wall height remain in meters; openings split wall solids into deterministic segments. A floor's global vertical base is its explicit `elevation`; local wall/window/door height is added to that value. The plan `y` axis maps to world `-Z` so the horizontal mapping remains stable and right-handed for the viewer.
 
 ## Rooms, stairs, and roof
 
@@ -72,3 +90,7 @@ The viewer supports orbit, pan, zoom, camera inspection, and a selector for Base
 ## Current limitations
 
 This phase intentionally excludes AI, image/PDF parsing, OCR, panoramas, virtual tours, camera placement, measurements overlays, furniture, realistic materials, backend/API/database/authentication, and advanced roof or stair generation. Room boundaries are structured input rather than detected geometry.
+
+## Future direction
+
+This isolated prototype is intended to become the deterministic 3D foundation for Vista later. Vista integration is intentionally not implemented in this phase.

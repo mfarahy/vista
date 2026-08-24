@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { demoBuilding, type Building, type FloorPlan2D } from "./floorPlan";
 import { FloorPlanValidationError, generateBuildingModel, validateFloorPlan, wallLength } from "./geometryGenerator";
+import { buildOpenPlan3DWallSegments, toOpenPlan3DProject } from "./openPlan3D";
 
 const baseWallPlan = (wallOverrides: Partial<FloorPlan2D["walls"][number]> = {}): FloorPlan2D => ({
   unit: "m",
@@ -74,5 +75,29 @@ describe("validation and determinism", () => {
 
   it("returns identical geometry for identical building input", () => {
     expect(generateBuildingModel(demoBuilding)).toEqual(generateBuildingModel(demoBuilding));
+  });
+});
+
+describe("openPlan3D integration boundary", () => {
+  it("maps the canonical model to normalized upstream openings and ownership", () => {
+    const project = toOpenPlan3DProject(demoBuilding);
+    const ground = project.floors.find((floor) => floor.id === "ground");
+    expect(ground?.elevation).toBe(0);
+    expect(ground?.rooms.every((room) => room.walls.every((wallId) => ground.walls.some((wall) => wall.id === wallId)))).toBe(true);
+    expect(ground?.doors.every((door) => door.position >= 0 && door.position <= 1)).toBe(true);
+    expect(ground?.windows.every((window) => window.position >= 0 && window.position <= 1)).toBe(true);
+  });
+
+  it("keeps custom door heights as real upstream-style opening segments", () => {
+    const segments = buildOpenPlan3DWallSegments(5, 2.8, [{ position: 0.5, width: 1, height: 2 }], []);
+    expect(segments).toHaveLength(3);
+    expect(segments[0]).toMatchObject({ width: 2, height: 2.8, offsetX: 1, offsetY: 0 });
+    expect(segments[1]).toMatchObject({ width: 1, offsetX: 2.5, offsetY: 2 });
+    expect(segments[1].height).toBeCloseTo(0.8, 10);
+    expect(segments[2]).toMatchObject({ width: 2, height: 2.8, offsetX: 4, offsetY: 0 });
+  });
+
+  it("produces identical adapted projects for identical input", () => {
+    expect(toOpenPlan3DProject(demoBuilding)).toEqual(toOpenPlan3DProject(demoBuilding));
   });
 });

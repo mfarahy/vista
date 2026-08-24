@@ -1,4 +1,5 @@
 import type { Building, Door2D, Floor2D, FloorPlan2D, Point2D, Roof2D, Stair2D, Wall2D, Window2D } from "./floorPlan";
+import { buildOpenPlan3DWallSegments, toOpenPlan3DProject } from "./openPlan3D";
 
 export type WallBox3D = {
   id: string;
@@ -238,27 +239,11 @@ const createWallBox = (floorId: string, elevation: number, wall: Wall2D, startOf
 
 const generateWallBoxes = (floorId: string, elevation: number, wall: Wall2D, openings: WallOpening[]): WallBox3D[] => {
   const wallLengthValue = distance(wall.start, wall.end);
-  const sortedOpenings = openings.map(asNormalizedOpening).slice().sort(compareOpenings);
-  const boxes: WallBox3D[] = [];
-  let cursor = 0;
-  let index = 0;
-
-  for (const opening of sortedOpenings) {
-    const before = createWallBox(floorId, elevation, wall, cursor, opening.offset, 0, wall.height, index++);
-    if (before) boxes.push(before);
-
-    const below = createWallBox(floorId, elevation, wall, opening.offset, opening.offset + opening.width, 0, opening.sillHeight, index++);
-    if (below) boxes.push(below);
-
-    const aboveHeight = wall.height - opening.sillHeight - opening.height;
-    const above = createWallBox(floorId, elevation, wall, opening.offset, opening.offset + opening.width, opening.sillHeight + opening.height, aboveHeight, index++);
-    if (above) boxes.push(above);
-    cursor = opening.offset + opening.width;
-  }
-
-  const after = createWallBox(floorId, elevation, wall, cursor, wallLengthValue, 0, wall.height, index++);
-  if (after) boxes.push(after);
-  return boxes;
+  const openPlanFloor = toOpenPlan3DProject({ unit: "m", floors: [{ id: floorId, name: floorId, elevation, floorToFloorHeight: wall.height, plan: { unit: "m", walls: [wall], doors: openings.filter((opening): opening is Door2D => !("sillHeight" in opening)), windows: openings.filter((opening): opening is Window2D => "sillHeight" in opening), rooms: [] } }], stairs: [], roof: { id: "unused", floorId, height: 0 } }).floors[0];
+  return buildOpenPlan3DWallSegments(wallLengthValue * 100, wall.height * 100, openPlanFloor.doors, openPlanFloor.windows).flatMap((segment, index) => {
+    const startOffset = (segment.offsetX - segment.width / 2) / 100;
+    return createWallBox(floorId, elevation, wall, startOffset, startOffset + segment.width / 100, segment.offsetY / 100, segment.height / 100, index) ?? [];
+  });
 };
 
 const createOpening3D = (floorId: string, elevation: number, opening: NormalizedOpening, wall: Wall2D): Opening3D => {
