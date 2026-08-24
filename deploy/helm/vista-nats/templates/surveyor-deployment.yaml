@@ -24,6 +24,18 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      initContainers:
+        - name: wait-for-nats
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until wget -q -O /dev/null http://{{ include "vista-nats.fullname" . }}:{{ .Values.service.monitorPort }}/; do
+                echo "waiting for NATS at {{ include "vista-nats.fullname" . }}:{{ .Values.service.monitorPort }}";
+                sleep 2;
+              done
+              echo "NATS is available"
       containers:
         - name: nats-surveyor
           image: "{{ .Values.surveyor.image.repository }}:{{ .Values.surveyor.image.tag }}"
@@ -57,16 +69,16 @@ spec:
               mountPath: /jetstream
           readinessProbe:
             httpGet:
-              path: /
+              path: /metrics
               port: http
-            initialDelaySeconds: 10
+            initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
-              path: /
+              path: /metrics
               port: http
-            initialDelaySeconds: 20
-            periodSeconds: 20
+            initialDelaySeconds: 15
+            periodSeconds: 15
           resources:
             {{- toYaml .Values.surveyor.resources | nindent 12 }}
       volumes:
