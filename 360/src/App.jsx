@@ -1,27 +1,37 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import 'pannellum/build/pannellum.js'
 import 'pannellum/build/pannellum.css'
+import { panoramaById } from './panoramas.js'
 import {
-  WINDOW_ANNOTATION,
-  attachWindowAnnotation,
-} from './spatialAnnotation.js'
+  FADE_TRANSITION_MS,
+  buildScenesConfig,
+  navigateToPanorama,
+} from './spatialNavigation.js'
+import { attachWindowAnnotation } from './spatialAnnotation.js'
 
 const pannellum = window.pannellum
 
-const PANORAMA_URL = `${import.meta.env.BASE_URL}pano/rheingauer-dom.jpg`
-
 export default function App() {
   const containerRef = useRef(null)
+  const [currentLabel, setCurrentLabel] = useState(
+    () => panoramaById('living-room').label,
+  )
 
   useEffect(() => {
-    const viewer = pannellum.viewer(containerRef.current, {
+    let viewer
+    let annotationCleanup
+
+    // One Pannellum scene per panorama; navigation arrows are part of each
+    // scene's hotspot configuration.
+    const scenes = buildScenesConfig((link) => navigateToPanorama(viewer, link))
+
+    viewer = pannellum.viewer(containerRef.current, {
       type: 'equirectangular',
-      panorama: PANORAMA_URL,
+      firstScene: 'living-room',
+      scenes,
       autoLoad: true,
-      // Start looking directly at the annotation so the fade behavior is
-      // immediately verifiable (rotate away → fades out, rotate back → in).
-      yaw: WINDOW_ANNOTATION.yaw,
-      pitch: WINDOW_ANNOTATION.pitch,
+      // Simple cross-fade transition between panoramas.
+      sceneFadeDuration: FADE_TRANSITION_MS,
       // Interaction: drag to look around, wheel + pinch to zoom.
       mouseZoom: true,
       keyboardZoom: true,
@@ -31,13 +41,30 @@ export default function App() {
       tooltip: false,
     })
 
-    let cleanupAnnotation
-    viewer.on('load', () => {
-      cleanupAnnotation = attachWindowAnnotation(viewer, containerRef.current)
-    })
+    // `load` fires for the initial panorama and after every scene change.
+    const handleSceneLoad = () => {
+      const sceneId = viewer.getScene()
+      const pano = panoramaById(sceneId)
+      setCurrentLabel(pano ? pano.label : sceneId)
+
+      // The window annotation (Phase 3) only exists in the living room.
+      // Navigation arrows are created by Pannellum from the scene config.
+      if (annotationCleanup) {
+        annotationCleanup()
+        annotationCleanup = undefined
+      }
+      if (sceneId === 'living-room') {
+        annotationCleanup = attachWindowAnnotation(
+          viewer,
+          containerRef.current,
+        )
+      }
+    }
+    viewer.on('load', handleSceneLoad)
 
     return () => {
-      if (cleanupAnnotation) cleanupAnnotation()
+      viewer.off('load', handleSceneLoad)
+      if (annotationCleanup) annotationCleanup()
       viewer.destroy()
     }
   }, [])
@@ -45,7 +72,7 @@ export default function App() {
   return (
     <>
       <div className="viewer" ref={containerRef} />
-      <h1 className="title">Vista 360 Prototype</h1>
+      <h1 className="title">Vista 360 Prototype · {currentLabel}</h1>
     </>
   )
 }
