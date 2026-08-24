@@ -10,6 +10,81 @@ body,
   inset: 0;
 }
 
+.view-switcher {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 20;
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.view-switcher-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #fff;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.view-switcher-btn--active {
+  background: rgba(255, 255, 255, 0.94);
+  color: #1f2937;
+}
+
+.floorplan-2d,
+.scene-3d {
+  position: fixed;
+  inset: 0;
+  background: #f3f4f6;
+}
+
+.floorplan-room {
+  fill: #ffffff;
+  stroke: none;
+}
+
+.floorplan-room-label {
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  fill: #374151;
+}
+
+.floorplan-wall {
+  stroke: #1f2937;
+  stroke-width: 4;
+  stroke-linecap: square;
+}
+
+.floorplan-marker {
+  cursor: pointer;
+}
+
+.floorplan-marker-dot {
+  fill: #2563eb;
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.floorplan-marker--active .floorplan-marker-dot {
+  fill: #f59e0b;
+}
+
+.floorplan-marker-label {
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  fill: #1f2937;
+}
+
 .annotation-window {
   pointer-events: none;
 }

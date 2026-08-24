@@ -2,8 +2,10 @@
 
 An isolated React prototype for the future Vista Virtual Tour system. It
 renders equirectangular 360° panoramas in the browser using
-[Pannellum](https://pannellum.org/) and — since Phase 4 — lets you navigate
-spatially between three sample panoramas via navigation arrows.
+[Pannellum](https://pannellum.org/), lets you navigate spatially between
+three sample panoramas via navigation arrows (Phase 4), and — since Phase 6 —
+shows the same three positions as a 2D floor plan and a 3D scene, all driven
+by one shared coordinate system.
 
 > This is an intentional, isolated experiment. It lives completely inside the
 > `360/` folder and does **not** touch or depend on the existing Vista
@@ -36,8 +38,49 @@ spatially between three sample panoramas via navigation arrows.
   - touch (pinch to zoom, drag to look) on mobile browsers
 - A minimal title overlay (`Vista 360 Prototype · <room>`)
 
-Not included (by design): floor plans, 3D buildings, measurements, uploads,
-authentication, backend, database, API.
+- **View switcher** (Phase 6): a top-left toggle lets you switch between the
+  **2D Floor Plan**, the **3D View** and the **360°** panorama viewer.
+  Clicking a panorama marker in the 2D floor plan or the 3D view switches to
+  the 360° view for that exact panorama.
+
+Not included (by design): a floor-plan editor, textured/production-grade 3D
+buildings, measurements, uploads, authentication, backend, database, API.
+
+## Coordinate model (Phase 6)
+
+There is exactly **one** canonical spatial coordinate system — a 2D
+floor-plan plane in meters — and every other representation is *derived*
+from it, never duplicated:
+
+- **Floor-plan coordinates** (`src/panoramas.js`, `src/floorplan.js`): each
+  panorama and each room has an `{ x, y }` position in meters. `x` is east,
+  `y` is south — the same convention already used for navigation-arrow yaws
+  (`worldYawBetween()`: yaw 0° = +x, yaw 90° = +y).
+- **3D world coordinates** (`src/coordinates.js`, used by `Scene3D.jsx`): a
+  right-handed, Y-up three.js space where
+  `worldX = x`, `worldZ = y`, and `worldY` is a fixed eye-level height
+  (`EYE_HEIGHT_M`, 1.6 m) for panorama markers, or wall height for walls. The
+  floor-plan plane simply becomes the 3D ground plane (X/Z).
+- **360 panorama metadata** (`src/panoramas.js`): the panorama's `position`
+  field *is* the floor-plan coordinate; link yaws for navigation arrows are
+  computed from these same positions.
+
+Because all three views read from the same `{ x, y }` values (via
+`floorPlanToWorld3D()` for the 3D view), moving a room in `floorplan.js` or a
+panorama in `panoramas.js` automatically keeps the 2D floor plan, the 3D
+scene and the 360 navigation arrows consistent with each other.
+
+### Floor plan data (`src/floorplan.js`)
+
+A deliberately small, static floor plan — not a floor-plan editor:
+
+- **3 rooms**, one square room (6 m side) centered on each panorama position
+  (Living Room, Kitchen, Bedroom).
+- **Walls**: the 4 edges of each room's square, generated from its center
+  and size.
+- **Doors**: one per connected room pair (derived from `LINKS` in
+  `panoramas.js`), placed where the line between the two room centers exits
+  each room's boundary — so doors always face the room they connect to.
 
 ## How it works
 
@@ -51,6 +94,17 @@ authentication, backend, database, API.
   faces back toward the source panorama, cross-fade via `sceneFadeDuration`).
 - `src/spatialAnnotation.js` — the Phase 3 window annotation (fade loop),
   now idempotent so it survives scene re-loads.
+- `src/coordinates.js` — the canonical floor-plan-to-3D coordinate mapping
+  (Phase 6).
+- `src/floorplan.js` — the static floor-plan data: rooms, walls and doors,
+  derived from the panorama positions and links (Phase 6).
+- `src/FloorPlan2D.jsx` — renders the floor plan as SVG, with clickable
+  panorama markers (Phase 6).
+- `src/Scene3D.jsx` — a minimal three.js scene (extruded walls + clickable
+  sphere markers, orbit controls) using the same coordinate mapping
+  (Phase 6).
+- `src/App.jsx` — the view switcher (2D / 3D / 360°) and the shared
+  `activePanoramaId` state that ties marker clicks to the 360° viewer.
 - `scripts/generate-panoramas.mjs` — pure-Node (no dependencies) generator
   that paints the three sample equirectangular images (1920×960 PNG). Each
   image shows the room's letter, compass markers and one doorway per outgoing
