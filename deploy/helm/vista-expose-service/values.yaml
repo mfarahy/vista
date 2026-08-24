@@ -33,7 +33,7 @@ ingress:
 config:
   HOST: "0.0.0.0"
   PORT: "4000"
-  CORS_ORIGIN: "https://vista.example.com"
+  CORS_ORIGIN: "https://vista.example.com,https://www.vista.example.com"
   FRONTEND_URL: "https://vista.example.com"
   API_BASE_URL: "https://api.vista.example.com"
   OPENAI_BASE_URL: "https://api.openai.com/v1"

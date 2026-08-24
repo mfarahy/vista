@@ -3,7 +3,7 @@ image:
   repository: ghcr.io/example/vista-expose-service
   tag: "dev"
 config:
-  CORS_ORIGIN: "https://vista-dev.example.com"
+  CORS_ORIGIN: "https://vista-dev.example.com,https://www.vista-dev.example.com"
   OPENAI_BASE_URL: "https://api.openai.com/v1"
   OPENAI_MODEL: "gpt-4o-mini"
   LOG_LEVEL: "debug"

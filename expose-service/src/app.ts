@@ -19,13 +19,50 @@ export interface CreateAppOptions {
   jobs?: JobDeps;
 }
 
+/**
+ * Reads the CORS allowlist from `CORS_ORIGIN`. Multiple origins may be
+ * separated by commas; a leading `www.` is normalized away so requests from
+ * `https://example.com` and `https://www.example.com` are accepted
+ * interchangeably. An unset or blank variable yields an empty allowlist,
+ * which the `cors` middleware interprets as "reflect any origin" (dev mode,
+ * matching the previous `process.env.CORS_ORIGIN || true` behavior).
+ */
+function resolveAllowedOrigins(): string[] {
+  return (process.env.CORS_ORIGIN || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+    .map(canonicalOrigin);
+}
+
+/** Normalizes an origin to `scheme://host` for comparison, ignoring path, case, and `www.`. */
+function canonicalOrigin(origin: string): string {
+  try {
+    const url = new URL(origin);
+    const host = url.host.toLowerCase().replace(/^www\./, '');
+    return `${url.protocol}//${host}`;
+  } catch {
+    return origin.trim().toLowerCase();
+  }
+}
+
 export function createApp(options: CreateAppOptions = {}): express.Express {
   const app = express();
+
+  const allowedOrigins = resolveAllowedOrigins();
 
   app.use(requestLogger());
   app.use(
     cors({
-      origin: process.env.CORS_ORIGIN || true,
+      origin(origin, callback) {
+        // Server-to-server and same-origin requests carry no Origin header and
+        // do not need CORS headers.
+        if (!origin) return callback(null, false);
+        // No explicit allowlist configured (dev): reflect any origin.
+        if (allowedOrigins.length === 0) return callback(null, true);
+        if (allowedOrigins.includes(canonicalOrigin(origin))) return callback(null, origin);
+        return callback(new Error('Origin not allowed by CORS'));
+      },
       credentials: true,
       exposedHeaders: ['Content-Disposition'],
     }),

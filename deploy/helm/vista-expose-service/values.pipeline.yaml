@@ -33,7 +33,7 @@ ingress:
 config:
   HOST: "0.0.0.0"
   PORT: "4000"
-  CORS_ORIGIN: "https://${ROOT_DOMAIN}"
+  CORS_ORIGIN: "https://${ROOT_DOMAIN},https://www.${ROOT_DOMAIN}"
   FRONTEND_URL: "https://${ROOT_DOMAIN}"
   API_BASE_URL: "https://api.${ROOT_DOMAIN}"
   OPENAI_BASE_URL: "${OPENAI_BASE_URL}"
