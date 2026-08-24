@@ -1,0 +1,7 @@
+replicaCount: 1
+image:
+  repository: pgvector/pgvector
+  tag: "pg16"
+secrets:
+  POSTGRES_PASSWORD: ""
+  DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/vista"

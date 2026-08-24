@@ -2,7 +2,7 @@ global:
   imagePullSecrets:
     - name: gitlab-registry
 
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: ghcr.io/example/vista-frontend
