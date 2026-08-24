@@ -12,11 +12,15 @@ import type {
 } from '../../create/[id]/types';
 import {
   EXPOSE_SECTION_TYPES,
+  brokerAddressLines,
+  brokerChannels,
   completedFloorPlan3D,
   coverFacts,
   coverImageOf,
   defaultExposeConfiguration,
   defaultGalleryImageIds,
+  effectiveBranding,
+  effectiveBrokerProfile,
   effectiveMarketingContent,
   energyFacts,
   formatNearbyDistance,
@@ -793,5 +797,136 @@ describe('floor plan 3D fallback', () => {
   it('returns null when a completed record carries no model', () => {
     const broken = { ...record('completed'), model: null };
     assert.equal(completedFloorPlan3D(makeProperty({ floorPlan3D: broken })), null);
+  });
+});
+
+describe('broker profile helpers', () => {
+  const brokerProfile = {
+    name: 'Max Mustermann',
+    jobTitle: 'Immobilienmakler',
+    company: 'Muster Immobilien GmbH',
+    photo: '/uploads/broker/photo.jpg',
+    logo: '/uploads/broker/logo.png',
+    address: {
+      street: 'Musterstraße',
+      houseNumber: '1',
+      postalCode: '10115',
+      city: 'Berlin',
+      district: 'Mitte',
+      country: 'Deutschland',
+    },
+    website: 'https://www.muster-immobilien.de',
+    phone: '+49 30 123456',
+    mobile: '+49 170 123456',
+    email: 'kontakt@muster-immobilien.de',
+    tagline: 'Ihr Partner für Immobilien in Berlin.',
+    description: 'Wir begleiten Sie bei Kauf und Verkauf.',
+    awards: ['Ausgezeichnete Agentur 2025'],
+    recommendations: '„Hervorragende Betreuung.“',
+    recommendationUrl: 'https://www.example.com/bewertungen',
+    externalLinks: [{ label: 'Portfolio', url: 'https://www.example.com/portfolio' }],
+    additionalImages: ['/uploads/broker/badge.png'],
+  };
+
+  it('resolves the configured broker profile as the effective source', () => {
+    const property = makeProperty();
+    const resolved = effectiveBrokerProfile(property, brokerProfile);
+    assert.equal(resolved?.name, 'Max Mustermann');
+    assert.equal(resolved?.company, 'Muster Immobilien GmbH');
+  });
+
+  it('falls back to the legacy agent data when no profile is configured', () => {
+    const property = makeProperty({
+      exposeData: {
+        ...makeProperty().exposeData!,
+        agent: {
+          name: 'Legacy Agent',
+          company: 'Legacy GmbH',
+          phone: '030 1',
+          email: 'legacy@example.com',
+        },
+      },
+    });
+    const resolved = effectiveBrokerProfile(property, null);
+    assert.equal(resolved?.name, 'Legacy Agent');
+    assert.equal(resolved?.company, 'Legacy GmbH');
+    assert.equal(resolved?.mobile, null, 'no invented values');
+  });
+
+  it('returns null when neither profile nor legacy agent exists', () => {
+    assert.equal(effectiveBrokerProfile(makeProperty(), null), null);
+    assert.equal(
+      effectiveBrokerProfile(makeProperty(), {
+        name: '',
+        jobTitle: null,
+        company: null,
+        photo: null,
+        logo: null,
+        website: null,
+        phone: null,
+        mobile: null,
+        email: null,
+        tagline: null,
+        description: null,
+        awards: [],
+        recommendations: null,
+        recommendationUrl: null,
+        externalLinks: [],
+        additionalImages: [],
+      }),
+      null,
+      'a fully empty profile is treated as not configured',
+    );
+  });
+
+  it('formats the broker address into display lines', () => {
+    const lines = brokerAddressLines(brokerProfile);
+    assert.deepEqual(lines, ['Musterstraße 1', '10115 Berlin', 'Mitte']);
+    assert.deepEqual(brokerAddressLines(null), []);
+    assert.deepEqual(
+      brokerAddressLines({ ...brokerProfile, address: undefined }),
+      [],
+    );
+  });
+
+  it('lists only populated contact channels with translated labels', () => {
+    const channels = brokerChannels(brokerProfile, de);
+    assert.deepEqual(
+      channels.map((channel) => channel.label),
+      ['Telefon', 'Mobil', 'E-Mail', 'Website'],
+    );
+    assert.deepEqual(
+      brokerChannels({ ...brokerProfile, mobile: null, website: null }, de).map(
+        (channel) => channel.label,
+      ),
+      ['Telefon', 'E-Mail'],
+    );
+    assert.deepEqual(brokerChannels(null, de), []);
+  });
+
+  it('resolves branding from the broker profile and the legacy agent fallback', () => {
+    const branding = effectiveBranding(makeProperty(), defaultExposeConfiguration(), brokerProfile);
+    assert.equal(branding.companyName, 'Muster Immobilien GmbH');
+    assert.equal(branding.phone, '+49 30 123456');
+    assert.equal(branding.email, 'kontakt@muster-immobilien.de');
+    assert.equal(branding.logoUrl, '/uploads/broker/logo.png');
+
+    const legacy = makeProperty({
+      exposeData: {
+        ...makeProperty().exposeData!,
+        agent: {
+          name: 'Legacy Agent',
+          company: 'Legacy GmbH',
+          phone: '030 1',
+          email: 'legacy@example.com',
+          website: 'https://legacy.example.com',
+        },
+      },
+    });
+    const fallback = effectiveBranding(legacy, defaultExposeConfiguration(), null);
+    assert.equal(fallback.companyName, 'Legacy GmbH');
+    assert.equal(fallback.phone, '030 1');
+    assert.equal(fallback.email, 'legacy@example.com');
+    assert.equal(fallback.website, 'https://legacy.example.com');
   });
 });

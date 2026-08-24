@@ -18,6 +18,7 @@ import type { DocumentUnderstandingResult } from './document-understanding/types
 import type { MarketingContentRecord } from './marketing-content/types.js';
 import type { FloorPlan3DRecord } from './floorplan-3d/types.js';
 import { emptyExposeData } from './expose-data.js';
+import { emptyBrokerProfile, type BrokerProfile } from './broker-profile.js';
 import { addressFromLegacy, addressKey } from '../external-services/location.js';
 import type { LocationIntelligence } from './expose-data.js';
 import type { BorisEnrichment } from './expose-data.js';
@@ -30,7 +31,7 @@ const dataPath = process.env.DATA_DIR
 const uploadPath = process.env.UPLOAD_DIR
   ? path.resolve(process.env.UPLOAD_DIR)
   : path.join(process.cwd(), 'public', 'uploads');
-type DB = { properties: Property[]; documents: DocumentRecord[] };
+type DB = { properties: Property[]; documents: DocumentRecord[]; brokerProfile?: BrokerProfile | null };
 
 function normalizeProperty(property: Property): Property {
   if (property.exposeData) return property;
@@ -109,9 +110,13 @@ function syncExposeImages(property: Property) {
 async function readDB(): Promise<DB> {
   try {
     const db = JSON.parse(await fs.readFile(dataPath, 'utf8')) as DB;
-    return { properties: db.properties.map(normalizeProperty), documents: db.documents ?? [] };
+    return {
+      properties: db.properties.map(normalizeProperty),
+      documents: db.documents ?? [],
+      brokerProfile: db.brokerProfile ?? null,
+    };
   } catch {
-    return { properties: [], documents: [] };
+    return { properties: [], documents: [], brokerProfile: null };
   }
 }
 async function writeDB(db: DB) {
@@ -675,3 +680,64 @@ async function removeDocumentNow(documentId: string): Promise<DocumentRecord | n
 }
 
 export { uploadPath };
+
+/* ------------------------------------------------------------------ */
+/* Broker profile                                                      */
+/* ------------------------------------------------------------------ */
+
+const nonEmpty = (value?: string | null): string | null => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+};
+
+/**
+ * Maps the legacy per-property agent data (the wizard's old "Agent/Kontakt"
+ * step) onto the Broker Profile shape. Used to seed the profile page when no
+ * profile has been saved yet, so existing agent data is migrated instead of
+ * lost. The result is only a suggestion: it is persisted when the user saves
+ * the Broker Profile.
+ */
+export function legacyAgentToProfile(
+  agent: NonNullable<Property['exposeData']>['agent'],
+): BrokerProfile {
+  const profile = emptyBrokerProfile();
+  profile.name = nonEmpty(agent?.name) ?? '';
+  profile.company = nonEmpty(agent?.company);
+  profile.photo = nonEmpty(agent?.photo);
+  profile.logo = nonEmpty(agent?.logo);
+  profile.address = agent?.address;
+  profile.website = nonEmpty(agent?.website);
+  profile.phone = nonEmpty(agent?.phone);
+  profile.email = nonEmpty(agent?.email);
+  return profile;
+}
+
+/**
+ * Reads the persisted broker profile. When none exists yet, returns a profile
+ * seeded from the legacy agent data of the most recently updated property —
+ * this migrates existing agent information into the Broker Profile without
+ * touching the property records. Nothing is persisted by a read.
+ */
+export async function getBrokerProfile(): Promise<BrokerProfile> {
+  const db = await readDB();
+  if (db.brokerProfile) return db.brokerProfile;
+  const latestWithAgent = [...db.properties]
+    .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
+    .find((property) => {
+      const agent = property.exposeData?.agent;
+      return agent != null && Object.values(agent).some((value) => value != null && value !== '');
+    });
+  return latestWithAgent ? legacyAgentToProfile(latestWithAgent.exposeData!.agent) : emptyBrokerProfile();
+}
+
+/** Persists the broker profile (upsert). */
+export function saveBrokerProfile(profile: BrokerProfile): Promise<BrokerProfile> {
+  return serializedWrite(() => saveBrokerProfileNow(profile));
+}
+async function saveBrokerProfileNow(profile: BrokerProfile): Promise<BrokerProfile> {
+  const db = await readDB();
+  db.brokerProfile = profile;
+  await writeDB(db);
+  getLogger().info({ name: profile.name }, 'Saved broker profile');
+  return profile;
+}

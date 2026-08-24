@@ -198,7 +198,9 @@ export function Input({
   placeholder,
   hint,
   error,
+  required,
   id,
+  className,
 }: {
   label: string;
   value: string | number | null | undefined;
@@ -207,10 +209,12 @@ export function Input({
   placeholder?: string;
   hint?: string;
   error?: string;
+  required?: boolean;
   id?: string;
+  className?: string;
 }) {
   return (
-    <Field label={label} htmlFor={id} hint={hint} error={error}>
+    <Field label={label} htmlFor={id} hint={hint} error={error} required={required} className={className}>
       <ShadInput
         id={id}
         type={type}

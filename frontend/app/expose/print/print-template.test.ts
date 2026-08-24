@@ -3,7 +3,12 @@ import { describe, it } from 'node:test';
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 
-import type { DocumentRecord, Property, PropertyImage } from '../../create/[id]/types';
+import type {
+  BrokerProfile,
+  DocumentRecord,
+  Property,
+  PropertyImage,
+} from '../../create/[id]/types';
 import { ModernExposeTemplate } from '../../builder/[id]/components/modern-expose-template';
 import type {
   EffectiveMarketingContent,
@@ -15,6 +20,36 @@ import {
   effectiveMarketingContent,
 } from '../../builder/[id]/expose-model';
 import { translations } from '@/lib/i18n/core';
+
+function makeBrokerProfile(overrides: Partial<BrokerProfile> = {}): BrokerProfile {
+  return {
+    name: 'Max Mustermann',
+    jobTitle: 'Immobilienmakler',
+    company: 'Muster Immobilien GmbH',
+    photo: '/uploads/broker/photo.jpg',
+    logo: '/uploads/broker/logo.png',
+    address: {
+      street: 'Musterstraße',
+      houseNumber: '1',
+      postalCode: '10115',
+      city: 'Berlin',
+      district: 'Mitte',
+      country: 'Deutschland',
+    },
+    website: 'https://www.muster-immobilien.de',
+    phone: '+49 30 123456',
+    mobile: '+49 170 123456',
+    email: 'kontakt@muster-immobilien.de',
+    tagline: 'Ihr Partner für Immobilien in Berlin.',
+    description: 'Wir begleiten Sie bei Kauf und Verkauf Ihrer Immobilie.',
+    awards: ['Ausgezeichnete Agentur 2025'],
+    recommendations: '„Hervorragende Betreuung, immer erreichbar.“',
+    recommendationUrl: 'https://www.example.com/bewertungen',
+    externalLinks: [{ label: 'Portfolio', url: 'https://www.example.com/portfolio' }],
+    additionalImages: ['/uploads/broker/badge.png'],
+    ...overrides,
+  };
+}
 
 function makeImage(overrides: Partial<PropertyImage> = {}): PropertyImage {
   return {
@@ -166,11 +201,13 @@ function render({
   content = marketing,
   expose = defaultExposeConfiguration(),
   media,
+  brokerProfile,
 }: {
   property?: Property;
   content?: EffectiveMarketingContent;
   expose?: ExposeConfiguration;
   media?: ExposeMedia;
+  brokerProfile?: BrokerProfile | null;
 } = {}): string {
   return renderToString(
     createElement(ModernExposeTemplate, {
@@ -178,6 +215,7 @@ function render({
       marketingContent: content,
       expose,
       media: media ?? { images: property.images, documents },
+      brokerProfile,
       // The print document contract is asserted in German.
       translations: translations.de,
     }),
@@ -613,5 +651,102 @@ describe('print route template rendering', () => {
     assert.ok(!html.includes('Fakten aus Ihren Objektdaten'));
     assert.ok(!html.includes('source'));
     assert.ok(!html.includes('__EXPOSE_READY__'));
+  });
+
+  it('renders a dedicated broker page from the configured broker profile', () => {
+    const html = render({ brokerProfile: makeBrokerProfile() });
+    const broker = html.slice(
+      html.indexOf('id="expose-broker"'),
+      html.indexOf('id="expose-broker"') + 9000,
+    );
+    assert.ok(html.includes('id="expose-broker"'), 'broker section renders as a page');
+    assert.ok(broker.includes('Max Mustermann'));
+    assert.ok(broker.includes('Immobilienmakler'));
+    assert.ok(broker.includes('Muster Immobilien GmbH'));
+    assert.ok(broker.includes('uploads/broker/photo.jpg'), 'profile photo is rendered');
+    assert.ok(broker.includes('uploads/broker/logo.png'), 'company logo is rendered');
+    assert.ok(broker.includes('Musterstraße 1'));
+    assert.ok(broker.includes('10115 Berlin'));
+    assert.ok(broker.includes('Telefon'));
+    assert.ok(broker.includes('+49 30 123456'));
+    assert.ok(broker.includes('Mobil'));
+    assert.ok(broker.includes('+49 170 123456'));
+    assert.ok(broker.includes('E-Mail'));
+    assert.ok(broker.includes('kontakt@muster-immobilien.de'));
+    assert.ok(broker.includes('https://www.muster-immobilien.de'));
+    assert.ok(broker.includes('Ihr Partner für Immobilien in Berlin.'));
+    assert.ok(broker.includes('Ausgezeichnete Agentur 2025'));
+    assert.ok(broker.includes('Hervorragende Betreuung'));
+    assert.ok(broker.includes('href="https://www.example.com/bewertungen"'));
+    assert.ok(broker.includes('uploads/broker/badge.png'), 'additional images are rendered');
+    assert.ok(broker.includes('Portfolio'), 'external links are rendered');
+  });
+
+  it('uses the broker profile as the single source of truth over legacy agent data', () => {
+    const exposeData = makeProperty().exposeData;
+    const property = makeProperty({
+      exposeData: {
+        ...exposeData!,
+        agent: { name: 'Legacy Agent', company: 'Legacy GmbH' },
+      },
+    });
+    const html = render({ property, brokerProfile: makeBrokerProfile() });
+    assert.ok(html.includes('Max Mustermann'));
+    assert.ok(!html.includes('Legacy Agent'), 'the legacy agent name is not rendered');
+  });
+
+  it('falls back to the legacy agent data when no broker profile is configured', () => {
+    const exposeData = makeProperty().exposeData;
+    const property = makeProperty({
+      exposeData: {
+        ...exposeData!,
+        agent: {
+          name: 'Max Mustermann',
+          company: 'Muster Immobilien GmbH',
+          phone: '+49 30 123456',
+          email: 'max@example.com',
+        },
+      },
+    });
+    const html = render({ property });
+    const broker = html.slice(html.indexOf('id="expose-broker"'));
+    assert.ok(broker.includes('id="expose-broker"'), 'the broker page renders from legacy data');
+    assert.ok(broker.includes('Max Mustermann'));
+    assert.ok(broker.includes('Muster Immobilien GmbH'));
+    assert.ok(broker.includes('+49 30 123456'));
+  });
+
+  it('renders only the populated blocks for a partially filled broker profile', () => {
+    const html = render({
+      brokerProfile: makeBrokerProfile({
+        photo: null,
+        logo: null,
+        mobile: null,
+        website: null,
+        description: null,
+        awards: [],
+        recommendations: null,
+        recommendationUrl: null,
+        externalLinks: [],
+        additionalImages: [],
+      }),
+    });
+    const broker = html.slice(html.indexOf('id="expose-broker"'));
+    assert.ok(broker.includes('Max Mustermann'), 'name still renders');
+    assert.ok(!broker.includes('expose-broker-photo'), 'no empty photo container');
+    assert.ok(!broker.includes('expose-broker-logo'), 'no empty logo container');
+    assert.ok(!broker.includes('Mobil'), 'no empty mobile row');
+    assert.ok(!broker.includes('expose-broker-awards'), 'no awards section without data');
+    assert.ok(
+      !broker.includes('expose-broker-recommendation-link'),
+      'no recommendation link without URL',
+    );
+    assert.ok(!broker.includes('expose-broker-images'), 'no images block without images');
+    assert.ok(!broker.includes('expose-broker-links'), 'no links block without links');
+  });
+
+  it('renders no broker page at all when nothing is configured', () => {
+    const html = render();
+    assert.ok(!html.includes('id="expose-broker"'));
   });
 });

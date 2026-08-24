@@ -4,7 +4,7 @@ import { ArrowLeft, Download, LayoutTemplate } from 'lucide-react';
 import { downloadPdf } from '@/lib/api';
 import { useState } from 'react';
 import { useI18n } from '@/lib/i18n';
-import type { DocumentRecord, Property } from '../../create/[id]/types';
+import type { BrokerProfile, DocumentRecord, Property } from '../../create/[id]/types';
 import type {
   EffectiveMarketingContent,
   ExposeConfiguration,
@@ -21,6 +21,7 @@ export default function PreviewClient({
   marketingContent,
   expose,
   documents,
+  brokerProfile,
 }: {
   id: string;
   title?: string;
@@ -28,6 +29,7 @@ export default function PreviewClient({
   marketingContent: EffectiveMarketingContent;
   expose: ExposeConfiguration;
   documents: DocumentRecord[];
+  brokerProfile?: BrokerProfile | null;
 }) {
   const { t } = useI18n();
   const [loading, setLoading] = useState(false);
@@ -79,6 +81,7 @@ export default function PreviewClient({
             marketingContent={marketingContent}
             expose={expose}
             documents={documents}
+            brokerProfile={brokerProfile}
           />
         </div>
       </div>

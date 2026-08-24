@@ -72,7 +72,8 @@ export const PRINT_CSS = `
   .expose-floorplan-figure,
   .expose-document-row,
   .expose-location-map,
-  .expose-location-summary {
+  .expose-location-summary,
+  .expose-broker {
     break-inside: avoid;
     page-break-inside: avoid;
   }
@@ -81,6 +82,11 @@ export const PRINT_CSS = `
   #expose-contact,
   #expose-documents {
     break-inside: avoid;
+  }
+  /* The broker page is a dedicated full page of the PDF Exposé. */
+  #expose-broker {
+    break-before: page;
+    page-break-before: always;
   }
   .expose-print footer {
     break-before: auto;

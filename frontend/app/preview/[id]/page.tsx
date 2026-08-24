@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { frontendLogger } from '@/lib/logger';
+import { loadBrokerProfile } from '@/lib/broker-profile';
 import type { DocumentRecord, Property } from '../../create/[id]/types';
 import {
   defaultExposeConfiguration,
@@ -45,7 +46,11 @@ async function getDocuments(id: string): Promise<DocumentRecord[]> {
 
 export default async function PreviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [property, documents] = await Promise.all([getProperty(id), getDocuments(id)]);
+  const [property, documents, brokerProfile] = await Promise.all([
+    getProperty(id),
+    getDocuments(id),
+    loadBrokerProfile(),
+  ]);
   if (!property) notFound();
 
   const configuration = isExposeConfiguration(property.expose?.configuration)
@@ -64,6 +69,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
       marketingContent={marketingContent}
       expose={configuration}
       documents={documents}
+      brokerProfile={brokerProfile}
     />
   );
 }

@@ -7,7 +7,7 @@ import type {
 import { ModernExposeTemplate } from './components/modern-expose-template';
 import { ClassicExposeTemplate } from './components/classic-expose-template';
 import { ElegantExposeTemplate } from './components/elegant-expose-template';
-import type { Property } from '../../create/[id]/types';
+import type { BrokerProfile, Property } from '../../create/[id]/types';
 import type { Translator } from '@/lib/i18n/core';
 
 /**
@@ -28,6 +28,8 @@ export type ExposeTemplateProps = {
   marketingContent: EffectiveMarketingContent;
   expose: ExposeConfiguration;
   media: ExposeMedia;
+  /** Configured Broker Profile; templates fall back to the property's legacy agent data. */
+  brokerProfile?: BrokerProfile | null;
   /** Locale-bound translator for the rendered document (defaults to English). */
   translations?: Translator;
 };

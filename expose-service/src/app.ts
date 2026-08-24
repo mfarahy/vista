@@ -9,6 +9,7 @@ import { addressRouter } from './routes/address.js';
 import { propertiesRouter } from './routes/properties.js';
 import { floorplanRouter } from './routes/floorplan.js';
 import { documentsRouter } from './routes/documents.js';
+import { brokerProfileRouter } from './routes/broker-profile.js';
 import { internalRouter } from './routes/internal.js';
 import { jobsRouter, type JobDeps } from './routes/jobs.js';
 import type { DocumentStorage } from './lib/document-storage.js';
@@ -80,6 +81,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.use(propertiesRouter(options));
   app.use(floorplanRouter);
   app.use(documentsRouter({ jobs: options.jobs, storage: options.documentStorage }));
+  app.use(brokerProfileRouter());
   app.use(internalRouter());
   app.use(jobsRouter(options.jobs));
 

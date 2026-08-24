@@ -11,6 +11,7 @@ import {
   STEP_LOCATION,
   STEP_MARKETING_CONTENT,
   STEP_PROPERTY,
+  STEP_REVIEW,
   STEP_YOUR_INFO,
   isHouseLike,
   normalizeCertificateType,
@@ -52,8 +53,6 @@ function snapshot(overrides: Partial<StepCompletionSnapshot> = {}): StepCompleti
     yourInfo: {},
     imageCount: 0,
     planCount: 0,
-    agentName: null,
-    agentCompany: null,
     contentExists: false,
     marketingContentExists: false,
     ...overrides,
@@ -159,6 +158,12 @@ describe('step completion', () => {
   it('empty optional fields never block progression', () => {
     assert.equal(stepStatus(STEP_YOUR_INFO, snapshot()), 'incomplete');
     assert.equal(stepStatus(STEP_LOCATION, snapshot()), 'incomplete');
+  });
+
+  it('the review step is the final wizard step (no separate agent step)', () => {
+    assert.equal(STEP_REVIEW, 12);
+    assert.equal(stepStatus(STEP_REVIEW, snapshot()), 'incomplete');
+    assert.equal(stepStatus(STEP_REVIEW, snapshot({ contentExists: true })), 'complete');
   });
 
   it('marketing content step completes only after content was generated', () => {

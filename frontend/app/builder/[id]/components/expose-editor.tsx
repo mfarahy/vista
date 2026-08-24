@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { apiAssetUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useI18n } from '@/lib/i18n';
-import type { Property } from '../../../create/[id]/types';
+import type { BrokerProfile, Property } from '../../../create/[id]/types';
 import { Field } from '../../../create/[id]/components/ui';
 import type {
   EffectiveMarketingContent,
@@ -15,6 +16,9 @@ import type {
   ExposeContentOverrides,
 } from '../expose-model';
 import {
+  brokerAddressLines,
+  brokerChannels,
+  effectiveBrokerProfile,
   energyFacts,
   equipmentFeatures,
   floorplanImages,
@@ -591,33 +595,40 @@ function DocumentsEditor({ records }: { records: ExposeMedia['documents'] }) {
 /* Kontakt                                                             */
 /* ------------------------------------------------------------------ */
 
-export function ContactEditor({ property }: { property: Property }) {
-  const { t } = useI18n();
-  const agent = property.exposeData?.agent;
-  const address = agent?.address
-    ? [
-        [agent.address.street, agent.address.houseNumber].filter(Boolean).join(' '),
-        [agent.address.postalCode, agent.address.city].filter(Boolean).join(' '),
-      ].filter(Boolean)
-    : [];
+export function ContactEditor({
+  property,
+  brokerProfile,
+}: {
+  property: Property;
+  brokerProfile?: BrokerProfile | null;
+}) {
+  const { t, locale } = useI18n();
+  const broker = effectiveBrokerProfile(property, brokerProfile);
+  const address = brokerAddressLines(broker);
+  const channels = brokerChannels(broker, { locale, t });
   return (
     <EditorShell title={t('builder.editorShell.contactPersonTitle')} tag={<ReadonlyTag />}>
       <p className="text-xs text-muted-foreground">{t('builder.editorShell.contactPersonNote')}</p>
-      {agent?.name || agent?.company ? (
+      {broker?.name || broker?.company ? (
         <div className="space-y-1 text-sm">
-          {agent?.name && <p className="font-medium text-foreground">{agent.name}</p>}
-          {agent?.company && <p className="text-muted-foreground">{agent.company}</p>}
+          {broker?.name && <p className="font-medium text-foreground">{broker.name}</p>}
+          {broker?.company && <p className="text-muted-foreground">{broker.company}</p>}
           {address.length > 0 && <p className="text-muted-foreground">{address.join(', ')}</p>}
-          {[agent?.phone, agent?.email, agent?.website].filter(Boolean).length > 0 && (
+          {channels.length > 0 && (
             <p className="text-muted-foreground">
-              {[agent?.phone, agent?.email, agent?.website].filter(Boolean).join(' · ')}
+              {channels.map((channel) => channel.value).filter(Boolean).join(' · ')}
             </p>
           )}
         </div>
       ) : (
-        <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-          {t('builder.editorShell.noContactPerson')}
-        </p>
+        <div className="space-y-2">
+          <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+            {t('builder.editorShell.noContactPerson')}
+          </p>
+          <Button type="button" variant="outline" size="sm" className="w-full" asChild>
+            <Link href="/broker-profile">{t('builder.editorShell.brokerSetupLink')}</Link>
+          </Button>
+        </div>
       )}
     </EditorShell>
   );
