@@ -17,6 +17,8 @@ import {
   FEATURE_OPTIONS,
   RENOVATION_STATUSES,
   conditionLabel,
+  equipmentCategoryLabel,
+  photoSectionLabel,
   propertySubtypeOptions,
   subtypeKey,
 } from '../types';
@@ -378,7 +380,7 @@ export function Review({
               <div className="mt-2 flex flex-wrap gap-1.5 text-sm text-muted-foreground">
                 {data.equipment.map((item) => (
                   <span key={item.name} className="rounded-md bg-muted px-2 py-1 text-xs">
-                    {item.category}: {item.name}
+                    {t(equipmentCategoryLabel(item.category))}: {item.name}
                   </span>
                 ))}
               </div>
@@ -552,7 +554,7 @@ export function Review({
                 <img
                   key={image.id}
                   src={apiAssetUrl(image.url)}
-                  alt={image.subcategory || t('documentsStep.documentLabel')}
+                  alt={t(photoSectionLabel(image.subcategory))}
                   className="h-24 w-full rounded-lg object-cover"
                 />
               ))}

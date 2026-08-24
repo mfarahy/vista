@@ -117,7 +117,9 @@ export function formatExtractedValue(
   value: string | number | boolean | null | undefined,
   locale: Locale = defaultLocale,
 ): string {
-  if (value === null || value === undefined || value === '') return '—';
+  if (value === null || value === undefined || value === '') {
+    return translate(locale, 'steps.legal.emptyValue');
+  }
   if (value === true) return translate(locale, 'common.yes');
   if (value === false) return translate(locale, 'common.no');
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {

@@ -33,6 +33,10 @@ const en = {
     retry: 'Try again',
     loading: 'Your exposé is being prepared…',
   },
+  languages: {
+    en: 'English',
+    de: 'German',
+  },
   meta: {
     description: 'Create professional property exposés',
   },
@@ -800,6 +804,12 @@ const en = {
     reanalyzeFailed: 'The document could not be analyzed again.',
     removed: 'Document removed',
     removeFailed: 'The document could not be removed.',
+    errorNoFiles: 'No documents were found.',
+    errorUnsupportedType: 'Only PDF, JPG, PNG and WEBP are supported.',
+    errorTooLarge: 'Documents may be at most 25 MB in size.',
+    errorMissingFile: 'The document file is missing.',
+    errorOcrFailed: 'The document could not be understood (no OCR result).',
+    errorAnalysisFailed: 'The document could not be analyzed.',
     foundCategories: {
       address: 'Address',
       object: 'Property',
@@ -846,6 +856,7 @@ const en = {
   map: {
     popupCoordinates: 'Property · {lat}, {lng}',
     popupPlace: '{name} · {category} · {distance} m',
+    attributionContributors: 'contributors',
   },
   finance: {
     buyer: 'Buyer',
