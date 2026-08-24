@@ -1,6 +1,12 @@
 import { useEffect, useRef } from 'react'
-import * as pannellum from 'pannellum'
+import 'pannellum/build/pannellum.js'
 import 'pannellum/build/pannellum.css'
+import {
+  WINDOW_ANNOTATION,
+  attachWindowAnnotation,
+} from './spatialAnnotation.js'
+
+const pannellum = window.pannellum
 
 const PANORAMA_URL = `${import.meta.env.BASE_URL}pano/rheingauer-dom.jpg`
 
@@ -12,6 +18,10 @@ export default function App() {
       type: 'equirectangular',
       panorama: PANORAMA_URL,
       autoLoad: true,
+      // Start looking directly at the annotation so the fade behavior is
+      // immediately verifiable (rotate away → fades out, rotate back → in).
+      yaw: WINDOW_ANNOTATION.yaw,
+      pitch: WINDOW_ANNOTATION.pitch,
       // Interaction: drag to look around, wheel + pinch to zoom.
       mouseZoom: true,
       keyboardZoom: true,
@@ -20,7 +30,16 @@ export default function App() {
       compass: false,
       tooltip: false,
     })
-    return () => viewer.destroy()
+
+    let cleanupAnnotation
+    viewer.on('load', () => {
+      cleanupAnnotation = attachWindowAnnotation(viewer, containerRef.current)
+    })
+
+    return () => {
+      if (cleanupAnnotation) cleanupAnnotation()
+      viewer.destroy()
+    }
   }, [])
 
   return (
