@@ -1,7 +1,8 @@
-import type { Door2D, FloorPlan2D, Point2D, Wall2D, Window2D } from "./floorPlan";
+import type { Building, Door2D, Floor2D, FloorPlan2D, Point2D, Roof2D, Stair2D, Wall2D, Window2D } from "./floorPlan";
 
 export type WallBox3D = {
   id: string;
+  floorId: string;
   sourceWallId: string;
   kind: Wall2D["kind"];
   center: { x: number; y: number; z: number };
@@ -12,13 +13,16 @@ export type WallBox3D = {
 };
 
 export type FloorSurface3D = {
+  floorId: string;
   roomId: string;
   vertices: Point2D[];
   area: number;
+  elevation: number;
 };
 
 export type Opening3D = {
   id: string;
+  floorId: string;
   wallId: string;
   type: "door" | "window";
   offset: number;
@@ -31,11 +35,34 @@ export type Opening3D = {
   thickness: number;
 };
 
+export type StairBox3D = {
+  id: string;
+  stairId: string;
+  sourceFloorId: string;
+  targetFloorId: string;
+  center: { x: number; y: number; z: number };
+  width: number;
+  length: number;
+  height: number;
+  step: number;
+};
+
+export type Roof3D = {
+  id: string;
+  floorId: string;
+  center: { x: number; y: number; z: number };
+  width: number;
+  length: number;
+  height: number;
+};
+
 export type BuildingModel3D = {
   unit: "m";
   wallBoxes: WallBox3D[];
   floors: FloorSurface3D[];
   openings: Opening3D[];
+  stairs: StairBox3D[];
+  roof: Roof3D;
 };
 
 type WallOpening = Door2D | Window2D;
@@ -190,7 +217,7 @@ export const validateFloorPlan = (floorPlan: FloorPlan2D): void => {
   if (issues.length > 0) throw new FloorPlanValidationError(issues);
 };
 
-const createWallBox = (wall: Wall2D, startOffset: number, endOffset: number, baseHeight: number, height: number, index: number): WallBox3D | null => {
+const createWallBox = (floorId: string, elevation: number, wall: Wall2D, startOffset: number, endOffset: number, baseHeight: number, height: number, index: number): WallBox3D | null => {
   const length = endOffset - startOffset;
   if (length <= EPSILON || height <= EPSILON) return null;
 
@@ -198,9 +225,10 @@ const createWallBox = (wall: Wall2D, startOffset: number, endOffset: number, bas
   const end = pointAlongWall(wall, endOffset);
   return {
     id: `${wall.id}-${index}`,
+    floorId,
     sourceWallId: wall.id,
     kind: wall.kind,
-    center: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2, z: baseHeight + height / 2 },
+    center: { x: (start.x + end.x) / 2, y: elevation + baseHeight + height / 2, z: -(start.y + end.y) / 2 },
     length,
     thickness: wall.thickness,
     height,
@@ -208,7 +236,7 @@ const createWallBox = (wall: Wall2D, startOffset: number, endOffset: number, bas
   };
 };
 
-const generateWallBoxes = (wall: Wall2D, openings: WallOpening[]): WallBox3D[] => {
+const generateWallBoxes = (floorId: string, elevation: number, wall: Wall2D, openings: WallOpening[]): WallBox3D[] => {
   const wallLengthValue = distance(wall.start, wall.end);
   const sortedOpenings = openings.map(asNormalizedOpening).slice().sort(compareOpenings);
   const boxes: WallBox3D[] = [];
@@ -216,27 +244,28 @@ const generateWallBoxes = (wall: Wall2D, openings: WallOpening[]): WallBox3D[] =
   let index = 0;
 
   for (const opening of sortedOpenings) {
-    const before = createWallBox(wall, cursor, opening.offset, 0, wall.height, index++);
+    const before = createWallBox(floorId, elevation, wall, cursor, opening.offset, 0, wall.height, index++);
     if (before) boxes.push(before);
 
-    const below = createWallBox(wall, opening.offset, opening.offset + opening.width, 0, opening.sillHeight, index++);
+    const below = createWallBox(floorId, elevation, wall, opening.offset, opening.offset + opening.width, 0, opening.sillHeight, index++);
     if (below) boxes.push(below);
 
     const aboveHeight = wall.height - opening.sillHeight - opening.height;
-    const above = createWallBox(wall, opening.offset, opening.offset + opening.width, opening.sillHeight + opening.height, aboveHeight, index++);
+    const above = createWallBox(floorId, elevation, wall, opening.offset, opening.offset + opening.width, opening.sillHeight + opening.height, aboveHeight, index++);
     if (above) boxes.push(above);
     cursor = opening.offset + opening.width;
   }
 
-  const after = createWallBox(wall, cursor, wallLengthValue, 0, wall.height, index++);
+  const after = createWallBox(floorId, elevation, wall, cursor, wallLengthValue, 0, wall.height, index++);
   if (after) boxes.push(after);
   return boxes;
 };
 
-const createOpening3D = (opening: NormalizedOpening, wall: Wall2D): Opening3D => {
+const createOpening3D = (floorId: string, elevation: number, opening: NormalizedOpening, wall: Wall2D): Opening3D => {
   const center2D = pointAlongWall(wall, opening.offset + opening.width / 2);
   return {
     id: opening.id,
+    floorId,
     wallId: opening.wallId,
     type: opening.type,
     offset: opening.offset,
@@ -244,13 +273,14 @@ const createOpening3D = (opening: NormalizedOpening, wall: Wall2D): Opening3D =>
     height: opening.height,
     sillHeight: opening.sillHeight,
     openingDirection: opening.openingDirection,
-    center: { x: center2D.x, y: center2D.y, z: opening.sillHeight + opening.height / 2 },
+    center: { x: center2D.x, y: elevation + opening.sillHeight + opening.height / 2, z: -center2D.y },
     rotationZ: Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x),
     thickness: wall.thickness,
   };
 };
 
-export const generateBuildingModel = (floorPlan: FloorPlan2D): BuildingModel3D => {
+const generateFloorGeometry = (floor: Floor2D) => {
+  const floorPlan = floor.plan;
   validateFloorPlan(floorPlan);
 
   const openingsByWall = new Map<string, WallOpening[]>();
@@ -266,14 +296,60 @@ export const generateBuildingModel = (floorPlan: FloorPlan2D): BuildingModel3D =
     .map((opening) => {
       const wall = wallsById.get(opening.wallId);
       if (!wall) throw new Error(`Unknown wall '${opening.wallId}' while creating opening '${opening.id}'.`);
-      return createOpening3D(opening, wall);
+      return createOpening3D(floor.id, floor.elevation, opening, wall);
     });
 
   return {
     unit: floorPlan.unit,
-    wallBoxes: floorPlan.walls.flatMap((wall) => generateWallBoxes(wall, openingsByWall.get(wall.id) ?? [])),
-    floors: floorPlan.rooms.map((room) => ({ roomId: room.id, vertices: room.boundary, area: polygonArea(room.boundary) })),
+    wallBoxes: floorPlan.walls.flatMap((wall) => generateWallBoxes(floor.id, floor.elevation, wall, openingsByWall.get(wall.id) ?? [])),
+    floors: floorPlan.rooms.map((room) => ({ floorId: floor.id, roomId: room.id, vertices: room.boundary, area: polygonArea(room.boundary), elevation: floor.elevation })),
     openings,
+  };
+};
+
+const createStairBoxes = (stair: Stair2D, sourceElevation: number, targetElevation: number): StairBox3D[] => {
+  const stepCount = 8;
+  return Array.from({ length: stepCount }, (_, index) => {
+    const progress = (index + 1) / stepCount;
+    return {
+      id: `${stair.id}-${index}`,
+      stairId: stair.id,
+      sourceFloorId: stair.sourceFloorId,
+      targetFloorId: stair.targetFloorId,
+      center: { x: stair.position.x, y: sourceElevation + stair.height * progress / 2, z: -(stair.position.y + stair.length * (progress - 0.5)) },
+      width: stair.width,
+      length: stair.length / stepCount,
+      height: stair.height * progress,
+      step: index + 1,
+    };
+  });
+};
+
+export const generateBuildingModel = (building: Building): BuildingModel3D => {
+  const floorIds = new Set<string>();
+  for (const floor of building.floors) {
+    if (floorIds.has(floor.id)) throw new FloorPlanValidationError([`Duplicate floor id '${floor.id}'.`]);
+    floorIds.add(floor.id);
+    if (!Number.isFinite(floor.elevation) || !Number.isFinite(floor.floorToFloorHeight) || floor.floorToFloorHeight <= 0) {
+      throw new FloorPlanValidationError([`Floor '${floor.id}' must have a finite elevation and positive floor-to-floor height.`]);
+    }
+  }
+  const generatedFloors = building.floors.map(generateFloorGeometry);
+  const stairs = building.stairs.flatMap((stair) => {
+    const source = building.floors.find((floor) => floor.id === stair.sourceFloorId);
+    const target = building.floors.find((floor) => floor.id === stair.targetFloorId);
+    if (!source || !target) throw new FloorPlanValidationError([`Stair '${stair.id}' references an unknown floor.`]);
+    return createStairBoxes(stair, source.elevation, target.elevation);
+  });
+  const highest = building.floors.find((floor) => floor.id === building.roof.floorId);
+  if (!highest) throw new FloorPlanValidationError([`Roof references an unknown floor '${building.roof.floorId}'.`]);
+  return {
+    unit: building.unit,
+    wallBoxes: generatedFloors.flatMap((floor) => floor.wallBoxes),
+    floors: generatedFloors.flatMap((floor) => floor.floors),
+    openings: generatedFloors.flatMap((floor) => floor.openings),
+    stairs,
+    roof: { id: building.roof.id, floorId: highest.id, center: { x: 4.5, y: highest.elevation + highest.plan.walls[0].height + building.roof.height / 2, z: -3.5 }, width: 9.4, length: 7.4, height: building.roof.height },
   };
 };
 

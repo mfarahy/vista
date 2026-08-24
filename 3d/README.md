@@ -1,131 +1,74 @@
-# Deterministic 2D Floor Plan to 3D Prototype (Phase 2)
+# Deterministic Multi-Floor Villa (Phase 3)
 
-This isolated React, TypeScript, and Three.js prototype focuses on deterministic and geometrically correct architectural conversion:
+This isolated React, TypeScript, and Three.js prototype converts structured 2D architectural data into a deterministic multi-floor building model.
 
+```text
+Building -> Floors -> FloorPlan2D -> validation -> 3D geometry -> Three.js viewer
 ```
-FloorPlan2D -> Validation -> Deterministic Geometry Generator -> BuildingModel3D -> Three.js Renderer
-```
-
-The same `FloorPlan2D` input always produces the same `BuildingModel3D` output.
-
-Out of scope for this phase: AI, OCR, computer vision, PDF/image parsing, furniture, realistic materials/textures, backend, API, auth, panoramas, and integration work.
 
 ## Run locally
 
 ```bash
 npm install
 npm run dev
-```
-
-Open the local Vite URL shown in the terminal.
-
-Run geometry tests:
-
-```bash
 npm test
 ```
 
-## Geometry model
+## Example villa
 
-`src/floorPlan.ts` defines explicit metric architectural elements.
+```text
+                         ROOF
+                  +----------------+
+ FIRST FLOOR     | Bed 1 | Bed 2   |
+ elevation 2.80m | Hall  | Bath     |
+                  +------ stairs ---+
+ GROUND FLOOR    | Living | Kitchen |
+ elevation 0.00m | Entry  | Bath     |
+                  +------ stairs ---+
+ BASEMENT        | Basement room   |
+ elevation -2.80 | Utility/storage  |
+                  +----------------+
+```
 
-### Walls
+The example has three floors, explicit doors and windows on every floor, rooms owned by their floor, and two stair connections: basement to ground and ground to first.
 
-- `id`
-- `start: {x, y}`
-- `end: {x, y}`
-- `thickness` (m)
-- `height` (m)
-- `kind` (`exterior` or `interior`)
+## Building model
 
-### Doors
+`Building` contains a meter unit, `floors`, canonical `stairs`, and a simple `roof`.
 
-- `id`
-- `wallId` (host wall)
-- `offset` (m along host wall from wall start)
-- `width` (m)
-- `height` (m)
-- optional `openingDirection`
+Each `Floor2D` has:
 
-### Windows
+- `id` and `name`
+- explicit `elevation` in meters
+- `floorToFloorHeight` in meters
+- one `FloorPlan2D` containing walls, doors, windows, and rooms
 
-- `id`
-- `wallId` (host wall)
-- `offset` (m along host wall)
-- `width` (m)
-- `height` (m)
-- `sillHeight` (m)
+The generator never derives elevation from array order. The demo elevations are basement `-2.80m`, ground `0m`, and first `2.80m`.
 
-Doors and windows are attached to a specific wall by ID, not as unrelated world-space rectangles.
+## Geometry and coordinates
 
-## Deterministic wall and opening generation
+All plans use one global horizontal coordinate system. A plan point is local floor data with `x` east-west and `y` north-south. It maps to Three.js world coordinates as:
 
-`src/geometryGenerator.ts` performs pure deterministic conversion.
+```text
+worldX = planX
+worldY = floor.elevation + localHeight
+worldZ = -planY
+```
 
-- Each wall line segment is converted to 3D wall boxes preserving exact length, thickness, height, position, and orientation.
-- Openings are sorted deterministically along each wall.
-- The wall is segmented into:
-  - solid segment before opening
-  - lower segment under opening (for windows)
-  - upper segment above opening
-  - solid segment after opening
-- This creates real voids in the wall geometry (no fake overlay rectangles).
-- Multiple openings on one wall are supported.
+The south-west plan corner is the shared `(0, 0)` horizontal origin. Three.js `Y` is up. Wall thickness and wall height remain in meters; openings split wall solids into deterministic segments.
 
-## Validation
+## Rooms, stairs, and roof
 
-Validation runs before generation and throws `FloorPlanValidationError` with clear messages when invalid.
+Rooms stay simple: each room has an ID, name, boundary polygon, and floor ownership through its containing `Floor2D`.
 
-Current checks include:
+Each `Stair2D` declares `sourceFloorId`, `targetFloorId`, position, width, length, and height. The generator creates eight rising tread boxes, enough to communicate location and vertical direction without attempting realistic stair engineering.
 
-- negative/non-positive dimensions
-- zero-length walls
-- invalid wall height/thickness
-- opening width larger than host wall
-- opening range outside host wall
-- opening height/sill exceeding wall height
-- unknown wall IDs for doors/windows
-- overlapping openings on the same wall
-- invalid room polygons (too few vertices / zero area)
+The roof declares the highest floor it belongs to and generates one deterministic roof volume above that floor.
 
-## Coordinate system
+## Viewer
 
-The coordinate convention is explicit and standardized.
+The viewer supports orbit, pan, zoom, camera inspection, and a selector for Basement, Ground Floor, First Floor, or All Floors. Selecting one floor hides unrelated floor geometry while keeping connecting stairs visible. All Floors shows the complete villa.
 
-- Units: meters
-- 2D plan axes:
-  - `X`: east-west on ground plane
-  - `Y`: north-south on ground plane
-- 3D world axes:
-  - `X`: east-west
-  - `Y`: vertical height (up)
-  - `Z`: opposite of 2D Y direction
-- Mapping from plan to Three.js world:
-  - `worldX = planX`
-  - `worldY = height`
-  - `worldZ = -planY`
-- Origin: south-west apartment corner at floor elevation (`0 m`)
+## Current limitations
 
-## Example apartment
-
-The demo plan contains a small apartment with realistic metric dimensions:
-
-- Living Room
-- Kitchen
-- Bedroom
-- Bathroom
-- Exterior and interior walls
-- Multiple doors
-- Multiple windows (including more than one opening on the same wall)
-
-The resulting 3D wall geometry includes true openings for doors and windows.
-
-## Viewer notes
-
-The Three.js viewer remains simple and inspection-focused:
-
-- Exterior walls and interior walls use different colors.
-- Door and window opening volumes are shown with transparent debug markers.
-- Floors are rendered from room boundaries.
-
-This is intended to verify geometric correctness quickly, not realism.
+This phase intentionally excludes AI, image/PDF parsing, OCR, panoramas, virtual tours, camera placement, measurements overlays, furniture, realistic materials, backend/API/database/authentication, and advanced roof or stair generation. Room boundaries are structured input rather than detected geometry.

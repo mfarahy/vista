@@ -5,6 +5,7 @@ import type { BuildingModel3D } from "./geometryGenerator";
 
 type BuildingViewerProps = {
   model: BuildingModel3D;
+  selectedFloorId: string;
 };
 
 const createFloorMesh = (vertices: { x: number; y: number }[]) => {
@@ -18,12 +19,11 @@ const createFloorMesh = (vertices: { x: number; y: number }[]) => {
     new THREE.MeshStandardMaterial({ color: "#d5d8d1", roughness: 1, side: THREE.DoubleSide }),
   );
   mesh.rotation.x = -Math.PI / 2;
-  mesh.position.y = -0.01;
   mesh.receiveShadow = true;
   return mesh;
 };
 
-export function BuildingViewer({ model }: BuildingViewerProps) {
+export function BuildingViewer({ model, selectedFloorId }: BuildingViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,9 +52,14 @@ export function BuildingViewer({ model }: BuildingViewerProps) {
     keyLight.castShadow = true;
     scene.add(keyLight);
 
-    const floorGroup = new THREE.Group();
-    for (const floor of model.floors) floorGroup.add(createFloorMesh(floor.vertices));
-    scene.add(floorGroup);
+    const floorGroups = new Map<string, THREE.Group>();
+    for (const floor of model.floors) {
+      let group = floorGroups.get(floor.floorId);
+      if (!group) { group = new THREE.Group(); floorGroups.set(floor.floorId, group); scene.add(group); }
+      const mesh = createFloorMesh(floor.vertices);
+      mesh.position.y = floor.elevation - 0.01;
+      group.add(mesh);
+    }
 
     for (const wall of model.wallBoxes) {
       const material = new THREE.MeshStandardMaterial({
@@ -62,11 +67,13 @@ export function BuildingViewer({ model }: BuildingViewerProps) {
         roughness: 0.82,
       });
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(wall.length, wall.height, wall.thickness), material);
-      mesh.position.set(wall.center.x, wall.center.z, -wall.center.y);
+      mesh.position.set(wall.center.x, wall.center.y, wall.center.z);
       mesh.rotation.y = -wall.rotationZ;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      scene.add(mesh);
+      let group = floorGroups.get(wall.floorId);
+      if (!group) { group = new THREE.Group(); floorGroups.set(wall.floorId, group); scene.add(group); }
+      group.add(mesh);
     }
 
     for (const opening of model.openings) {
@@ -79,10 +86,26 @@ export function BuildingViewer({ model }: BuildingViewerProps) {
           roughness: 0.65,
         }),
       );
-      marker.position.set(opening.center.x, opening.center.z, -opening.center.y);
+      marker.position.set(opening.center.x, opening.center.y, opening.center.z);
       marker.rotation.y = -opening.rotationZ;
-      scene.add(marker);
+      floorGroups.get(opening.floorId)?.add(marker);
     }
+
+    const stairGroup = new THREE.Group();
+    for (const stair of model.stairs) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(stair.width, stair.height, stair.length), new THREE.MeshStandardMaterial({ color: "#b7653a", roughness: 0.9 }));
+      mesh.position.set(stair.center.x, stair.center.y, stair.center.z);
+      stairGroup.add(mesh);
+    }
+    scene.add(stairGroup);
+
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(model.roof.width, model.roof.height, model.roof.length), new THREE.MeshStandardMaterial({ color: "#6c4e46", roughness: 1 }));
+    roof.position.set(model.roof.center.x, model.roof.center.y, model.roof.center.z);
+    scene.add(roof);
+
+    for (const [floorId, group] of floorGroups) group.visible = selectedFloorId === "all" || selectedFloorId === floorId;
+    stairGroup.visible = selectedFloorId === "all" || model.stairs.some((stair) => stair.sourceFloorId === selectedFloorId || stair.targetFloorId === selectedFloorId);
+    roof.visible = selectedFloorId === "all" || selectedFloorId === model.roof.floorId;
 
     const grid = new THREE.GridHelper(12, 12, "#b5c0bd", "#d6ddda");
     grid.position.set(4.5, -0.02, -3.5);
@@ -117,7 +140,7 @@ export function BuildingViewer({ model }: BuildingViewerProps) {
       renderer.dispose();
       container.removeChild(renderer.domElement);
     };
-  }, [model]);
+  }, [model, selectedFloorId]);
 
   return <div className="viewer" ref={containerRef} aria-label="3D building model" />;
 }

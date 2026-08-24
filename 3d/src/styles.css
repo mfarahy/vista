@@ -37,6 +37,9 @@ h1 { margin: 0; font-size: 2rem; line-height: 1.08; font-weight: 500; }
 
 .summary { margin: 22px 0 30px; color: #4e5c58; font-size: 1rem; line-height: 1.5; }
 
+.floor-selector { display: grid; gap: 8px; margin-bottom: 24px; color: #65736e; font-family: "Courier New", monospace; font-size: 0.67rem; letter-spacing: 0.04em; text-transform: uppercase; }
+.floor-selector select { width: 100%; padding: 10px 12px; border: 1px solid #aebdb6; border-radius: 3px; background: #fff; color: #1d3430; font: inherit; font-size: 0.82rem; letter-spacing: 0; text-transform: none; }
+
 .metrics { margin: 0; display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #ccd5d1; }
 .metrics div { min-height: 78px; padding: 13px 7px 8px 0; border-bottom: 1px solid #ccd5d1; }
 .metrics div:nth-child(odd) { border-right: 1px solid #ccd5d1; }
