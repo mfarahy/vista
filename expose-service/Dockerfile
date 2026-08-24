@@ -7,6 +7,8 @@ RUN npm ci --omit=dev
 
 FROM base AS build
 COPY package*.json ./
+COPY prisma ./prisma
+COPY prisma.config.ts ./
 RUN npm ci
 COPY tsconfig.json ./
 COPY src ./src
