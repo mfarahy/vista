@@ -13,7 +13,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "pdf:smoke": "tsx scripts/pdf-smoke.ts",
-    "pw": "npx prettier --write ."
+    "pw": "npx prettier --write .",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@fal-ai/client": "^1.10.1",
