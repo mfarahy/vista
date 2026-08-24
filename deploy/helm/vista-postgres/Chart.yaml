@@ -1,0 +1,6 @@
+apiVersion: v2
+name: vista-postgres
+description: PostgreSQL database for Vista
+version: 0.1.0
+appVersion: "16"
+type: application

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vista-job-processor-config
+  labels:
+    app: vista-job-processor
+data:
+  NATS_URL: "nats://nats:4222"
+  NATS_SUBJECT_PREFIX: "vista.jobs"
+  LOG_LEVEL: "info"

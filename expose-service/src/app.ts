@@ -9,11 +9,14 @@ import { addressRouter } from './routes/address.js';
 import { propertiesRouter } from './routes/properties.js';
 import { floorplanRouter } from './routes/floorplan.js';
 import { documentsRouter } from './routes/documents.js';
+import { jobsRouter, type JobDeps } from './routes/jobs.js';
 import type { RenderPdfFunction } from './services/pdf.js';
 
 export interface CreateAppOptions {
   /** Injectable PDF renderer for tests; defaults to the Playwright renderer. */
   renderPdf?: RenderPdfFunction;
+  /** Injectable job repository/publisher for tests; defaults to Prisma + NATS. */
+  jobs?: JobDeps;
 }
 
 export function createApp(options: CreateAppOptions = {}): express.Express {
@@ -36,6 +39,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.use(propertiesRouter(options));
   app.use(floorplanRouter);
   app.use(documentsRouter);
+  app.use(jobsRouter(options.jobs));
 
   app.use(errorHandler);
   return app;

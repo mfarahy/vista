@@ -1,0 +1,35 @@
+// Mirrors the `Job` model from expose-service (which owns schema creation and
+// migrations). Defined here so job-processor can generate a matching Prisma
+// client and operate on the same shared `Job` table.
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+}
+
+model Job {
+    id          String    @id
+    type        String
+    status      JobStatus @default(queued)
+    progress    Int       @default(0)
+    currentStep String?
+    message     String?
+    error       String?
+    payload     Json?
+    metadata    Json?
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+
+    @@index([status])
+    @@index([type])
+}
+
+enum JobStatus {
+    queued
+    processing
+    completed
+    failed
+}

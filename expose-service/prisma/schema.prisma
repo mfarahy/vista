@@ -160,3 +160,29 @@ model ExposeContent {
     factualSnapshot     Json
     expose              Expose @relation(fields: [exposeId], references: [id], onDelete: Cascade)
 }
+
+/// Long-running asynchronous job. Managed by expose-service (creation/queued)
+/// and job-processor (processing/completed/failed), connected via NATS.
+model Job {
+    id          String    @id
+    type        String
+    status      JobStatus @default(queued)
+    progress    Int       @default(0)
+    currentStep String?
+    message     String?
+    error       String?
+    payload     Json?
+    metadata    Json?
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+
+    @@index([status])
+    @@index([type])
+}
+
+enum JobStatus {
+    queued
+    processing
+    completed
+    failed
+}
