@@ -17,6 +17,8 @@ import { toast } from 'sonner';
 import { defaultLocale, translate, useI18n, type Locale, type TranslationKey } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { useJobProgress, type JobProgressState } from '@/lib/use-job-progress';
 import type { DocumentRecord } from '../types';
 import {
   BUILDING_STATUSES,
@@ -47,23 +49,15 @@ const ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
 /** Shorthand response of the async document-processing endpoints. */
 type JobEnqueueResponse = { jobId: string; status: string; type: string };
 
-/**
- * Polls a job until it reaches a terminal state (completed/failed), so the UI
- * can refresh the document list once the async processing has run. Returns on
- * any error or after a bounded number of attempts.
- */
-async function waitForJob(jobId: string, attempts = 60, intervalMs = 1000): Promise<void> {
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    try {
-      const response = await apiFetch(`/api/jobs/${jobId}`);
-      if (!response.ok) return;
-      const job = (await response.json()) as { status?: string };
-      if (job.status === 'completed' || job.status === 'failed') return;
-    } catch {
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  }
+/** Maps a job's `currentStep` to an i18n label for the progress UI. */
+function currentStepLabel(step: string | undefined): TranslationKey | undefined {
+  const labels: Record<string, TranslationKey> = {
+    received: 'documentsStep.stepReceived',
+    ocr: 'documentsStep.stepOcr',
+    understanding: 'documentsStep.stepUnderstanding',
+    done: 'documentsStep.stepDone',
+  };
+  return step ? labels[step] : undefined;
 }
 
 /** Categories of the "Gefundene Informationen" overview (spec §16). */
@@ -251,8 +245,10 @@ export function StepDocuments({
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState('');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const { t, locale } = useI18n();
+  const job = useJobProgress(activeJobId);
 
   const notify = useCallback(
     (list: DocumentRecord[]) => {
@@ -261,6 +257,32 @@ export function StepDocuments({
     },
     [onExtracted],
   );
+
+  const refreshDocuments = useCallback(async () => {
+    try {
+      const response = await apiFetch(`/api/properties/${propertyId}/documents`);
+      if (!response.ok) return;
+      const list = (await response.json()) as DocumentRecord[];
+      notify(list);
+    } catch {
+      setError(t('documentsStep.loadFailed'));
+    }
+  }, [propertyId, notify, t]);
+
+  // When the async processing job finishes, refresh the document list so the
+  // extracted understanding results appear. The live progress card renders the
+  // terminal success/error state.
+  useEffect(() => {
+    if (job.state?.status === 'completed') {
+      setUploading(false);
+      setUploadingCount(0);
+      void refreshDocuments();
+    } else if (job.state?.status === 'failed') {
+      setUploading(false);
+      setUploadingCount(0);
+      void refreshDocuments();
+    }
+  }, [job.state?.status, refreshDocuments]);
 
   useEffect(() => {
     let cancelled = false;
@@ -324,14 +346,9 @@ async function load() {
         if (Array.isArray(uploaded) && uploaded.length) {
           notify([...uploaded, ...documents]);
         } else if (!Array.isArray(uploaded) && uploaded.jobId) {
-          // Asynchronous flow: the request returned a jobId. Wait for the
-          // processor to finish, then refresh the document list.
-          await waitForJob(uploaded.jobId);
-          const refreshed = await apiFetch(`/api/properties/${propertyId}/documents`);
-          if (refreshed.ok) {
-            const list = (await refreshed.json()) as DocumentRecord[];
-            notify(list);
-          }
+          // Asynchronous flow: the request returned a jobId. Subscribe to its
+          // live progress and refresh the document list when it completes.
+          setActiveJobId(uploaded.jobId);
         } else {
           setError(t('documentsStep.uploadFailed'));
         }
@@ -354,12 +371,7 @@ async function load() {
       if ('id' in result && typeof result.id === 'string') {
         notify(documents.map((document) => (document.id === result.id ? result : document)));
       } else if ('jobId' in result && typeof result.jobId === 'string') {
-        await waitForJob(result.jobId);
-        const refreshed = await apiFetch(`/api/properties/${propertyId}/documents`);
-        if (refreshed.ok) {
-          const list = (await refreshed.json()) as DocumentRecord[];
-          notify(list);
-        }
+        setActiveJobId(result.jobId);
       }
     } catch {
       setError(t('documentsStep.reanalyzeFailed'));
@@ -481,6 +493,10 @@ async function load() {
           </div>
         ) : null}
 
+        {job.state && (
+          <JobProgressCard job={job.state} reconnecting={job.reconnecting} t={t} />
+        )}
+
         {documents.length > 0 && (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {documents.map((document) => (
@@ -589,6 +605,97 @@ async function load() {
         )}
       </div>
     </Section>
+  );
+}
+
+/** Live progress / terminal-state card shown while a processing job runs. */
+function JobProgressCard({
+  job,
+  reconnecting,
+  t,
+}: {
+  job: JobProgressState;
+  reconnecting: boolean;
+  t: ReturnType<typeof useI18n>['t'];
+}) {
+  const completed = job.status === 'completed';
+  const failed = job.status === 'failed';
+  const active = !completed && !failed;
+  const stepKey = currentStepLabel(job.currentStep);
+  const progress = completed ? 100 : Math.max(0, Math.min(100, job.progress ?? 0));
+
+  return (
+    <div
+      className={cn(
+        'rounded-xl border p-5',
+        failed
+          ? 'border-destructive/30 bg-destructive/5'
+          : completed
+            ? 'border-primary/25 bg-primary/[0.04]'
+            : 'border-border bg-card',
+      )}
+    >
+      <div className="flex items-center gap-2">
+        {active ? (
+          <LoaderCircle className="size-4 animate-spin text-primary" aria-hidden />
+        ) : completed ? (
+          <span className="grid size-5 place-items-center rounded-full bg-primary text-primary-foreground">
+            <Check className="size-3" aria-hidden />
+          </span>
+        ) : (
+          <span className="grid size-5 place-items-center rounded-full bg-destructive text-destructive-foreground">
+            <X className="size-3" aria-hidden />
+          </span>
+        )}
+        <p
+          className={cn(
+            'font-semibold text-foreground',
+            failed && 'text-destructive',
+            completed && 'text-primary',
+          )}
+        >
+          {failed
+            ? t('documentsStep.processingFailed')
+            : completed
+              ? t('documentsStep.processingCompleted')
+              : t('documentsStep.processingRunning')}
+        </p>
+        {active && reconnecting && (
+          <span className="ml-auto text-xs text-muted-foreground">
+            {t('documentsStep.processingReconnecting')}
+          </span>
+        )}
+      </div>
+
+      <div className="mt-4 flex items-center gap-3">
+        <Progress
+          value={progress}
+          className={cn('h-2 flex-1', failed && '[&>div]:bg-destructive')}
+        />
+        <span className="text-sm font-medium tabular-nums text-foreground">{progress}%</span>
+      </div>
+
+      <div className="mt-3 space-y-1">
+        {failed && job.error ? (
+          <p className="text-sm text-destructive">{job.error}</p>
+        ) : (
+          <>
+            {stepKey && (
+              <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                {active && <span className="size-1.5 rounded-full bg-primary" aria-hidden />}
+                {t(stepKey)}
+              </p>
+            )}
+            {job.message && <p className="text-sm text-muted-foreground">{job.message}</p>}
+            {completed && (
+              <p className="text-sm text-muted-foreground">
+                {t('documentsStep.processingDoneHint')}
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

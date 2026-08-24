@@ -44,6 +44,7 @@ Then open `http://localhost:3000` and select **New Exposé**.
 - `NATS_URL`: NATS server URL for publishing/consuming jobs (default `nats://localhost:4222`)
 - `EXPOSE_SERVICE_URL`: base URL of the expose-service API; the `document-processing` handler calls its worker endpoints through this (default `http://localhost:4000`)
 - `NATS_SUBJECT_PREFIX`: NATS subject prefix; jobs are published to `<prefix>.<jobType>` and consumed via the `<prefix>.>` wildcard (default `vista.jobs`)
+- `NATS_PROGRESS_SUBJECT_PREFIX`: NATS subject prefix for job progress events (`<prefix>.<jobId>`), published by `job-processor` and consumed by expose-service to feed SSE (default `vista.progress`)
 - `MAP_ATTRIBUTION`: attribution for the local map fallback
 - `FRONTEND_URL`: base URL of the Next.js app that hosts the PDF print route, default `http://localhost:3000`
 - `BORIS_BASE_URL`: optional Brandenburg BORIS OGC API endpoint for Bodenrichtwert enrichment (default `https://ogc-api.geobasis-bb.de/boris`)
@@ -56,7 +57,10 @@ The system has async job infrastructure built on NATS and PostgreSQL:
 
 - `POST /api/jobs` with `{ "type": "test-job", "payload": {...}, "metadata": {...} }` creates a `jobId`, persists the job as `queued`, publishes a job event to NATS (`vista.jobs.test-job`), and returns the `jobId` immediately.
 - `GET /api/jobs/:id` returns the persisted job record (status, progress, currentStep, message, error).
+- `GET /api/jobs/:id/events` opens a Server-Sent Events stream for a job. It sends the current job state on connect, then forwards live updates (jobId, status, progress, currentStep, message, updatedAt, error) until the job reaches a terminal state (or the client disconnects). A job that already completed/failed returns its final state and closes immediately.
 - `job-processor/` subscribes to `vista.jobs.>`, dispatches each job to a handler by `jobType`, and advances the persisted status `queued → processing → completed|failed`. A failing job is marked `failed` and logged without crashing the worker. Implemented handlers: `test-job` (example) and `document-processing`.
+
+Progress flows `job-processor → NATS → expose-service → SSE → frontend`: whenever the processor advances a job it persists the state and publishes a progress event to `vista.progress.<jobId>`. expose-service holds a single wildcard subscription that fans the events out to the in-memory SSE clients subscribed to that `jobId` (an MVP in-process registry, no Redis). The frontend uses the browser `EventSource` (SSE) to render a live progress bar, current step, and status/message without polling.
 
 Document processing is fully asynchronous: `POST /api/properties/:id/documents` (and the per-document analyze endpoint) now persist the uploaded files and the document records, enqueue a `document-processing` job (persisted as `queued`, published to `vista.jobs.document-processing`), and return the `jobId` immediately instead of analyzing inline. `job-processor` consumes the event, runs the existing OCR → understanding pipeline per document (reporting progress via `currentStep`/`message`), and finally marks the job `completed` (success) or `failed`. A single failing document is contained and logged; the job still completes unless every document failed.
 
@@ -83,11 +87,13 @@ Without these variables, integration tests are skipped. No API keys are logged o
 Job integration tests (NATS publishing, job status persistence, consumer execution/failure) need a running NATS and PostgreSQL and are skipped unless enabled:
 
 ```bash
-# expose-service: NATS publishing + Prisma job status persistence
+# expose-service: NATS publishing + Prisma job status persistence + NATS → SSE delivery
 cd expose-service && RUN_JOB_INTEGRATION=1 NATS_URL=nats://localhost:4222 npm test
 # job-processor: consumption, dispatching, success/failure execution, status persistence
 cd job-processor && RUN_JOB_INTEGRATION=1 NATS_URL=nats://localhost:4222 npm test
 ```
+
+The SSE endpoint itself is covered by deterministic unit tests (`src/routes/jobs-sse.test.ts`): initial state, live progress events, completed/failed close behavior, and already-terminal jobs.
 
 ## PostgreSQL
 

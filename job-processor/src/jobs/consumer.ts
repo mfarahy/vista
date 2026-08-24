@@ -1,10 +1,20 @@
 import type { NatsConnection, Subscription } from 'nats';
 import { StringCodec } from 'nats';
 import type { JobDispatcher, JobHandlerResult, JobRunContext } from './dispatcher.js';
-import { parseJobEvent } from './event.js';
+import { parseJobEvent, type JobEvent } from './event.js';
+import { publishJobProgress } from './progress-publisher.js';
+import { createJobProgressEvent } from './progress-event.js';
 import { jobRepo } from '../lib/jobRepo.js';
 import { getLogger, type Logger } from '../lib/logger.js';
 import { errorMessage } from '../lib/error.js';
+import type { JobStatus } from '@prisma/client';
+
+export interface ProgressPatch {
+  progress?: number;
+  currentStep?: string;
+  message?: string;
+  error?: string;
+}
 
 export interface ConsumerOptions {
   nc: NatsConnection;
@@ -53,7 +63,7 @@ async function handleMessage(
 ): Promise<void> {
   const decoded = StringCodec().decode(data);
 
-  let event;
+  let event: JobEvent;
   try {
     event = parseJobEvent(JSON.parse(decoded));
   } catch (error) {
@@ -65,7 +75,14 @@ async function handleMessage(
     { jobId: event.jobId, jobType: event.jobType, subject },
     'Job {jobId} received from {subject}',
   );
-  await jobRepo.processing(event.jobId);
+
+  /** Persists a status patch and publishes a progress event for it. */
+  async function report(status: JobStatus, patch: ProgressPatch = {}): Promise<void> {
+    await jobRepo.setStatus(event.jobId, { status, ...patch });
+    publishJobProgress(options.nc, createJobProgressEvent({ jobId: event.jobId, status, ...patch }));
+  }
+
+  await report('processing', { currentStep: 'received' });
 
   const ctx: JobRunContext = {
     job: {
@@ -75,12 +92,7 @@ async function handleMessage(
       metadata: event.metadata,
     },
     update: async (patch) => {
-      await jobRepo.setStatus(event.jobId, {
-        status: 'processing',
-        progress: patch.progress,
-        currentStep: patch.currentStep,
-        message: patch.message,
-      });
+      await report('processing', patch);
     },
     log,
   };
@@ -93,10 +105,10 @@ async function handleMessage(
   } catch (error) {
     const message = errorMessage(error, 'job processing failed');
     log.error({ jobId: event.jobId, err: error }, 'Job {jobId} failed: {message}');
-    await jobRepo.failed(event.jobId, message);
+    await report('failed', { error: message });
     return;
   }
 
   log.info({ jobId: event.jobId }, 'Job {jobId} completed');
-  await jobRepo.completed(event.jobId, result.message);
+  await report('completed', { progress: 100, message: result.message });
 }

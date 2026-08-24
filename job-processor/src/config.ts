@@ -6,6 +6,8 @@ export interface Config {
   subjectPrefix: string;
   /** NATS subject this worker subscribes to (the prefix + `>` wildcard). */
   subscriptionSubject: string;
+  /** NATS subject prefix used to publish job progress events (`<prefix>.<jobId>`). */
+  progressSubjectPrefix: string;
   databaseUrl: string;
   /** Base URL of expose-service (the API service), used by the document-processing handler to invoke its worker endpoints. */
   exposeServiceUrl: string;
@@ -16,10 +18,15 @@ export interface Config {
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const subjectPrefix = (env.NATS_SUBJECT_PREFIX || 'vista.jobs').replace(/\.$/, '');
+  const progressSubjectPrefix = (env.NATS_PROGRESS_SUBJECT_PREFIX || 'vista.progress').replace(
+    /\.$/,
+    '',
+  );
   return {
     natsUrl: env.NATS_URL || 'nats://localhost:4222',
     subjectPrefix,
     subscriptionSubject: `${subjectPrefix}.>`,
+    progressSubjectPrefix,
     databaseUrl: env.DATABASE_URL || '',
     exposeServiceUrl: env.EXPOSE_SERVICE_URL || 'http://localhost:4000',
     host: env.HOST || '0.0.0.0',

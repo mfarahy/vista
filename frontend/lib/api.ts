@@ -40,6 +40,14 @@ export function apiAssetUrl(path: string) {
 }
 
 /**
+ * Resolves the absolute URL for an SSE stream path so it can be passed to
+ * `EventSource` (which requires a full URL).
+ */
+export function apiEventUrl(path: string) {
+  return path.startsWith('http') ? path : `${getApiBaseUrl()}${path}`;
+}
+
+/**
  * Resolves the download filename from an RFC 5987 `filename*` or plain
  * `filename` Content-Disposition parameter, or null when absent.
  */
