@@ -1166,6 +1166,9 @@ const de: TranslationSchema = {
     noCoverImage: 'Kein Titelfoto vorhanden',
     coverKicker: 'Immobilien-Exposé',
     footer: '{company} · Immobilien-Exposé · {date}',
+    pageFooter: {
+      poweredBy: 'Powered by Vista',
+    },
     efficiencyScaleLabel: 'Energieeffizienzklasse {value}',
   },
   templates: {

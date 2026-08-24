@@ -1156,6 +1156,9 @@ const en = {
     noCoverImage: 'No cover photo available',
     coverKicker: 'Property exposé',
     footer: '{company} · Property exposé · {date}',
+    pageFooter: {
+      poweredBy: 'Powered by Vista',
+    },
     efficiencyScaleLabel: 'Energy efficiency class {value}',
   },
   templates: {
