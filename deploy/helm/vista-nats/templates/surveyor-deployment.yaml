@@ -49,6 +49,8 @@ spec:
             - {{ .Values.surveyor.serverCount | quote }}
             - "-s"
             - {{ .Values.surveyor.servers | quote }}
+            - "-p"
+            - {{ .Values.surveyor.service.port | quote }}
             - "--accounts"
             - "--accounts-detailed"
             - "--observe"
@@ -62,6 +64,8 @@ spec:
               value: {{ .Values.surveyor.servers | quote }}
             - name: NATS_SURVEYOR_SERVER_COUNT
               value: {{ .Values.surveyor.serverCount | quote }}
+            - name: NATS_SURVEYOR_PORT
+              value: {{ .Values.surveyor.service.port | quote }}
           volumeMounts:
             - name: observations
               mountPath: /observations
