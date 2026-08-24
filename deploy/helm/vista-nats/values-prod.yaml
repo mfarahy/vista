@@ -1,0 +1,6 @@
+replicaCount: 1
+image:
+  repository: nats
+  tag: "2.10-alpine"
+surveyor:
+  servers: "nats://nats:4222"

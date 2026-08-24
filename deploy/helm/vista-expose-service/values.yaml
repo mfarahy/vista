@@ -42,6 +42,8 @@ config:
   DATA_DIR: "/data"
   UPLOAD_DIR: "/data/uploads"
   DOCUMENT_STORAGE_PROVIDER: "local"
+  NATS_URL: "nats://nats:4222"
+  NATS_SUBJECT_PREFIX: "vista.jobs"
 
 secrets:
   OPENAI_API_KEY: ""

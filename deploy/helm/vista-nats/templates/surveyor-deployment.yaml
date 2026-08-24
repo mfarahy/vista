@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vista-nats.fullname" . }}-surveyor
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: nats-surveyor
+spec:
+  replicas: {{ .Values.surveyor.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: nats-surveyor
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: nats-surveyor
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: nats-surveyor
+          image: "{{ .Values.surveyor.image.repository }}:{{ .Values.surveyor.image.tag }}"
+          imagePullPolicy: {{ .Values.surveyor.image.pullPolicy }}
+          ports:
+            - containerPort: 7777
+              name: http
+              protocol: TCP
+          args:
+            - "--count"
+            - {{ .Values.surveyor.serverCount | quote }}
+            - "-s"
+            - {{ .Values.surveyor.servers | quote }}
+            - "--accounts"
+            - "--accounts-detailed"
+            - "--observe"
+            - "/observations"
+            - "--jetstream"
+            - "/jetstream"
+            - "--jsz"
+            - "all"
+          env:
+            - name: NATS_SURVEYOR_SERVERS
+              value: {{ .Values.surveyor.servers | quote }}
+            - name: NATS_SURVEYOR_SERVER_COUNT
+              value: {{ .Values.surveyor.serverCount | quote }}
+          volumeMounts:
+            - name: observations
+              mountPath: /observations
+            - name: jetstream
+              mountPath: /jetstream
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.surveyor.resources | nindent 12 }}
+      volumes:
+        - name: observations
+          emptyDir: {}
+        - name: jetstream
+          emptyDir: {}

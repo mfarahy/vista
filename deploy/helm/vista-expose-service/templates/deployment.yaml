@@ -62,6 +62,10 @@ spec:
               value: {{ .Values.config.UPLOAD_DIR | quote }}
             - name: DOCUMENT_STORAGE_PROVIDER
               value: {{ .Values.config.DOCUMENT_STORAGE_PROVIDER | default "local" | quote }}
+            - name: NATS_URL
+              value: {{ .Values.config.NATS_URL | quote }}
+            - name: NATS_SUBJECT_PREFIX
+              value: {{ .Values.config.NATS_SUBJECT_PREFIX | quote }}
             - name: CLOUDFLARE_S3_API_ENDPOINT
               valueFrom:
                 secretKeyRef:

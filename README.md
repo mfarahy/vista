@@ -66,7 +66,7 @@ Document processing is fully asynchronous: `POST /api/properties/:id/documents` 
 
 Document file bytes live behind a swappable storage abstraction (`expose-service/src/lib/document-storage.ts`): `DOCUMENT_STORAGE_PROVIDER=local` (default, dev/tests) stores files on disk under `UPLOAD_DIR`, while `DOCUMENT_STORAGE_PROVIDER=r2` stores them in Cloudflare R2 / any S3-compatible bucket (see `CLOUDFLARE_*` variables in `expose-service/.env.example`). `job-processor` invokes the worker-facing endpoints `POST /api/internal/documents/:id/ocr|understand` on expose-service (via `EXPOSE_SERVICE_URL`, the base URL of the expose-service API), which read the bytes from the configured storage and reuse the existing pipeline.
 
-The (shared) `Job` model and `JobStatus` (`queued`, `processing`, `completed`, `failed`) live in `expose-service/prisma/schema.prisma`; both expose-service and job-processor persist to the same PostgreSQL table. NATS and PostgreSQL run via `docker-compose.yml`.
+The (shared) `Job` model and `JobStatus` (`queued`, `processing`, `completed`, `failed`) live in `expose-service/prisma/schema.prisma`; both expose-service and job-processor persist to the same PostgreSQL table. NATS and PostgreSQL run via `docker-compose.yml` locally, and in production they are deployed from the separate Helm charts `deploy/helm/vista-nats` (NATS broker + `nats-surveyor` Prometheus observer, reachable at `nats:4222` / `nats-surveyor:7777`) and `deploy/helm/vista-postgres`. In the `vista` namespace, both expose-service and job-processor point at `nats://nats:4222`, and job-processor reaches expose-service at `http://vista-expose-service:4000`.
 
 ## Tests
 

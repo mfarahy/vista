@@ -44,6 +44,16 @@ spec:
                 configMapKeyRef:
                   name: vista-expose-service-config
                   key: DOCUMENT_STORAGE_PROVIDER
+            - name: NATS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: vista-expose-service-config
+                  key: NATS_URL
+            - name: NATS_SUBJECT_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: vista-expose-service-config
+                  key: NATS_SUBJECT_PREFIX
             - name: CLOUDFLARE_S3_API_ENDPOINT
               valueFrom:
                 secretKeyRef:

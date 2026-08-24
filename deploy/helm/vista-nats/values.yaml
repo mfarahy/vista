@@ -1,0 +1,50 @@
+global:
+  imagePullSecrets:
+    - name: gitlab-registry
+
+replicaCount: 1
+
+nameOverride: "nats"
+
+image:
+  repository: nats
+  tag: "2.10-alpine"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  clientPort: 4222
+  monitorPort: 8222
+
+jetstream:
+  enabled: true
+
+# NATS monitoring "observer": nats-surveyor exposes Prometheus metrics for the
+# broker (accounts, JetStream stats, observations). Reachable at
+# `nats-surveyor:7777` in the vista namespace.
+surveyor:
+  replicaCount: 1
+  image:
+    repository: natsio/nats-surveyor
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  servers: "nats://nats:4222"
+  serverCount: 1
+  service:
+    type: ClusterIP
+    port: 7777
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi

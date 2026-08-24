@@ -10,3 +10,5 @@ data:
   OPENAI_MODEL: "gpt-4o-mini"
   LOG_LEVEL: "info"
   DOCUMENT_STORAGE_PROVIDER: "local"
+  NATS_URL: "nats://nats:4222"
+  NATS_SUBJECT_PREFIX: "vista.jobs"
