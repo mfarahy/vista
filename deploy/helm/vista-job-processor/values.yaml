@@ -1,0 +1,33 @@
+global:
+  imagePullSecrets:
+    - name: gitlab-registry
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/example/vista-job-processor
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 4100
+
+config:
+  HOST: "0.0.0.0"
+  PORT: "4100"
+  LOG_LEVEL: "info"
+  NATS_URL: "nats://nats:4222"
+  NATS_SUBJECT_PREFIX: "vista.jobs"
+
+secrets:
+  DATABASE_URL: ""
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi

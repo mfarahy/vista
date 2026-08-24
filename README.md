@@ -17,7 +17,9 @@ Then open `http://localhost:3000` and select **New Exposé**.
 - `frontend/`: separately deployable Next.js web client for `expose-service/`
 - `expose-service/`: separately deployable Express/Mastra service
 - `expose-service/prisma/`: PostgreSQL schema, migrations, and seed for production persistence
-- `deploy/frontend/` and `deploy/expose-service/`: Kubernetes manifests
+- `job-processor/`: standalone async job worker that consumes jobs from NATS and persists status to PostgreSQL
+- `deploy/frontend/`, `deploy/expose-service/`, and `deploy/job-processor/`: Kubernetes manifests
+- `deploy/helm/vista-expose-service/` and `deploy/helm/vista-job-processor/`: Helm charts
 
 ## Environment Variables
 
@@ -39,11 +41,23 @@ Then open `http://localhost:3000` and select **New Exposé**.
 - `LOCATION_SEARCH_RADIUS_METERS`: search radius, default `1000`
 - `LOCATION_FACILITY_CATEGORIES`: comma-separated POI categories
 - `DOCUMENT_ANALYSIS_CONCURRENCY`: maximum parallel document analyses per upload batch, default `3`
+- `NATS_URL`: NATS server URL for publishing/consuming jobs (default `nats://localhost:4222`)
+- `NATS_SUBJECT_PREFIX`: NATS subject prefix; jobs are published to `<prefix>.<jobType>` and consumed via the `<prefix>.>` wildcard (default `vista.jobs`)
 - `MAP_ATTRIBUTION`: attribution for the local map fallback
 - `FRONTEND_URL`: base URL of the Next.js app that hosts the PDF print route, default `http://localhost:3000`
 - `BORIS_BASE_URL`: optional Brandenburg BORIS OGC API endpoint for Bodenrichtwert enrichment (default `https://ogc-api.geobasis-bb.de/boris`)
 
 The OpenStreetMap adapters use Nominatim for geocoding and Overpass for supermarkets, kindergartens, schools, public transit, pharmacies, parks, and restaurants/cafés. They are active only when the providers are explicitly configured. Verified distances and travel times for the Exposé's Nearby Amenities section come from the OSRM routing endpoints (`ROUTING_PROVIDER=osrm`, walking/cycling/driving); without a routing provider, facilities are collected but never presented with distances or travel times. There is currently no external static map provider: the local, coordinate-aware SVG fallback is exposed for development and testing and must not be considered a real map-service integration.
+
+## Jobs
+
+The system has minimal async job infrastructure built on NATS and PostgreSQL:
+
+- `POST /api/jobs` with `{ "type": "test-job", "payload": {...}, "metadata": {...} }` creates a `jobId`, persists the job as `queued`, publishes a job event to NATS (`vista.jobs.test-job`), and returns the `jobId` immediately.
+- `GET /api/jobs/:id` returns the persisted job record (status, progress, currentStep, message, error).
+- `job-processor/` subscribes to `vista.jobs.>`, dispatches each job to a handler by `jobType`, and advances the persisted status `queued → processing → completed|failed`. A failing job is marked `failed` and logged without crashing the worker. Only `test-job` is implemented so far; `payload.fail` exercises the failure path.
+
+The (shared) `Job` model and `JobStatus` (`queued`, `processing`, `completed`, `failed`) live in `expose-service/prisma/schema.prisma`; both expose-service and job-processor persist to the same PostgreSQL table. NATS and PostgreSQL run via `docker-compose.yml`.
 
 ## Tests
 
@@ -60,6 +74,15 @@ RUN_LOCATION_INTEGRATION=1 GEOCODING_PROVIDER=nominatim PLACES_PROVIDER=overpass
 ```
 
 Without these variables, integration tests are skipped. No API keys are logged or committed.
+
+Job integration tests (NATS publishing, job status persistence, consumer execution/failure) need a running NATS and PostgreSQL and are skipped unless enabled:
+
+```bash
+# expose-service: NATS publishing + Prisma job status persistence
+cd expose-service && RUN_JOB_INTEGRATION=1 NATS_URL=nats://localhost:4222 npm test
+# job-processor: consumption, dispatching, success/failure execution, status persistence
+cd job-processor && RUN_JOB_INTEGRATION=1 NATS_URL=nats://localhost:4222 npm test
+```
 
 ## PostgreSQL
 

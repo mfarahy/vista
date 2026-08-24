@@ -1,0 +1,33 @@
+global:
+  imagePullSecrets:
+    - name: gitlab-registry
+
+replicaCount: ${VISTA_JOB_PROCESSOR_REPLICAS}
+
+image:
+  repository: "${CI_REGISTRY_IMAGE}/job-processor"
+  tag: "${RELEASE_VERSION}"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 4100
+
+config:
+  HOST: "0.0.0.0"
+  PORT: "4100"
+  LOG_LEVEL: "${LOG_LEVEL}"
+  NATS_URL: "${NATS_URL}"
+  NATS_SUBJECT_PREFIX: "${NATS_SUBJECT_PREFIX}"
+
+secrets:
+  DATABASE_URL: "${DATABASE_URL}"
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi

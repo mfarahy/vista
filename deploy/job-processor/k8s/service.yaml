@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vista-job-processor
+  labels:
+    app: vista-job-processor
+spec:
+  selector:
+    app: vista-job-processor
+  ports:
+    - name: http
+      port: 80
+      targetPort: 4100
+  type: ClusterIP

@@ -1,0 +1,10 @@
+replicaCount: 2
+image:
+  repository: ghcr.io/example/vista-job-processor
+  tag: "1.0.0"
+config:
+  LOG_LEVEL: "info"
+  NATS_URL: "nats://nats:4222"
+  NATS_SUBJECT_PREFIX: "vista.jobs"
+secrets:
+  DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/vista"

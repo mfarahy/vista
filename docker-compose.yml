@@ -83,6 +83,26 @@ services:
     profiles:
       - storage
 
+  # ── Async Job Processor (consumes jobs from NATS) ─────────────────────────────
+  job-processor:
+    build:
+      context: ./job-processor
+    restart: unless-stopped
+    ports:
+      - "${JOB_PROCESSOR_PORT:-4100}:4100"
+    environment:
+      NATS_URL: nats://nats:4222
+      NATS_SUBJECT_PREFIX: vista.jobs
+      DATABASE_URL: "${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/vista}"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - monitor-net
+
 volumes:
   pgdata:
   prometheus_data:
