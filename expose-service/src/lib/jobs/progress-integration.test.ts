@@ -33,7 +33,7 @@ describe('NATS progress event -> SSE delivery (integration)', { skip: skipReason
       createdAt: now,
       updatedAt: now,
     };
-    const { createApp } = await import('../app.js');
+    const { createApp } = await import('../../app.js');
     const app = createApp({
       jobs: {
         repo: { create: async () => ({ id: 'x' }), get: async () => queued },
