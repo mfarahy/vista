@@ -109,11 +109,11 @@ export async function renderExposePdf(propertyId: string): Promise<Buffer> {
       () => (globalThis as { __EXPOSE_READY__?: boolean }).__EXPOSE_READY__ === true,
       { timeout: READY_TIMEOUT_MS },
     );
-    const pdf = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      preferCSSPageSize: true,
+    const footerTemplate = await page.evaluate(() => {
+      const host = globalThis as { __EXPOSE_FOOTER_HTML__?: unknown };
+      return typeof host.__EXPOSE_FOOTER_HTML__ === 'string' ? host.__EXPOSE_FOOTER_HTML__ : '';
     });
+    const pdf = await page.pdf(exposePdfSettings(footerTemplate));
     const durationMs = Math.round(performance.now() - started);
     log.info(
       { propertyId, route, durationMs, bytes: pdf.byteLength },
@@ -130,6 +130,35 @@ export async function renderExposePdf(propertyId: string): Promise<Buffer> {
   } finally {
     await browser.close();
   }
+}
+
+export type ExposePdfSettings = {
+  format: 'A4';
+  printBackground: boolean;
+  preferCSSPageSize: boolean;
+  displayHeaderFooter: boolean;
+  headerTemplate: string;
+  footerTemplate: string | undefined;
+};
+
+/**
+ * PDF options for the Exposé. The per-page footer template is rendered by the
+ * frontend print route (localized Makler identity, Vista branding, page
+ * indicator) and drawn by Chromium into the CSS bottom page margin of every
+ * page; the `pageNumber`/`totalPages` placeholders resolve to the actual
+ * final page count. Without a template (older frontend), the footer is
+ * disabled and the output stays identical to the plain A4 export.
+ */
+export function exposePdfSettings(footerTemplate: string): ExposePdfSettings {
+  const hasFooter = footerTemplate.trim().length > 0;
+  return {
+    format: 'A4',
+    printBackground: true,
+    preferCSSPageSize: true,
+    displayHeaderFooter: hasFooter,
+    headerTemplate: '<span></span>',
+    footerTemplate: hasFooter ? footerTemplate : undefined,
+  };
 }
 
 export type RenderPdfFunction = (propertyId: string) => Promise<Buffer>;

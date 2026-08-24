@@ -1,4 +1,4 @@
-import type { Property } from '../../../create/[id]/types';
+import type { BrokerProfile, Property } from '../../../create/[id]/types';
 import { apiAssetUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { translations, type Translator } from '@/lib/i18n/core';
@@ -14,6 +14,7 @@ import {
 import type { ExposeMedia } from '../expose-model';
 import { EXPOSE_CSS } from '../../../expose/expose-css';
 import {
+  BrokerPageSection,
   ContactSection,
   DocumentsSection,
   EnergySection,
@@ -133,17 +134,19 @@ export function ModernExposeTemplate({
   marketingContent,
   expose,
   media,
+  brokerProfile,
   translations: translationsProp,
 }: {
   property: Property;
   marketingContent: EffectiveMarketingContent;
   expose: ExposeConfiguration;
   media: ExposeMedia;
+  brokerProfile?: BrokerProfile | null;
   translations?: Translator;
 }) {
   const tr = translationsProp ?? translations.en;
   const sections = visibleSections(expose);
-  const branding = effectiveBranding(property, expose);
+  const branding = effectiveBranding(property, expose, brokerProfile);
   return (
     <>
       <style>{EXPOSE_CSS}</style>
@@ -226,6 +229,16 @@ export function ModernExposeTemplate({
                   property={property}
                   expose={expose}
                   branding={branding}
+                  brokerProfile={brokerProfile}
+                  tr={tr}
+                />
+              );
+            case 'broker':
+              return (
+                <BrokerPageSection
+                  key={section.id}
+                  property={property}
+                  brokerProfile={brokerProfile}
                   tr={tr}
                 />
               );

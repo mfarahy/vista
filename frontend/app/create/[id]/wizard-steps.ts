@@ -25,8 +25,7 @@ export const STEP_YOUR_INFO = 8;
 export const STEP_MARKETING_CONTENT = 9;
 export const STEP_PHOTOS = 10;
 export const STEP_PLANS = 11;
-export const STEP_AGENT = 12;
-export const STEP_REVIEW = 13;
+export const STEP_REVIEW = 12;
 
 const HOUSE_TYPES = ['house', 'villa', 'semi-detached', 'terraced'];
 const INVESTMENT_USAGE = ['rental', 'investment', 'mixed'];
@@ -90,8 +89,6 @@ export interface StepCompletionSnapshot {
   yourInfo: Record<string, unknown>;
   imageCount: number;
   planCount: number;
-  agentName?: string | null;
-  agentCompany?: string | null;
   contentExists: boolean;
   marketingContentExists: boolean;
 }
@@ -162,8 +159,6 @@ export function stepStatus(step: number, s: StepCompletionSnapshot): WizardStepS
       return s.imageCount > 0 ? 'complete' : 'incomplete';
     case STEP_PLANS:
       return s.planCount > 0 ? 'complete' : 'incomplete';
-    case STEP_AGENT:
-      return isFilled(s.agentName) || isFilled(s.agentCompany) ? 'complete' : 'incomplete';
     case STEP_REVIEW:
       return s.contentExists ? 'complete' : 'incomplete';
     default:

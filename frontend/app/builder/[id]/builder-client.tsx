@@ -19,7 +19,7 @@ import { apiFetch, downloadPdf } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { VistaLogoLink } from '@/components/vista-logo';
 import { LanguageSwitcher } from '@/components/language-switcher';
-import type { DocumentRecord, MarketingContent, Property } from '../../create/[id]/types';
+import type { BrokerProfile, DocumentRecord, MarketingContent, Property } from '../../create/[id]/types';
 import type {
   ExposeBranding,
   ExposeConfiguration,
@@ -79,11 +79,13 @@ export default function ExposeBuilderClient({
   marketingContent,
   initialConfiguration,
   documents,
+  brokerProfile,
 }: {
   property: Property;
   marketingContent: MarketingContent | null;
   initialConfiguration: ExposeConfiguration | null;
   documents: DocumentRecord[];
+  brokerProfile?: BrokerProfile | null;
 }) {
   const [configuration, setConfiguration] = useState<ExposeConfiguration>(
     () => initialConfiguration ?? defaultExposeConfiguration(),
@@ -323,7 +325,9 @@ export default function ExposeBuilderClient({
                 />
               )}
               {activeGroup === 'facts' && <FactsEditor property={property} media={media} />}
-              {activeGroup === 'contact' && <ContactEditor property={property} />}
+              {activeGroup === 'contact' && (
+                <ContactEditor property={property} brokerProfile={brokerProfile} />
+              )}
             </section>
 
             <Button variant="outline" size="sm" className="w-full xl:hidden" asChild>
@@ -348,6 +352,7 @@ export default function ExposeBuilderClient({
                 marketingContent={effective}
                 expose={configuration}
                 media={media}
+                brokerProfile={brokerProfile}
                 translations={{ locale, t }}
               />
             </div>

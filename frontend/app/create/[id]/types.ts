@@ -435,6 +435,51 @@ export type SetProperty = <K extends keyof PropertyPayload>(
   value: PropertyPayload[K],
 ) => void;
 
+/**
+ * Broker profile: the single source of truth for broker/agent information
+ * rendered in every Exposé. Mirrors `brokerProfileSchema` in the
+ * expose-service; only the broker name is required, everything else is
+ * optional and rendered only when present.
+ */
+export type BrokerProfile = {
+  name: string;
+  jobTitle?: string | null;
+  company?: string | null;
+  photo?: string | null;
+  logo?: string | null;
+  address?: StructuredAddress;
+  website?: string | null;
+  phone?: string | null;
+  mobile?: string | null;
+  email?: string | null;
+  tagline?: string | null;
+  description?: string | null;
+  awards?: string[];
+  recommendations?: string | null;
+  recommendationUrl?: string | null;
+  externalLinks?: Array<{ label: string; url: string }>;
+  additionalImages?: string[];
+};
+
+export const emptyBrokerProfile = (): BrokerProfile => ({
+  name: '',
+  jobTitle: null,
+  company: null,
+  photo: null,
+  logo: null,
+  website: null,
+  phone: null,
+  mobile: null,
+  email: null,
+  tagline: null,
+  description: null,
+  awards: [],
+  recommendations: null,
+  recommendationUrl: null,
+  externalLinks: [],
+  additionalImages: [],
+});
+
 export type UploadImages = (
   files: FileList | null,
   meta: { category: ImageCategory; subcategory?: string; caption?: string },
@@ -644,7 +689,6 @@ export const STEPS = [
   'wizard.steps.marketing',
   'wizard.steps.photos',
   'wizard.steps.plans',
-  'wizard.steps.agent',
   'wizard.steps.review',
 ] as const;
 

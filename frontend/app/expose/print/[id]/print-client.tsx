@@ -1,5 +1,5 @@
 'use client';
-import type { DocumentRecord, Property } from '../../../create/[id]/types';
+import type { BrokerProfile, DocumentRecord, Property } from '../../../create/[id]/types';
 import type {
   EffectiveMarketingContent,
   ExposeConfiguration,
@@ -11,11 +11,13 @@ export default function ExposePrintClient({
   marketingContent,
   expose,
   documents,
+  brokerProfile,
 }: {
   property: Property;
   marketingContent: EffectiveMarketingContent;
   expose: ExposeConfiguration;
   documents: DocumentRecord[];
+  brokerProfile?: BrokerProfile | null;
 }) {
   return (
     <ExposeDocument
@@ -23,6 +25,7 @@ export default function ExposePrintClient({
       marketingContent={marketingContent}
       expose={expose}
       documents={documents}
+      brokerProfile={brokerProfile}
       staticRender
     />
   );

@@ -4,6 +4,7 @@ import type {
   Property,
   PropertyImage,
 } from '../../../create/[id]/types';
+import type { BrokerProfile } from '../../../create/[id]/types';
 import { apiAssetUrl, apiFetch } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
@@ -26,6 +27,9 @@ import type {
   NearbyIcon,
 } from '../expose-model';
 import {
+  brokerAddressLines,
+  brokerChannels,
+  effectiveBrokerProfile,
   energyFacts,
   floorplanImages,
   formatNearbyDistance,
@@ -493,23 +497,26 @@ export function DocumentsSection({ records, tr }: { records: DocumentRecord[]; t
 
 /**
  * Contact section shared by all templates. The Exposé branding wins over the
- * Agent profile for company name and contact channels; the agent name and
- * address always come from the Agent profile. Nothing is rendered when no
- * agent information and no explicit Exposé branding exist — the system
+ * Broker Profile for company name and contact channels; the broker name and
+ * address always come from the Broker Profile (legacy per-property agent data
+ * is used as the backward-compatible fallback). Nothing is rendered when no
+ * broker information and no explicit Exposé branding exist — the system
  * branding fallback alone never invents a contact.
  */
 export function ContactSection({
   property,
   expose,
   branding,
+  brokerProfile,
   tr,
 }: {
   property: Property;
   expose: ExposeConfiguration;
   branding: EffectiveBranding;
+  brokerProfile?: BrokerProfile | null;
   tr: Translator;
 }) {
-  const agent = property.exposeData?.agent;
+  const broker = effectiveBrokerProfile(property, brokerProfile);
   const explicit = expose.branding;
   const hasExplicitBranding = Boolean(
     explicit &&
@@ -518,13 +525,8 @@ export function ContactSection({
       nonEmpty(explicit.email) ||
       nonEmpty(explicit.website)),
   );
-  if (!agent?.name && !agent?.company && !hasExplicitBranding) return null;
-  const address = agent?.address
-    ? [
-        [agent.address.street, agent.address.houseNumber].filter(Boolean).join(' '),
-        [agent.address.postalCode, agent.address.city].filter(Boolean).join(' '),
-      ].filter(Boolean)
-    : [];
+  if (!broker?.name && !broker?.company && !hasExplicitBranding) return null;
+  const address = brokerAddressLines(broker);
   const channels = [
     branding.phone ? { label: tr.t('expose.contactChannels.phone'), value: branding.phone } : null,
     branding.email ? { label: tr.t('expose.contactChannels.email'), value: branding.email } : null,
@@ -546,7 +548,7 @@ export function ContactSection({
             className="expose-contact-logo"
           />
         )}
-        {agent?.name && <h3 className="expose-contact-name">{agent.name}</h3>}
+        {broker?.name && <h3 className="expose-contact-name">{broker.name}</h3>}
         {branding.companyName && <p className="expose-contact-company">{branding.companyName}</p>}
         {address.length > 0 && <p className="expose-contact-address">{address.join(', ')}</p>}
         {channels.length > 0 && (
@@ -557,6 +559,183 @@ export function ContactSection({
                 <span className="expose-contact-channel-value">{channel.value}</span>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+    </Section>
+  );
+}
+
+/**
+ * Dedicated broker/agency page of the Exposé (inspired by classic professional
+ * real-estate broker presentations). Reads the configured Broker Profile —
+ * the single source of truth — and falls back to the property's legacy agent
+ * data so existing Exposés keep working. Every block is optional: photo,
+ * logo, channels, address, about text, awards, recommendations, additional
+ * images, and links are only rendered when the profile actually has values.
+ */
+export function BrokerPageSection({
+  property,
+  brokerProfile,
+  tr,
+}: {
+  property: Property;
+  brokerProfile?: BrokerProfile | null;
+  tr: Translator;
+}) {
+  const broker = effectiveBrokerProfile(property, brokerProfile);
+  if (!broker) return null;
+  const hasIdentity = Boolean(broker.name || broker.company || broker.jobTitle || broker.tagline);
+  const hasContact = Boolean(
+    broker.photo ||
+      broker.logo ||
+      brokerAddressLines(broker).length ||
+      brokerChannels(broker, tr).length,
+  );
+  const hasBody = Boolean(
+    broker.description ||
+      (broker.awards ?? []).some((award) => award.trim()) ||
+      broker.recommendations ||
+      broker.recommendationUrl ||
+      (broker.additionalImages ?? []).length,
+  );
+  if (!hasIdentity && !hasContact && !hasBody) return null;
+
+  const channels = brokerChannels(broker, tr);
+  const address = brokerAddressLines(broker);
+  const awards = (broker.awards ?? []).filter((award) => award.trim());
+  const images = (broker.additionalImages ?? []).filter((url) => url.trim());
+  const links = (broker.externalLinks ?? []).filter((link) => link.label.trim() && link.url.trim());
+
+  return (
+    <Section
+      id="broker"
+      kicker={tr.t('expose.kickers.broker')}
+      title={tr.t('expose.broker.title')}
+    >
+      <div className="expose-broker">
+        {(broker.photo || hasIdentity) && (
+          <div className="expose-broker-head">
+            {broker.photo && (
+              <img
+                src={apiAssetUrl(broker.photo)}
+                alt={
+                  broker.name
+                    ? tr.t('expose.broker.photoAlt', { name: broker.name })
+                    : tr.t('expose.broker.noPhotoAlt')
+                }
+                className="expose-broker-photo"
+              />
+            )}
+            <div className="expose-broker-id">
+              {broker.name && <h3 className="expose-broker-name">{broker.name}</h3>}
+              {broker.jobTitle && <p className="expose-broker-role">{broker.jobTitle}</p>}
+              {broker.company && <p className="expose-broker-company">{broker.company}</p>}
+              {broker.tagline && <p className="expose-broker-tagline">{broker.tagline}</p>}
+            </div>
+            {broker.logo && (
+              <img
+                src={apiAssetUrl(broker.logo)}
+                alt={
+                  broker.company
+                    ? tr.t('expose.broker.logoAlt', { company: broker.company })
+                    : tr.t('expose.altFallbacks.logo')
+                }
+                className="expose-broker-logo"
+              />
+            )}
+          </div>
+        )}
+
+        {channels.length > 0 && (
+          <div className="expose-broker-channels">
+            {channels.map((channel) => (
+              <div key={channel.type} className="expose-broker-channel">
+                <span className="expose-broker-channel-label">{channel.label}</span>
+                <span className="expose-broker-channel-value">{channel.value}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {address.length > 0 && (
+          <p className="expose-broker-address">{address.join(' · ')}</p>
+        )}
+
+        {broker.description && (
+          <div className="expose-broker-block">
+            <h4 className="expose-broker-heading">{tr.t('expose.broker.aboutTitle')}</h4>
+            <Prose text={broker.description} />
+          </div>
+        )}
+
+        {(awards.length > 0 || broker.recommendations || broker.recommendationUrl) && (
+          <div className="expose-broker-block">
+            <h4 className="expose-broker-heading">
+              {tr.t('expose.broker.credentialsTitle')}
+            </h4>
+            {awards.length > 0 && (
+              <div className="expose-broker-credentials">
+                <h5 className="expose-broker-subheading">
+                  {tr.t('expose.broker.awardsTitle')}
+                </h5>
+                <ul className="expose-broker-awards">
+                  {awards.map((award, index) => (
+                    <li key={index} className="expose-broker-award">
+                      {award}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {(broker.recommendations || broker.recommendationUrl) && (
+              <div className="expose-broker-credentials">
+                <h5 className="expose-broker-subheading">
+                  {tr.t('expose.broker.recommendationsTitle')}
+                </h5>
+                {broker.recommendations && (
+                  <p className="expose-broker-recommendation">{broker.recommendations}</p>
+                )}
+                {broker.recommendationUrl && (
+                  <p className="expose-broker-recommendation-link">
+                    <a href={broker.recommendationUrl} target="_blank" rel="noreferrer">
+                      {tr.t('expose.broker.recommendationLink')}
+                    </a>
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {images.length > 0 && (
+          <div className="expose-broker-block">
+            <h4 className="expose-broker-heading">{tr.t('brokerProfile.sectionBranding')}</h4>
+            <div className="expose-broker-images">
+              {images.map((url, index) => (
+                <img
+                  key={`${url}-${index}`}
+                  src={apiAssetUrl(url)}
+                  alt={tr.t('expose.altFallbacks.logo')}
+                  className="expose-broker-image"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {links.length > 0 && (
+          <div className="expose-broker-block">
+            <h4 className="expose-broker-heading">{tr.t('expose.broker.linksTitle')}</h4>
+            <ul className="expose-broker-links">
+              {links.map((link, index) => (
+                <li key={`${link.url}-${index}`}>
+                  <a href={link.url} target="_blank" rel="noreferrer">
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>

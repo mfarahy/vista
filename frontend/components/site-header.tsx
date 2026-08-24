@@ -18,6 +18,9 @@ export function SiteHeader() {
           <Button variant="ghost" size="sm" asChild>
             <Link href="/floorplan">{t('landing.floorplan3d')}</Link>
           </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/broker-profile">{t('landing.brokerProfile')}</Link>
+          </Button>
           <LanguageSwitcher />
           <Button asChild>
             <Link href="/create">

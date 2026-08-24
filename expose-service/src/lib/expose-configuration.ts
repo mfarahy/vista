@@ -52,6 +52,7 @@ export const EXPOSE_SECTION_TYPES = [
   'floorplans',
   'documents',
   'contact',
+  'broker',
 ] as const;
 
 export type ExposeSectionType = (typeof EXPOSE_SECTION_TYPES)[number];

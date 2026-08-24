@@ -1,4 +1,4 @@
-import type { Property } from '../../../create/[id]/types';
+import type { BrokerProfile, Property } from '../../../create/[id]/types';
 import { apiAssetUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { translations, type Translator } from '@/lib/i18n/core';
@@ -17,6 +17,7 @@ import {
 } from '../expose-model';
 import type { ExposeMedia } from '../expose-model';
 import {
+  BrokerPageSection,
   ContactSection,
   DocumentsSection,
   EnergySection,
@@ -559,6 +560,180 @@ export const CLASSIC_CSS = `
     word-break: break-word;
   }
 
+  /* ---------- Broker page ---------- */
+
+  .expose-broker {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  .expose-broker-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 28px;
+    border: 1px solid var(--classic-line);
+    border-top: 3px solid var(--classic-accent);
+    background: var(--classic-surface);
+    padding: 26px 28px;
+  }
+  .expose-broker-photo {
+    flex: 0 0 150px;
+    width: 150px;
+    height: 190px;
+    object-fit: cover;
+    border: 1px solid var(--classic-line);
+    background: var(--classic-paper);
+  }
+  .expose-broker-id {
+    flex: 1;
+    min-width: 0;
+  }
+  .expose-broker-name {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 26px;
+    font-weight: 400;
+    line-height: 1.2;
+    color: var(--classic-ink);
+  }
+  .expose-broker-role {
+    margin: 6px 0 0;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--classic-gold);
+  }
+  .expose-broker-company {
+    margin: 6px 0 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--classic-accent);
+  }
+  .expose-broker-tagline {
+    margin: 14px 0 0;
+    font-size: 13.5px;
+    font-style: italic;
+    line-height: 1.6;
+    color: var(--classic-ink-soft);
+  }
+  .expose-broker-logo {
+    flex: 0 0 auto;
+    max-width: 160px;
+    max-height: 64px;
+    object-fit: contain;
+  }
+  .expose-broker-channels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid var(--classic-line);
+    background: var(--classic-surface);
+  }
+  .expose-broker-channel {
+    padding: 13px 18px;
+    border-top: 1px solid var(--classic-line);
+  }
+  .expose-broker-channel:nth-child(odd) {
+    border-right: 1px solid var(--classic-line);
+  }
+  .expose-broker-channel-label {
+    display: block;
+    color: var(--classic-muted);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .expose-broker-channel-value {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--classic-ink);
+    word-break: break-word;
+  }
+  .expose-broker-address {
+    margin: 0;
+    font-size: 13.5px;
+    color: var(--classic-ink-soft);
+  }
+  .expose-broker-block {
+    border-top: 1px solid var(--classic-line);
+    padding-top: 18px;
+  }
+  .expose-broker-heading {
+    margin: 0 0 12px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 17px;
+    font-weight: 400;
+    color: var(--classic-ink);
+  }
+  .expose-broker-subheading {
+    margin: 0 0 8px;
+    color: var(--classic-muted);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .expose-broker-credentials + .expose-broker-credentials {
+    margin-top: 16px;
+  }
+  .expose-broker-awards,
+  .expose-broker-links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .expose-broker-award,
+  .expose-broker-links li {
+    display: flex;
+    gap: 10px;
+    padding: 7px 0;
+    border-top: 1px solid var(--classic-line);
+    font-size: 13.5px;
+    color: var(--classic-ink-soft);
+    break-inside: avoid;
+  }
+  .expose-broker-award::before {
+    content: "▪";
+    color: var(--classic-accent);
+    font-size: 10px;
+  }
+  .expose-broker-recommendation {
+    margin: 0;
+    max-width: 620px;
+    font-size: 13.5px;
+    font-style: italic;
+    line-height: 1.7;
+    color: var(--classic-ink-soft);
+  }
+  .expose-broker-recommendation-link {
+    margin: 10px 0 0;
+  }
+  .expose-broker-recommendation-link a,
+  .expose-broker-links a {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--classic-accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .expose-broker-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .expose-broker-image {
+    height: 56px;
+    width: auto;
+    max-width: 160px;
+    object-fit: contain;
+    border: 1px solid var(--classic-line);
+    background: var(--classic-paper);
+    padding: 6px;
+  }
+
   /* ---------- Footer ---------- */
 
   .expose-footer {
@@ -654,17 +829,19 @@ export function ClassicExposeTemplate({
   marketingContent,
   expose,
   media,
+  brokerProfile,
   translations: translationsProp,
 }: {
   property: Property;
   marketingContent: EffectiveMarketingContent;
   expose: ExposeConfiguration;
   media: ExposeMedia;
+  brokerProfile?: BrokerProfile | null;
   translations?: Translator;
 }) {
   const tr = translationsProp ?? translations.en;
   const sections = visibleSections(expose);
-  const branding = effectiveBranding(property, expose);
+  const branding = effectiveBranding(property, expose, brokerProfile);
   return (
     <>
       <style>{CLASSIC_CSS}</style>
@@ -748,6 +925,16 @@ export function ClassicExposeTemplate({
                   property={property}
                   expose={expose}
                   branding={branding}
+                  brokerProfile={brokerProfile}
+                  tr={tr}
+                />
+              );
+            case 'broker':
+              return (
+                <BrokerPageSection
+                  key={section.id}
+                  property={property}
+                  brokerProfile={brokerProfile}
                   tr={tr}
                 />
               );

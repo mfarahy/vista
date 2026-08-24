@@ -564,17 +564,6 @@ export function Review({
           ),
         )}
         {block(
-          t('steps.review.blockAgent'),
-          11,
-          <dl className="divide-y">
-            {row(t('fields.name'), data.agent?.name)}
-            {row(t('fields.company'), data.agent?.company)}
-            {row(t('fields.phone'), data.agent?.phone)}
-            {row(t('fields.email'), data.agent?.email)}
-            {row(t('fields.website'), data.agent?.website)}
-          </dl>,
-        )}
-        {block(
           t('steps.review.blockYourNotes'),
           -1,
           <div className="space-y-3 text-sm text-muted-foreground">
@@ -585,7 +574,6 @@ export function Review({
                 ['legal', 'steps.review.notesSectionLegal'],
                 ['photos', 'steps.review.notesSectionPhotos'],
                 ['plans', 'steps.review.notesSectionPlans'],
-                ['agent', 'steps.review.notesSectionAgent'],
               ] as const
             ).map(([key, labelKey]) =>
               noteValue(key) ? (

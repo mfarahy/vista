@@ -47,7 +47,7 @@ import {
   type WizardStepStatus,
 } from './wizard-steps';
 import { StepBuilding, StepProperty, type AddressFieldState } from './components/basic-steps';
-import { StepEnergy, StepFeatures, StepAgent } from './components/feature-steps';
+import { StepEnergy, StepFeatures } from './components/feature-steps';
 import {
   StepFinancial,
   StepLegal,
@@ -60,8 +60,8 @@ import { StepMarketingContent } from './components/marketing-steps';
 import { Review, ContentEditor } from './components/review';
 import { useI18n } from '@/lib/i18n';
 
-const REVIEW_STEP = 13;
-const CONTENT_STEP = 14;
+const REVIEW_STEP = 12;
+const CONTENT_STEP = 13;
 
 export default function WizardClient({ initialProperty }: { initialProperty: Property }) {
   const router = useRouter();
@@ -1139,8 +1139,6 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
       planCount: images.filter(
         (image) => image.category === 'floor_plan' || image.category === 'document',
       ).length,
-      agentName: data.agent?.name,
-      agentCompany: data.agent?.company,
       contentExists: Boolean(content),
       marketingContentExists: Boolean(marketingContent),
     }),
@@ -1405,14 +1403,6 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
                         removeImage={removeImage}
                         cover={cover}
                         moveImage={moveImage}
-                        noteValue={noteValue}
-                        setNote={setNote}
-                      />
-                    )}
-                    {step === 12 && (
-                      <StepAgent
-                        data={data.agent}
-                        update={(agent) => updateExposeData({ agent })}
                         noteValue={noteValue}
                         setNote={setNote}
                       />

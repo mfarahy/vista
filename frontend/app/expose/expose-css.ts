@@ -639,6 +639,178 @@ export const EXPOSE_CSS = `
     word-break: break-word;
   }
 
+  /* ---------- Broker page ---------- */
+
+  .expose-broker {
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+  .expose-broker-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 32px;
+    border-top: 2px solid var(--expose-accent);
+    border-bottom: 1px solid var(--expose-line);
+    padding: 26px 0;
+  }
+  .expose-broker-photo {
+    flex: 0 0 150px;
+    width: 150px;
+    height: 190px;
+    object-fit: cover;
+    border-radius: 3px;
+    background: var(--expose-surface);
+  }
+  .expose-broker-id {
+    flex: 1;
+    min-width: 0;
+  }
+  .expose-broker-name {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 28px;
+    font-weight: 400;
+    line-height: 1.15;
+    color: var(--expose-ink);
+  }
+  .expose-broker-role {
+    margin: 7px 0 0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--expose-accent);
+  }
+  .expose-broker-company {
+    margin: 7px 0 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--expose-ink-soft);
+  }
+  .expose-broker-tagline {
+    margin: 16px 0 0;
+    font-size: 14px;
+    font-style: italic;
+    line-height: 1.65;
+    color: var(--expose-muted);
+  }
+  .expose-broker-logo {
+    flex: 0 0 auto;
+    max-width: 160px;
+    max-height: 64px;
+    object-fit: contain;
+  }
+  .expose-broker-channels {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--expose-line);
+    border: 1px solid var(--expose-line);
+  }
+  .expose-broker-channel {
+    background: #ffffff;
+    padding: 14px 16px;
+  }
+  .expose-broker-channel-label {
+    display: block;
+    color: var(--expose-muted);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+  .expose-broker-channel-value {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--expose-ink);
+    word-break: break-word;
+  }
+  .expose-broker-address {
+    margin: 0;
+    font-size: 13.5px;
+    letter-spacing: 0.03em;
+    color: var(--expose-ink-soft);
+  }
+  .expose-broker-block {
+    border-top: 1px solid var(--expose-line);
+    padding-top: 22px;
+  }
+  .expose-broker-heading {
+    margin: 0 0 14px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 19px;
+    font-weight: 400;
+    color: var(--expose-ink);
+  }
+  .expose-broker-subheading {
+    margin: 0 0 8px;
+    color: var(--expose-muted);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .expose-broker-credentials + .expose-broker-credentials {
+    margin-top: 18px;
+  }
+  .expose-broker-awards,
+  .expose-broker-links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .expose-broker-award,
+  .expose-broker-links li {
+    display: flex;
+    gap: 10px;
+    padding: 8px 0;
+    border-top: 1px solid var(--expose-line);
+    font-size: 13.5px;
+    color: var(--expose-ink-soft);
+    break-inside: avoid;
+  }
+  .expose-broker-award::before {
+    content: "▪";
+    color: var(--expose-accent);
+    font-size: 10px;
+  }
+  .expose-broker-recommendation {
+    margin: 0;
+    max-width: 620px;
+    font-size: 14px;
+    font-style: italic;
+    line-height: 1.75;
+    color: var(--expose-ink-soft);
+  }
+  .expose-broker-recommendation-link {
+    margin: 12px 0 0;
+  }
+  .expose-broker-recommendation-link a,
+  .expose-broker-links a {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--expose-accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .expose-broker-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .expose-broker-image {
+    height: 56px;
+    width: auto;
+    max-width: 160px;
+    object-fit: contain;
+    border: 1px solid var(--expose-line);
+    background: var(--expose-surface);
+    padding: 6px;
+  }
+
   /* ---------- Footer ---------- */
 
   .expose-footer {

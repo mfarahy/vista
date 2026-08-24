@@ -7,6 +7,7 @@ import type {
   PropertyImage,
   TravelMode,
 } from '../../create/[id]/types';
+import type { BrokerProfile } from '../../create/[id]/types';
 import {
   ENERGY_CERTIFICATE_TYPES,
   ENERGY_SOURCES,
@@ -65,6 +66,7 @@ export const EXPOSE_SECTION_TYPES = [
   'floorplans',
   'documents',
   'contact',
+  'broker',
 ] as const;
 
 export type ExposeSectionType = (typeof EXPOSE_SECTION_TYPES)[number];
@@ -105,6 +107,7 @@ export const SECTION_LABELS: Record<ExposeSectionType, TranslationKey> = {
   floorplans: 'expose.sectionLabels.floorplans',
   documents: 'expose.sectionLabels.documents',
   contact: 'expose.sectionLabels.contact',
+  broker: 'expose.sectionLabels.broker',
 };
 
 export const SECTION_DESCRIPTIONS: Record<ExposeSectionType, TranslationKey> = {
@@ -119,6 +122,7 @@ export const SECTION_DESCRIPTIONS: Record<ExposeSectionType, TranslationKey> = {
   floorplans: 'expose.sectionDescriptions.floorplans',
   documents: 'expose.sectionDescriptions.documents',
   contact: 'expose.sectionDescriptions.contact',
+  broker: 'expose.sectionDescriptions.broker',
 };
 
 export function defaultExposeSections(): ExposeSection[] {
@@ -724,26 +728,118 @@ const nonEmpty = (value?: string | null) => {
 
 /**
  * Resolves the branding shown in the Exposé: an Expose configuration value
- * wins, otherwise the Agent profile (company, logo, contact) is used, and the
- * system branding only provides the final company-name fallback. The Property
- * and Agent profile are never modified.
+ * wins, otherwise the Broker Profile (company, logo, contact) is used, and
+ * the system branding only provides the final company-name fallback. The
+ * Property and Broker Profile are never modified.
+ *
+ * Backward compatibility: when no Broker Profile is provided (or a field is
+ * empty), the legacy per-property agent data of the wizard's old "Agent /
+ * Kontakt" step is used, so already-created Exposés keep their contact.
  */
 export function effectiveBranding(
   property: Property,
   configuration: ExposeConfiguration,
+  brokerProfile?: BrokerProfile | null,
 ): EffectiveBranding {
   const branding = configuration.branding ?? {};
+  const profile = brokerProfile ?? legacyAgentOf(property);
   const agent = property.exposeData?.agent;
   const system = property.exposeData?.systemBranding;
   return {
     companyName:
       nonEmpty(branding.companyName) ??
+      nonEmpty(profile?.company) ??
       nonEmpty(agent?.company) ??
       nonEmpty(system?.companyName) ??
       '',
-    logoUrl: safeImageUrl(branding.logoUrl) ?? safeImageUrl(agent?.logo),
-    phone: nonEmpty(branding.phone) ?? nonEmpty(agent?.phone),
-    email: nonEmpty(branding.email) ?? nonEmpty(agent?.email),
-    website: safeWebsiteUrl(branding.website) ?? safeWebsiteUrl(agent?.website),
+    logoUrl: safeImageUrl(branding.logoUrl) ?? safeImageUrl(profile?.logo) ?? safeImageUrl(agent?.logo),
+    phone: nonEmpty(branding.phone) ?? nonEmpty(profile?.phone) ?? nonEmpty(agent?.phone),
+    email: nonEmpty(branding.email) ?? nonEmpty(profile?.email) ?? nonEmpty(agent?.email),
+    website:
+      safeWebsiteUrl(branding.website) ??
+      safeWebsiteUrl(profile?.website) ??
+      safeWebsiteUrl(agent?.website),
   };
+}
+
+/** Legacy per-property agent data (wizard's old "Agent/Kontakt" step). */
+export function legacyAgentOf(property: Property) {
+  return property.exposeData?.agent;
+}
+
+/**
+ * Resolves the broker information rendered in the Exposé: the configured
+ * Broker Profile wins, otherwise the legacy per-property agent data is used
+ * so existing Exposés keep their contact details.
+ */
+export function effectiveBrokerProfile(
+  property: Property,
+  brokerProfile?: BrokerProfile | null,
+): BrokerProfile | null {
+  const hasProfileContent = (profile: BrokerProfile): boolean =>
+    Boolean(nonEmpty(profile.name)) ||
+    Object.values(profile).some((value) => {
+      if (Array.isArray(value)) return value.length > 0;
+      return Boolean(value);
+    });
+  if (brokerProfile && hasProfileContent(brokerProfile)) {
+    return brokerProfile;
+  }
+  const agent = property.exposeData?.agent;
+  if (agent && (nonEmpty(agent.name) || nonEmpty(agent.company))) {
+    return {
+      name: agent.name ?? '',
+      jobTitle: null,
+      company: agent.company,
+      photo: agent.photo,
+      logo: agent.logo,
+      address: agent.address,
+      website: agent.website,
+      phone: agent.phone,
+      mobile: null,
+      email: agent.email,
+      tagline: null,
+      description: null,
+      awards: [],
+      recommendations: null,
+      recommendationUrl: null,
+      externalLinks: [],
+      additionalImages: [],
+    };
+  }
+  return null;
+}
+
+/** Address lines of the broker profile, e.g. ["Musterstraße 1", "10115 Berlin"]. */
+export function brokerAddressLines(broker: BrokerProfile | null): string[] {
+  const address = broker?.address;
+  if (!address) return [];
+  return [
+    [address.street, address.houseNumber].filter(Boolean).join(' '),
+    [address.postalCode, address.city].filter(Boolean).join(' '),
+    address.district ?? '',
+  ].filter(Boolean);
+}
+
+/** Contact channels that actually have values, with translated labels. */
+export function brokerChannels(
+  broker: BrokerProfile | null,
+  tr: Translator,
+): Array<{ label: string; value: string; type: 'phone' | 'mobile' | 'email' | 'website' }> {
+  if (!broker) return [];
+  const channels: Array<{ label: string; value: string; type: 'phone' | 'mobile' | 'email' | 'website' }> =
+    [];
+  if (nonEmpty(broker.phone))
+    channels.push({ label: tr.t('expose.broker.phone'), value: broker.phone!, type: 'phone' });
+  if (nonEmpty(broker.mobile))
+    channels.push({ label: tr.t('expose.broker.mobile'), value: broker.mobile!, type: 'mobile' });
+  if (nonEmpty(broker.email))
+    channels.push({ label: tr.t('expose.broker.email'), value: broker.email!, type: 'email' });
+  if (safeWebsiteUrl(broker.website))
+    channels.push({
+      label: tr.t('expose.broker.websiteLink'),
+      value: safeWebsiteUrl(broker.website)!,
+      type: 'website',
+    });
+  return channels;
 }
