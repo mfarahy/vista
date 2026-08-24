@@ -7,6 +7,9 @@ public/uploads/*
 !public/uploads/.gitkeep
 dist
 *.tsbuildinfo
+
+# vista-ci is a separate GitLab project; keep it out of the vista repo
+vista-ci/
 .playwright-mcp
 # Phase 9 verification output
 data/photo-verify/

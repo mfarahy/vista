@@ -8,6 +8,16 @@ RUN npm ci
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# Build-time env vars prefixed with NEXT_PUBLIC_ are inlined into the client
+# bundle at build time, so they must be provided as build args (e.g. by CI).
+ARG NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+ARG NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ARG NEXT_PUBLIC_ENABLE_DEMO
+ENV NEXT_PUBLIC_ENABLE_DEMO=$NEXT_PUBLIC_ENABLE_DEMO
+
 RUN npm run build
 
 FROM node:22-alpine AS runner
