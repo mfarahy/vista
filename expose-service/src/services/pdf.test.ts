@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { frontendBaseUrl, pdfFileName, printRouteUrl, sanitizePdfBaseName } from './pdf.js';
+import {
+  exposePdfSettings,
+  frontendBaseUrl,
+  pdfFileName,
+  printRouteUrl,
+  sanitizePdfBaseName,
+} from './pdf.js';
 import type { Property } from '../lib/types.js';
 
 function makeProperty(overrides: Partial<Property> = {}): Property {
@@ -81,6 +87,24 @@ describe('pdf filename', () => {
     assert.equal(sanitizePdfBaseName(long).length, 120);
     assert.equal(sanitizePdfBaseName('///'), 'Expose');
     assert.equal(sanitizePdfBaseName(''), 'Expose');
+  });
+});
+
+describe('expose pdf settings', () => {
+  it('draws the per-page footer when the print route provides a template', () => {
+    const settings = exposePdfSettings('<div>Frau Müller</div>');
+    assert.equal(settings.format, 'A4');
+    assert.equal(settings.printBackground, true);
+    assert.equal(settings.preferCSSPageSize, true);
+    assert.equal(settings.displayHeaderFooter, true);
+    assert.equal(settings.footerTemplate, '<div>Frau Müller</div>');
+    assert.equal(settings.headerTemplate, '<span></span>');
+  });
+
+  it('disables the footer when the print route provides no template', () => {
+    const settings = exposePdfSettings('   ');
+    assert.equal(settings.displayHeaderFooter, false);
+    assert.equal(settings.footerTemplate, undefined);
   });
 });
 

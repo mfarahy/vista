@@ -10,11 +10,18 @@
  * energy scale, contact block, document rows) are kept together with
  * `break-inside: avoid`. Headings stay with their content via
  * `break-after: avoid`.
+ *
+ * The bottom page margin (18mm) reserves the band where Chromium draws the
+ * per-page footer template (`pageFooterTemplate` in page-footer.ts) on every
+ * page. The cover keeps its full 297mm height (it is the only forced page and
+ * full-bleed by design); in print, its copy block gains extra bottom padding
+ * (18mm band + 6mm clearance) so the bottom facts row stays fully above the
+ * footer band instead of being clipped or covered.
  */
 export const PRINT_CSS = `
   @page {
     size: A4;
-    margin: 0;
+    margin: 0 0 18mm 0;
   }
   html,
   body {
@@ -45,6 +52,11 @@ export const PRINT_CSS = `
     overflow: hidden;
     break-after: page;
     page-break-after: always;
+  }
+  @media print {
+    .expose-cover-copy {
+      padding-bottom: calc(18mm + 6mm) !important;
+    }
   }
   .expose-section-header {
     break-after: avoid;

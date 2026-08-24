@@ -41,7 +41,7 @@ export function BuildingViewer({ model }: BuildingViewerProps) {
     container.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(4, 1.2, -3);
+    controls.target.set(4.5, 1.2, -3.5);
     controls.enableDamping = true;
     controls.minDistance = 4;
     controls.maxDistance = 25;
@@ -69,9 +69,28 @@ export function BuildingViewer({ model }: BuildingViewerProps) {
       scene.add(mesh);
     }
 
+    for (const opening of model.openings) {
+      const marker = new THREE.Mesh(
+        new THREE.BoxGeometry(opening.width, opening.height, opening.thickness * 1.08),
+        new THREE.MeshStandardMaterial({
+          color: opening.type === "door" ? "#be7a35" : "#3b78a8",
+          transparent: true,
+          opacity: 0.28,
+          roughness: 0.65,
+        }),
+      );
+      marker.position.set(opening.center.x, opening.center.z, -opening.center.y);
+      marker.rotation.y = -opening.rotationZ;
+      scene.add(marker);
+    }
+
     const grid = new THREE.GridHelper(12, 12, "#b5c0bd", "#d6ddda");
-    grid.position.set(4, -0.02, -3);
+    grid.position.set(4.5, -0.02, -3.5);
     scene.add(grid);
+
+    const axes = new THREE.AxesHelper(1.4);
+    axes.position.set(0, 0, 0);
+    scene.add(axes);
 
     const resize = () => {
       const { width, height } = container.getBoundingClientRect();

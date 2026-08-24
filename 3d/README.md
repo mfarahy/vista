@@ -1,12 +1,14 @@
-# Deterministic 2D Floor Plan to 3D Prototype
+# Deterministic 2D Floor Plan to 3D Prototype (Phase 2)
 
-This isolated React, TypeScript, and Three.js research prototype demonstrates a deterministic pipeline:
+This isolated React, TypeScript, and Three.js prototype focuses on deterministic and geometrically correct architectural conversion:
 
 ```
-FloorPlan2D -> Geometry Generator -> BuildingModel3D -> Three.js Renderer
+FloorPlan2D -> Validation -> Deterministic Geometry Generator -> BuildingModel3D -> Three.js Renderer
 ```
 
-It deliberately uses structured 2D geometry, not an image. AI, image recognition, OCR, image/PDF processing, and automatic floor-plan extraction are out of scope for this phase.
+The same `FloorPlan2D` input always produces the same `BuildingModel3D` output.
+
+Out of scope for this phase: AI, OCR, computer vision, PDF/image parsing, furniture, realistic materials/textures, backend, API, auth, panoramas, and integration work.
 
 ## Run locally
 
@@ -15,46 +17,115 @@ npm install
 npm run dev
 ```
 
-Open the local Vite URL reported by the command. Use drag to rotate, right-drag to pan, and the mouse wheel to zoom.
+Open the local Vite URL shown in the terminal.
 
-Run the focused deterministic geometry tests with:
+Run geometry tests:
 
 ```bash
 npm test
 ```
 
-## Input data
+## Geometry model
 
-The predefined input is `src/floorPlan.ts`. It contains explicit walls, room polygons, doors, and windows. Every measurement is in meters.
+`src/floorPlan.ts` defines explicit metric architectural elements.
 
-```ts
-{
-  id: "divider",
-  start: { x: 5, y: 0 },
-  end: { x: 5, y: 6 },
-  thickness: 0.15,
-  height: 2.8,
-  kind: "interior"
-}
-```
+### Walls
 
-Doors and windows reference a wall by ID. `offset` and `width` are measured along that wall from its `start`; window openings also define `sillHeight` and `height`.
+- `id`
+- `start: {x, y}`
+- `end: {x, y}`
+- `thickness` (m)
+- `height` (m)
+- `kind` (`exterior` or `interior`)
 
-## Conversion and coordinates
+### Doors
 
-`src/geometryGenerator.ts` is a pure conversion layer. It sorts openings by their offset and splits each wall into exact rectangular wall boxes around every opening. This produces a serializable `BuildingModel3D` composed of wall boxes, floor polygons, and opening metadata. There is no randomness, mutable global state, or rendering logic in that layer, so equivalent input produces equal geometry every time.
+- `id`
+- `wallId` (host wall)
+- `offset` (m along host wall from wall start)
+- `width` (m)
+- `height` (m)
+- optional `openingDirection`
 
-The canonical 2D plan uses a right-handed metric ground plane: `x` increases east and `y` increases north. In Three.js, plan `x` maps to world `x`, plan `y` maps to world `-z`, and height maps to world `y`. Floors sit at elevation `0 m`.
+### Windows
 
-## Current limitations
+- `id`
+- `wallId` (host wall)
+- `offset` (m along host wall)
+- `width` (m)
+- `height` (m)
+- `sillHeight` (m)
 
-- One predefined plan only; no editor or input import.
-- Wall joins are intentionally simple overlapping boxes.
-- Doors and windows are represented as empty openings, with no frames, doors, glass, materials, or textures.
-- No furniture, backend, database, authentication, API, Vista integration, panoramas, or measurement overlay.
+Doors and windows are attached to a specific wall by ID, not as unrelated world-space rectangles.
 
-## Possible next steps
+## Deterministic wall and opening generation
 
-- Validate self-intersecting polygons and overlapping openings.
-- Add explicit wall-joint rules and a file-based structured input format.
-- Add a dimension overlay and more geometry regression tests.
+`src/geometryGenerator.ts` performs pure deterministic conversion.
+
+- Each wall line segment is converted to 3D wall boxes preserving exact length, thickness, height, position, and orientation.
+- Openings are sorted deterministically along each wall.
+- The wall is segmented into:
+  - solid segment before opening
+  - lower segment under opening (for windows)
+  - upper segment above opening
+  - solid segment after opening
+- This creates real voids in the wall geometry (no fake overlay rectangles).
+- Multiple openings on one wall are supported.
+
+## Validation
+
+Validation runs before generation and throws `FloorPlanValidationError` with clear messages when invalid.
+
+Current checks include:
+
+- negative/non-positive dimensions
+- zero-length walls
+- invalid wall height/thickness
+- opening width larger than host wall
+- opening range outside host wall
+- opening height/sill exceeding wall height
+- unknown wall IDs for doors/windows
+- overlapping openings on the same wall
+- invalid room polygons (too few vertices / zero area)
+
+## Coordinate system
+
+The coordinate convention is explicit and standardized.
+
+- Units: meters
+- 2D plan axes:
+  - `X`: east-west on ground plane
+  - `Y`: north-south on ground plane
+- 3D world axes:
+  - `X`: east-west
+  - `Y`: vertical height (up)
+  - `Z`: opposite of 2D Y direction
+- Mapping from plan to Three.js world:
+  - `worldX = planX`
+  - `worldY = height`
+  - `worldZ = -planY`
+- Origin: south-west apartment corner at floor elevation (`0 m`)
+
+## Example apartment
+
+The demo plan contains a small apartment with realistic metric dimensions:
+
+- Living Room
+- Kitchen
+- Bedroom
+- Bathroom
+- Exterior and interior walls
+- Multiple doors
+- Multiple windows (including more than one opening on the same wall)
+
+The resulting 3D wall geometry includes true openings for doors and windows.
+
+## Viewer notes
+
+The Three.js viewer remains simple and inspection-focused:
+
+- Exterior walls and interior walls use different colors.
+- Door and window opening volumes are shown with transparent debug markers.
+- Floors are rendered from room boundaries.
+
+This is intended to verify geometric correctness quickly, not realism.

@@ -1,13 +1,15 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { DocumentRecord, Property } from '../create/[id]/types';
 import type {
   EffectiveMarketingContent,
   ExposeConfiguration,
   ExposeMedia,
 } from '../builder/[id]/expose-model';
+import { effectiveBranding } from '../builder/[id]/expose-model';
 import { getExposeTemplate } from '../builder/[id]/expose-templates';
 import { PRINT_CSS } from './print/print-css';
+import { pageFooterTemplate } from './print/page-footer';
 import { useI18n } from '@/lib/i18n';
 
 /**
@@ -55,7 +57,41 @@ function PrintReadyMarker() {
 declare global {
   interface Window {
     __EXPOSE_READY__?: boolean;
+    __EXPOSE_FOOTER_HTML__?: string;
   }
+}
+
+/**
+ * Supplies the per-page PDF footer to the Playwright renderer. Chromium draws
+ * footer templates into the bottom page margin of every printed page, so the
+ * Makler identity, the Vista branding, and the page indicator are generated
+ * once here (with the same i18n and branding precedence as the rest of the
+ * document) and handed over through `window.__EXPOSE_FOOTER_HTML__` — the
+ * same handshake pattern as `window.__EXPOSE_READY__`.
+ */
+function PageFooterMarker({
+  property,
+  expose,
+}: {
+  property: Property;
+  expose: ExposeConfiguration;
+}) {
+  const { locale, t } = useI18n();
+  const agent = property.exposeData?.agent;
+  const branding = effectiveBranding(property, expose);
+  const footerHtml = useMemo(
+    () =>
+      pageFooterTemplate({
+        maklerName: agent?.name,
+        maklerCompany: branding.companyName,
+        poweredBy: t('expose.pageFooter.poweredBy'),
+      }),
+    [agent?.name, branding.companyName, locale, t],
+  );
+  useEffect(() => {
+    window.__EXPOSE_FOOTER_HTML__ = footerHtml;
+  }, [footerHtml]);
+  return null;
 }
 
 export default function ExposeDocument({
@@ -85,6 +121,7 @@ export default function ExposeDocument({
         media={media}
         translations={{ locale, t }}
       />
+      <PageFooterMarker property={property} expose={expose} />
       <PrintReadyMarker />
     </main>
   );
