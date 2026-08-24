@@ -31,7 +31,7 @@ export function startHealthServer(): http.Server {
   });
 
   server.listen(config.port, config.host, () => {
-    log.info({ host: config.host, port: config.port }, 'Health server listening on {host}:{port}');
+    log.info({ host: config.host, port: config.port }, 'Health server listening on %s:%s', config.host, config.port);
   });
   return server;
 }

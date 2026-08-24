@@ -40,48 +40,99 @@ export function makeDocumentProcessingHandler(
     const total = documentIds.length;
     let failed = 0;
 
+    ctx.log.info(
+      { jobId: ctx.job.jobId, documentIds, count: total },
+      'Starting document-processing job %s for %s document(s)',
+      ctx.job.jobId,
+      total,
+    );
+
     for (let index = 0; index < total; index += 1) {
       const documentId = documentIds[index];
       const ocrProgress = Math.round((index / total) * 100);
       const understandProgress = Math.round(((index + 1) / total) * 100);
 
-      ctx.log.info({ documentId, index: index + 1, total }, 'Processing document {index}/{total}');
+      ctx.log.info(
+        { jobId: ctx.job.jobId, documentId, index: index + 1, total, progress: ocrProgress },
+        'Processing document %s (%s/%s): starting OCR',
+        documentId,
+        index + 1,
+        total,
+      );
       await ctx.update({
         progress: ocrProgress,
         currentStep: 'ocr',
         message: `Analyzing document ${index + 1} of ${total}`,
       });
 
+      const ocrStartedAt = Date.now();
       try {
         const ocr = await client.ocr(documentId);
+        const ocrMs = Date.now() - ocrStartedAt;
         if (ocr.record.status === 'failed') {
-          ctx.log.warn({ documentId }, 'OCR failed for document {documentId}; skipping understanding');
+          ctx.log.warn(
+            { jobId: ctx.job.jobId, documentId, durationMs: ocrMs },
+            'OCR failed for document %s after %sms; skipping understanding',
+            documentId,
+            ocrMs,
+          );
           failed += 1;
           continue;
         }
+        ctx.log.info(
+          { jobId: ctx.job.jobId, documentId, durationMs: ocrMs, progress: understandProgress },
+          'OCR completed for document %s in %sms; starting understanding',
+          documentId,
+          ocrMs,
+        );
 
         await ctx.update({
           progress: understandProgress,
           currentStep: 'understanding',
           message: `Understanding document ${index + 1} of ${total}`,
         });
+        const understandStartedAt = Date.now();
         await client.understand(documentId);
+        ctx.log.info(
+          {
+            jobId: ctx.job.jobId,
+            documentId,
+            durationMs: Date.now() - understandStartedAt,
+            progress: understandProgress,
+          },
+          'Document %s processed successfully',
+          documentId,
+        );
       } catch (error) {
-        ctx.log.error({ err: error, documentId }, 'Document processing failed for {documentId}');
+        ctx.log.error(
+          { err: error, jobId: ctx.job.jobId, documentId },
+          'Document processing failed for %s',
+          documentId,
+        );
         failed += 1;
       }
     }
 
     if (failed === total) {
-      throw new Error(`All ${total} document(s) failed to process`);
+      const message = `All ${total} document(s) failed to process`;
+      ctx.log.error(
+        { jobId: ctx.job.jobId, total, failed },
+        message,
+      );
+      throw new Error(message);
     }
 
     const message =
       failed > 0
         ? `Processed ${total - failed} of ${total} document(s) (${failed} failed)`
         : `Processed ${total} document(s)`;
+    ctx.log.info(
+      { jobId: ctx.job.jobId, total, failed, progress: 100 },
+      'Finished document-processing job %s: %s',
+      ctx.job.jobId,
+      message,
+    );
     await ctx.update({ progress: 100, currentStep: 'done', message });
-    ctx.log.info({ total, failed }, 'Finished document-processing job');
     return { message };
   };
 }

@@ -18,6 +18,10 @@ export function publishJobProgress(nc: NatsConnection, event: JobProgressEvent):
   try {
     nc.publish(progressSubject(event.jobId), StringCodec().encode(JSON.stringify(event)));
   } catch (error) {
-    getLogger().warn({ jobId: event.jobId, err: error }, 'Failed to publish progress for {jobId}');
+    getLogger().warn(
+      { jobId: event.jobId, err: error },
+      'Failed to publish progress for job %s',
+      event.jobId,
+    );
   }
 }

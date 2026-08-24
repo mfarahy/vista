@@ -28,17 +28,39 @@ export const jobRepo = {
     if (update.error !== undefined) data.error = update.error;
     try {
       await prisma.job.update({ where: { id }, data });
+      getLogger().debug(
+        {
+          jobId: id,
+          status: update.status,
+          progress: update.progress,
+          currentStep: update.currentStep,
+        },
+        'Persisted status %s for job %s',
+        update.status,
+        id,
+      );
     } catch (error) {
-      getLogger().warn({ jobId: id, err: error }, 'Failed to persist status for job {jobId}');
+      getLogger().warn(
+        { jobId: id, err: error, status: update.status },
+        'Failed to persist status %s for job %s',
+        update.status,
+        id,
+      );
     }
   },
 
   processing(id: string): Promise<void> {
+    getLogger().info({ jobId: id, status: 'processing' }, 'Marking job %s as processing', id);
     return this.setStatus(id, { status: 'processing', currentStep: 'received' });
   },
 
   completed(id: string, message?: string): Promise<void> {
-    getLogger().info({ jobId: id }, 'Marking job {jobId} completed');
+    getLogger().info(
+      { jobId: id, status: 'completed', progress: COMPLETED_PROGRESS, message },
+      'Marking job %s as completed (progress %s)',
+      id,
+      COMPLETED_PROGRESS,
+    );
     return this.setStatus(id, {
       status: 'completed',
       progress: COMPLETED_PROGRESS,
@@ -47,7 +69,12 @@ export const jobRepo = {
   },
 
   failed(id: string, error: string): Promise<void> {
-    getLogger().error({ jobId: id, error }, 'Marking job {jobId} failed');
+    getLogger().error(
+      { jobId: id, status: 'failed', error },
+      'Marking job %s as failed: %s',
+      id,
+      error,
+    );
     return this.setStatus(id, { status: 'failed', error });
   },
 };

@@ -1,20 +1,10 @@
 import type { NatsConnection, Subscription } from 'nats';
 import { StringCodec } from 'nats';
 import type { JobDispatcher, JobHandlerResult, JobRunContext } from './dispatcher.js';
-import { parseJobEvent, type JobEvent } from './event.js';
-import { publishJobProgress } from './progress-publisher.js';
-import { createJobProgressEvent } from './progress-event.js';
+import { parseJobEvent } from './event.js';
 import { jobRepo } from '../lib/jobRepo.js';
 import { getLogger, type Logger } from '../lib/logger.js';
 import { errorMessage } from '../lib/error.js';
-import type { JobStatus } from '@prisma/client';
-
-export interface ProgressPatch {
-  progress?: number;
-  currentStep?: string;
-  message?: string;
-  error?: string;
-}
 
 export interface ConsumerOptions {
   nc: NatsConnection;
@@ -28,7 +18,8 @@ export interface ConsumerOptions {
  * Subscribes to the job subject wildcard and processes each message:
  * parse -> persist processing -> dispatch handler -> mark completed, or mark
  * failed. A failure in any single job is contained (logged, status = failed)
- * so the worker never crashes. Returns the active subscription.
+ * so the worker never crashes. Malformed events are dropped with a warning.
+ * Returns the active subscription.
  */
 export async function startConsumer(options: ConsumerOptions): Promise<Subscription> {
   const log = options.log ?? getLogger();
@@ -37,11 +28,20 @@ export async function startConsumer(options: ConsumerOptions): Promise<Subscript
   const sub = nc.subscribe(options.subscriptionSubject);
   log.info(
     { subject: options.subscriptionSubject },
-    'Consuming jobs from NATS subject {subject}',
+    'Consuming jobs from NATS subject %s',
+    options.subscriptionSubject,
   );
 
   void (async () => {
+    let received = 0;
     for await (const msg of sub) {
+      received += 1;
+      log.debug(
+        { subject: msg.subject, sizeBytes: msg.data.length, received },
+        'NATS message %s received from %s',
+        received,
+        msg.subject,
+      );
       const jobLog = log.child({ correlationId: msg.subject });
       try {
         await handleMessage(options, jobLog, msg.subject, msg.data);
@@ -51,6 +51,10 @@ export async function startConsumer(options: ConsumerOptions): Promise<Subscript
       }
     }
   })();
+
+  void nc.closed().then(() => {
+    log.warn('NATS consumer loop ended (connection closed)');
+  });
 
   return sub;
 }
@@ -63,26 +67,22 @@ async function handleMessage(
 ): Promise<void> {
   const decoded = StringCodec().decode(data);
 
-  let event: JobEvent;
+  let event;
   try {
     event = parseJobEvent(JSON.parse(decoded));
   } catch (error) {
-    log.warn({ subject, err: error }, 'Dropping malformed job event on {subject}');
+    log.warn(
+      { subject, err: error, sizeBytes: data.length },
+      'Dropping malformed job event on %s (not JSON or missing required fields)',
+      subject,
+    );
     return;
   }
 
-  log.info(
-    { jobId: event.jobId, jobType: event.jobType, subject },
-    'Job {jobId} received from {subject}',
-  );
+  const { jobId, jobType } = event;
+  log.info({ jobId, jobType, subject }, 'Job %s (%s) received from %s', jobId, jobType, subject);
 
-  /** Persists a status patch and publishes a progress event for it. */
-  async function report(status: JobStatus, patch: ProgressPatch = {}): Promise<void> {
-    await jobRepo.setStatus(event.jobId, { status, ...patch });
-    publishJobProgress(options.nc, createJobProgressEvent({ jobId: event.jobId, status, ...patch }));
-  }
-
-  await report('processing', { currentStep: 'received' });
+  await jobRepo.processing(jobId);
 
   const ctx: JobRunContext = {
     job: {
@@ -92,23 +92,50 @@ async function handleMessage(
       metadata: event.metadata,
     },
     update: async (patch) => {
-      await report('processing', patch);
+      await jobRepo.setStatus(jobId, {
+        status: 'processing',
+        progress: patch.progress,
+        currentStep: patch.currentStep,
+        message: patch.message,
+      });
     },
     log,
   };
 
-  log.info({ jobId: event.jobId }, 'Job {jobId} started');
+  log.info(
+    { jobId, jobType },
+    'Running handler for job %s (%s)',
+    jobId,
+    jobType,
+  );
+  const startedAt = Date.now();
   let result: JobHandlerResult;
   try {
     await options.dispatcher.dispatch(ctx);
     result = {};
   } catch (error) {
     const message = errorMessage(error, 'job processing failed');
-    log.error({ jobId: event.jobId, err: error }, 'Job {jobId} failed: {message}');
-    await report('failed', { error: message });
+    const durationMs = Date.now() - startedAt;
+    log.error(
+      { jobId, jobType, err: error, durationMs },
+      'Job %s (%s) failed after %sms: %s',
+      jobId,
+      jobType,
+      durationMs,
+      message,
+    );
+    await jobRepo.failed(jobId, message);
     return;
   }
 
-  log.info({ jobId: event.jobId }, 'Job {jobId} completed');
-  await report('completed', { progress: 100, message: result.message });
+  const durationMs = Date.now() - startedAt;
+  log.info(
+    { jobId, jobType, durationMs, message: result.message },
+    'Job %s (%s) completed in %sms%s',
+    jobId,
+    jobType,
+    durationMs,
+    result.message ? `: ${result.message}` : '',
+  );
+  await jobRepo.completed(jobId, result.message);
 }
