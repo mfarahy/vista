@@ -820,6 +820,56 @@ export function photoTypeLabel(type: PhotoType | null | undefined): TranslationK
   return PHOTO_TYPE_LABELS[type] ?? type;
 }
 
+/**
+ * Translation key for a structured-equipment category used in the review step.
+ * The persisted category is a stable internal id; only the displayed label is
+ * localized (reusing the wizard's feature-category labels).
+ */
+export function equipmentCategoryLabel(
+  category: string | null | undefined,
+): TranslationKey | string {
+  const labels: Record<string, TranslationKey> = {
+    interior: 'steps.features.categoryInterior',
+    kitchen: 'steps.features.categoryKitchen',
+    bathroom: 'steps.features.categoryBathroom',
+    flooring: 'steps.features.categoryFlooring',
+    windows: 'steps.features.categoryWindows',
+    heating: 'steps.features.categoryHeating',
+    technology: 'steps.features.categoryTechnology',
+    outdoor: 'steps.features.categoryOutdoor',
+    parking: 'steps.features.categoryParking',
+    storage: 'steps.features.categoryStorage',
+    other: 'steps.features.categoryOther',
+  };
+  return labels[category ?? ''] ?? category ?? '';
+}
+
+/**
+ * Translation key for a photo/plan section key used as image alt text. Room
+ * sections and the generic "other" fall back to a neutral "Property photo"
+ * label; known sections reuse their translated names.
+ */
+export function photoSectionLabel(
+  subcategory: string | null | undefined,
+): TranslationKey | string {
+  if (!subcategory) return 'media.photo';
+  const labels: Record<string, TranslationKey> = {
+    kitchen: 'steps.photos.kitchen',
+    bathroom: 'steps.photos.bathroom',
+    front: 'steps.photos.exteriorViews',
+    garden: 'steps.photos.garden',
+    terrace: 'steps.photos.terrace',
+    balcony: 'steps.photos.balcony',
+    entrance: 'steps.photos.entrance',
+    garage: 'steps.photos.garage',
+    parking: 'steps.photos.parking',
+    ground_floor: 'media.planTypes.grundriss',
+    site_plan: 'media.planTypes.lageplan',
+    energy_certificate: 'media.planTypes.energieausweis',
+  };
+  return labels[subcategory] ?? 'media.photo';
+}
+
 export const LEGAL_FLAG_LABELS: Record<string, TranslationKey> = {
   usufruct: 'legalFlag.usufruct',
   leasehold: 'legalFlag.leasehold',

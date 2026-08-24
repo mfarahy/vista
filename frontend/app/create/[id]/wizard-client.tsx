@@ -274,11 +274,12 @@ export default function WizardClient({ initialProperty }: { initialProperty: Pro
   }
 
   function formatDistance(meters: number) {
-    if (meters < 1000) return `${Math.round(meters / 10) * 10} m`;
-    return `${(meters / 1000).toLocaleString('de-DE', {
+    if (meters < 1000)
+      return `${Math.round(meters / 10) * 10} ${t('expose.units.meter')}`;
+    return `${(meters / 1000).toLocaleString(locale, {
       minimumFractionDigits: 1,
       maximumFractionDigits: 1,
-    })} km`;
+    })} ${t('expose.units.km')}`;
   }
 
   function facilityList(items: ExternalFacility[] = []) {

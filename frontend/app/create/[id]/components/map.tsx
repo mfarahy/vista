@@ -60,7 +60,7 @@ export function DebugMap({ intelligence }: { intelligence: DebugIntelligence }) 
       className="h-80 w-full rounded-lg border border-[#e4d9b8]"
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        attribution={`&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> ${t('map.attributionContributors')}`}
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       {intelligence.mapAsset?.url && (

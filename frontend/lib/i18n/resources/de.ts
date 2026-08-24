@@ -35,6 +35,10 @@ const de: TranslationSchema = {
     retry: 'Erneut versuchen',
     loading: 'Ihr Exposé wird vorbereitet…',
   },
+  languages: {
+    en: 'Englisch',
+    de: 'Deutsch',
+  },
   meta: {
     description: 'Immobilien-Exposés professionell erstellen',
   },
@@ -806,6 +810,12 @@ const de: TranslationSchema = {
     reanalyzeFailed: 'Das Dokument konnte nicht erneut analysiert werden.',
     removed: 'Dokument entfernt',
     removeFailed: 'Das Dokument konnte nicht entfernt werden.',
+    errorNoFiles: 'Keine Dokumente gefunden.',
+    errorUnsupportedType: 'Es werden nur PDF, JPG, PNG und WEBP unterstützt.',
+    errorTooLarge: 'Dokumente dürfen maximal 25 MB groß sein.',
+    errorMissingFile: 'Die Dokumentdatei fehlt.',
+    errorOcrFailed: 'Das Dokument konnte nicht verstanden werden (kein OCR-Ergebnis).',
+    errorAnalysisFailed: 'Das Dokument konnte nicht analysiert werden.',
     foundCategories: {
       address: 'Adresse',
       object: 'Objekt',
@@ -852,6 +862,7 @@ const de: TranslationSchema = {
   map: {
     popupCoordinates: 'Immobilie · {lat}, {lng}',
     popupPlace: '{name} · {category} · {distance} m',
+    attributionContributors: 'Mitwirkende',
   },
   finance: {
     buyer: 'Käufer',

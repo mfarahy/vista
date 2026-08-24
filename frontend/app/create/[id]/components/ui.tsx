@@ -18,7 +18,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import type { ImageCategory, PhotoUnderstanding, PropertyImage, UploadImages } from '../types';
-import { PHOTO_TAG_LABELS, photoTypeLabel } from '../types';
+import { PHOTO_TAG_LABELS, photoSectionLabel, photoTypeLabel } from '../types';
 
 export function Section({
   title,
@@ -570,7 +570,7 @@ export function PhotoSection({
             >
               <img
                 src={apiAssetUrl(image.url)}
-                alt={image.caption || subcategory || t('media.photo')}
+                alt={image.caption || t(photoSectionLabel(subcategory))}
                 className="h-32 w-full object-cover"
               />
               {metadataFor(image) && (

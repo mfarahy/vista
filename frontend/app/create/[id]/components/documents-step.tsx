@@ -60,6 +60,25 @@ function currentStepLabel(step: string | undefined): TranslationKey | undefined 
   return step ? labels[step] : undefined;
 }
 
+/**
+ * Maps a backend document error message to a translation key. The backend
+ * currently returns German human-readable strings (not stable error codes);
+ * known ones are mapped so they never reach the UI raw in the wrong language.
+ * Unknown messages are left to the caller's translated fallback.
+ */
+function documentUploadErrorKey(error: string | null | undefined): TranslationKey | undefined {
+  const map: Record<string, TranslationKey> = {
+    'Keine Dokumente gefunden': 'documentsStep.errorNoFiles',
+    'Nur PDF, JPG, PNG und WEBP werden unterstützt': 'documentsStep.errorUnsupportedType',
+    'Dokumente dürfen maximal 25 MB groß sein': 'documentsStep.errorTooLarge',
+    'Die Dokumentdatei fehlt.': 'documentsStep.errorMissingFile',
+    'Das Dokument konnte nicht verstanden werden (kein OCR-Ergebnis).':
+      'documentsStep.errorOcrFailed',
+    'Das Dokument konnte nicht analysiert werden.': 'documentsStep.errorAnalysisFailed',
+  };
+  return error ? map[error.trim()] : undefined;
+}
+
 /** Categories of the "Gefundene Informationen" overview (spec §16). */
 const FOUND_CATEGORIES: Array<{
   category: 'address' | 'object' | 'building' | 'financials' | 'energy';
@@ -340,7 +359,8 @@ async function load() {
       });
       if (!response.ok) {
         const result = await response.json().catch(() => ({}));
-        setError(result.error || t('documentsStep.uploadFailed'));
+        const mapped = documentUploadErrorKey(result.error);
+        setError(mapped ? t(mapped) : t('documentsStep.uploadFailed'));
       } else {
         const uploaded = (await response.json()) as DocumentRecord[] | JobEnqueueResponse;
         if (Array.isArray(uploaded) && uploaded.length) {
@@ -677,7 +697,14 @@ function JobProgressCard({
 
       <div className="mt-3 space-y-1">
         {failed && job.error ? (
-          <p className="text-sm text-destructive">{job.error}</p>
+          // The raw backend error is mapped to a translated message; unknown
+          // values fall back to the already-translated failure heading above.
+          <p className="text-sm text-destructive">
+            {(() => {
+              const mapped = documentUploadErrorKey(job.error);
+              return mapped ? t(mapped) : t('documentsStep.processingFailed');
+            })()}
+          </p>
         ) : (
           <>
             {stepKey && (
@@ -686,7 +713,6 @@ function JobProgressCard({
                 {t(stepKey)}
               </p>
             )}
-            {job.message && <p className="text-sm text-muted-foreground">{job.message}</p>}
             {completed && (
               <p className="text-sm text-muted-foreground">
                 {t('documentsStep.processingDoneHint')}
