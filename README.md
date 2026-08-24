@@ -1,5 +1,5 @@
 # Raumwerk Property Exposé Generator
- 
+
 Phase 1 MVP for high-quality real estate exposés in German. The local demo mode works without external services: properties are stored in `expose-service/data/properties.json`, uploads are stored under `expose-service/public/uploads/`, and the AI returns a transparent demo draft without `OPENAI_API_KEY`. The frontend and service can be deployed separately from `frontend/` and `expose-service/`. PostgreSQL/Prisma is included as the target production data model.
 
 ## Getting Started
