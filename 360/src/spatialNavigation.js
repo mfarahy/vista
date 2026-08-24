@@ -40,9 +40,9 @@ export function buildScenesConfig(navigate) {
 /**
  * Navigates from the current panorama along `link`.
  *
- * The arriving view keeps the current pitch and zoom and faces the same
- * world direction the arrow pointed to (the direction of travel), expressed
- * in the target panorama's frame. Pannellum cross-fades to the target scene.
+ * The arriving view keeps the current pitch and zoom and faces back toward
+ * the panorama the user came from, expressed in the target panorama's frame.
+ * Pannellum cross-fades to the target scene.
  */
 export function navigateToPanorama(viewer, link) {
   viewer.loadScene(link.to, viewer.getPitch(), arrivalYaw(link), viewer.getHfov())

@@ -21,9 +21,9 @@ spatially between three sample panoramas via navigation arrows.
   structure, deliberately no graph abstraction).
 - **Spatial navigation arrows**: each panorama shows one arrow per outgoing
   link, positioned at the exact spatial direction of the target panorama.
-  Clicking an arrow (`Living Room → Kitchen`, …) cross-fades to the target
-  panorama; the arriving view keeps the current pitch/zoom and faces the same
-  world direction the arrow pointed to (direction of travel).
+  Clicking an arrow (`Living Room -> Kitchen`, ...) cross-fades to the target
+  panorama; the arriving view keeps the current pitch/zoom and faces back
+  toward the panorama the user came from, keeping the entry doorway in view.
 - The arrows are locked to their spatial direction: they move correctly while
   the camera rotates and are hidden automatically when the direction is behind
   the camera.
@@ -48,7 +48,7 @@ authentication, backend, database, API.
 - `src/spatialNavigation.js` — turns the data into Pannellum scene
   configuration: one scene per panorama, one navigation-arrow hotspot per
   outgoing link, and the `navigateToPanorama()` logic (preserves pitch/zoom,
-  faces the direction of travel, cross-fade via `sceneFadeDuration`).
+  faces back toward the source panorama, cross-fade via `sceneFadeDuration`).
 - `src/spatialAnnotation.js` — the Phase 3 window annotation (fade loop),
   now idempotent so it survives scene re-loads.
 - `scripts/generate-panoramas.mjs` — pure-Node (no dependencies) generator

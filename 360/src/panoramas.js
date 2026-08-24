@@ -90,11 +90,10 @@ export function normalizeYaw(yaw) {
 }
 
 // View direction to use when arriving in `link.to` after traveling along
-// `link`: the camera keeps facing the same world direction as the arrow the
-// user clicked (the direction of travel), expressed in the target panorama's
-// frame. With `orientation` 0 everywhere this equals linkYaw(link).
+// `link`: face back toward the panorama the user came from, expressed in the
+// target panorama's frame. This keeps the entry doorway in view.
 export function arrivalYaw(link) {
   const from = panoramaById(link.from)
   const to = panoramaById(link.to)
-  return normalizeYaw(worldYawBetween(from, to) - to.orientation)
+  return normalizeYaw(worldYawBetween(to, from) - to.orientation)
 }
