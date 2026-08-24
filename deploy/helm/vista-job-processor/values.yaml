@@ -20,6 +20,7 @@ config:
   LOG_LEVEL: "info"
   NATS_URL: "nats://nats:4222"
   NATS_SUBJECT_PREFIX: "vista.jobs"
+  EXPOSE_SERVICE_URL: "http://vista-expose-service:4000"
 
 secrets:
   DATABASE_URL: ""

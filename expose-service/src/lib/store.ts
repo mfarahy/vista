@@ -626,6 +626,7 @@ async function createDocumentNow(
 export async function updateDocument(
   documentId: string,
   patch: {
+    url?: string;
     status?: DocumentStatus;
     documentType?: DocumentType | null;
     error?: string | null;

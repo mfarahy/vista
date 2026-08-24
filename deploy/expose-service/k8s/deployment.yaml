@@ -39,6 +39,31 @@ spec:
               value: "/app/data"
             - name: UPLOAD_DIR
               value: "/app/public/uploads"
+            - name: DOCUMENT_STORAGE_PROVIDER
+              valueFrom:
+                configMapKeyRef:
+                  name: vista-expose-service-config
+                  key: DOCUMENT_STORAGE_PROVIDER
+            - name: CLOUDFLARE_S3_API_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: vista-expose-service-secrets
+                  key: CLOUDFLARE_S3_API_ENDPOINT
+            - name: CLOUDFLARE_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: vista-expose-service-secrets
+                  key: CLOUDFLARE_ACCESS_KEY_ID
+            - name: CLOUDFLARE_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vista-expose-service-secrets
+                  key: CLOUDFLARE_SECRET_ACCESS_KEY
+            - name: CLOUDFLARE_R2_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: vista-expose-service-secrets
+                  key: CLOUDFLARE_R2_BUCKET
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:

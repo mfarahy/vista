@@ -40,8 +40,9 @@ Then open `http://localhost:3000` and select **New Exposé**.
 - `ROUTING_CAR_BASE_URL`: optional OSRM driving endpoint
 - `LOCATION_SEARCH_RADIUS_METERS`: search radius, default `1000`
 - `LOCATION_FACILITY_CATEGORIES`: comma-separated POI categories
-- `DOCUMENT_ANALYSIS_CONCURRENCY`: maximum parallel document analyses per upload batch, default `3`
+- `DOCUMENT_STORAGE_PROVIDER`: document file storage; `local` (default, files on disk under `UPLOAD_DIR`) or `r2` (Cloudflare R2 / S3-compatible bucket via the `CLOUDFLARE_*` variables)
 - `NATS_URL`: NATS server URL for publishing/consuming jobs (default `nats://localhost:4222`)
+- `EXPOSE_SERVICE_URL`: base URL of the expose-service API; the `document-processing` handler calls its worker endpoints through this (default `http://localhost:4000`)
 - `NATS_SUBJECT_PREFIX`: NATS subject prefix; jobs are published to `<prefix>.<jobType>` and consumed via the `<prefix>.>` wildcard (default `vista.jobs`)
 - `MAP_ATTRIBUTION`: attribution for the local map fallback
 - `FRONTEND_URL`: base URL of the Next.js app that hosts the PDF print route, default `http://localhost:3000`
@@ -51,11 +52,15 @@ The OpenStreetMap adapters use Nominatim for geocoding and Overpass for supermar
 
 ## Jobs
 
-The system has minimal async job infrastructure built on NATS and PostgreSQL:
+The system has async job infrastructure built on NATS and PostgreSQL:
 
 - `POST /api/jobs` with `{ "type": "test-job", "payload": {...}, "metadata": {...} }` creates a `jobId`, persists the job as `queued`, publishes a job event to NATS (`vista.jobs.test-job`), and returns the `jobId` immediately.
 - `GET /api/jobs/:id` returns the persisted job record (status, progress, currentStep, message, error).
-- `job-processor/` subscribes to `vista.jobs.>`, dispatches each job to a handler by `jobType`, and advances the persisted status `queued → processing → completed|failed`. A failing job is marked `failed` and logged without crashing the worker. Only `test-job` is implemented so far; `payload.fail` exercises the failure path.
+- `job-processor/` subscribes to `vista.jobs.>`, dispatches each job to a handler by `jobType`, and advances the persisted status `queued → processing → completed|failed`. A failing job is marked `failed` and logged without crashing the worker. Implemented handlers: `test-job` (example) and `document-processing`.
+
+Document processing is fully asynchronous: `POST /api/properties/:id/documents` (and the per-document analyze endpoint) now persist the uploaded files and the document records, enqueue a `document-processing` job (persisted as `queued`, published to `vista.jobs.document-processing`), and return the `jobId` immediately instead of analyzing inline. `job-processor` consumes the event, runs the existing OCR → understanding pipeline per document (reporting progress via `currentStep`/`message`), and finally marks the job `completed` (success) or `failed`. A single failing document is contained and logged; the job still completes unless every document failed.
+
+Document file bytes live behind a swappable storage abstraction (`expose-service/src/lib/document-storage.ts`): `DOCUMENT_STORAGE_PROVIDER=local` (default, dev/tests) stores files on disk under `UPLOAD_DIR`, while `DOCUMENT_STORAGE_PROVIDER=r2` stores them in Cloudflare R2 / any S3-compatible bucket (see `CLOUDFLARE_*` variables in `expose-service/.env.example`). `job-processor` invokes the worker-facing endpoints `POST /api/internal/documents/:id/ocr|understand` on expose-service (via `EXPOSE_SERVICE_URL`, the base URL of the expose-service API), which read the bytes from the configured storage and reuse the existing pipeline.
 
 The (shared) `Job` model and `JobStatus` (`queued`, `processing`, `completed`, `failed`) live in `expose-service/prisma/schema.prisma`; both expose-service and job-processor persist to the same PostgreSQL table. NATS and PostgreSQL run via `docker-compose.yml`.
 

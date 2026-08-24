@@ -93,6 +93,8 @@ services:
     environment:
       NATS_URL: nats://nats:4222
       NATS_SUBJECT_PREFIX: vista.jobs
+      # Base URL of the expose-service API for the document-processing workflow.
+      EXPOSE_SERVICE_URL: http://host.docker.internal:4000
       DATABASE_URL: "${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/vista}"
       LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:

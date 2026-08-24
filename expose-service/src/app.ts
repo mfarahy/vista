@@ -9,7 +9,9 @@ import { addressRouter } from './routes/address.js';
 import { propertiesRouter } from './routes/properties.js';
 import { floorplanRouter } from './routes/floorplan.js';
 import { documentsRouter } from './routes/documents.js';
+import { internalRouter } from './routes/internal.js';
 import { jobsRouter, type JobDeps } from './routes/jobs.js';
+import type { DocumentStorage } from './lib/document-storage.js';
 import type { RenderPdfFunction } from './services/pdf.js';
 
 export interface CreateAppOptions {
@@ -17,6 +19,8 @@ export interface CreateAppOptions {
   renderPdf?: RenderPdfFunction;
   /** Injectable job repository/publisher for tests; defaults to Prisma + NATS. */
   jobs?: JobDeps;
+  /** Injectable document-file storage for tests; defaults to the configured provider. */
+  documentStorage?: DocumentStorage;
 }
 
 /**
@@ -75,7 +79,8 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.use(addressRouter);
   app.use(propertiesRouter(options));
   app.use(floorplanRouter);
-  app.use(documentsRouter);
+  app.use(documentsRouter({ jobs: options.jobs, storage: options.documentStorage }));
+  app.use(internalRouter());
   app.use(jobsRouter(options.jobs));
 
   app.use(errorHandler);

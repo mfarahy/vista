@@ -60,6 +60,28 @@ spec:
               value: {{ .Values.config.DATA_DIR | quote }}
             - name: UPLOAD_DIR
               value: {{ .Values.config.UPLOAD_DIR | quote }}
+            - name: DOCUMENT_STORAGE_PROVIDER
+              value: {{ .Values.config.DOCUMENT_STORAGE_PROVIDER | default "local" | quote }}
+            - name: CLOUDFLARE_S3_API_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: CLOUDFLARE_S3_API_ENDPOINT
+            - name: CLOUDFLARE_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: CLOUDFLARE_ACCESS_KEY_ID
+            - name: CLOUDFLARE_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: CLOUDFLARE_SECRET_ACCESS_KEY
+            - name: CLOUDFLARE_R2_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: CLOUDFLARE_R2_BUCKET
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:

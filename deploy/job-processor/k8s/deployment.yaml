@@ -45,6 +45,11 @@ spec:
                 configMapKeyRef:
                   name: vista-job-processor-config
                   key: NATS_SUBJECT_PREFIX
+            - name: EXPOSE_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: vista-job-processor-config
+                  key: EXPOSE_SERVICE_URL
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:

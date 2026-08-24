@@ -6,5 +6,6 @@ config:
   LOG_LEVEL: "debug"
   NATS_URL: "nats://nats:4222"
   NATS_SUBJECT_PREFIX: "vista.jobs"
+  EXPOSE_SERVICE_URL: "http://vista-expose-service:4000"
 secrets:
   DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/vista"

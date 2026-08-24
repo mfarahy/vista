@@ -8,3 +8,4 @@ data:
   NATS_URL: "nats://nats:4222"
   NATS_SUBJECT_PREFIX: "vista.jobs"
   LOG_LEVEL: "info"
+  EXPOSE_SERVICE_URL: "http://vista-expose-service:4000"

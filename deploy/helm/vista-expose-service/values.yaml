@@ -41,11 +41,16 @@ config:
   LOG_LEVEL: "info"
   DATA_DIR: "/data"
   UPLOAD_DIR: "/data/uploads"
+  DOCUMENT_STORAGE_PROVIDER: "local"
 
 secrets:
   OPENAI_API_KEY: ""
   FAL_KEY: ""
   DATABASE_URL: ""
+  CLOUDFLARE_S3_API_ENDPOINT: ""
+  CLOUDFLARE_ACCESS_KEY_ID: ""
+  CLOUDFLARE_SECRET_ACCESS_KEY: ""
+  CLOUDFLARE_R2_BUCKET: ""
 
 persistence:
   enabled: true

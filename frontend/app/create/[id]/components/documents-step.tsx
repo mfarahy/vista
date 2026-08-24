@@ -44,6 +44,28 @@ import {
 
 const ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
 
+/** Shorthand response of the async document-processing endpoints. */
+type JobEnqueueResponse = { jobId: string; status: string; type: string };
+
+/**
+ * Polls a job until it reaches a terminal state (completed/failed), so the UI
+ * can refresh the document list once the async processing has run. Returns on
+ * any error or after a bounded number of attempts.
+ */
+async function waitForJob(jobId: string, attempts = 60, intervalMs = 1000): Promise<void> {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const response = await apiFetch(`/api/jobs/${jobId}`);
+      if (!response.ok) return;
+      const job = (await response.json()) as { status?: string };
+      if (job.status === 'completed' || job.status === 'failed') return;
+    } catch {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+}
+
 /** Categories of the "Gefundene Informationen" overview (spec §16). */
 const FOUND_CATEGORIES: Array<{
   category: 'address' | 'object' | 'building' | 'financials' | 'energy';
@@ -242,17 +264,17 @@ export function StepDocuments({
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      try {
-        const response = await apiFetch(`/api/properties/${propertyId}/documents`);
-        if (!response.ok) return;
-        const list = (await response.json()) as DocumentRecord[];
-        if (!cancelled) notify(list);
-      } catch {
-        setError(t('documentsStep.loadFailed'));
-      }
+async function load() {
+    try {
+      const response = await apiFetch(`/api/properties/${propertyId}/documents`);
+      if (!response.ok) return;
+      const list = (await response.json()) as DocumentRecord[];
+      if (!cancelled) notify(list);
+    } catch {
+      setError(t('documentsStep.loadFailed'));
     }
-    load();
+  }
+  void load();
     return () => {
       cancelled = true;
     };
@@ -298,9 +320,20 @@ export function StepDocuments({
         const result = await response.json().catch(() => ({}));
         setError(result.error || t('documentsStep.uploadFailed'));
       } else {
-        const uploaded = (await response.json()) as DocumentRecord[];
+        const uploaded = (await response.json()) as DocumentRecord[] | JobEnqueueResponse;
         if (Array.isArray(uploaded) && uploaded.length) {
           notify([...uploaded, ...documents]);
+        } else if (!Array.isArray(uploaded) && uploaded.jobId) {
+          // Asynchronous flow: the request returned a jobId. Wait for the
+          // processor to finish, then refresh the document list.
+          await waitForJob(uploaded.jobId);
+          const refreshed = await apiFetch(`/api/properties/${propertyId}/documents`);
+          if (refreshed.ok) {
+            const list = (await refreshed.json()) as DocumentRecord[];
+            notify(list);
+          }
+        } else {
+          setError(t('documentsStep.uploadFailed'));
         }
       }
     } catch {
@@ -317,8 +350,17 @@ export function StepDocuments({
         { method: 'POST' },
       );
       if (!response.ok) return;
-      const updated = (await response.json()) as DocumentRecord;
-      notify(documents.map((document) => (document.id === updated.id ? updated : document)));
+      const result = (await response.json()) as DocumentRecord | JobEnqueueResponse;
+      if ('id' in result && typeof result.id === 'string') {
+        notify(documents.map((document) => (document.id === result.id ? result : document)));
+      } else if ('jobId' in result && typeof result.jobId === 'string') {
+        await waitForJob(result.jobId);
+        const refreshed = await apiFetch(`/api/properties/${propertyId}/documents`);
+        if (refreshed.ok) {
+          const list = (await refreshed.json()) as DocumentRecord[];
+          notify(list);
+        }
+      }
     } catch {
       setError(t('documentsStep.reanalyzeFailed'));
     }

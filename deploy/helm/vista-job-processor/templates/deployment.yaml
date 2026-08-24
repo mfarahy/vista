@@ -43,6 +43,8 @@ spec:
               value: {{ .Values.config.NATS_URL | quote }}
             - name: NATS_SUBJECT_PREFIX
               value: {{ .Values.config.NATS_SUBJECT_PREFIX | quote }}
+            - name: EXPOSE_SERVICE_URL
+              value: {{ .Values.config.EXPOSE_SERVICE_URL | quote }}
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
