@@ -1273,6 +1273,83 @@ const en = {
     hint: 'Drag to rotate · Scroll to zoom',
     roomLabel: '{name} · {area} m²',
   },
+  viewers: {
+    nav: {
+      label: 'Viewer switcher',
+      threeD: '3D Viewer',
+      threeSixty: '360 Viewer',
+    },
+    threeD: {
+      badge: '3D Viewer',
+      inspectFloor: 'Inspect floor',
+      allFloors: 'All Floors',
+      floorNames: {
+        basement: 'Basement',
+        ground: 'Ground Floor',
+        first: 'First Floor',
+      },
+      metrics: {
+        floors: 'Floors',
+        wallBoxes: 'Wall boxes',
+        rooms: 'Rooms',
+        stairTreads: 'Stair treads',
+        doors: 'Doors',
+        windows: 'Windows',
+        openings: 'Openings',
+        roof: 'Roof',
+        floorArea: 'Floor area',
+      },
+      legend: {
+        ariaLabel: 'Geometry legend',
+        exteriorWalls: 'Exterior walls',
+        interiorWalls: 'Interior walls',
+        doorOpenings: 'Door openings',
+        windowOpenings: 'Window openings',
+        floorSurfaces: 'Floor surfaces',
+      },
+      selection: {
+        title: 'Selection',
+        emptyHint: 'Click a floor, room, wall, door, or window in the 3D model.',
+      },
+      element: {
+        floor: 'Floor',
+        room: 'Room',
+        wall: 'Wall',
+        door: 'Door',
+        window: 'Window',
+      },
+      field: {
+        name: 'Name',
+        elevation: 'Elevation',
+        floorToFloor: 'Floor-to-floor',
+        area: 'Area',
+        width: 'Width',
+        length: 'Length',
+        floor: 'Floor',
+        thickness: 'Thickness',
+        height: 'Height',
+        hostWall: 'Host wall',
+        sillHeight: 'Sill Height',
+      },
+      valueMeter: '{value} m',
+      valueSqm: '{value} m²',
+      viewerAriaLabel: 'Interactive 3D building model',
+    },
+    threeSixty: {
+      badge: '360 Viewer',
+      roomPattern: '360 Viewer · {room}',
+      rooms: {
+        'living-room': 'Living Room',
+        kitchen: 'Kitchen',
+        bedroom: 'Bedroom',
+      },
+      annotation: {
+        label: 'Window',
+        size: '180 × 140 cm',
+      },
+      viewerAriaLabel: '360° panorama viewer',
+    },
+  },
 };
 
 export type TranslationSchema = typeof en;
