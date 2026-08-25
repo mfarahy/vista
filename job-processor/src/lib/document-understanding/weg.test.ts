@@ -4,16 +4,13 @@ import type OpenAI from 'openai';
 
 import { OpenAIDocumentUnderstandingProvider } from './openai-provider.js';
 import type { DocumentUnderstandingResult } from './types.js';
-import { buildPropertyModel, applyWizardFieldsToModel } from '../domain-model.js';
-import type { Property } from '../types.js';
 
 /**
  * Phase 9 WEG (Eigentumswohnung) extraction tests. The OpenAI call is mocked:
  * the fake client returns the structured result the provider maps and
- * validates, so no paid API is ever called. The tests prove that the schema,
- * the provider mapping and the WIZARD_FIELD_TARGETS mapping onto the domain
- * model agree for the WEG fields (Hausgeld, Instandhaltungsrücklage,
- * Miteigentumsanteil).
+ * validates, so no paid API is ever called. The tests prove that the schema
+ * and the provider mapping agree for the WEG fields (Hausgeld,
+ * Instandhaltungsrücklage, Miteigentumsanteil).
  */
 
 const originalKey = process.env.OPENAI_API_KEY;
@@ -36,52 +33,8 @@ function runExtraction(
   return provider.analyzeDocument(input);
 }
 
-function propertyWith(): Property {
-  return {
-    id: 'prop-1',
-    propertyType: 'apartment',
-    transactionType: 'sale',
-    constructionYear: null,
-    address: '',
-    zipCode: '',
-    city: '',
-    district: '',
-    livingArea: null,
-    plotArea: null,
-    rooms: null,
-    bedrooms: null,
-    bathrooms: null,
-    floor: '',
-    totalFloors: null,
-    bodenrichtwert: null,
-    availableFrom: '',
-    condition: '',
-    askingPrice: null,
-    additionalCosts: null,
-    commission: '',
-    hausgeld: null,
-    coldRent: null,
-    deposit: null,
-    selectedFeatures: [],
-    additionalFeatures: '',
-    surroundings: {},
-    locationNote: '',
-    sellerDescription: '',
-    specialNotes: '',
-    targetAudience: '',
-    tone: 'professional',
-    language: 'de',
-    images: [],
-    roomsData: [],
-  };
-}
-
 function fieldsOf(result: DocumentUnderstandingResult) {
   return new Map(result.wizardFields.map((field) => [field.field, field]));
-}
-
-function modelAfter(result: DocumentUnderstandingResult) {
-  return applyWizardFieldsToModel(buildPropertyModel(propertyWith()), result.wizardFields);
 }
 
 describe('WEG: Hausgeld extraction', () => {
@@ -114,8 +67,6 @@ describe('WEG: Hausgeld extraction', () => {
     const hausgeld = fieldsOf(result).get('hausgeld');
     assert.equal(hausgeld?.value, 350);
     assert.equal(hausgeld?.evidence, 'Hausgeld: 350,00 €');
-    const model = modelAfter(result);
-    assert.equal(model.weg?.hausgeldEur, 350);
   });
 
   it('normalizes Wohngeld with German thousands formatting to a plain number', async () => {
@@ -139,8 +90,8 @@ describe('WEG: Hausgeld extraction', () => {
       },
     );
 
-    const model = modelAfter(result);
-    assert.equal(model.weg?.hausgeldEur, 1250);
+    const model = fieldsOf(result).get('hausgeld');
+    assert.equal(model?.value, 1250);
   });
 
   it('keeps Hausgeld null when the document states no Hausgeld', async () => {
@@ -162,8 +113,8 @@ describe('WEG: Hausgeld extraction', () => {
       },
     );
 
-    const model = modelAfter(result);
-    assert.equal(model.weg?.hausgeldEur, undefined, 'no Hausgeld is inferred');
+    const hausgeld = fieldsOf(result).get('hausgeld');
+    assert.equal(hausgeld?.value, null, 'no Hausgeld is inferred');
   });
 
   it('keeps rental amounts and deposit out of the Hausgeld field', async () => {
@@ -190,11 +141,11 @@ describe('WEG: Hausgeld extraction', () => {
       },
     );
 
-    const model = modelAfter(result);
-    assert.equal(model.rental?.monthlyRentEur, 890);
-    assert.equal(model.rental?.additionalCostsEur, 210);
-    assert.equal(model.rental?.depositEur, 2670);
-    assert.equal(model.weg?.hausgeldEur, 350, 'Hausgeld stays in the weg section');
+    const fields = fieldsOf(result);
+    assert.equal(fields.get('monthlyRent')?.value, 890);
+    assert.equal(fields.get('additionalCosts')?.value, 210);
+    assert.equal(fields.get('deposit')?.value, 2670);
+    assert.equal(fields.get('hausgeld')?.value, 350, 'Hausgeld stays separate from rental amounts');
   });
 });
 
@@ -234,8 +185,6 @@ describe('WEG: maintenance reserve (Instandhaltungsrücklage)', () => {
     const field = fieldsOf(result).get('maintenanceReserve');
     assert.equal(field?.value, 85000);
     assert.ok(field?.evidence, 'must carry evidence');
-    const model = modelAfter(result);
-    assert.equal(model.weg?.maintenanceReserveEur, 85000);
   });
 
   it('keeps a generic Rücklage amount out of the maintenance reserve field', async () => {
@@ -259,8 +208,11 @@ describe('WEG: maintenance reserve (Instandhaltungsrücklage)', () => {
       },
     );
 
-    const model = modelAfter(result);
-    assert.equal(model.weg?.maintenanceReserveEur, undefined, 'a Zuführung is never the reserve');
+    assert.equal(
+      fieldsOf(result).get('maintenanceReserve')?.value,
+      null,
+      'a Zuführung is never the reserve',
+    );
     const info = new Map(result.additionalInformation.map((entry) => [entry.key, entry]));
     assert.ok(info.get('wegInformation'), 'ambiguous WEG information is preserved');
   });
@@ -301,8 +253,6 @@ describe('WEG: Miteigentumsanteil', () => {
 
     const field = fieldsOf(result).get('coOwnershipShare');
     assert.equal(field?.value, '145/10.000', 'the share is preserved verbatim, not converted');
-    const model = modelAfter(result);
-    assert.equal(model.weg?.coOwnershipShare, '145/10.000');
   });
 });
 

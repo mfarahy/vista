@@ -16,6 +16,8 @@ const { createApp } = await import('../app.js');
 import type { JobEvent } from '../lib/jobs/event.js';
 import type { JobRecord } from '../lib/jobs/store.js';
 import type { DocumentStorage, ReadableFile } from '../lib/document-storage.js';
+import type { DocumentRecord, DocumentStatus, DocumentType } from '../lib/types.js';
+import type { DocumentRecordPatch, DocumentRecordStore } from '../lib/document-record-store.js';
 
 class InMemoryStorage implements DocumentStorage {
   readonly objects = new Map<string, { content: Buffer; mimeType: string }>();
@@ -29,6 +31,74 @@ class InMemoryStorage implements DocumentStorage {
   delete(documentId: string): Promise<void> {
     this.objects.delete(documentId);
     return Promise.resolve();
+  }
+}
+
+class InMemoryRecordStore implements DocumentRecordStore {
+  readonly records = new Map<string, DocumentRecord>();
+  private seq = 0;
+  async list(propertyId: string): Promise<DocumentRecord[]> {
+    return [...this.records.values()]
+      .filter((record) => record.propertyId === propertyId)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+  async get(documentId: string): Promise<DocumentRecord | null> {
+    return this.records.get(documentId) ?? null;
+  }
+  async create(
+    propertyId: string,
+    input: { filename: string; mimeType: string; size: number; url: string },
+  ): Promise<DocumentRecord> {
+    const now = new Date().toISOString();
+    const record: DocumentRecord = {
+      id: `doc-${++this.seq}`,
+      propertyId,
+      filename: input.filename,
+      mimeType: input.mimeType,
+      size: input.size,
+      url: input.url,
+      status: 'pending',
+      documentType: null,
+      error: null,
+      analysisResult: null,
+      tags: [],
+      understandingResult: null,
+      understandingError: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.records.set(record.id, record);
+    return record;
+  }
+  async update(documentId: string, patch: DocumentRecordPatch): Promise<DocumentRecord | null> {
+    const record = this.records.get(documentId);
+    if (!record) return null;
+    const updated: DocumentRecord = {
+      ...record,
+      ...(patch.url !== undefined ? { url: patch.url } : {}),
+      ...(patch.status !== undefined ? { status: patch.status as DocumentStatus } : {}),
+      ...(patch.documentType !== undefined
+        ? { documentType: patch.documentType as DocumentType | null }
+        : {}),
+      ...(patch.error !== undefined ? { error: patch.error } : {}),
+      ...(patch.analysisResult !== undefined ? { analysisResult: patch.analysisResult } : {}),
+      ...(patch.tags !== undefined ? { tags: patch.tags } : {}),
+      ...(patch.understandingResult !== undefined
+        ? { understandingResult: patch.understandingResult }
+        : {}),
+      ...(patch.understandingError !== undefined
+        ? { understandingError: patch.understandingError }
+        : {}),
+      updatedAt: new Date().toISOString(),
+    };
+    this.records.set(documentId, updated);
+    return updated;
+  }
+  async remove(documentId: string): Promise<DocumentRecord | null> {
+    const record = this.records.get(documentId);
+    if (!record) return null;
+    this.records.delete(documentId);
+    return record;
   }
 }
 
@@ -52,6 +122,7 @@ describe('POST /api/properties/:id/documents (async)', () => {
   let server: Server;
   let baseUrl: string;
   const storage = new InMemoryStorage();
+  const recordStore = new InMemoryRecordStore();
   const stored = new Map<string, ReturnType<typeof jobRecord>>();
   const published: JobEvent[] = [];
   let propertyId = '';
@@ -71,7 +142,9 @@ describe('POST /api/properties/:id/documents (async)', () => {
   };
 
   before(async () => {
-    server = createApp({ jobs, documentStorage: storage }).listen(0);
+    server = createApp({ jobs, documentStorage: storage, documentRecordStore: recordStore }).listen(
+      0,
+    );
     await new Promise<void>((resolve) => server.once('listening', resolve));
     baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
     const created = await fetch(`${baseUrl}/api/properties`, { method: 'POST' }).then((r) =>

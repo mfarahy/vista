@@ -1,13 +1,7 @@
 import { Router } from 'express';
 
 import { upload } from '../lib/upload.js';
-import {
-  listDocuments,
-  getDocument,
-  createDocument,
-  updateDocument,
-  removeDocument,
-} from '../lib/store.js';
+import { documentRecordStore } from '../lib/document-record-store.js';
 import { getParam, sendError, asyncHandler, loadProperty } from '../lib/http.js';
 import { getLogger } from '../lib/logger.js';
 import type { DocumentRecord } from '../lib/types.js';
@@ -17,6 +11,7 @@ import { createJobEvent } from '../lib/jobs/event.js';
 import { jobStore } from '../lib/jobs/store.js';
 import { publishJob } from '../lib/jobs/publisher.js';
 import type { JobDeps } from './jobs.js';
+import type { DocumentRecordStore } from '../lib/document-record-store.js';
 
 const defaultJobDeps: JobDeps = {
   repo: {
@@ -31,6 +26,8 @@ export interface DocumentsRouterOptions {
   jobs?: JobDeps;
   /** Injectable document-file storage for tests; defaults to the configured provider. */
   storage?: DocumentStorage;
+  /** Injectable document-record store for tests; defaults to the shared Prisma store. */
+  recordStore?: DocumentRecordStore;
 }
 
 /**
@@ -63,13 +60,14 @@ export function documentsRouter(options: DocumentsRouterOptions = {}): Router {
   const router = Router();
   const jobs = options.jobs ?? defaultJobDeps;
   const storage = options.storage ?? createDocumentStorage();
+  const records = options.recordStore ?? documentRecordStore;
 
   router.get(
     '/api/properties/:id/documents',
     asyncHandler(async (req, res) => {
       const property = await loadProperty(req, res);
       if (!property) return;
-      res.json(await listDocuments(property.id));
+      res.json(await records.list(property.id));
     }),
   );
 
@@ -90,14 +88,14 @@ export function documentsRouter(options: DocumentsRouterOptions = {}): Router {
       // immediately instead of blocking on analysis.
       const documentIds: string[] = [];
       for (const file of files) {
-        const record = await createDocument(property.id, {
+        const record = await records.create(property.id, {
           filename: file.originalname,
           mimeType: file.mimetype,
           size: file.size,
           url: '',
         });
         await storage.put(record.id, file.buffer, file.mimetype);
-        await updateDocument(record.id, { url: `/api/documents/${record.id}/file` });
+        await records.update(record.id, { url: `/api/documents/${record.id}/file` });
         documentIds.push(record.id);
       }
 
@@ -111,7 +109,7 @@ export function documentsRouter(options: DocumentsRouterOptions = {}): Router {
     asyncHandler(async (req, res) => {
       const property = await loadProperty(req, res);
       if (!property) return;
-      const document = await getDocument(getParam(req, 'documentId'));
+      const document = await records.get(getParam(req, 'documentId'));
       if (!document || document.propertyId !== property.id) return sendError(res, 404, 'Nicht gefunden');
       res.json(document);
     }),
@@ -120,7 +118,7 @@ export function documentsRouter(options: DocumentsRouterOptions = {}): Router {
   router.get(
     '/api/documents/:documentId/file',
     asyncHandler(async (req, res) => {
-      const document = await getDocument(getParam(req, 'documentId'));
+      const document = await records.get(getParam(req, 'documentId'));
       if (!document) return sendError(res, 404, 'Nicht gefunden');
       const file = await storage.get(document.id);
       if (!file) return sendError(res, 404, 'Nicht gefunden');
@@ -133,7 +131,7 @@ export function documentsRouter(options: DocumentsRouterOptions = {}): Router {
     asyncHandler(async (req, res) => {
       const property = await loadProperty(req, res);
       if (!property) return;
-      const document = await getDocument(getParam(req, 'documentId'));
+      const document = await records.get(getParam(req, 'documentId'));
       if (!document || document.propertyId !== property.id) return sendError(res, 404, 'Nicht gefunden');
       const result = await enqueueDocumentProcessing(jobs, property.id, [document.id]);
       res.json(result);
@@ -145,9 +143,9 @@ export function documentsRouter(options: DocumentsRouterOptions = {}): Router {
     asyncHandler(async (req, res) => {
       const property = await loadProperty(req, res);
       if (!property) return;
-      const document = await getDocument(getParam(req, 'documentId'));
+      const document = await records.get(getParam(req, 'documentId'));
       if (!document || document.propertyId !== property.id) return sendError(res, 404, 'Nicht gefunden');
-      await removeDocument(document.id);
+      await records.remove(document.id);
       await storage.delete(document.id);
       res.json({ ok: true });
     }),

@@ -33,3 +33,27 @@ enum JobStatus {
     completed
     failed
 }
+
+// Mirrors the `Document` model from expose-service (which owns schema creation
+// and migrations). Defined here so job-processor can generate a matching Prisma
+// client and operate on the same shared `Document` table.
+model Document {
+    id                  String   @id
+    propertyId          String
+    filename            String
+    mimeType            String
+    size                Int
+    url                 String
+    status              String   @default("pending")
+    documentType        String?
+    error               String?
+    analysisResult      Json?
+    tags                String[]
+    understandingResult Json?
+    understandingError  String?
+    createdAt           DateTime @default(now())
+    updatedAt           DateTime @updatedAt
+
+    @@index([propertyId])
+    @@index([status])
+}

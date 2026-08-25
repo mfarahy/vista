@@ -186,3 +186,29 @@ enum JobStatus {
     completed
     failed
 }
+
+/// Property document record. Shared between expose-service (creates records on
+/// upload, serves file bytes) and job-processor (reads the record, downloads
+/// the file from object storage, runs OCR + understanding, writes results back).
+/// File bytes never live here; they are stored in the swappable object storage
+/// (R2) keyed by the document id.
+model Document {
+    id                  String   @id
+    propertyId          String
+    filename            String
+    mimeType            String
+    size                Int
+    url                 String
+    status              String   @default("pending")
+    documentType        String?
+    error               String?
+    analysisResult      Json?
+    tags                String[]
+    understandingResult Json?
+    understandingError  String?
+    createdAt           DateTime @default(now())
+    updatedAt           DateTime @updatedAt
+
+    @@index([propertyId])
+    @@index([status])
+}

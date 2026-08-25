@@ -1,10 +1,7 @@
 import type { JobHandler } from '../dispatcher.js';
-import { loadConfig } from '../../config.js';
 import { errorMessage } from '../../lib/error.js';
-import {
-  createHttpDocumentProcessingClient,
-  type DocumentProcessingClient,
-} from './document-processing-client.js';
+import { createDefaultDocumentProcessor } from '../../lib/document-processor.js';
+import type { DocumentProcessor } from '../../lib/document-processor.js';
 
 export interface DocumentProcessingPayload {
   propertyId?: string;
@@ -15,16 +12,17 @@ export interface DocumentProcessingPayload {
 }
 
 /**
- * Handler for the `document-processing` job type. It drives the existing
- * document pipeline (OCR → understanding) per document through an injectable
- * client, reporting meaningful progress between the two stages. A failing
- * document is logged and contained so it never crashes the worker; the job
- * always ends completed (partial failures) or failed (every document failed /
- * malformed payload) via the consumer.
+ * Handler for the `document-processing` job type. expose-service uploads the
+ * document bytes to object storage (R2) and persists a pending document record;
+ * this handler performs the heavy work locally: for each document it reads the
+ * record, downloads the file directly from storage, runs OCR, then the AI
+ * understanding stage, and writes the results back to the shared Document
+ * table. No HTTP call into expose-service is needed. A failing document is
+ * logged and contained so it never crashes the worker; the job always ends
+ * completed (partial failures) or failed (every document failed / malformed
+ * payload) via the consumer.
  */
-export function makeDocumentProcessingHandler(
-  client: DocumentProcessingClient,
-): JobHandler {
+export function makeDocumentProcessingHandler(processor: DocumentProcessor): JobHandler {
   return async (ctx) => {
     const payload = (ctx.job.payload ?? {}) as DocumentProcessingPayload;
     const documentIds =
@@ -69,28 +67,33 @@ export function makeDocumentProcessingHandler(
 
       const ocrStartedAt = Date.now();
       try {
-        const ocr = await client.ocr(documentId);
-        const ocrMs = Date.now() - ocrStartedAt;
-        if (ocr.record.status === 'failed') {
+        const ocr = await processor.ocr(documentId);
+        if (!ocr) {
           ctx.log.warn(
-            { jobId: ctx.job.jobId, documentId, durationMs: ocrMs, error: ocr.record.error },
-            'OCR failed for document %s after %sms; skipping understanding',
+            { jobId: ctx.job.jobId, documentId, durationMs: Date.now() - ocrStartedAt },
+            'Document %s not found for OCR; skipping understanding',
             documentId,
-            ocrMs,
           );
           failed += 1;
-          failureReasons.push(
-            typeof ocr.record.error === 'string' && ocr.record.error
-              ? ocr.record.error
-              : 'OCR failed',
+          failureReasons.push('Document not found');
+          continue;
+        }
+        if (ocr.status === 'failed') {
+          ctx.log.warn(
+            { jobId: ctx.job.jobId, documentId, durationMs: Date.now() - ocrStartedAt, error: ocr.error },
+            'OCR failed for document %s after %sms; skipping understanding',
+            documentId,
+            Date.now() - ocrStartedAt,
           );
+          failed += 1;
+          failureReasons.push(typeof ocr.error === 'string' && ocr.error ? ocr.error : 'OCR failed');
           continue;
         }
         ctx.log.info(
-          { jobId: ctx.job.jobId, documentId, durationMs: ocrMs, progress: understandProgress },
+          { jobId: ctx.job.jobId, documentId, durationMs: Date.now() - ocrStartedAt, progress: understandProgress },
           'OCR completed for document %s in %sms; starting understanding',
           documentId,
-          ocrMs,
+          Date.now() - ocrStartedAt,
         );
 
         await ctx.update({
@@ -99,7 +102,7 @@ export function makeDocumentProcessingHandler(
           message: `Understanding document ${index + 1} of ${total}`,
         });
         const understandStartedAt = Date.now();
-        await client.understand(documentId);
+        await processor.understand(documentId);
         ctx.log.info(
           {
             jobId: ctx.job.jobId,
@@ -151,7 +154,7 @@ export function makeDocumentProcessingHandler(
   };
 }
 
-/** Default handler wired to the HTTP client (expose-service worker API). */
+/** Default handler wired to the local document pipeline (runs directly in the worker). */
 export const documentProcessingHandler: JobHandler = makeDocumentProcessingHandler(
-  createHttpDocumentProcessingClient(loadConfig().exposeServiceUrl),
+  createDefaultDocumentProcessor(),
 );

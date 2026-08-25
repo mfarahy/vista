@@ -18,14 +18,12 @@ async function main(): Promise<void> {
     {
       natsUrl: config.natsUrl,
       subscriptionSubject: config.subscriptionSubject,
-      exposeServiceUrl: config.exposeServiceUrl,
       logLevel: config.logLevel,
       databaseConfigured: Boolean(config.databaseUrl),
     },
-    'Starting job-processor: nats=%s subject=%s api=%s logLevel=%s',
+    'Starting job-processor: nats=%s subject=%s logLevel=%s',
     config.natsUrl,
     config.subscriptionSubject,
-    config.exposeServiceUrl,
     config.logLevel,
   );
 

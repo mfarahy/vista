@@ -93,9 +93,23 @@ services:
     environment:
       NATS_URL: nats://nats:4222
       NATS_SUBJECT_PREFIX: vista.jobs
-      # Base URL of the expose-service API for the document-processing workflow.
-      EXPOSE_SERVICE_URL: http://host.docker.internal:4000
       DATABASE_URL: "${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/vista}"
+      # Document files are read directly from the shared object storage (R2);
+      # the worker no longer calls expose-service over HTTP.
+      DOCUMENT_STORAGE_PROVIDER: "${DOCUMENT_STORAGE_PROVIDER:-local}"
+      DOCUMENT_ANALYSIS_PROVIDER: google
+      DOCUMENT_UNDERSTANDING_PROVIDER: openai
+      GOOGLE_DOCUMENT_AI_PROJECT_ID: "${GOOGLE_DOCUMENT_AI_PROJECT_ID:-}"
+      GOOGLE_DOCUMENT_AI_LOCATION: "${GOOGLE_DOCUMENT_AI_LOCATION:-}"
+      GOOGLE_DOCUMENT_AI_PROCESSOR_ID: "${GOOGLE_DOCUMENT_AI_PROCESSOR_ID:-}"
+      GOOGLE_DOCUMENT_AI_CREDENTIALS: "${GOOGLE_DOCUMENT_AI_CREDENTIALS:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      OPENAI_BASE_URL: "${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+      OPENAI_MODEL: "${OPENAI_MODEL:-gpt-4o-mini}"
+      CLOUDFLARE_S3_API_ENDPOINT: "${CLOUDFLARE_S3_API_ENDPOINT:-http://minio:9000}"
+      CLOUDFLARE_ACCESS_KEY_ID: "${CLOUDFLARE_ACCESS_KEY_ID:-minioadmin}"
+      CLOUDFLARE_SECRET_ACCESS_KEY: "${CLOUDFLARE_SECRET_ACCESS_KEY:-minioadmin}"
+      CLOUDFLARE_R2_BUCKET: "${CLOUDFLARE_R2_BUCKET:-vista}"
       LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
       nats:
