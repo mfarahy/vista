@@ -62,7 +62,26 @@ const baseOptions: LoggerOptions = {
   },
 };
 
-export const logger: Logger = pino(baseOptions);
+export function resolveFormat(): 'json' | 'text' {
+  const format = (process.env.LOG_FORMAT || '').toLowerCase();
+  if (['text', 'pretty'].includes(format)) return 'text';
+  return 'json';
+}
+
+const prettyTransport: LoggerOptions = {
+  transport: {
+    target: 'pino-pretty',
+    options: {
+      colorize: true,
+      translateTime: 'SYS:standard',
+      ignore: 'pid,hostname',
+    },
+  },
+};
+
+export const logger: Logger = pino(
+  resolveFormat() === 'text' ? { ...baseOptions, ...prettyTransport } : baseOptions,
+);
 
 const CORRELATION_HEADER = (process.env.CORRELATION_ID_HEADER || 'x-correlation-id').toLowerCase();
 

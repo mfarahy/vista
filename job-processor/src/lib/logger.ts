@@ -28,7 +28,27 @@ const baseOptions: LoggerOptions = {
   },
 };
 
-export const logger: Logger = pino(baseOptions);
+export function resolveFormat(): 'json' | 'text' {
+  const format = (process.env.LOG_FORMAT || '').toLowerCase();
+  if (['text', 'pretty'].includes(format)) return 'text';
+  return 'json';
+}
+
+export const logger: Logger = pino(
+  resolveFormat() === 'text'
+    ? {
+        ...baseOptions,
+        transport: {
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            translateTime: 'SYS:standard',
+            ignore: 'pid,hostname',
+          },
+        },
+      }
+    : baseOptions,
+);
 
 export function childLogger(
   bindings: Record<string, unknown> = {},
