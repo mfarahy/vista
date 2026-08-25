@@ -17,6 +17,30 @@ const asBuilding = (plan: FloorPlan2D, elevation = 0): Building => ({
   roof: { id: "test-roof", floorId: "test-floor", height: 0.3 },
 });
 
+type StairPatch = Partial<NonNullable<Building["stairs"]>[number]>;
+
+const asStairBuilding = (lowerElevation: number, upperElevation: number, stairPatch: StairPatch = {}): Building => ({
+  id: "stair-building",
+  unit: "m",
+  floors: [
+    { id: "lower", name: "Lower", elevation: lowerElevation, floorToFloorHeight: 2.8, plan: baseWallPlan() },
+    { id: "upper", name: "Upper", elevation: upperElevation, floorToFloorHeight: 2.8, plan: baseWallPlan() },
+  ],
+  stairs: [
+    {
+      id: "stairs-1",
+      sourceFloorId: "lower",
+      targetFloorId: "upper",
+      position: { x: 2.5, y: 2 },
+      width: 1.1,
+      length: 3.2,
+      height: 2.8,
+      ...stairPatch,
+    },
+  ],
+  roof: { id: "stair-roof", floorId: "upper", height: 0.3 },
+});
+
 describe("single floor geometry", () => {
   it("preserves wall dimensions and orientation", () => {
     const plan = baseWallPlan({ start: { x: 1, y: 1 }, end: { x: 4, y: 5 } });
@@ -126,9 +150,109 @@ describe("multi-floor building", () => {
     expect(model.stairs[15]).toMatchObject({ stairId: "first-floor-stairs", sourceFloorId: "ground", targetFloorId: "first", step: 8 });
   });
 
+  it("keeps stairs physically coherent: every step sits exactly one riser above the previous", () => {
+    const model = generateBuildingModel(demoBuilding);
+
+    for (const box of model.stairs) {
+      const top = box.center.y + box.height / 2;
+      const bottom = box.center.y - box.height / 2;
+      expect(bottom).toBeCloseTo(top - box.height, 10);
+      expect(top - bottom).toBeCloseTo(box.height, 10);
+    }
+
+    const basement = model.stairs.filter((box) => box.stairId === "basement-stairs");
+    expect(basement).toHaveLength(8);
+    for (let index = 1; index < basement.length; index += 1) {
+      expect(basement[index].center.y).toBeGreaterThan(basement[index - 1].center.y);
+      expect(basement[index].center.y - basement[index - 1].center.y).toBeCloseTo(0.35, 10);
+    }
+    expect(basement[0]).toMatchObject({ step: 1, height: 0.35 });
+    expect(basement[0].center.y - basement[0].height / 2).toBeCloseTo(-2.8, 10);
+    expect(basement[basement.length - 1].center.y + basement[basement.length - 1].height / 2).toBeCloseTo(0, 10);
+
+    const firstFloor = model.stairs.filter((box) => box.stairId === "first-floor-stairs");
+    expect(firstFloor).toHaveLength(8);
+    for (let index = 1; index < firstFloor.length; index += 1) {
+      expect(firstFloor[index].center.y - firstFloor[index - 1].center.y).toBeCloseTo(0.35, 10);
+    }
+    expect(firstFloor[0].center.y - firstFloor[0].height / 2).toBeCloseTo(0, 10);
+    expect(firstFloor[firstFloor.length - 1].center.y + firstFloor[firstFloor.length - 1].height / 2).toBeCloseTo(2.8, 10);
+  });
+
   it("keeps rooms attached to the correct floor", () => {
     const model = generateBuildingModel(demoBuilding);
     expect(model.floors.filter((floor) => floor.floorId === "first").map((floor) => floor.roomId)).toEqual(["first-main", "first-north", "first-east", "first-bathroom"]);
+  });
+});
+
+describe("stair geometry", () => {
+  it("emits consistent tread depths and total run matching the source length", () => {
+    const model = generateBuildingModel(asStairBuilding(0, 2.8));
+    const stairs = model.stairs;
+    expect(stairs).toHaveLength(8);
+    expect(stairs.map((box) => box.length).every((depth) => Math.abs(depth - 0.4) < 1e-9)).toBe(true);
+    expect(stairs.reduce((total, box) => total + box.length, 0)).toBeCloseTo(3.2, 10);
+    expect(stairs.every((box) => box.width === 1.1)).toBe(true);
+    expect(stairs.every((box) => box.height === 0.35)).toBe(true);
+  });
+
+  it("places every consecutive step one riser above the previous", () => {
+    const stairs = generateBuildingModel(asStairBuilding(0, 2.8)).stairs;
+    for (let index = 1; index < stairs.length; index += 1) {
+      const previousTop = stairs[index - 1].center.y + stairs[index - 1].height / 2;
+      const currentTop = stairs[index].center.y + stairs[index].height / 2;
+      expect(currentTop).toBeGreaterThan(previousTop);
+      expect(currentTop - previousTop).toBeCloseTo(0.35, 10);
+    }
+    expect(stairs[0].center.y - stairs[0].height / 2).toBeCloseTo(0, 10);
+    expect(stairs[stairs.length - 1].center.y + stairs[stairs.length - 1].height / 2).toBeCloseTo(2.8, 10);
+  });
+
+  it("supports a single-step stair", () => {
+    const stairs = generateBuildingModel(asStairBuilding(0, 2.8, { stepCount: 1 })).stairs;
+    expect(stairs).toHaveLength(1);
+    expect(stairs[0]).toMatchObject({ step: 1, height: 2.8 });
+    expect(stairs[0].center.y).toBeCloseTo(1.4, 10);
+    expect(stairs[0].length).toBeCloseTo(3.2, 10);
+  });
+
+  it("derives the run direction and orientation from the stair data", () => {
+    const northRun = generateBuildingModel(asStairBuilding(0, 2.8)).stairs;
+    expect(northRun.every((box) => box.center.x === 2.5)).toBe(true);
+    const zSpan = northRun.map((box) => box.center.z);
+    expect(Math.min(...zSpan)).toBeLessThan(Math.max(...zSpan));
+
+    const eastRun = generateBuildingModel(asStairBuilding(0, 2.8, { direction: 0 })).stairs;
+    expect(eastRun.every((box) => box.center.z === -2)).toBe(true);
+    const xSpan = eastRun.map((box) => box.center.x);
+    expect(Math.min(...xSpan)).toBeLessThan(Math.max(...xSpan));
+    expect(eastRun[0].center.x).toBeLessThan(eastRun[eastRun.length - 1].center.x);
+    expect(eastRun[0].rotationY).toBeCloseTo(Math.PI / 2, 10);
+  });
+
+  it("descending stairs step downward toward the target floor", () => {
+    const stairs = generateBuildingModel(asStairBuilding(2.8, 0, { stepCount: 4 })).stairs;
+    expect(stairs).toHaveLength(4);
+    for (let index = 1; index < stairs.length; index += 1) {
+      expect(stairs[index].center.y).toBeLessThan(stairs[index - 1].center.y);
+      expect(stairs[index - 1].center.y - stairs[index].center.y).toBeCloseTo(0.7, 10);
+    }
+    expect(stairs[0].center.y + stairs[0].height / 2).toBeCloseTo(2.8, 10);
+    expect(stairs[stairs.length - 1].center.y - stairs[stairs.length - 1].height / 2).toBeCloseTo(0, 10);
+  });
+
+  it("skips stairs with zero or invalid dimensions without crashing", () => {
+    expect(generateBuildingModel(asStairBuilding(0, 2.8, { width: 0 })).stairs).toEqual([]);
+    expect(generateBuildingModel(asStairBuilding(0, 2.8, { length: -1 })).stairs).toEqual([]);
+    expect(generateBuildingModel(asStairBuilding(0, 2.8, { stepCount: 0 })).stairs).toEqual([]);
+    expect(generateBuildingModel(asStairBuilding(0, 2.8, { stepCount: 7.5 })).stairs).toEqual([]);
+    expect(generateBuildingModel(asStairBuilding(2.8, 2.8)).stairs).toEqual([]);
+  });
+
+  it("falls back to the default direction for non-finite direction data", () => {
+    const stairs = generateBuildingModel(asStairBuilding(0, 2.8, { direction: Number.NaN })).stairs;
+    expect(stairs).toHaveLength(8);
+    expect(stairs.every((box) => box.rotationY === 0)).toBe(true);
   });
 });
 

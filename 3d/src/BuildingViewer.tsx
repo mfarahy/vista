@@ -128,6 +128,7 @@ export function BuildingViewer({ model, selectedFloorId, selectedElement, onSele
     for (const stair of model.stairs) {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(stair.width, stair.height, stair.length), new THREE.MeshStandardMaterial({ color: "#b7653a", roughness: 0.9 }));
       mesh.position.set(stair.center.x, stair.center.y, stair.center.z);
+      mesh.rotation.y = stair.rotationY;
       stairGroup.add(mesh);
     }
     scene.add(stairGroup);

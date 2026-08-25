@@ -62,6 +62,11 @@ export type Stair2D = {
   width: number;
   length: number;
   height: number;
+  /** Number of individual steps (risers). Defaults to 8 when omitted. */
+  stepCount?: number;
+  /** Run direction as a 2D angle in radians (wall rotation convention,
+   *  0 = +x, PI/2 = +y). Defaults to PI/2 (+y) when omitted. */
+  direction?: number;
 };
 
 export type Roof2D = {

@@ -52,6 +52,7 @@ export type StairBox3D = {
   length: number;
   height: number;
   step: number;
+  rotationY: number;
 };
 
 export type Roof3D = {
@@ -697,20 +698,43 @@ const generateFloorGeometry = (floor: Floor2D) => {
   };
 };
 
+export const DEFAULT_STAIR_STEP_COUNT = 8;
+export const DEFAULT_STAIR_DIRECTION = Math.PI / 2;
+
 const createStairBoxes = (stair: Stair2D, sourceElevation: number, targetElevation: number): StairBox3D[] => {
-  const stepCount = 8;
+  const stepCount = stair.stepCount ?? DEFAULT_STAIR_STEP_COUNT;
+  const totalRise = targetElevation - sourceElevation;
+  if (!Number.isInteger(stepCount) || stepCount <= 0) return [];
+  if (!Number.isFinite(totalRise) || Math.abs(totalRise) <= EPSILON) return [];
+  if (!Number.isFinite(stair.width) || stair.width <= EPSILON) return [];
+  if (!Number.isFinite(stair.length) || stair.length <= EPSILON) return [];
+
+  const direction = Number.isFinite(stair.direction) ? stair.direction! : DEFAULT_STAIR_DIRECTION;
+  const runX = Math.cos(direction);
+  const runY = Math.sin(direction);
+  const riserHeight = Math.abs(totalRise) / stepCount;
+  const treadDepth = stair.length / stepCount;
+  const halfRun = stair.length / 2;
+  const rotationY = Math.PI / 2 - direction;
+
   return Array.from({ length: stepCount }, (_, index) => {
-    const progress = (index + 1) / stepCount;
+    const step = index + 1;
+    const along = (index + 0.5) * treadDepth - halfRun;
+    const centerX = stair.position.x + runX * along;
+    const centerY = stair.position.y + runY * along;
+    const top = sourceElevation + (totalRise * step) / stepCount;
+    const bottom = sourceElevation + (totalRise * (step - 1)) / stepCount;
     return {
       id: `${stair.id}-${index}`,
       stairId: stair.id,
       sourceFloorId: stair.sourceFloorId,
       targetFloorId: stair.targetFloorId,
-      center: { x: stair.position.x, y: sourceElevation + stair.height * progress / 2, z: -(stair.position.y + stair.length * (progress - 0.5)) },
+      center: { x: centerX, y: (top + bottom) / 2, z: -centerY },
       width: stair.width,
-      length: stair.length / stepCount,
-      height: stair.height * progress,
-      step: index + 1,
+      length: treadDepth,
+      height: riserHeight,
+      step,
+      rotationY,
     };
   });
 };
