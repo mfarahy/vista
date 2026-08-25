@@ -9,8 +9,6 @@ export interface Config {
   /** NATS subject prefix used to publish job progress events (`<prefix>.<jobId>`). */
   progressSubjectPrefix: string;
   databaseUrl: string;
-  /** Base URL of expose-service (the API service), used by the document-processing handler to invoke its worker endpoints. */
-  exposeServiceUrl: string;
   host: string;
   port: number;
   logLevel: string;
@@ -28,7 +26,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     subscriptionSubject: `${subjectPrefix}.>`,
     progressSubjectPrefix,
     databaseUrl: env.DATABASE_URL || '',
-    exposeServiceUrl: env.EXPOSE_SERVICE_URL || 'http://localhost:4000',
     host: env.HOST || '0.0.0.0',
     port: Number(env.PORT || 4100),
     logLevel: env.LOG_LEVEL || 'info',

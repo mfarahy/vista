@@ -10,9 +10,9 @@ import { propertiesRouter } from './routes/properties.js';
 import { floorplanRouter } from './routes/floorplan.js';
 import { documentsRouter } from './routes/documents.js';
 import { brokerProfileRouter } from './routes/broker-profile.js';
-import { internalRouter } from './routes/internal.js';
 import { jobsRouter, type JobDeps } from './routes/jobs.js';
 import type { DocumentStorage } from './lib/document-storage.js';
+import type { DocumentRecordStore } from './lib/document-record-store.js';
 import type { RenderPdfFunction } from './services/pdf.js';
 
 export interface CreateAppOptions {
@@ -22,6 +22,8 @@ export interface CreateAppOptions {
   jobs?: JobDeps;
   /** Injectable document-file storage for tests; defaults to the configured provider. */
   documentStorage?: DocumentStorage;
+  /** Injectable document-record store for tests; defaults to the shared Prisma store. */
+  documentRecordStore?: DocumentRecordStore;
 }
 
 /**
@@ -80,9 +82,14 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.use(addressRouter);
   app.use(propertiesRouter(options));
   app.use(floorplanRouter);
-  app.use(documentsRouter({ jobs: options.jobs, storage: options.documentStorage }));
+  app.use(
+    documentsRouter({
+      jobs: options.jobs,
+      storage: options.documentStorage,
+      recordStore: options.documentRecordStore,
+    }),
+  );
   app.use(brokerProfileRouter());
-  app.use(internalRouter());
   app.use(jobsRouter(options.jobs));
 
   app.use(errorHandler);

@@ -45,16 +45,81 @@ spec:
                 configMapKeyRef:
                   name: vista-job-processor-config
                   key: NATS_SUBJECT_PREFIX
-            - name: EXPOSE_SERVICE_URL
+            - name: DOCUMENT_STORAGE_PROVIDER
               valueFrom:
                 configMapKeyRef:
                   name: vista-job-processor-config
-                  key: EXPOSE_SERVICE_URL
+                  key: DOCUMENT_STORAGE_PROVIDER
+            - name: DOCUMENT_ANALYSIS_PROVIDER
+              valueFrom:
+                configMapKeyRef:
+                  name: vista-job-processor-config
+                  key: DOCUMENT_ANALYSIS_PROVIDER
+            - name: DOCUMENT_UNDERSTANDING_PROVIDER
+              valueFrom:
+                configMapKeyRef:
+                  name: vista-job-processor-config
+                  key: DOCUMENT_UNDERSTANDING_PROVIDER
+            - name: GOOGLE_DOCUMENT_AI_PROJECT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: vista-job-processor-config
+                  key: GOOGLE_DOCUMENT_AI_PROJECT_ID
+            - name: GOOGLE_DOCUMENT_AI_LOCATION
+              valueFrom:
+                configMapKeyRef:
+                  name: vista-job-processor-config
+                  key: GOOGLE_DOCUMENT_AI_LOCATION
+            - name: GOOGLE_DOCUMENT_AI_PROCESSOR_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: vista-job-processor-config
+                  key: GOOGLE_DOCUMENT_AI_PROCESSOR_ID
+            - name: OPENAI_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: vista-job-processor-config
+                  key: OPENAI_BASE_URL
+            - name: OPENAI_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: vista-job-processor-config
+                  key: OPENAI_MODEL
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: vista-job-processor-secrets
                   key: DATABASE_URL
+            - name: CLOUDFLARE_S3_API_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: vista-job-processor-secrets
+                  key: CLOUDFLARE_S3_API_ENDPOINT
+            - name: CLOUDFLARE_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: vista-job-processor-secrets
+                  key: CLOUDFLARE_ACCESS_KEY_ID
+            - name: CLOUDFLARE_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vista-job-processor-secrets
+                  key: CLOUDFLARE_SECRET_ACCESS_KEY
+            - name: CLOUDFLARE_R2_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: vista-job-processor-secrets
+                  key: CLOUDFLARE_R2_BUCKET
+            - name: GOOGLE_DOCUMENT_AI_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: vista-job-processor-secrets
+                  key: GOOGLE_DOCUMENT_AI_CREDENTIALS
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vista-job-processor-secrets
+                  key: OPENAI_API_KEY
           readinessProbe:
             httpGet:
               path: /ready

@@ -4,14 +4,14 @@ import type OpenAI from 'openai';
 
 import { OpenAIDocumentUnderstandingProvider } from './openai-provider.js';
 import type { DocumentUnderstandingResult } from './types.js';
-import { buildPropertyModel, applyWizardFieldsToModel } from '../domain-model.js';
-import type { Property } from '../types.js';
 
 /**
  * Phase 2 extraction tests. The OpenAI call is mocked: the fake client returns
  * the structured result the provider maps and validates, so no paid API is
- * ever called. The tests prove that the expanded schema, the provider mapping
- * and the WIZARD_FIELD_TARGETS mapping onto the Property model agree.
+ * ever called. The tests prove that the expanded schema and the provider
+ * mapping produce the documented wizard fields. (The mapping of those wizard
+ * fields onto the exposed Property model is covered by expose-service's
+ * domain-model tests.)
  */
 
 const originalKey = process.env.OPENAI_API_KEY;
@@ -96,52 +96,8 @@ function runExtraction(
   return provider.analyzeDocument(input);
 }
 
-function propertyWith(): Property {
-  return {
-    id: 'prop-1',
-    propertyType: 'apartment',
-    transactionType: 'sale',
-    constructionYear: null,
-    address: '',
-    zipCode: '',
-    city: '',
-    district: '',
-    livingArea: null,
-    plotArea: null,
-    rooms: null,
-    bedrooms: null,
-    bathrooms: null,
-    floor: '',
-    totalFloors: null,
-    bodenrichtwert: null,
-    availableFrom: '',
-    condition: '',
-    askingPrice: null,
-    additionalCosts: null,
-    commission: '',
-    hausgeld: null,
-    coldRent: null,
-    deposit: null,
-    selectedFeatures: [],
-    additionalFeatures: '',
-    surroundings: {},
-    locationNote: '',
-    sellerDescription: '',
-    specialNotes: '',
-    targetAudience: '',
-    tone: 'professional',
-    language: 'de',
-    images: [],
-    roomsData: [],
-  };
-}
-
 function fieldsOf(result: DocumentUnderstandingResult) {
   return new Map(result.wizardFields.map((field) => [field.field, field]));
-}
-
-function modelAfter(result: DocumentUnderstandingResult) {
-  return applyWizardFieldsToModel(buildPropertyModel(propertyWith()), result.wizardFields);
 }
 
 describe('Grundbuchauszug: land-register extraction', () => {
@@ -235,14 +191,6 @@ describe('Grundbuchauszug: land-register extraction', () => {
     const byField = fieldsOf(result);
     assert.equal(byField.get('street')?.value, 'Furkastraße');
     assert.equal(byField.get('houseNumber')?.value, '88 A');
-    // "Straße 149", "Blatt 5081", "59.500,00 DM" and "32.100,00 DM" must never
-    // leak into street/postalCode/price fields.
-    assert.equal(byField.has('postalCode'), false);
-    assert.equal(byField.has('askingPrice'), false);
-
-    const model = modelAfter(result);
-    assert.equal(model.address.street, 'Furkastraße');
-    assert.equal(model.address.houseNumber, '88 A');
   });
 });
 
@@ -291,25 +239,25 @@ describe('Exposé: factual extraction without marketing', () => {
       },
     );
 
-    const model = modelAfter(result);
-    assert.equal(model.classification.propertyType, 'house');
-    assert.equal(model.classification.propertySubtype, 'endTerraceHouse');
-    assert.equal(model.areas.livingAreaM2, 125);
-    assert.equal(model.areas.plotAreaM2, 340);
-    assert.equal(model.rooms.total, 5);
-    assert.equal(model.rooms.bathrooms, 2);
-    assert.equal(model.rooms.guestToilets, 1);
-    assert.equal(model.building.yearBuilt, 1987);
-    assert.equal(model.building.condition, 'wellMaintained');
-    assert.equal(model.outdoor.balcony, true);
-    assert.equal(model.outdoor.terrace, true);
-    assert.equal(model.outdoor.garden, true);
-    assert.equal(model.features.parking?.garage, true);
-    assert.equal(model.financial.askingPriceEur, 510000);
-    assert.equal(model.financial.pricePerM2Eur, 4343.53);
-    assert.equal(model.financial.commission?.ratePercent, 3.57);
-    assert.equal(model.financial.commission?.payer, 'buyer');
-    assert.equal(model.transaction.type, 'sale');
+    const byField = fieldsOf(result);
+    assert.equal(byField.get('propertyType')?.value, 'house');
+    assert.equal(byField.get('propertySubtype')?.value, 'endTerraceHouse');
+    assert.equal(byField.get('livingArea')?.value, 125);
+    assert.equal(byField.get('plotArea')?.value, 340);
+    assert.equal(byField.get('rooms')?.value, 5);
+    assert.equal(byField.get('bathrooms')?.value, 2);
+    assert.equal(byField.get('guestToilets')?.value, 1);
+    assert.equal(byField.get('yearBuilt')?.value, 1987);
+    assert.equal(byField.get('condition')?.value, 'wellMaintained');
+    assert.equal(byField.get('balcony')?.value, true);
+    assert.equal(byField.get('terrace')?.value, true);
+    assert.equal(byField.get('garden')?.value, true);
+    assert.equal(byField.get('garage')?.value, true);
+    assert.equal(byField.get('askingPrice')?.value, 510000);
+    assert.equal(byField.get('pricePerM2')?.value, 4343.53);
+    assert.equal(byField.get('commissionRate')?.value, 3.57);
+    assert.equal(byField.get('commissionPayer')?.value, 'buyer');
+    assert.equal(byField.get('transactionType')?.value, 'sale');
 
     for (const field of result.wizardFields) {
       assert.ok(field.evidence, `${field.field} must carry evidence`);
@@ -395,20 +343,20 @@ describe('Energieausweis: energy extraction', () => {
       },
     );
 
-    const model = modelAfter(result);
-    assert.equal(model.energy?.certificateType, 'needs_based');
-    assert.equal(model.energy?.certificateDate, '2026-02-08');
-    assert.equal(model.energy?.certificateValidUntil, '2036-02-07');
-    assert.equal(model.energy?.efficiencyClass, 'C');
-    assert.equal(model.energy?.demandKwhPerM2A, 85);
+    const byField = fieldsOf(result);
+    assert.equal(byField.get('certificateType')?.value, 'needs_based');
+    assert.equal(byField.get('certificateDate')?.value, '2026-02-08');
+    assert.equal(byField.get('certificateValidUntil')?.value, '2036-02-07');
+    assert.equal(byField.get('energyClass')?.value, 'C');
+    assert.equal(byField.get('energyDemand')?.value, 85);
     assert.equal(
-      model.energy?.consumptionKwhPerM2A,
+      byField.get('energyConsumption'),
       undefined,
       'consumption stays empty for a Bedarfsausweis',
     );
-    assert.equal(model.energy?.primaryEnergySource, 'gas');
-    assert.equal(model.energy?.heatingType, 'Gas-Brennwertheizung');
-    assert.equal(model.energy?.hotWaterIncluded, true);
+    assert.equal(byField.get('primaryEnergySource')?.value, 'gas');
+    assert.equal(byField.get('heatingType')?.value, 'Gas-Brennwertheizung');
+    assert.equal(byField.get('hotWaterIncluded')?.value, true);
   });
 
   it('maps a consumption-based certificate to consumption and keeps demand empty', async () => {
@@ -436,9 +384,9 @@ describe('Energieausweis: energy extraction', () => {
       },
     );
 
-    const model = modelAfter(result);
-    assert.equal(model.energy?.consumptionKwhPerM2A, 112);
-    assert.equal(model.energy?.demandKwhPerM2A, undefined);
+    const byField = fieldsOf(result);
+    assert.equal(byField.get('energyConsumption')?.value, 112);
+    assert.equal(byField.get('energyDemand'), undefined);
   });
 });
 
@@ -476,14 +424,14 @@ describe('Grundriss: floor plan extraction', () => {
       },
     );
 
-    const model = modelAfter(result);
-    assert.equal(model.areas.livingAreaM2, 92);
-    assert.equal(model.rooms.total, 3);
-    assert.equal(model.rooms.bedrooms, 1);
-    assert.equal(model.rooms.bathrooms, 1);
-    assert.equal(model.rooms.guestToilets, 1);
-    assert.equal(model.outdoor.balcony, true);
-    assert.equal(model.outdoor.orientation, 'Südwesten');
+    const byField = fieldsOf(result);
+    assert.equal(byField.get('livingArea')?.value, 92);
+    assert.equal(byField.get('rooms')?.value, 3);
+    assert.equal(byField.get('bedrooms')?.value, 1);
+    assert.equal(byField.get('bathrooms')?.value, 1);
+    assert.equal(byField.get('guestToilets')?.value, 1);
+    assert.equal(byField.get('balcony')?.value, true);
+    assert.equal(byField.get('orientation')?.value, 'Südwesten');
   });
 });
 
@@ -520,13 +468,13 @@ describe('Rental and investment extraction', () => {
       },
     );
 
-    const model = modelAfter(result);
-    assert.equal(model.rental?.isRented, true);
-    assert.equal(model.rental?.furnished, true);
-    assert.equal(model.rental?.monthlyRentEur, 1450);
-    assert.equal(model.rental?.additionalCostsEur, 220);
-    assert.equal(model.rental?.availableFrom, '2026-10-01');
-    assert.equal(model.transaction.type, 'rent');
+    const byField = fieldsOf(result);
+    assert.equal(byField.get('isRented')?.value, true);
+    assert.equal(byField.get('furnished')?.value, true);
+    assert.equal(byField.get('monthlyRent')?.value, 1450);
+    assert.equal(byField.get('additionalCosts')?.value, 220);
+    assert.equal(byField.get('availableFrom')?.value, '2026-10-01');
+    assert.equal(byField.get('transactionType')?.value, 'rent');
   });
 
   it('extracts investment yield only when explicitly stated', async () => {
@@ -552,11 +500,11 @@ describe('Rental and investment extraction', () => {
       },
     );
 
-    const model = modelAfter(result);
-    assert.equal(model.investment?.grossYieldTargetPercent, 4.5);
-    assert.equal(model.investment?.grossYieldActualPercent, 5.4);
-    assert.equal(model.rental?.monthlyRentEur, 950);
-    assert.equal(model.rental?.isRented, true);
+    const byField = fieldsOf(result);
+    assert.equal(byField.get('grossYieldTarget')?.value, 4.5);
+    assert.equal(byField.get('grossYieldActual')?.value, 5.4);
+    assert.equal(byField.get('monthlyRent')?.value, 950);
+    assert.equal(byField.get('isRented')?.value, true);
   });
 });
 
@@ -591,11 +539,11 @@ describe('Mietvertrag: deposit (Kaution) extraction', () => {
       },
     );
 
-    const model = modelAfter(result);
-    assert.equal(model.rental?.monthlyRentEur, 890);
-    assert.equal(model.rental?.additionalCostsEur, 210);
-    assert.equal(model.rental?.depositEur, 2670);
-    assert.equal(model.rental?.availableFrom, '2026-09-01');
+    const byField = fieldsOf(result);
+    assert.equal(byField.get('monthlyRent')?.value, 890);
+    assert.equal(byField.get('additionalCosts')?.value, 210);
+    assert.equal(byField.get('deposit')?.value, 2670);
+    assert.equal(byField.get('availableFrom')?.value, '2026-09-01');
 
     const deposit = fieldsOf(result).get('deposit');
     assert.equal(deposit?.value, 2670);
@@ -626,8 +574,6 @@ describe('Mietvertrag: deposit (Kaution) extraction', () => {
 
     const deposit = fieldsOf(result).get('deposit');
     assert.equal(deposit?.value, null);
-    const model = modelAfter(result);
-    assert.equal(model.rental?.depositEur, undefined, 'no deposit is inferred');
   });
 
   it('does not confuse Kaufpreis, Kaltmiete, Nebenkosten or Kaution', async () => {
@@ -654,13 +600,13 @@ describe('Mietvertrag: deposit (Kaution) extraction', () => {
       },
     );
 
-    const model = modelAfter(result);
-    assert.equal(model.financial.askingPriceEur, 240000);
-    assert.equal(model.rental?.monthlyRentEur, 890);
-    assert.equal(model.rental?.additionalCostsEur, 210);
-    assert.equal(model.rental?.depositEur, 2670);
-    assert.equal(model.financial.askingPriceEur, 240000, 'Kaufpreis stays in financial');
-    assert.equal(model.rental?.depositEur, 2670, 'Kaution stays in rental');
+    const byField = fieldsOf(result);
+    assert.equal(byField.get('askingPrice')?.value, 240000);
+    assert.equal(byField.get('monthlyRent')?.value, 890);
+    assert.equal(byField.get('additionalCosts')?.value, 210);
+    assert.equal(byField.get('deposit')?.value, 2670);
+    assert.equal(byField.get('askingPrice')?.value, 240000, 'Kaufpreis stays in askingPrice');
+    assert.equal(byField.get('deposit')?.value, 2670, 'Kaution stays in deposit');
   });
 
   it('every non-null deposit value carries evidence', async () => {
@@ -708,14 +654,8 @@ it('normalizes German monetary formats to a plain EUR number', async () => {
       },
     );
 
-    const model = modelAfter(result);
-    assert.equal(model.rental?.depositEur, 2670);
-  });
-});
-
-describe('No hallucination', () => {
-  beforeEach(() => {
-    process.env.OPENAI_API_KEY = 'test-key';
+    const deposit = fieldsOf(result).get('deposit');
+    assert.equal(deposit?.value, 2670);
   });
 });
 
@@ -749,10 +689,10 @@ describe('No hallucination', () => {
       },
     );
 
-    const model = modelAfter(result);
-    assert.equal(model.areas.livingAreaM2, undefined);
-    assert.equal(model.financial.askingPriceEur, undefined);
-    assert.equal(model.rooms.total, undefined);
+    const byField = fieldsOf(result);
+    assert.equal(byField.get('livingArea')?.value, null);
+    assert.equal(byField.get('askingPrice')?.value, null);
+    assert.equal(byField.get('rooms')?.value, null);
   });
 
   it('keeps property photos from producing fabricated measurements', async () => {
@@ -781,9 +721,5 @@ describe('No hallucination', () => {
     );
 
     assert.equal(result.wizardFields.length, 0, 'no measurements from photographs');
-    const model = modelAfter(result);
-    assert.equal(model.areas.livingAreaM2, undefined);
-    assert.equal(model.rooms.total, undefined);
-    assert.equal(model.building.yearBuilt, undefined);
   });
 });

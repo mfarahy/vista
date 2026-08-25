@@ -62,5 +62,47 @@ export function getLogger(): Logger {
   return logger;
 }
 
+export interface ExternalCallOptions {
+  /** External system name, e.g. `openai`, `google-document-ai`. */
+  service: string;
+  /** Operation name, e.g. `process-document`, `chat.completions`. */
+  operation: string;
+  /** Additional non-sensitive context properties. */
+  props?: Record<string, unknown>;
+}
+
+/**
+ * Times and logs the lifecycle of an external integration call made by the
+ * document pipeline (OCR / understanding providers). Failures are logged as
+ * `warn` and rethrown so callers keep their failure semantics.
+ */
+export async function trackExternalCall<T>(
+  options: ExternalCallOptions,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const log = getLogger();
+  const base = {
+    service: options.service,
+    operation: options.operation,
+    ...options.props,
+  };
+  log.info(base, 'Calling external service {service} for {operation}');
+  const started = performance.now();
+  try {
+    const result = await fn();
+    log.info(
+      { ...base, durationMs: Math.round(performance.now() - started) },
+      'External service {service} {operation} completed successfully',
+    );
+    return result;
+  } catch (error) {
+    log.warn(
+      { ...base, durationMs: Math.round(performance.now() - started), err: error },
+      'External service {service} {operation} failed after {durationMs} ms',
+    );
+    throw error;
+  }
+}
+
 export type { Logger };
 

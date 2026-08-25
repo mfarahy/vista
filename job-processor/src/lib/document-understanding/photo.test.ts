@@ -3,15 +3,14 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import type OpenAI from 'openai';
 
 import { OpenAIDocumentUnderstandingProvider } from './openai-provider.js';
-import type { DocumentUnderstandingResult } from './types.js';
-import { buildPropertyModel, applyWizardFieldsToModel } from '../domain-model.js';
-import type { Property } from '../types.js';
 
 /**
  * Phase 9 property-photo intelligence tests. The OpenAI call is mocked, so no
- * paid API is ever called. The tests prove that the photo schema, the provider
- * mapping and the domain model agree: photo metadata is carried on the
- * document record and never mutates factual Property fields.
+ * paid API is ever called. The tests prove that the photo schema and the
+ * provider mapping agree: photo metadata is carried on the document record and
+ * photos never produce factual property wizard fields. (The mapping of those
+ * wizard fields onto the exposed Property model is covered by expose-service's
+ * domain-model tests.)
  */
 
 const originalKey = process.env.OPENAI_API_KEY;
@@ -32,50 +31,6 @@ function runExtraction(
 ) {
   const provider = new OpenAIDocumentUnderstandingProvider(makeFakeClient(parsed));
   return provider.analyzeDocument(input);
-}
-
-function propertyWith(): Property {
-  return {
-    id: 'prop-1',
-    propertyType: 'apartment',
-    transactionType: 'sale',
-    constructionYear: null,
-    address: '',
-    zipCode: '',
-    city: '',
-    district: '',
-    livingArea: null,
-    plotArea: null,
-    rooms: null,
-    bedrooms: null,
-    bathrooms: null,
-    floor: '',
-    totalFloors: null,
-    bodenrichtwert: null,
-    availableFrom: '',
-    condition: '',
-    askingPrice: null,
-    additionalCosts: null,
-    commission: '',
-    hausgeld: null,
-    coldRent: null,
-    deposit: null,
-    selectedFeatures: [],
-    additionalFeatures: '',
-    surroundings: {},
-    locationNote: '',
-    sellerDescription: '',
-    specialNotes: '',
-    targetAudience: '',
-    tone: 'professional',
-    language: 'de',
-    images: [],
-    roomsData: [],
-  };
-}
-
-function modelAfter(result: DocumentUnderstandingResult) {
-  return applyWizardFieldsToModel(buildPropertyModel(propertyWith()), result.wizardFields);
 }
 
 describe('Property photo: classification and visual metadata', () => {
@@ -156,10 +111,6 @@ describe('Property photo: classification and visual metadata', () => {
 
     assert.equal(result.photo?.photoType, 'exterior');
     assert.equal(result.wizardFields.length, 0, 'photos produce no wizard fields');
-    const model = modelAfter(result);
-    assert.equal(model.areas.livingAreaM2, undefined);
-    assert.equal(model.building.yearBuilt, undefined);
-    assert.equal(model.outdoor.garden, undefined, 'a visible garden is a tag, not a property fact');
   });
 
   it('keeps photo metadata null when the model returns no photo object', async () => {
@@ -243,10 +194,5 @@ describe('Property photo: classification and visual metadata', () => {
     );
 
     assert.equal(result.wizardFields.length, 0, 'no dimensions are extracted from pixels');
-    const model = modelAfter(result);
-    assert.equal(model.areas.livingAreaM2, undefined);
-    assert.equal(model.rooms.total, undefined);
-    assert.equal(model.building.yearBuilt, undefined);
-    assert.equal(model.energy, undefined);
   });
 });

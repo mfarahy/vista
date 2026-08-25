@@ -43,13 +43,57 @@ spec:
               value: {{ .Values.config.NATS_URL | quote }}
             - name: NATS_SUBJECT_PREFIX
               value: {{ .Values.config.NATS_SUBJECT_PREFIX | quote }}
-            - name: EXPOSE_SERVICE_URL
-              value: {{ .Values.config.EXPOSE_SERVICE_URL | quote }}
+            - name: DOCUMENT_STORAGE_PROVIDER
+              value: {{ .Values.config.DOCUMENT_STORAGE_PROVIDER | quote }}
+            - name: DOCUMENT_ANALYSIS_PROVIDER
+              value: {{ .Values.config.DOCUMENT_ANALYSIS_PROVIDER | quote }}
+            - name: DOCUMENT_UNDERSTANDING_PROVIDER
+              value: {{ .Values.config.DOCUMENT_UNDERSTANDING_PROVIDER | quote }}
+            - name: GOOGLE_DOCUMENT_AI_PROJECT_ID
+              value: {{ .Values.config.GOOGLE_DOCUMENT_AI_PROJECT_ID | default "" | quote }}
+            - name: GOOGLE_DOCUMENT_AI_LOCATION
+              value: {{ .Values.config.GOOGLE_DOCUMENT_AI_LOCATION | default "" | quote }}
+            - name: GOOGLE_DOCUMENT_AI_PROCESSOR_ID
+              value: {{ .Values.config.GOOGLE_DOCUMENT_AI_PROCESSOR_ID | default "" | quote }}
+            - name: OPENAI_BASE_URL
+              value: {{ .Values.config.OPENAI_BASE_URL | quote }}
+            - name: OPENAI_MODEL
+              value: {{ .Values.config.OPENAI_MODEL | quote }}
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: {{ .Release.Name }}-secrets
                   key: DATABASE_URL
+            - name: CLOUDFLARE_S3_API_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: CLOUDFLARE_S3_API_ENDPOINT
+            - name: CLOUDFLARE_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: CLOUDFLARE_ACCESS_KEY_ID
+            - name: CLOUDFLARE_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: CLOUDFLARE_SECRET_ACCESS_KEY
+            - name: CLOUDFLARE_R2_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: CLOUDFLARE_R2_BUCKET
+            - name: GOOGLE_DOCUMENT_AI_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: GOOGLE_DOCUMENT_AI_CREDENTIALS
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: OPENAI_API_KEY
           readinessProbe:
             httpGet:
               path: /ready
