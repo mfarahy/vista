@@ -1,96 +1,98 @@
-# Deterministic Multi-Floor Villa (Phase 3)
+# Deterministic Multi-Floor Villa (Phase 4)
 
-This isolated React, TypeScript, and Three.js prototype converts structured 2D architectural data into a deterministic multi-floor building model. It adopts the data conventions and wall-opening segmentation approach from [openPlan3D](https://github.com/laanlabs/openPlan3D), whose upstream repository is an application rather than a distributable React library.
-
-```text
-Building -> Floors -> FloorPlan2D -> validation -> 3D geometry -> Three.js viewer
-```
-
-## openPlan3D adoption
-
-openPlan3D was selected because it defines a practical shared architectural model for `Floor`, `Wall`, `Door`, `Window`, and `Room`, renders the same floor data in 2D and 3D, and uses parametric door/window positions along walls. The upstream project is available at https://github.com/laanlabs/openPlan3D and is licensed under MIT; its attribution and license text are preserved in [OPENPLAN3D-LICENSE](OPENPLAN3D-LICENSE).
-
-This prototype reuses the upstream model conventions and the pure `buildWallSegments` rule extracted from `src/lib/components/viewer3d/ThreeViewer.svelte`. [openPlan3D.ts](src/openPlan3D.ts) is the deliberately small integration boundary: it converts the canonical meter model to upstream-style normalized openings and keeps the conversion deterministic. The React viewer remains local because the upstream viewer is coupled to Svelte stores and components. No upstream application shell, persistence, Firebase integration, furniture, or import pipeline is copied.
-
-## Architecture
+This isolated React, TypeScript, and Three.js prototype converts structured 2D architectural data into a deterministic multi-floor building model with explicit spatial metadata, canonical measurements, and 3D selection support. It continues to use the shared architectural conventions from [openPlan3D](https://github.com/laanlabs/openPlan3D), while keeping the prototype independent from the upstream Svelte application shell.
 
 ```text
-Building
-       -> Floor (explicit elevation in meters)
-              -> Room / Wall / Door / Window (one canonical 2D plan)
-                     -> openPlan3D adapter -> 2D conventions and wall segmentation
-                     -> local Three.js representation
+Canonical Building Model -> Geometry / Measurement Logic -> 3D Renderer -> Selection / UI
 ```
 
-The authored source of truth is `Building` in [floorPlan.ts](src/floorPlan.ts). The adapter is a derived representation for integration, not a second editable building model. The current prototype has no interactive 2D editor; the structured floor plan is the 2D representation consumed by the 3D renderer.
+## Spatial element model
 
-## Run locally
+The canonical model remains the structured source of truth for architecture. The current `Building` structure includes explicit `floors`, `rooms`, `walls`, `doors`, `windows`, and derived spatial metadata produced from the same geometry model:
 
-```bash
-npm install
-npm run dev
-npm test
+```ts
+const windowExample = {
+  id: "ground-north-window",
+  floorId: "ground",
+  hostWallId: "north",
+  worldPosition: { x: 1.6, y: 1.5, z: -7 },
+  rotation: 0,
+  width: 1.6,
+  height: 1.2,
+  sillHeight: 0.9,
+};
 ```
+
+Every architectural item is defined by its canonical geometry, not by a second UI-only copy. The Three.js meshes keep a lightweight element mapping back to the canonical object so later phases can connect the same element to annotations, measurements, and panorama anchors without duplicating the architecture.
+
+## Coordinate system
+
+The model keeps a single consistent metric coordinate system:
+
+- Horizontal axes: `x` = east-west, `y` = north-south in floor plan space
+- Vertical axis: `Y` in Three.js world space, derived from explicit floor elevation and local building height
+- Origin: the south-west corner of the villa plan, at the floor's plan origin
+- Units: meters
+- Local coordinates: plan points remain in meters and are floor-local
+- World coordinates: `x = planX`, `y = floorElevation + localHeight`, `z = -planY`
+
+This matches the existing Phase 3 geometry and keeps all floors aligned on a single deterministic global frame.
+
+## Measurement model
+
+Measurements are derived from the canonical geometry and not from the rendered canvas or screenshot pixels. The model can represent wall length, thickness, height, room dimensions, room area, door width/height, window width/height, window sill height, and floor elevation.
+
+```text
+wall.length = distance(start, end)
+room.area = polygonArea(boundary)
+window.sillHeight = explicit floor-local value
+```
+
+Each `Measurement` carries:
+
+- `subjectType` and `subjectId` to resolve back to the canonical element
+- `kind` such as `length`, `width`, `height`, `area`, `sillHeight`, or `elevation`
+- `value` in meters
+- `floorId` and spatial endpoints used by the 3D overlay
+
+## Selection architecture
+
+The separation stays simple and practical:
+
+```text
+Canonical Building Model
+  -> Geometry / Measurement Logic
+  -> 3D Renderer
+  -> Selection / UI
+```
+
+Three.js objects are assigned a `userData` payload containing the canonical `type` and `id`, and the app resolves selection back to the model's canonical records. This avoids creating a separate UI-only representation and keeps the later `2D Floor Plan -> 3D Model -> 360 Panorama -> Spatial Annotations` chain grounded in the same architecture.
+
+## How dimensions are calculated
+
+The geometry and measurement logic is centralized in [src/geometryGenerator.ts](src/geometryGenerator.ts). It calculates:
+
+- wall length from the actual 2D wall endpoints
+- room dimensions from the boundary extents and polygon area
+- door and window offsets from the host wall and opening dimensions
+- floor elevation from the explicit `Floor2D.elevation` parameter
+
+Because these values come from the canonical model, measurement overlays remain deterministic and accurate.
 
 ## Example villa
 
-```text
-                         ROOF
-                  +----------------+
- FIRST FLOOR     | Bed 1 | Bed 2   |
- elevation 2.80m | Hall  | Bath     |
-                  +------ stairs ---+
- GROUND FLOOR    | Living | Kitchen |
- elevation 0.00m | Entry  | Bath     |
-                  +------ stairs ---+
- BASEMENT        | Basement room   |
- elevation -2.80 | Utility/storage  |
-                  +----------------+
-```
+The demo villa keeps the multi-floor arrangement from Phase 3:
 
-The example has three floors, explicit doors and windows on every floor, rooms owned by their floor, and two stair connections: basement to ground and ground to first.
+- Basement: rooms, walls, and doors
+- Ground Floor: living room, kitchen, bathroom, doors, and windows
+- First Floor: bedrooms, bathroom, doors, and windows
 
-## Building model
+The same canonical structure supports all floors, while selection and measurements remain tied to the current floor and host element.
 
-`Building` contains a meter unit, `floors`, canonical `stairs`, and a simple `roof`.
+## Viewer and measurement overlay
 
-Each `Floor2D` has:
+The viewer renders the model with simple wall, door, window, and room geometry and adds a light measurement overlay for dimensions. The overlay is intentionally minimal and meant to validate the coordinate system and metric accuracy rather than mimic a CAD application.
 
-- `id` and `name`
-- explicit `elevation` in meters
-- `floorToFloorHeight` in meters
-- one `FloorPlan2D` containing walls, doors, windows, and rooms
+## Future extension
 
-The generator never derives elevation from array order. The demo elevations are basement `-2.80m`, ground `0m`, and first `2.80m`.
-
-## Geometry and coordinates
-
-All plans use one global horizontal coordinate system. A plan point is floor-local data in meters with `x` east-west and `y` north-south. This differs from upstream openPlan3D's editor convention, which stores `x/y` in centimeters; the adapter keeps the upstream normalized opening semantics while the canonical prototype remains in meters. It maps to Three.js world coordinates as:
-
-```text
-worldX = planX
-worldY = floor.elevation + localHeight
-worldZ = -planY
-```
-
-The south-west plan corner is the shared `(0, 0)` horizontal origin. Three.js `Y` is up. Wall thickness and wall height remain in meters; openings split wall solids into deterministic segments. A floor's global vertical base is its explicit `elevation`; local wall/window/door height is added to that value. The plan `y` axis maps to world `-Z` so the horizontal mapping remains stable and right-handed for the viewer.
-
-## Rooms, stairs, and roof
-
-Rooms stay simple: each room has an ID, name, boundary polygon, and floor ownership through its containing `Floor2D`.
-
-Each `Stair2D` declares `sourceFloorId`, `targetFloorId`, position, width, length, and height. The generator creates eight rising tread boxes, enough to communicate location and vertical direction without attempting realistic stair engineering.
-
-The roof declares the highest floor it belongs to and generates one deterministic roof volume above that floor.
-
-## Viewer
-
-The viewer supports orbit, pan, zoom, camera inspection, and a selector for Basement, Ground Floor, First Floor, or All Floors. Selecting one floor hides unrelated floor geometry while keeping connecting stairs visible. All Floors shows the complete villa.
-
-## Current limitations
-
-This phase intentionally excludes AI, image/PDF parsing, OCR, panoramas, virtual tours, camera placement, measurements overlays, furniture, realistic materials, backend/API/database/authentication, and advanced roof or stair generation. Room boundaries are structured input rather than detected geometry.
-
-## Future direction
-
-This isolated prototype is intended to become the deterministic 3D foundation for Vista later. Vista integration is intentionally not implemented in this phase.
+This phase is intentionally limited to the spatial foundation. It does not add AI, OCR, 360 viewers, panoramas, or backend systems. The canonical model is ready, however, for future work that connects the same elements to spatial annotations and panorama anchors.

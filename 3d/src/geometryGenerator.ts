@@ -1,12 +1,18 @@
 import type { Building, Door2D, Floor2D, FloorPlan2D, Point2D, Roof2D, Stair2D, Wall2D, Window2D } from "./floorPlan";
 import { buildOpenPlan3DWallSegments, toOpenPlan3DProject } from "./openPlan3D";
 
+export type Vector3 = {
+  x: number;
+  y: number;
+  z: number;
+};
+
 export type WallBox3D = {
   id: string;
   floorId: string;
   sourceWallId: string;
   kind: Wall2D["kind"];
-  center: { x: number; y: number; z: number };
+  center: Vector3;
   length: number;
   thickness: number;
   height: number;
@@ -31,7 +37,7 @@ export type Opening3D = {
   height: number;
   sillHeight: number;
   openingDirection?: Door2D["openingDirection"];
-  center: { x: number; y: number; z: number };
+  center: Vector3;
   rotationZ: number;
   thickness: number;
 };
@@ -41,7 +47,7 @@ export type StairBox3D = {
   stairId: string;
   sourceFloorId: string;
   targetFloorId: string;
-  center: { x: number; y: number; z: number };
+  center: Vector3;
   width: number;
   length: number;
   height: number;
@@ -51,10 +57,91 @@ export type StairBox3D = {
 export type Roof3D = {
   id: string;
   floorId: string;
-  center: { x: number; y: number; z: number };
+  center: Vector3;
   width: number;
   length: number;
   height: number;
+};
+
+export type FloorSpatial = {
+  id: string;
+  name: string;
+  elevation: number;
+  floorToFloorHeight: number;
+  worldPosition: Vector3;
+  dimensions: { width: number; length: number };
+};
+
+export type WallSpatial = {
+  id: string;
+  floorId: string;
+  elevation: number;
+  start: Point2D;
+  end: Point2D;
+  length: number;
+  thickness: number;
+  height: number;
+  worldPosition: Vector3;
+  rotation: number;
+  dimensions: { length: number; thickness: number; height: number };
+};
+
+export type RoomSpatial = {
+  id: string;
+  floorId: string;
+  name: string;
+  boundary: Point2D[];
+  area: number;
+  worldPosition: Vector3;
+  dimensions: { width: number; length: number };
+};
+
+export type DoorSpatial = {
+  id: string;
+  floorId: string;
+  hostWallId: string;
+  positionAlongWall: number;
+  width: number;
+  height: number;
+  worldPosition: Vector3;
+  rotation: number;
+  dimensions: { width: number; height: number };
+};
+
+export type WindowSpatial = {
+  id: string;
+  floorId: string;
+  hostWallId: string;
+  positionAlongWall: number;
+  width: number;
+  height: number;
+  sillHeight: number;
+  worldPosition: Vector3;
+  rotation: number;
+  dimensions: { width: number; height: number; sillHeight: number };
+};
+
+export type BuildingSpatial = {
+  id: string;
+  floors: FloorSpatial[];
+  walls: WallSpatial[];
+  rooms: RoomSpatial[];
+  doors: DoorSpatial[];
+  windows: WindowSpatial[];
+};
+
+export type Measurement = {
+  id: string;
+  subjectType: "wall" | "room" | "door" | "window" | "floor";
+  subjectId: string;
+  kind: "length" | "thickness" | "height" | "width" | "area" | "sillHeight" | "elevation";
+  value: number;
+  unit: "m";
+  axis: "horizontal" | "vertical";
+  floorId: string;
+  start: Vector3;
+  end: Vector3;
+  label: string;
 };
 
 export type BuildingModel3D = {
@@ -64,6 +151,8 @@ export type BuildingModel3D = {
   openings: Opening3D[];
   stairs: StairBox3D[];
   roof: Roof3D;
+  spatialElements: BuildingSpatial;
+  measurements: Measurement[];
 };
 
 type WallOpening = Door2D | Window2D;
@@ -104,6 +193,38 @@ const polygonArea = (vertices: Point2D[]) => Math.abs(vertices.reduce((area, poi
   const next = vertices[(index + 1) % vertices.length];
   return area + point.x * next.y - next.x * point.y;
 }, 0) / 2);
+
+const polygonCentroid = (vertices: Point2D[]) => {
+  let signedArea = 0;
+  let centerX = 0;
+  let centerY = 0;
+
+  for (let index = 0; index < vertices.length; index += 1) {
+    const current = vertices[index];
+    const next = vertices[(index + 1) % vertices.length];
+    const cross = current.x * next.y - next.x * current.y;
+    signedArea += cross;
+    centerX += (current.x + next.x) * cross;
+    centerY += (current.y + next.y) * cross;
+  }
+
+  const area = signedArea / 2;
+  return {
+    x: centerX / (6 * area),
+    y: centerY / (6 * area),
+  };
+};
+
+const normalizeZero = (value: number) => (Object.is(value, -0) ? 0 : value);
+
+const roomDimensions = (boundary: Point2D[]) => {
+  const xs = boundary.map((point) => point.x);
+  const ys = boundary.map((point) => point.y);
+  return {
+    width: Math.max(...xs) - Math.min(...xs),
+    length: Math.max(...ys) - Math.min(...ys),
+  };
+};
 
 const asNormalizedOpening = (opening: WallOpening): NormalizedOpening => {
   if ("sillHeight" in opening) {
@@ -202,9 +323,7 @@ export const validateFloorPlan = (floorPlan: FloorPlan2D): void => {
       const previous = sorted[index - 1];
       const current = sorted[index];
       if (current.offset < previous.offset + previous.width - EPSILON) {
-        issues.push(
-          `Openings '${previous.id}' and '${current.id}' overlap on wall '${wallId}'.`,
-        );
+        issues.push(`Openings '${previous.id}' and '${current.id}' overlap on wall '${wallId}'.`);
       }
     }
   }
@@ -239,7 +358,14 @@ const createWallBox = (floorId: string, elevation: number, wall: Wall2D, startOf
 
 const generateWallBoxes = (floorId: string, elevation: number, wall: Wall2D, openings: WallOpening[]): WallBox3D[] => {
   const wallLengthValue = distance(wall.start, wall.end);
-  const openPlanFloor = toOpenPlan3DProject({ unit: "m", floors: [{ id: floorId, name: floorId, elevation, floorToFloorHeight: wall.height, plan: { unit: "m", walls: [wall], doors: openings.filter((opening): opening is Door2D => !("sillHeight" in opening)), windows: openings.filter((opening): opening is Window2D => "sillHeight" in opening), rooms: [] } }], stairs: [], roof: { id: "unused", floorId, height: 0 } }).floors[0];
+  const openPlanFloor = toOpenPlan3DProject({
+    id: "wall-segment-adapter",
+    unit: "m",
+    floors: [{ id: floorId, name: floorId, elevation, floorToFloorHeight: wall.height, plan: { unit: "m", walls: [wall], doors: openings.filter((opening): opening is Door2D => !("sillHeight" in opening)), windows: openings.filter((opening): opening is Window2D => "sillHeight" in opening), rooms: [] } }],
+    stairs: [],
+    roof: { id: "unused", floorId, height: 0 },
+  }).floors[0];
+
   return buildOpenPlan3DWallSegments(wallLengthValue * 100, wall.height * 100, openPlanFloor.doors, openPlanFloor.windows).flatMap((segment, index) => {
     const startOffset = (segment.offsetX - segment.width / 2) / 100;
     return createWallBox(floorId, elevation, wall, startOffset, startOffset + segment.width / 100, segment.offsetY / 100, segment.height / 100, index) ?? [];
@@ -262,6 +388,285 @@ const createOpening3D = (floorId: string, elevation: number, opening: Normalized
     rotationZ: Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x),
     thickness: wall.thickness,
   };
+};
+
+const createFloorSpatial = (floor: Floor2D): FloorSpatial => {
+  const bounds = floor.plan.walls.reduce((acc, wall) => {
+    const points = [wall.start, wall.end];
+    return {
+      minX: Math.min(acc.minX, ...points.map((point) => point.x)),
+      maxX: Math.max(acc.maxX, ...points.map((point) => point.x)),
+      minY: Math.min(acc.minY, ...points.map((point) => point.y)),
+      maxY: Math.max(acc.maxY, ...points.map((point) => point.y)),
+    };
+  }, { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+
+  return {
+    id: floor.id,
+    name: floor.name,
+    elevation: floor.elevation,
+    floorToFloorHeight: floor.floorToFloorHeight,
+    worldPosition: {
+      x: normalizeZero((bounds.minX + bounds.maxX) / 2),
+      y: normalizeZero(floor.elevation),
+      z: normalizeZero(-((bounds.minY + bounds.maxY) / 2)),
+    },
+    dimensions: {
+      width: bounds.maxX - bounds.minX,
+      length: bounds.maxY - bounds.minY,
+    },
+  };
+};
+
+const createWallSpatial = (floor: Floor2D, wall: Wall2D): WallSpatial => {
+  const start = wall.start;
+  const end = wall.end;
+  const rotation = Math.atan2(end.y - start.y, end.x - start.x);
+  const center = { x: (start.x + end.x) / 2, y: floor.elevation + wall.height / 2, z: -((start.y + end.y) / 2) };
+  const length = distance(start, end);
+
+  return {
+    id: wall.id,
+    floorId: floor.id,
+    elevation: floor.elevation,
+    start,
+    end,
+    length,
+    thickness: wall.thickness,
+    height: wall.height,
+    worldPosition: {
+      x: normalizeZero(center.x),
+      y: normalizeZero(center.y),
+      z: normalizeZero(center.z),
+    },
+    rotation,
+    dimensions: { length, thickness: wall.thickness, height: wall.height },
+  };
+};
+
+const createRoomSpatial = (floor: Floor2D, room: FloorPlan2D["rooms"][number]): RoomSpatial => {
+  const centroid = polygonCentroid(room.boundary);
+  const dimensions = roomDimensions(room.boundary);
+  return {
+    id: room.id,
+    floorId: floor.id,
+    name: room.name,
+    boundary: room.boundary,
+    area: polygonArea(room.boundary),
+    worldPosition: {
+      x: normalizeZero(centroid.x),
+      y: normalizeZero(floor.elevation),
+      z: normalizeZero(-centroid.y),
+    },
+    dimensions,
+  };
+};
+
+const createDoorSpatial = (floor: Floor2D, door: Door2D, wall: Wall2D): DoorSpatial => {
+  const center2D = pointAlongWall(wall, door.offset + door.width / 2);
+  return {
+    id: door.id,
+    floorId: floor.id,
+    hostWallId: door.wallId,
+    positionAlongWall: door.offset + door.width / 2,
+    width: door.width,
+    height: door.height,
+    worldPosition: {
+      x: normalizeZero(center2D.x),
+      y: normalizeZero(floor.elevation + door.height / 2),
+      z: normalizeZero(-center2D.y),
+    },
+    rotation: Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x),
+    dimensions: { width: door.width, height: door.height },
+  };
+};
+
+const createWindowSpatial = (floor: Floor2D, window: Window2D, wall: Wall2D): WindowSpatial => {
+  const center2D = pointAlongWall(wall, window.offset + window.width / 2);
+  return {
+    id: window.id,
+    floorId: floor.id,
+    hostWallId: window.wallId,
+    positionAlongWall: window.offset + window.width / 2,
+    width: window.width,
+    height: window.height,
+    sillHeight: window.sillHeight,
+    worldPosition: {
+      x: normalizeZero(center2D.x),
+      y: normalizeZero(floor.elevation + window.sillHeight + window.height / 2),
+      z: normalizeZero(-center2D.y),
+    },
+    rotation: Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x),
+    dimensions: { width: window.width, height: window.height, sillHeight: window.sillHeight },
+  };
+};
+
+const createMeasurements = (building: Building, spatial: BuildingSpatial): Measurement[] => {
+  const measurements: Measurement[] = [];
+
+  for (const floor of building.floors) {
+    const floorSpatial = spatial.floors.find((entry) => entry.id === floor.id)!;
+    measurements.push({
+      id: `${floor.id}-elevation`,
+      subjectType: "floor",
+      subjectId: floor.id,
+      kind: "elevation",
+      value: floor.elevation,
+      unit: "m",
+      axis: "vertical",
+      floorId: floor.id,
+      start: { x: floorSpatial.worldPosition.x, y: floor.elevation, z: floorSpatial.worldPosition.z },
+      end: { x: floorSpatial.worldPosition.x, y: floor.elevation + 0.25, z: floorSpatial.worldPosition.z },
+      label: `${floor.elevation.toFixed(2)} m`,
+    });
+  }
+
+  for (const wall of spatial.walls) {
+    measurements.push({
+      id: `${wall.id}-length`,
+      subjectType: "wall",
+      subjectId: wall.id,
+      kind: "length",
+      value: wall.length,
+      unit: "m",
+      axis: "horizontal",
+      floorId: wall.floorId,
+      start: { x: wall.start.x, y: wall.elevation + wall.height + 0.12, z: -wall.start.y },
+      end: { x: wall.end.x, y: wall.elevation + wall.height + 0.12, z: -wall.end.y },
+      label: `${wall.length.toFixed(2)} m`,
+    });
+    measurements.push({
+      id: `${wall.id}-thickness`,
+      subjectType: "wall",
+      subjectId: wall.id,
+      kind: "thickness",
+      value: wall.thickness,
+      unit: "m",
+      axis: "horizontal",
+      floorId: wall.floorId,
+      start: { x: wall.worldPosition.x - wall.thickness / 2, y: wall.elevation + 0.12, z: wall.worldPosition.z },
+      end: { x: wall.worldPosition.x + wall.thickness / 2, y: wall.elevation + 0.12, z: wall.worldPosition.z },
+      label: `${wall.thickness.toFixed(2)} m`,
+    });
+  }
+
+  for (const room of spatial.rooms) {
+    const halfWidth = room.dimensions.width / 2;
+    const halfLength = room.dimensions.length / 2;
+    measurements.push({
+      id: `${room.id}-area`,
+      subjectType: "room",
+      subjectId: room.id,
+      kind: "area",
+      value: room.area,
+      unit: "m",
+      axis: "horizontal",
+      floorId: room.floorId,
+      start: { x: room.worldPosition.x - halfWidth, y: room.worldPosition.y + 0.12, z: room.worldPosition.z },
+      end: { x: room.worldPosition.x + halfWidth, y: room.worldPosition.y + 0.12, z: room.worldPosition.z },
+      label: `${room.area.toFixed(2)} m²`,
+    });
+    measurements.push({
+      id: `${room.id}-width`,
+      subjectType: "room",
+      subjectId: room.id,
+      kind: "width",
+      value: room.dimensions.width,
+      unit: "m",
+      axis: "horizontal",
+      floorId: room.floorId,
+      start: { x: room.worldPosition.x - halfWidth, y: room.worldPosition.y + 0.12, z: room.worldPosition.z },
+      end: { x: room.worldPosition.x + halfWidth, y: room.worldPosition.y + 0.12, z: room.worldPosition.z },
+      label: `${room.dimensions.width.toFixed(2)} m`,
+    });
+    measurements.push({
+      id: `${room.id}-length`,
+      subjectType: "room",
+      subjectId: room.id,
+      kind: "length",
+      value: room.dimensions.length,
+      unit: "m",
+      axis: "horizontal",
+      floorId: room.floorId,
+      start: { x: room.worldPosition.x, y: room.worldPosition.y + 0.12, z: room.worldPosition.z - halfLength },
+      end: { x: room.worldPosition.x, y: room.worldPosition.y + 0.12, z: room.worldPosition.z + halfLength },
+      label: `${room.dimensions.length.toFixed(2)} m`,
+    });
+  }
+
+  for (const door of spatial.doors) {
+    const widthLine = {
+      id: `${door.id}-width`,
+      subjectType: "door" as const,
+      subjectId: door.id,
+      kind: "width" as const,
+      value: door.width,
+      unit: "m" as const,
+      axis: "horizontal" as const,
+      floorId: door.floorId,
+      start: { x: door.worldPosition.x - door.width / 2, y: door.worldPosition.y + 0.08, z: door.worldPosition.z },
+      end: { x: door.worldPosition.x + door.width / 2, y: door.worldPosition.y + 0.08, z: door.worldPosition.z },
+      label: `${door.width.toFixed(2)} m`,
+    };
+    measurements.push(widthLine);
+    measurements.push({
+      id: `${door.id}-height`,
+      subjectType: "door",
+      subjectId: door.id,
+      kind: "height",
+      value: door.height,
+      unit: "m",
+      axis: "vertical",
+      floorId: door.floorId,
+      start: { x: door.worldPosition.x, y: door.worldPosition.y - door.height / 2, z: door.worldPosition.z },
+      end: { x: door.worldPosition.x, y: door.worldPosition.y + door.height / 2, z: door.worldPosition.z },
+      label: `${door.height.toFixed(2)} m`,
+    });
+  }
+
+  for (const opening of spatial.windows) {
+    measurements.push({
+      id: `${opening.id}-width`,
+      subjectType: "window",
+      subjectId: opening.id,
+      kind: "width",
+      value: opening.width,
+      unit: "m",
+      axis: "horizontal",
+      floorId: opening.floorId,
+      start: { x: opening.worldPosition.x - opening.width / 2, y: opening.worldPosition.y + 0.08, z: opening.worldPosition.z },
+      end: { x: opening.worldPosition.x + opening.width / 2, y: opening.worldPosition.y + 0.08, z: opening.worldPosition.z },
+      label: `${opening.width.toFixed(2)} m`,
+    });
+    measurements.push({
+      id: `${opening.id}-height`,
+      subjectType: "window",
+      subjectId: opening.id,
+      kind: "height",
+      value: opening.height,
+      unit: "m",
+      axis: "vertical",
+      floorId: opening.floorId,
+      start: { x: opening.worldPosition.x, y: opening.worldPosition.y - opening.height / 2, z: opening.worldPosition.z },
+      end: { x: opening.worldPosition.x, y: opening.worldPosition.y + opening.height / 2, z: opening.worldPosition.z },
+      label: `${opening.height.toFixed(2)} m`,
+    });
+    measurements.push({
+      id: `${opening.id}-sillHeight`,
+      subjectType: "window",
+      subjectId: opening.id,
+      kind: "sillHeight",
+      value: opening.sillHeight,
+      unit: "m",
+      axis: "vertical",
+      floorId: opening.floorId,
+      start: { x: opening.worldPosition.x, y: opening.worldPosition.y - opening.height / 2 - opening.sillHeight, z: opening.worldPosition.z },
+      end: { x: opening.worldPosition.x, y: opening.worldPosition.y - opening.height / 2, z: opening.worldPosition.z },
+      label: `${opening.sillHeight.toFixed(2)} m`,
+    });
+  }
+
+  return measurements;
 };
 
 const generateFloorGeometry = (floor: Floor2D) => {
@@ -319,15 +724,35 @@ export const generateBuildingModel = (building: Building): BuildingModel3D => {
       throw new FloorPlanValidationError([`Floor '${floor.id}' must have a finite elevation and positive floor-to-floor height.`]);
     }
   }
+
   const generatedFloors = building.floors.map(generateFloorGeometry);
+  const spatialElements: BuildingSpatial = {
+    id: building.id,
+    floors: building.floors.map(createFloorSpatial),
+    walls: building.floors.flatMap((floor) => floor.plan.walls.map((wall) => createWallSpatial(floor, wall))),
+    rooms: building.floors.flatMap((floor) => floor.plan.rooms.map((room) => createRoomSpatial(floor, room))),
+    doors: building.floors.flatMap((floor) => floor.plan.doors.map((door) => {
+      const wall = floor.plan.walls.find((entry) => entry.id === door.wallId);
+      if (!wall) throw new Error(`Unknown wall '${door.wallId}' for door '${door.id}'.`);
+      return createDoorSpatial(floor, door, wall);
+    })),
+    windows: building.floors.flatMap((floor) => floor.plan.windows.map((window) => {
+      const wall = floor.plan.walls.find((entry) => entry.id === window.wallId);
+      if (!wall) throw new Error(`Unknown wall '${window.wallId}' for window '${window.id}'.`);
+      return createWindowSpatial(floor, window, wall);
+    })),
+  };
+
   const stairs = building.stairs.flatMap((stair) => {
     const source = building.floors.find((floor) => floor.id === stair.sourceFloorId);
     const target = building.floors.find((floor) => floor.id === stair.targetFloorId);
     if (!source || !target) throw new FloorPlanValidationError([`Stair '${stair.id}' references an unknown floor.`]);
     return createStairBoxes(stair, source.elevation, target.elevation);
   });
+
   const highest = building.floors.find((floor) => floor.id === building.roof.floorId);
   if (!highest) throw new FloorPlanValidationError([`Roof references an unknown floor '${building.roof.floorId}'.`]);
+
   return {
     unit: building.unit,
     wallBoxes: generatedFloors.flatMap((floor) => floor.wallBoxes),
@@ -335,6 +760,8 @@ export const generateBuildingModel = (building: Building): BuildingModel3D => {
     openings: generatedFloors.flatMap((floor) => floor.openings),
     stairs,
     roof: { id: building.roof.id, floorId: highest.id, center: { x: 4.5, y: highest.elevation + highest.plan.walls[0].height + building.roof.height / 2, z: -3.5 }, width: 9.4, length: 7.4, height: building.roof.height },
+    spatialElements,
+    measurements: createMeasurements(building, spatialElements),
   };
 };
 

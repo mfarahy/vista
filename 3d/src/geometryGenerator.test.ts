@@ -10,7 +10,11 @@ const baseWallPlan = (wallOverrides: Partial<FloorPlan2D["walls"][number]> = {})
 });
 
 const asBuilding = (plan: FloorPlan2D, elevation = 0): Building => ({
-  unit: "m", floors: [{ id: "test-floor", name: "Test Floor", elevation, floorToFloorHeight: 2.8, plan }], stairs: [], roof: { id: "test-roof", floorId: "test-floor", height: 0.3 },
+  id: "test-building",
+  unit: "m",
+  floors: [{ id: "test-floor", name: "Test Floor", elevation, floorToFloorHeight: 2.8, plan }],
+  stairs: [],
+  roof: { id: "test-roof", floorId: "test-floor", height: 0.3 },
 });
 
 describe("single floor geometry", () => {
@@ -38,6 +42,68 @@ describe("single floor geometry", () => {
     plan.windows.push({ id: "window-a", wallId: "wall-a", offset: 1.8, width: 1, height: 1, sillHeight: 0.9 });
     expect(() => generateBuildingModel(asBuilding(plan))).toThrowError(FloorPlanValidationError);
     expect(() => generateBuildingModel(asBuilding(plan))).toThrowError(/overlap/i);
+  });
+});
+
+describe("canonical spatial elements", () => {
+  it("exposes wall, room, door, window, and floor spatial metadata", () => {
+    const model = generateBuildingModel(demoBuilding);
+    const northWall = model.spatialElements.walls.find((wall) => wall.id === "north" && wall.floorId === "ground");
+    const livingRoom = model.spatialElements.rooms.find((room) => room.id === "ground-main");
+    const windowElement = model.spatialElements.windows.find((window) => window.id === "ground-north-window");
+    const doorElement = model.spatialElements.doors.find((door) => door.id === "ground-entry");
+    const floor = model.spatialElements.floors.find((entry) => entry.id === "ground");
+
+    expect(northWall).toMatchObject({
+      id: "north",
+      floorId: "ground",
+      length: 9,
+      thickness: 0.2,
+      height: 2.8,
+    });
+    expect(northWall?.worldPosition).toMatchObject({ x: 4.5, y: 1.4, z: -7 });
+
+    expect(livingRoom).toMatchObject({
+      id: "ground-main",
+      floorId: "ground",
+      area: 20,
+      dimensions: { width: 5, length: 4 },
+    });
+    expect(livingRoom?.worldPosition).toMatchObject({ x: 2.5, y: 0, z: -2 });
+
+    expect(windowElement).toMatchObject({
+      id: "ground-north-window",
+      floorId: "ground",
+      hostWallId: "north",
+      width: 1.6,
+      height: 1.2,
+      sillHeight: 0.9,
+    });
+    expect(windowElement?.rotation).toBeCloseTo(0, 8);
+    expect(windowElement?.worldPosition).toMatchObject({ x: 1.6, y: 1.5, z: -7 });
+
+    expect(doorElement).toMatchObject({
+      id: "ground-entry",
+      floorId: "ground",
+      hostWallId: "south",
+      width: 1,
+      height: 2.1,
+    });
+    expect(doorElement?.worldPosition).toMatchObject({ x: 7.4, y: 1.05, z: 0 });
+
+    expect(floor).toMatchObject({
+      id: "ground",
+      name: "Ground Floor",
+      elevation: 0,
+    });
+    expect(model.measurements.some((measurement) => measurement.subjectType === "wall" && measurement.subjectId === "north" && measurement.kind === "length")).toBe(true);
+    expect(model.measurements.some((measurement) => measurement.subjectType === "window" && measurement.subjectId === "ground-north-window" && measurement.kind === "width")).toBe(true);
+  });
+
+  it("keeps the same building input deterministic across repeated model generation", () => {
+    const first = generateBuildingModel(demoBuilding);
+    const second = generateBuildingModel(demoBuilding);
+    expect(first).toEqual(second);
   });
 });
 
