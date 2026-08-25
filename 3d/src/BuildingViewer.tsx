@@ -51,6 +51,38 @@ const createMeasurementLine = (start: { x: number; y: number; z: number }, end: 
   return line;
 };
 
+const createMeasurementLabel = (text: string, position: { x: number; y: number; z: number }, vertical = false, color = "#1b2d35") => {
+  const canvas = document.createElement("canvas");
+  const width = 256;
+  const height = 64;
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+
+  context.font = "600 30px 'Segoe UI', system-ui, sans-serif";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  const textWidth = context.measureText(text).width;
+  const backgroundPadding = 12;
+  const backgroundWidth = Math.min(textWidth + backgroundPadding * 2, width - 4);
+  const backgroundX = width / 2 - backgroundWidth / 2;
+  context.fillStyle = "rgba(255,255,255,0.82)";
+  context.fillRect(backgroundX, 8, backgroundWidth, height - 16);
+  context.fillStyle = color;
+  context.fillText(text, width / 2, height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }),
+  );
+  const worldHeight = 0.32;
+  sprite.scale.set((backgroundWidth / height) * worldHeight, worldHeight, 1);
+  sprite.position.set(position.x, position.y, position.z);
+  sprite.userData = { vertical };
+  return { sprite, texture };
+};
+
 const createPartMesh = (
   part: { center: { x: number; y: number; z: number }; width: number; height: number; depth: number; rotationZ: number },
   material: THREE.Material,
@@ -164,10 +196,26 @@ export function BuildingViewer({ model, selectedFloorId, selectedElement, onSele
 
     const measurementGroup = new THREE.Group();
     const measurementColor = "#20363f";
+    const labelTextures: THREE.CanvasTexture[] = [];
     for (const measurement of model.measurements) {
       const line = createMeasurementLine(measurement.start, measurement.end, measurementColor);
       line.userData = { type: measurement.subjectType, id: measurement.subjectId, floorId: measurement.floorId };
       measurementGroup.add(line);
+
+      const vertical = measurement.axis === "vertical";
+      const midpoint = {
+        x: (measurement.start.x + measurement.end.x) / 2,
+        y: (measurement.start.y + measurement.end.y) / 2,
+        z: (measurement.start.z + measurement.end.z) / 2,
+      };
+      const labelPosition = vertical
+        ? { x: midpoint.x + 0.22, y: midpoint.y, z: midpoint.z }
+        : { x: midpoint.x, y: midpoint.y + 0.18, z: midpoint.z };
+      const label = createMeasurementLabel(measurement.label, labelPosition, vertical, measurementColor);
+      if (label) {
+        measurementGroup.add(label.sprite);
+        labelTextures.push(label.texture);
+      }
     }
     scene.add(measurementGroup);
 
@@ -240,6 +288,7 @@ export function BuildingViewer({ model, selectedFloorId, selectedElement, onSele
       cancelAnimationFrame(frame);
       resizeObserver.disconnect();
       renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
+      for (const texture of labelTextures) texture.dispose();
       controls.dispose();
       renderer.dispose();
       container.removeChild(renderer.domElement);

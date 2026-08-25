@@ -8,6 +8,7 @@ import {
   WINDOW_SILL_PROTRUSION,
   WINDOW_SILL_THICKNESS,
   FloorPlanValidationError,
+  MEASUREMENT_OFFSET,
   generateBuildingModel,
   validateFloorPlan,
   wallLength,
@@ -964,5 +965,222 @@ describe("real door and window wall openings", () => {
     assertNoWallInsideOpenings(model, plan);
     expect(model.windows.every((window) => window.sill)).toBe(true);
     expect(model.doors.every((door) => door.leafSwing && door.handle)).toBe(true);
+  });
+});
+
+const measurementOf = (model: ReturnType<typeof generateBuildingModel>, subjectId: string, kind: string) =>
+  model.measurements.find((measurement) => measurement.subjectId === subjectId && measurement.kind === kind)!;
+
+const orientedDirection = (measurement: { start: { x: number; y: number; z: number }; end: { x: number; y: number; z: number } }) => {
+  const dx = measurement.end.x - measurement.start.x;
+  const dy = measurement.end.y - measurement.start.y;
+  const dz = measurement.end.z - measurement.start.z;
+  const length = Math.hypot(dx, dy, dz);
+  return { x: dx / length, y: dy / length, z: dz / length };
+};
+
+const dot = (first: { x: number; y: number; z: number }, second: { x: number; y: number; z: number }) =>
+  first.x * second.x + first.y * second.y + first.z * second.z;
+
+describe("orientation-aware measurement rendering", () => {
+  it("axis-aligned room: width follows principal X, length follows principal Z/Y", () => {
+    const model = generateBuildingModel(asBuilding(axisAlignedPlan()));
+    const width = measurementOf(model, "axis-room", "width");
+    const length = measurementOf(model, "axis-room", "length");
+    expect(width.value).toBeCloseTo(6, 8);
+    expect(length.value).toBeCloseTo(4, 8);
+
+    const widthDir = orientedDirection(width);
+    const lengthDir = orientedDirection(length);
+    expect(Math.abs(widthDir.x)).toBeCloseTo(1, 6);
+    expect(Math.abs(widthDir.z)).toBeCloseTo(0, 6);
+    expect(Math.abs(lengthDir.z)).toBeCloseTo(1, 6);
+    expect(Math.abs(lengthDir.x)).toBeCloseTo(0, 6);
+    expect(dot(widthDir, lengthDir)).toBeCloseTo(0, 6);
+  });
+
+  it("45-degree rotated room: width and length lines follow the rotated axes", () => {
+    const angle = Math.PI / 4;
+    const model = generateBuildingModel(asBuilding(rotatedPlan(angle)));
+    const width = measurementOf(model, "room-rot", "width");
+    const length = measurementOf(model, "room-rot", "length");
+
+    expect(Math.max(width.value, length.value)).toBeCloseTo(4, 8);
+    expect(Math.min(width.value, length.value)).toBeCloseTo(2, 8);
+
+    const expectedWidth = { x: Math.cos(angle), y: 0, z: -Math.sin(angle) };
+    const expectedLength = { x: -Math.sin(angle), y: 0, z: -Math.cos(angle) };
+    const widthDir = orientedDirection(width);
+    const lengthDir = orientedDirection(length);
+    expect(widthDir.x).toBeCloseTo(expectedWidth.x, 6);
+    expect(widthDir.z).toBeCloseTo(expectedWidth.z, 6);
+    expect(lengthDir.x).toBeCloseTo(expectedLength.x, 6);
+    expect(lengthDir.z).toBeCloseTo(expectedLength.z, 6);
+    expect(dot(widthDir, lengthDir)).toBeCloseTo(0, 6);
+  });
+
+  it("arbitrarily rotated room (27 deg): width and length lines follow the rotated axes", () => {
+    const angle = (27 * Math.PI) / 180;
+    const model = generateBuildingModel(asBuilding(rotatedPlan(angle)));
+    const width = measurementOf(model, "room-rot", "width");
+    const length = measurementOf(model, "room-rot", "length");
+
+    expect(Math.max(width.value, length.value)).toBeCloseTo(4, 8);
+    expect(Math.min(width.value, length.value)).toBeCloseTo(2, 8);
+
+    const expectedWidth = { x: Math.cos(angle), y: 0, z: -Math.sin(angle) };
+    const expectedLength = { x: -Math.sin(angle), y: 0, z: -Math.cos(angle) };
+    const widthDir = orientedDirection(width);
+    const lengthDir = orientedDirection(length);
+    expect(widthDir.x).toBeCloseTo(expectedWidth.x, 6);
+    expect(widthDir.z).toBeCloseTo(expectedWidth.z, 6);
+    expect(lengthDir.x).toBeCloseTo(expectedLength.x, 6);
+    expect(lengthDir.z).toBeCloseTo(expectedLength.z, 6);
+    expect(dot(widthDir, lengthDir)).toBeCloseTo(0, 6);
+  });
+
+  it("non-square room: width and length values are preserved and distinct", () => {
+    const model = generateBuildingModel(asBuilding(rectPlan(5, 3)));
+    const width = measurementOf(model, "room-a", "width");
+    const length = measurementOf(model, "room-a", "length");
+    expect(width.value).toBeCloseTo(5, 8);
+    expect(length.value).toBeCloseTo(3, 8);
+    expect(width.value).not.toBeCloseTo(length.value, 6);
+    expect(dot(orientedDirection(width), orientedDirection(length))).toBeCloseTo(0, 6);
+  });
+
+  it("keeps dimension line length equal to the measured value (no world-axis distortion)", () => {
+    const angle = Math.PI / 5;
+    const model = generateBuildingModel(asBuilding(rotatedPlan(angle)));
+    const width = measurementOf(model, "room-rot", "width");
+    const length = measurementOf(model, "room-rot", "length");
+    const lineLength = (m: { start: { x: number; y: number; z: number }; end: { x: number; y: number; z: number } }) =>
+      Math.hypot(m.end.x - m.start.x, m.end.y - m.start.y, m.end.z - m.start.z);
+    expect(lineLength(width)).toBeCloseTo(width.value, 8);
+    expect(lineLength(length)).toBeCloseTo(length.value, 8);
+  });
+
+  it("offsets the room dimension lines perpendicular to their own axis by MEASUREMENT_OFFSET", () => {
+    const angle = Math.PI / 6;
+    const model = generateBuildingModel(asBuilding(rotatedPlan(angle)));
+    const room = model.spatialElements.rooms[0];
+    const width = measurementOf(model, "room-rot", "width");
+    const length = measurementOf(model, "room-rot", "length");
+    const centroid = { x: room.worldPosition.x, y: 0, z: room.worldPosition.z };
+
+    const widthDir = orientedDirection(width);
+    const lengthDir = orientedDirection(length);
+
+    const widthCenter = {
+      x: (width.start.x + width.end.x) / 2,
+      y: 0,
+      z: (width.start.z + width.end.z) / 2,
+    };
+    const lengthCenter = {
+      x: (length.start.x + length.end.x) / 2,
+      y: 0,
+      z: (length.start.z + length.end.z) / 2,
+    };
+
+    const fromCentroid = (point: { x: number; z: number }) => ({ x: point.x - centroid.x, y: 0, z: point.z - centroid.z });
+    const widthOffset = fromCentroid(widthCenter);
+    const lengthOffset = fromCentroid(lengthCenter);
+
+    expect(Math.abs(dot(widthOffset, lengthDir))).toBeCloseTo(1 + MEASUREMENT_OFFSET, 6);
+    expect(Math.abs(dot(lengthOffset, widthDir))).toBeCloseTo(2 + MEASUREMENT_OFFSET, 6);
+  });
+
+  it("labels carry the exact formatted numeric value", () => {
+    const model = generateBuildingModel(asBuilding(rectPlan(5, 3)));
+    const width = measurementOf(model, "room-a", "width");
+    const length = measurementOf(model, "room-a", "length");
+    expect(width.label).toBe(`${width.value.toFixed(2)} m`);
+    expect(length.label).toBe(`${length.value.toFixed(2)} m`);
+  });
+
+  it("measurement annotation is one oriented unit: start->end order matches the principal axis", () => {
+    const angle = (40 * Math.PI) / 180;
+    const model = generateBuildingModel(asBuilding(rotatedPlan(angle)));
+    const width = measurementOf(model, "room-rot", "width");
+    const length = measurementOf(model, "room-rot", "length");
+    const expectedWidth = { x: Math.cos(angle), y: 0, z: -Math.sin(angle) };
+    const expectedLength = { x: -Math.sin(angle), y: 0, z: -Math.cos(angle) };
+    expect(orientedDirection(width).x).toBeCloseTo(expectedWidth.x, 6);
+    expect(orientedDirection(width).z).toBeCloseTo(expectedWidth.z, 6);
+    expect(orientedDirection(length).x).toBeCloseTo(expectedLength.x, 6);
+    expect(orientedDirection(length).z).toBeCloseTo(expectedLength.z, 6);
+  });
+
+  it("multiple rooms with different orientations each follow their own axis", () => {
+    const plan: FloorPlan2D = {
+      unit: "m",
+      walls: [{ id: "w0", start: { x: 0, y: 0 }, end: { x: 1, y: 0 }, thickness: 0.15, height: 2.8, kind: "exterior" }],
+      doors: [],
+      windows: [],
+      rooms: [
+        { id: "r0", name: "R0", boundary: rotatedRect(4, 2, 0, { x: 0, y: 0 }) },
+        { id: "r45", name: "R45", boundary: rotatedRect(4, 2, Math.PI / 4, { x: 0, y: 0 }) },
+        { id: "r27", name: "R27", boundary: rotatedRect(4, 2, (27 * Math.PI) / 180, { x: 0, y: 0 }) },
+      ],
+    };
+    const model = generateBuildingModel(asBuilding(plan));
+    for (const [roomId, angle] of [["r0", 0], ["r45", Math.PI / 4], ["r27", (27 * Math.PI) / 180]] as const) {
+      const width = measurementOf(model, roomId, "width");
+      const length = measurementOf(model, roomId, "length");
+      expect(width.value).toBeCloseTo(4, 8);
+      expect(length.value).toBeCloseTo(2, 8);
+      const widthDir = orientedDirection(width);
+      const lengthDir = orientedDirection(length);
+      expect(widthDir.x).toBeCloseTo(Math.cos(angle), 6);
+      expect(widthDir.z).toBeCloseTo(-Math.sin(angle), 6);
+      expect(lengthDir.x).toBeCloseTo(-Math.sin(angle), 6);
+      expect(lengthDir.z).toBeCloseTo(-Math.cos(angle), 6);
+      expect(dot(widthDir, lengthDir)).toBeCloseTo(0, 6);
+    }
+  });
+
+  it("rotated wall length measurement follows the wall segment direction and length", () => {
+    const wall = { id: "wall-a", start: { x: 0, y: 0 }, end: { x: 3, y: 4 }, thickness: 0.2, height: 2.8, kind: "exterior" as const };
+    const plan: FloorPlan2D = { unit: "m", walls: [wall], doors: [], windows: [], rooms: [] };
+    const model = generateBuildingModel(asBuilding(plan));
+    const length = measurementOf(model, "wall-a", "length");
+    expect(length.value).toBeCloseTo(5, 8);
+    const direction = orientedDirection(length);
+    const rotation = Math.atan2(4, 3);
+    expect(direction.x).toBeCloseTo(Math.cos(rotation), 6);
+    expect(direction.z).toBeCloseTo(-Math.sin(rotation), 6);
+  });
+
+  it("rotated wall thickness measurement is perpendicular to the wall", () => {
+    const wall = { id: "wall-a", start: { x: 0, y: 0 }, end: { x: 3, y: 4 }, thickness: 0.2, height: 2.8, kind: "exterior" as const };
+    const plan: FloorPlan2D = { unit: "m", walls: [wall], doors: [], windows: [], rooms: [] };
+    const model = generateBuildingModel(asBuilding(plan));
+    const thickness = measurementOf(model, "wall-a", "thickness");
+    expect(thickness.value).toBeCloseTo(0.2, 8);
+    const thicknessDir = orientedDirection(thickness);
+    const rotation = Math.atan2(4, 3);
+    const wallDir = { x: Math.cos(rotation), y: 0, z: -Math.sin(rotation) };
+    expect(dot(thicknessDir, wallDir)).toBeCloseTo(0, 6);
+    const lineLength = (m: { start: { x: number; y: number; z: number }; end: { x: number; y: number; z: number } }) =>
+      Math.hypot(m.end.x - m.start.x, m.end.y - m.start.y, m.end.z - m.start.z);
+    expect(lineLength(thickness)).toBeCloseTo(0.2, 8);
+  });
+
+  it("door width measurement follows the host wall orientation", () => {
+    const wall = { id: "wall-a", start: { x: 0, y: 0 }, end: { x: 3, y: 4 }, thickness: 0.2, height: 2.8, kind: "exterior" as const };
+    const plan: FloorPlan2D = {
+      unit: "m",
+      walls: [wall],
+      doors: [{ id: "door-1", wallId: "wall-a", offset: 1, width: 1, height: 2.1 }],
+      windows: [],
+      rooms: [],
+    };
+    const model = generateBuildingModel(asBuilding(plan));
+    const width = measurementOf(model, "door-1", "width");
+    expect(width.value).toBeCloseTo(1, 8);
+    const direction = orientedDirection(width);
+    const rotation = Math.atan2(4, 3);
+    expect(direction.x).toBeCloseTo(Math.cos(rotation), 6);
+    expect(direction.z).toBeCloseTo(-Math.sin(rotation), 6);
   });
 });

@@ -302,6 +302,11 @@ export const WINDOW_SILL_PROTRUSION = 0.05;
 /** Vertical thickness (m) of the window sill board. */
 export const WINDOW_SILL_THICKNESS = 0.04;
 
+/** Lateral gap (m) between a measured element and its dimension line, applied
+ *  along the measurement's own orientation so rotated elements keep a readable
+ *  separation rather than a world-axis offset. */
+export const MEASUREMENT_OFFSET = 0.25;
+
 export class FloorPlanValidationError extends Error {
   readonly issues: string[];
 
@@ -550,13 +555,26 @@ const normalizeZero = (value: number) => (Object.is(value, -0) ? 0 : value);
  *
  * This is exact for the axis-aligned and rotated rectangular rooms the
  * canonical model produces, and it never treats world X as "width" or world Z
- * as "depth". `width` is the extent along the first principal axis and
- * `length` the extent along the second; for axis-aligned rooms this still
- * yields the conventional width (X) and length (Y).
+ * as "depth". `width` is the extent along the first principal axis (`primary`)
+ * and `length` the extent along the second (`secondary`); for axis-aligned
+ * rooms this still yields the conventional width (X) and length (Y).
+ *
+ * The returned `primary`/`secondary` unit directions let measurement rendering
+ * draw annotation lines along the room's actual orientation instead of the
+ * world axes, so a rotated room's width/length measurements rotate with it.
  */
-const roomDimensions = (boundary: Point2D[]) => {
+type RoomExtents = {
+  width: number;
+  length: number;
+  /** Unit direction of the primary (width) axis in planar coordinates. */
+  primary: Point2D;
+  /** Unit direction of the secondary (length) axis in planar coordinates. */
+  secondary: Point2D;
+};
+
+const roomExtents = (boundary: Point2D[]): RoomExtents => {
   const count = boundary.length;
-  if (count < 3) return { width: 0, length: 0 };
+  if (count < 3) return { width: 0, length: 0, primary: { x: 1, y: 0 }, secondary: { x: 0, y: 1 } };
 
   let centroidX = 0;
   let centroidY = 0;
@@ -600,7 +618,14 @@ const roomDimensions = (boundary: Point2D[]) => {
   return {
     width: maxPrimary - minPrimary,
     length: maxSecondary - minSecondary,
+    primary: { x: primaryX, y: primaryY },
+    secondary: { x: secondaryX, y: secondaryY },
   };
+};
+
+const roomDimensions = (boundary: Point2D[]) => {
+  const { width, length } = roomExtents(boundary);
+  return { width, length };
 };
 
 const asNormalizedOpening = (opening: WallOpening): NormalizedOpening => {
@@ -1216,6 +1241,12 @@ const createMeasurements = (building: Building, spatial: BuildingSpatial): Measu
       end: { x: wall.end.x, y: wall.elevation + wall.height + 0.12, z: -wall.end.y },
       label: `${wall.length.toFixed(2)} m`,
     });
+
+    const thicknessNormal = {
+      x: Math.sin(wall.rotation),
+      z: Math.cos(wall.rotation),
+    };
+    const halfThickness = wall.thickness / 2;
     measurements.push({
       id: `${wall.id}-thickness`,
       subjectType: "wall",
@@ -1225,15 +1256,39 @@ const createMeasurements = (building: Building, spatial: BuildingSpatial): Measu
       unit: "m",
       axis: "horizontal",
       floorId: wall.floorId,
-      start: { x: wall.worldPosition.x - wall.thickness / 2, y: wall.elevation + 0.12, z: wall.worldPosition.z },
-      end: { x: wall.worldPosition.x + wall.thickness / 2, y: wall.elevation + 0.12, z: wall.worldPosition.z },
+      start: { x: wall.worldPosition.x - thicknessNormal.x * halfThickness, y: wall.elevation + 0.12, z: wall.worldPosition.z - thicknessNormal.z * halfThickness },
+      end: { x: wall.worldPosition.x + thicknessNormal.x * halfThickness, y: wall.elevation + 0.12, z: wall.worldPosition.z + thicknessNormal.z * halfThickness },
       label: `${wall.thickness.toFixed(2)} m`,
     });
   }
 
   for (const room of spatial.rooms) {
-    const halfWidth = room.dimensions.width / 2;
-    const halfLength = room.dimensions.length / 2;
+    const extents = roomExtents(room.boundary);
+    const primary3D = { x: extents.primary.x, z: -extents.primary.y };
+    const secondary3D = { x: extents.secondary.x, z: -extents.secondary.y };
+    const halfWidth = extents.width / 2;
+    const halfLength = extents.length / 2;
+    const centerX = room.worldPosition.x;
+    const centerZ = room.worldPosition.z;
+    const measureY = room.worldPosition.y + 0.12;
+
+    const offsetPoint = (from3D: { x: number; z: number }, amount: number) => ({
+      x: centerX + from3D.x * amount,
+      z: centerZ + from3D.z * amount,
+    });
+
+    const widthCenter = offsetPoint(secondary3D, halfLength + MEASUREMENT_OFFSET);
+    const widthStart = { x: widthCenter.x - primary3D.x * halfWidth, y: measureY, z: widthCenter.z - primary3D.z * halfWidth };
+    const widthEnd = { x: widthCenter.x + primary3D.x * halfWidth, y: measureY, z: widthCenter.z + primary3D.z * halfWidth };
+
+    const lengthCenter = offsetPoint(primary3D, halfWidth + MEASUREMENT_OFFSET);
+    const lengthStart = { x: lengthCenter.x - secondary3D.x * halfLength, y: measureY, z: lengthCenter.z - secondary3D.z * halfLength };
+    const lengthEnd = { x: lengthCenter.x + secondary3D.x * halfLength, y: measureY, z: lengthCenter.z + secondary3D.z * halfLength };
+
+    const areaCenter = offsetPoint(secondary3D, 0);
+    const areaStart = { x: areaCenter.x - primary3D.x * halfWidth, y: measureY, z: areaCenter.z - primary3D.z * halfWidth };
+    const areaEnd = { x: areaCenter.x + primary3D.x * halfWidth, y: measureY, z: areaCenter.z + primary3D.z * halfWidth };
+
     measurements.push({
       id: `${room.id}-area`,
       subjectType: "room",
@@ -1243,8 +1298,8 @@ const createMeasurements = (building: Building, spatial: BuildingSpatial): Measu
       unit: "m",
       axis: "horizontal",
       floorId: room.floorId,
-      start: { x: room.worldPosition.x - halfWidth, y: room.worldPosition.y + 0.12, z: room.worldPosition.z },
-      end: { x: room.worldPosition.x + halfWidth, y: room.worldPosition.y + 0.12, z: room.worldPosition.z },
+      start: areaStart,
+      end: areaEnd,
       label: `${room.area.toFixed(2)} m²`,
     });
     measurements.push({
@@ -1252,30 +1307,35 @@ const createMeasurements = (building: Building, spatial: BuildingSpatial): Measu
       subjectType: "room",
       subjectId: room.id,
       kind: "width",
-      value: room.dimensions.width,
+      value: extents.width,
       unit: "m",
       axis: "horizontal",
       floorId: room.floorId,
-      start: { x: room.worldPosition.x - halfWidth, y: room.worldPosition.y + 0.12, z: room.worldPosition.z },
-      end: { x: room.worldPosition.x + halfWidth, y: room.worldPosition.y + 0.12, z: room.worldPosition.z },
-      label: `${room.dimensions.width.toFixed(2)} m`,
+      start: widthStart,
+      end: widthEnd,
+      label: `${extents.width.toFixed(2)} m`,
     });
     measurements.push({
       id: `${room.id}-length`,
       subjectType: "room",
       subjectId: room.id,
       kind: "length",
-      value: room.dimensions.length,
+      value: extents.length,
       unit: "m",
       axis: "horizontal",
       floorId: room.floorId,
-      start: { x: room.worldPosition.x, y: room.worldPosition.y + 0.12, z: room.worldPosition.z - halfLength },
-      end: { x: room.worldPosition.x, y: room.worldPosition.y + 0.12, z: room.worldPosition.z + halfLength },
-      label: `${room.dimensions.length.toFixed(2)} m`,
+      start: lengthStart,
+      end: lengthEnd,
+      label: `${extents.length.toFixed(2)} m`,
     });
   }
 
   for (const door of spatial.doors) {
+    const direction = { x: Math.cos(door.rotation), z: -Math.sin(door.rotation) };
+    const normal = { x: Math.sin(door.rotation), z: Math.cos(door.rotation) };
+    const baseX = door.worldPosition.x + normal.x * MEASUREMENT_OFFSET;
+    const baseZ = door.worldPosition.z + normal.z * MEASUREMENT_OFFSET;
+    const halfWidth = door.width / 2;
     const widthLine = {
       id: `${door.id}-width`,
       subjectType: "door" as const,
@@ -1285,8 +1345,8 @@ const createMeasurements = (building: Building, spatial: BuildingSpatial): Measu
       unit: "m" as const,
       axis: "horizontal" as const,
       floorId: door.floorId,
-      start: { x: door.worldPosition.x - door.width / 2, y: door.worldPosition.y + 0.08, z: door.worldPosition.z },
-      end: { x: door.worldPosition.x + door.width / 2, y: door.worldPosition.y + 0.08, z: door.worldPosition.z },
+      start: { x: baseX - direction.x * halfWidth, y: door.worldPosition.y + 0.08, z: baseZ - direction.z * halfWidth },
+      end: { x: baseX + direction.x * halfWidth, y: door.worldPosition.y + 0.08, z: baseZ + direction.z * halfWidth },
       label: `${door.width.toFixed(2)} m`,
     };
     measurements.push(widthLine);
@@ -1306,6 +1366,11 @@ const createMeasurements = (building: Building, spatial: BuildingSpatial): Measu
   }
 
   for (const opening of spatial.windows) {
+    const direction = { x: Math.cos(opening.rotation), z: -Math.sin(opening.rotation) };
+    const normal = { x: Math.sin(opening.rotation), z: Math.cos(opening.rotation) };
+    const baseX = opening.worldPosition.x + normal.x * MEASUREMENT_OFFSET;
+    const baseZ = opening.worldPosition.z + normal.z * MEASUREMENT_OFFSET;
+    const halfWidth = opening.width / 2;
     measurements.push({
       id: `${opening.id}-width`,
       subjectType: "window",
@@ -1315,8 +1380,8 @@ const createMeasurements = (building: Building, spatial: BuildingSpatial): Measu
       unit: "m",
       axis: "horizontal",
       floorId: opening.floorId,
-      start: { x: opening.worldPosition.x - opening.width / 2, y: opening.worldPosition.y + 0.08, z: opening.worldPosition.z },
-      end: { x: opening.worldPosition.x + opening.width / 2, y: opening.worldPosition.y + 0.08, z: opening.worldPosition.z },
+      start: { x: baseX - direction.x * halfWidth, y: opening.worldPosition.y + 0.08, z: baseZ - direction.z * halfWidth },
+      end: { x: baseX + direction.x * halfWidth, y: opening.worldPosition.y + 0.08, z: baseZ + direction.z * halfWidth },
       label: `${opening.width.toFixed(2)} m`,
     });
     measurements.push({
