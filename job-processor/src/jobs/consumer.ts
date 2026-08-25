@@ -5,6 +5,8 @@ import { parseJobEvent } from './event.js';
 import { jobRepo } from '../lib/jobRepo.js';
 import { getLogger, type Logger } from '../lib/logger.js';
 import { errorMessage } from '../lib/error.js';
+import { createJobProgressEvent, type JobProgressEvent } from './progress-event.js';
+import { publishJobProgress } from './progress-publisher.js';
 
 export interface ConsumerOptions {
   nc: NatsConnection;
@@ -82,7 +84,18 @@ async function handleMessage(
   const { jobId, jobType } = event;
   log.info({ jobId, jobType, subject }, 'Job %s (%s) received from %s', jobId, jobType, subject);
 
+  /**
+   * Publishes a progress event to NATS (`<prefix>.<jobId>`) whenever the job's
+   * status advances. expose-service subscribes to these events and forwards
+   * them to the UI's SSE stream; without them the frontend never learns about
+   * terminal states and keeps showing the initial snapshot forever.
+   */
+  function publish(status: JobProgressEvent['status'], patch: Partial<JobProgressEvent> = {}): void {
+    publishJobProgress(options.nc, createJobProgressEvent({ jobId, status, ...patch }));
+  }
+
   await jobRepo.processing(jobId);
+  publish('processing', { progress: 0, currentStep: 'received' });
 
   const ctx: JobRunContext = {
     job: {
@@ -94,6 +107,11 @@ async function handleMessage(
     update: async (patch) => {
       await jobRepo.setStatus(jobId, {
         status: 'processing',
+        progress: patch.progress,
+        currentStep: patch.currentStep,
+        message: patch.message,
+      });
+      publish('processing', {
         progress: patch.progress,
         currentStep: patch.currentStep,
         message: patch.message,
@@ -125,6 +143,7 @@ async function handleMessage(
       message,
     );
     await jobRepo.failed(jobId, message);
+    publish('failed', { error: message });
     return;
   }
 
@@ -138,4 +157,5 @@ async function handleMessage(
     result.message ? `: ${result.message}` : '',
   );
   await jobRepo.completed(jobId, result.message);
+  publish('completed', { progress: 100, message: result.message });
 }

@@ -138,7 +138,14 @@ async function defaultProcessFn(input: ProcessDocumentInput): Promise<unknown> {
   const location = process.env.GOOGLE_DOCUMENT_AI_LOCATION;
   const processorId = process.env.GOOGLE_DOCUMENT_AI_PROCESSOR_ID;
   if (!projectId || !location || !processorId) {
-    throw new Error('Google Document AI configuration is incomplete.');
+    const missing = [
+      projectId ? null : 'GOOGLE_DOCUMENT_AI_PROJECT_ID',
+      location ? null : 'GOOGLE_DOCUMENT_AI_LOCATION',
+      processorId ? null : 'GOOGLE_DOCUMENT_AI_PROCESSOR_ID',
+    ].filter(Boolean);
+    throw new Error(
+      `Google Document AI configuration is incomplete; missing ${missing.join(', ')}.`,
+    );
   }
 
   const client: DocumentProcessorServiceClient = new DocumentProcessorServiceClient(

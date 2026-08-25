@@ -1,5 +1,6 @@
 import type { JobHandler } from '../dispatcher.js';
 import { loadConfig } from '../../config.js';
+import { errorMessage } from '../../lib/error.js';
 import {
   createHttpDocumentProcessingClient,
   type DocumentProcessingClient,
@@ -39,6 +40,7 @@ export function makeDocumentProcessingHandler(
 
     const total = documentIds.length;
     let failed = 0;
+    const failureReasons: string[] = [];
 
     ctx.log.info(
       { jobId: ctx.job.jobId, documentIds, count: total },
@@ -71,12 +73,17 @@ export function makeDocumentProcessingHandler(
         const ocrMs = Date.now() - ocrStartedAt;
         if (ocr.record.status === 'failed') {
           ctx.log.warn(
-            { jobId: ctx.job.jobId, documentId, durationMs: ocrMs },
+            { jobId: ctx.job.jobId, documentId, durationMs: ocrMs, error: ocr.record.error },
             'OCR failed for document %s after %sms; skipping understanding',
             documentId,
             ocrMs,
           );
           failed += 1;
+          failureReasons.push(
+            typeof ocr.record.error === 'string' && ocr.record.error
+              ? ocr.record.error
+              : 'OCR failed',
+          );
           continue;
         }
         ctx.log.info(
@@ -110,13 +117,20 @@ export function makeDocumentProcessingHandler(
           documentId,
         );
         failed += 1;
+        failureReasons.push(errorMessage(error, 'document processing failed'));
       }
     }
 
     if (failed === total) {
-      const message = `All ${total} document(s) failed to process`;
+      const firstReason =
+        failureReasons.find((reason) => reason && reason !== 'OCR failed') ??
+        failureReasons[0];
+      const message =
+        failureReasons.length > 0
+          ? `All ${total} document(s) failed to process: ${firstReason}`
+          : `All ${total} document(s) failed to process`;
       ctx.log.error(
-        { jobId: ctx.job.jobId, total, failed },
+        { jobId: ctx.job.jobId, total, failed, failureReasons },
         message,
       );
       throw new Error(message);

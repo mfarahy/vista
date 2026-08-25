@@ -86,7 +86,20 @@ describe('document-processing handler', () => {
 
     await assert.rejects(
       () => Promise.resolve().then(() => handler(context({ documentIds: ['doc-a'] }, []))),
-      /All 1 document\(s\) failed to process/,
+      /All 1 document\(s\) failed to process: boom/,
+    );
+  });
+
+  it('includes the persisted OCR error in the job failure message', async () => {
+    const fake = fakeClient();
+    fake.state.ocrError = new Error(
+      'Google Document AI configuration is incomplete; missing GOOGLE_DOCUMENT_AI_PROCESSOR_ID.',
+    );
+    const handler = makeDocumentProcessingHandler(fake.client);
+
+    await assert.rejects(
+      () => Promise.resolve().then(() => handler(context({ documentIds: ['doc-a'] }, []))),
+      /All 1 document\(s\) failed to process: Google Document AI configuration is incomplete/,
     );
   });
 

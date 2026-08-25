@@ -769,10 +769,6 @@ const de: TranslationSchema = {
     analyzingCount: '{count} Dokumente werden analysiert…',
     analyzingCountOne: '{count} Dokument wird analysiert…',
     analyzing: 'Wird analysiert…',
-    emptyTitle: 'Noch keine Dokumente',
-    emptyDescription:
-      'Laden Sie Ihre Unterlagen, Pläne oder Fotos zur Immobilie hoch. Vista ordnet sie und nutzt die Informationen zum Ausfüllen des Assistenten.',
-    uploadButton: 'Dokumente hochladen',
     successHeading: 'Informationen gefunden',
     successText:
       'Vista hat Ihre Dokumente verstanden und in {count} Dokumenten verwertbare Informationen gefunden.',
@@ -809,6 +805,7 @@ const de: TranslationSchema = {
     errorMissingFile: 'Die Dokumentdatei fehlt.',
     errorOcrFailed: 'Das Dokument konnte nicht verstanden werden (kein OCR-Ergebnis).',
     errorAnalysisFailed: 'Das Dokument konnte nicht analysiert werden.',
+    errorUnderstandingFailed: 'Das Dokument konnte nicht ausgewertet werden.',
     foundCategories: {
       address: 'Adresse',
       object: 'Objekt',

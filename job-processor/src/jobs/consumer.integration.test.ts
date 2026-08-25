@@ -12,6 +12,7 @@ const natsUrl = process.env.NATS_URL || 'nats://localhost:4222';
 const collision = Date.now();
 const subscriptionSubject = `jp.integration.${collision}.>`;
 const baseSubject = `jp.integration.${collision}`;
+const progressSubject = 'vista.progress.>';
 
 describe('job consumer (integration)', { skip: skipReason }, () => {
   let nc: Awaited<ReturnType<typeof connect>>;
@@ -53,8 +54,36 @@ describe('job consumer (integration)', { skip: skipReason }, () => {
     );
   }
 
+  /** Collects NATS progress events for a job until it reaches a terminal state. */
+  function waitForProgress(jobId: string, timeoutMs = 4000): Promise<Record<string, unknown>> {
+    return new Promise((resolve, reject) => {
+      const sub = nc.subscribe(progressSubject);
+      const timer = setTimeout(() => {
+        sub.unsubscribe();
+        reject(new Error(`No terminal progress event for ${jobId}`));
+      }, timeoutMs);
+      void (async () => {
+        for await (const msg of sub) {
+          let event: Record<string, unknown>;
+          try {
+            event = JSON.parse(StringCodec().decode(msg.data)) as Record<string, unknown>;
+          } catch {
+            continue;
+          }
+          if (event.jobId === jobId && (event.status === 'completed' || event.status === 'failed')) {
+            clearTimeout(timer);
+            await sub.unsubscribe();
+            resolve(event);
+            return;
+          }
+        }
+      })();
+    });
+  }
+
   it('consumes a job and marks it completed (successful execution)', async () => {
     const id = await seedQueued({ message: 'done ok' });
+    const progress = waitForProgress(id);
     publishTestJob(id, { message: 'done ok' });
     await nc.flush();
     await waitForStatus(id, 'completed');
@@ -62,10 +91,15 @@ describe('job consumer (integration)', { skip: skipReason }, () => {
     const record = await getPrisma().job.findUnique({ where: { id } });
     assert.equal(record?.status, 'completed');
     assert.equal(record?.progress, 100);
+
+    const event = await progress;
+    assert.equal(event.status, 'completed');
+    assert.equal(event.progress, 100);
   });
 
-  it('marks a failing job as failed without crashing the worker', async () => {
+  it('marks a failing job as failed and publishes a failed progress event with the error', async () => {
     const id = await seedQueued({ fail: true });
+    const progress = waitForProgress(id);
     publishTestJob(id, { fail: true, message: 'boom' });
     await nc.flush();
     await waitForStatus(id, 'failed');
@@ -73,6 +107,10 @@ describe('job consumer (integration)', { skip: skipReason }, () => {
     const record = await getPrisma().job.findUnique({ where: { id } });
     assert.equal(record?.status, 'failed');
     assert.ok(record?.error);
+
+    const event = await progress;
+    assert.equal(event.status, 'failed');
+    assert.equal(event.error, 'boom');
   });
 
   it('marks an unhandled job type as failed', async () => {

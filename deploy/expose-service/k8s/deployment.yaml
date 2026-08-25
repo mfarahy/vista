@@ -89,6 +89,26 @@ spec:
                 configMapKeyRef:
                   name: vista-expose-service-config
                   key: OPENAI_MODEL
+            - name: GOOGLE_DOCUMENT_AI_PROJECT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: vista-expose-service-config
+                  key: GOOGLE_DOCUMENT_AI_PROJECT_ID
+            - name: GOOGLE_DOCUMENT_AI_LOCATION
+              valueFrom:
+                configMapKeyRef:
+                  name: vista-expose-service-config
+                  key: GOOGLE_DOCUMENT_AI_LOCATION
+            - name: GOOGLE_DOCUMENT_AI_PROCESSOR_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: vista-expose-service-config
+                  key: GOOGLE_DOCUMENT_AI_PROCESSOR_ID
+            - name: GOOGLE_DOCUMENT_AI_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: vista-expose-service-secrets
+                  key: GOOGLE_DOCUMENT_AI_CREDENTIALS
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:

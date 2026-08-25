@@ -64,7 +64,10 @@ function currentStepLabel(step: string | undefined): TranslationKey | undefined 
  * Maps a backend document error message to a translation key. The backend
  * currently returns German human-readable strings (not stable error codes);
  * known ones are mapped so they never reach the UI raw in the wrong language.
- * Unknown messages are left to the caller's translated fallback.
+ * The aggregated job failure ("All N document(s) failed to process: …")
+ * produced by job-processor carries the per-document reason as a suffix, which
+ * is extracted and mapped the same way. Unknown messages are left to the
+ * caller's translated fallback.
  */
 function documentUploadErrorKey(error: string | null | undefined): TranslationKey | undefined {
   const map: Record<string, TranslationKey> = {
@@ -75,8 +78,27 @@ function documentUploadErrorKey(error: string | null | undefined): TranslationKe
     'Das Dokument konnte nicht verstanden werden (kein OCR-Ergebnis).':
       'documentsStep.errorOcrFailed',
     'Das Dokument konnte nicht analysiert werden.': 'documentsStep.errorAnalysisFailed',
+    'The AI could not understand this document. The OCR result was preserved.':
+      'documentsStep.errorUnderstandingFailed',
   };
-  return error ? map[error.trim()] : undefined;
+  const trimmed = error?.trim();
+  if (trimmed) {
+    const exact = map[trimmed];
+    if (exact) return exact;
+    const aggregated = trimmed.match(/^All \d+ document\(s\) failed to process:?\s*(.+)$/);
+    if (aggregated?.[1]) return documentUploadErrorKey(aggregated[1].trim());
+  }
+  return undefined;
+}
+
+/** Localized failure reason shown on a document card, falling back to the generic label. */
+function documentFailureMessage(
+  document: DocumentRecord,
+  t: ReturnType<typeof useI18n>['t'],
+): string {
+  const raw = document.error ?? document.understandingError;
+  const mapped = documentUploadErrorKey(raw);
+  return mapped ? t(mapped) : t('documentsStep.statusFailed');
 }
 
 /** Categories of the "Gefundene Informationen" overview (spec §16). */
@@ -498,21 +520,6 @@ async function load() {
           </p>
         )}
 
-        {!documents.length && !uploading ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border bg-muted/20 px-6 py-12 text-center">
-            <FileText className="size-6 text-muted-foreground" aria-hidden />
-            <p className="mt-3 text-sm font-semibold text-foreground">
-              {t('documentsStep.emptyTitle')}
-            </p>
-            <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-              {t('documentsStep.emptyDescription')}
-            </p>
-            <Button type="button" className="mt-5" onClick={() => fileRef.current?.click()}>
-              <UploadCloud className="size-4" /> {t('documentsStep.uploadButton')}
-            </Button>
-          </div>
-        ) : null}
-
         {job.state && (
           <JobProgressCard job={job.state} reconnecting={job.reconnecting} t={t} />
         )}
@@ -854,6 +861,12 @@ function DocumentCard({
           </Badge>
         )}
       </div>
+
+      {failed && (
+        <p className="mt-2 text-xs leading-4 text-destructive">
+          {documentFailureMessage(document, t)}
+        </p>
+      )}
 
       {tags.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">

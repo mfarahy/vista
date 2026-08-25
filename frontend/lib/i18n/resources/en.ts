@@ -763,10 +763,6 @@ const en = {
     analyzingCount: '{count} documents being analyzed…',
     analyzingCountOne: '{count} document being analyzed…',
     analyzing: 'Analyzing…',
-    emptyTitle: 'No documents yet',
-    emptyDescription:
-      'Upload your documents, plans or photos for the property. Vista organizes them and uses the information to fill the wizard.',
-    uploadButton: 'Upload documents',
     successHeading: 'Information found',
     successText:
       'Vista has understood your documents and found {count} usable pieces of information.',
@@ -803,6 +799,7 @@ const en = {
     errorMissingFile: 'The document file is missing.',
     errorOcrFailed: 'The document could not be understood (no OCR result).',
     errorAnalysisFailed: 'The document could not be analyzed.',
+    errorUnderstandingFailed: 'The document could not be evaluated.',
     foundCategories: {
       address: 'Address',
       object: 'Property',

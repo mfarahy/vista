@@ -125,13 +125,10 @@ export function jobsRouter(deps: JobDeps = defaultDeps): Router {
       res.setHeader('Connection', 'keep-alive');
       res.flushHeaders();
 
-      writeSse(res, recordToPayload(record));
-
-      if (TERMINAL.has(record.status)) {
-        res.end();
-        return;
-      }
-
+      // Subscribe to live progress BEFORE sending the current DB snapshot:
+      // job-processor persists the terminal state before it publishes, so
+      // subscribing first guarantees no transition falls into the gap between
+      // the snapshot and the subscription.
       let finished = false;
       const unsubscribe = subscribeProgress(jobId, (event) => {
         if (finished) return;
@@ -154,6 +151,13 @@ export function jobsRouter(deps: JobDeps = defaultDeps): Router {
         finished = true;
         unsubscribe();
       });
+
+      writeSse(res, recordToPayload(record));
+
+      if (TERMINAL.has(record.status)) {
+        finished = true;
+        res.end();
+      }
     }),
   );
 
