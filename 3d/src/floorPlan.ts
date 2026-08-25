@@ -14,6 +14,34 @@ export type Wall2D = {
   kind: WallKind;
 };
 
+/**
+ * A clean wall segment between two meaningful junction points.
+ *
+ * Derived from a canonical `Wall2D` by splitting it wherever another wall
+ * meets or intersects it (endpoint touches, interior crossings, T-junctions,
+ * star junctions) within a geometric tolerance. Every segment preserves the
+ * parent wall's thickness, height and kind and stays exactly on the parent
+ * wall line, so the segments of one wall always tile it contiguously with no
+ * gaps or overlaps and the total length never changes.
+ */
+export type WallSegment2D = {
+  id: string;
+  /** Stable id of the canonical wall this segment was derived from. */
+  sourceWallId: string;
+  kind: WallKind;
+  start: Point2D;
+  end: Point2D;
+  length: number;
+  thickness: number;
+  height: number;
+  /** Distance along the parent wall from its start to this segment's start (m). */
+  startOffset: number;
+  /** Distance along the parent wall from its start to this segment's end (m). */
+  endOffset: number;
+  /** Ids of the rooms whose boundary edges lie entirely on this segment. */
+  roomIds: string[];
+};
+
 export type Door2D = {
   id: string;
   wallId: string;

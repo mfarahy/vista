@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { demoBuilding, type Building, type FloorPlan2D, type Point2D } from "./floorPlan";
-import { FloorPlanValidationError, generateBuildingModel, validateFloorPlan, wallLength } from "./geometryGenerator";
+import { FloorPlanValidationError, generateBuildingModel, validateFloorPlan, wallLength, buildWallSegments } from "./geometryGenerator";
 import { buildOpenPlan3DWallSegments, toOpenPlan3DProject } from "./openPlan3D";
 
 const baseWallPlan = (wallOverrides: Partial<FloorPlan2D["walls"][number]> = {}): FloorPlan2D => ({
@@ -425,5 +425,139 @@ describe("openPlan3D integration boundary", () => {
 
   it("produces identical adapted projects for identical input", () => {
     expect(toOpenPlan3DProject(demoBuilding)).toEqual(toOpenPlan3DProject(demoBuilding));
+  });
+});
+
+const junctionFixturePlan = (): FloorPlan2D => ({
+  unit: "m",
+  walls: [
+    { id: "la", start: { x: 0, y: 0 }, end: { x: 3, y: 0 }, thickness: 0.2, height: 2.8, kind: "exterior" },
+    { id: "lb", start: { x: 3, y: 0 }, end: { x: 3, y: 2 }, thickness: 0.2, height: 2.8, kind: "exterior" },
+    { id: "ta", start: { x: 0, y: 10 }, end: { x: 6, y: 10 }, thickness: 0.15, height: 2.8, kind: "interior" },
+    { id: "tb", start: { x: 3, y: 10 }, end: { x: 3, y: 14 }, thickness: 0.15, height: 2.8, kind: "interior" },
+    { id: "ca", start: { x: 0, y: 20 }, end: { x: 6, y: 20 }, thickness: 0.15, height: 2.8, kind: "interior" },
+    { id: "cb", start: { x: 3, y: 18 }, end: { x: 3, y: 22 }, thickness: 0.15, height: 2.8, kind: "interior" },
+    { id: "rd1", start: { x: 12, y: 0 }, end: { x: 16, y: 4 }, thickness: 0.15, height: 2.8, kind: "interior" },
+    { id: "rd2", start: { x: 14, y: 0 }, end: { x: 14, y: 4 }, thickness: 0.15, height: 2.8, kind: "interior" },
+  ],
+  doors: [],
+  windows: [],
+  rooms: [{ id: "cross-room", name: "Cross", boundary: [{ x: 3, y: 18 }, { x: 6, y: 18 }, { x: 6, y: 22 }, { x: 3, y: 22 }] }],
+});
+
+const fixtureSegments = () => {
+  const plan = junctionFixturePlan();
+  const segments = buildWallSegments(plan.walls, plan.rooms);
+  const byWall = (id: string) => segments.filter((segment) => segment.sourceWallId === id);
+  return { segments, byWall, plan };
+};
+
+describe("wall junction segmentation", () => {
+  it("keeps two walls meeting at a shared endpoint (corner) unsplit", () => {
+    const { byWall } = fixtureSegments();
+    expect(byWall("la").map((segment) => segment.length)).toEqual([3]);
+    expect(byWall("lb").map((segment) => segment.length)).toEqual([2]);
+    expect(byWall("la")[0].end).toEqual({ x: 3, y: 0 });
+    expect(byWall("lb")[0].start).toEqual({ x: 3, y: 0 });
+  });
+
+  it("splits only the pierced wall at a T-junction", () => {
+    const { byWall } = fixtureSegments();
+    expect(byWall("ta").map((segment) => segment.length)).toEqual([3, 3]);
+    expect(byWall("tb").map((segment) => segment.length)).toEqual([4]);
+    expect(byWall("ta").length).toBe(2);
+    expect(byWall("tb").length).toBe(1);
+  });
+
+  it("splits both walls at a cross-junction", () => {
+    const { byWall } = fixtureSegments();
+    expect(byWall("ca").map((segment) => segment.length)).toEqual([3, 3]);
+    expect(byWall("cb").map((segment) => segment.length)).toEqual([2, 2]);
+  });
+
+  it("splits both walls at a rotated junction", () => {
+    const { byWall } = fixtureSegments();
+    const halfDiagonal = Math.sqrt(8);
+    const rounded = (value: number) => Number(value.toFixed(9));
+    expect(byWall("rd1").map((segment) => rounded(segment.length))).toEqual([rounded(halfDiagonal), rounded(halfDiagonal)]);
+    expect(byWall("rd2").map((segment) => segment.length)).toEqual([2, 2]);
+  });
+
+  it("produces no junction when walls are outside the tolerance", () => {
+    const plan = junctionFixturePlan();
+    plan.walls = [
+      { id: "a", start: { x: 0, y: 0 }, end: { x: 5, y: 0 }, thickness: 0.2, height: 2.8, kind: "exterior" },
+      { id: "b", start: { x: 2.5, y: 0.001 }, end: { x: 2.5, y: 3 }, thickness: 0.15, height: 2.8, kind: "interior" },
+    ];
+    const segments = buildWallSegments(plan.walls, plan.rooms);
+    expect(segments.filter((segment) => segment.sourceWallId === "a")).toHaveLength(1);
+    expect(segments.filter((segment) => segment.sourceWallId === "b")).toHaveLength(1);
+    expect(segments.filter((segment) => segment.sourceWallId === "a")[0].length).toBe(5);
+  });
+
+  it("preserves total length and thickness for every split wall", () => {
+    const { plan, byWall } = fixtureSegments();
+    for (const wall of plan.walls) {
+      const original = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
+      const split = byWall(wall.id);
+      const total = split.reduce((sum, segment) => sum + segment.length, 0);
+      expect(total).toBeCloseTo(original, 9);
+      for (const segment of split) {
+        expect(segment.thickness).toBe(wall.thickness);
+        expect(segment.height).toBe(wall.height);
+        expect(segment.startOffset).toBeGreaterThanOrEqual(0);
+        expect(segment.endOffset).toBeLessThanOrEqual(original + 1e-9);
+      }
+    }
+  });
+
+  it("tiles each wall contiguously with matching endpoints (no gaps or overlaps)", () => {
+    const { byWall } = fixtureSegments();
+    for (const id of ["ta", "ca", "cb", "rd1", "rd2"]) {
+      const segments = byWall(id);
+      for (let index = 1; index < segments.length; index += 1) {
+        expect(segments[index].start.x).toBeCloseTo(segments[index - 1].end.x, 9);
+        expect(segments[index].start.y).toBeCloseTo(segments[index - 1].end.y, 9);
+      }
+    }
+  });
+
+  it("exposes junction-split segments with floor ownership on the demo building", () => {
+    const model = generateBuildingModel(demoBuilding);
+    const groundSegments = model.spatialElements.wallSegments.filter((segment) => segment.floorId === "ground");
+    expect(groundSegments.filter((segment) => segment.sourceWallId === "south").map((segment) => segment.length)).toEqual([4, 5]);
+    expect(groundSegments.filter((segment) => segment.sourceWallId === "center-divider").map((segment) => segment.length)).toEqual([4, 3]);
+    expect(model.spatialElements.wallSegments.filter((segment) => segment.floorId === "ground")).toHaveLength(12);
+    expect(model.spatialElements.wallSegments).toHaveLength(36);
+  });
+
+  it("preserves room-wall relationships after segmentation", () => {
+    const model = generateBuildingModel(demoBuilding);
+    const groundMain = model.spatialElements.rooms.find((room) => room.id === "ground-main")!;
+    expect(groundMain.boundingWalls).toEqual(["west", "south", "center-divider", "cross-divider"]);
+    const centerSeg = model.spatialElements.wallSegments.find(
+      (segment) => segment.floorId === "ground" && segment.sourceWallId === "center-divider" && segment.id === "center-divider-seg-0",
+    )!;
+    expect(centerSeg.roomIds).toEqual(["ground-east", "ground-main"]);
+    const southSegSouth = model.spatialElements.wallSegments.find(
+      (segment) => segment.floorId === "ground" && segment.sourceWallId === "south" && segment.id === "south-seg-1",
+    )!;
+    expect(southSegSouth.roomIds).toEqual(["ground-main"]);
+  });
+
+  it("keeps existing room boundaries, floor geometry and ceiling geometry unchanged", () => {
+    const model = generateBuildingModel(demoBuilding);
+    expect(model.floors).toHaveLength(12);
+    expect(model.ceilings).toHaveLength(12);
+    for (const room of model.spatialElements.rooms) {
+      const planRoom = demoBuilding.floors.find((floor) => floor.id === room.floorId)!.plan.rooms.find((entry) => entry.id === room.id)!;
+      expect(room.boundary).toEqual(planRoom.boundary);
+      const floorSurface = model.floors.find((entry) => entry.floorId === room.floorId && entry.roomId === room.id)!;
+      const ceilingSurface = model.ceilings.find((entry) => entry.floorId === room.floorId && entry.roomId === room.id)!;
+      expect(floorSurface.vertices).toEqual(room.boundary);
+      expect(ceilingSurface.vertices).toEqual(room.boundary);
+      expect(floorSurface.area).toBeCloseTo(room.area, 9);
+      expect(ceilingSurface.area).toBeCloseTo(room.area, 9);
+    }
   });
 });

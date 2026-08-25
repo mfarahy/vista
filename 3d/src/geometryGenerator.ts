@@ -1,5 +1,5 @@
-import type { Building, Door2D, Floor2D, FloorPlan2D, Point2D, Roof2D, Stair2D, Wall2D, Window2D } from "./floorPlan";
-import { buildOpenPlan3DWallSegments, toOpenPlan3DProject } from "./openPlan3D";
+import type { Building, Door2D, Floor2D, FloorPlan2D, Point2D, Room2D, Roof2D, Stair2D, Wall2D, WallSegment2D, Window2D } from "./floorPlan";
+import { buildOpenPlan3DWallSegments, type OpenPlan3DDoor, type OpenPlan3DWindow } from "./openPlan3D";
 
 export type Vector3 = {
   x: number;
@@ -107,6 +107,10 @@ export type RoomSpatial = {
   boundingWalls: string[];
 };
 
+export type WallSegmentSpatial = WallSegment2D & {
+  floorId: string;
+};
+
 export type DoorSpatial = {
   id: string;
   floorId: string;
@@ -136,6 +140,8 @@ export type BuildingSpatial = {
   id: string;
   floors: FloorSpatial[];
   walls: WallSpatial[];
+  /** Junction-split wall segments with explicit endpoints (foundation for wall-owned openings). */
+  wallSegments: WallSegmentSpatial[];
   rooms: RoomSpatial[];
   doors: DoorSpatial[];
   windows: WindowSpatial[];
@@ -199,6 +205,163 @@ const pointAlongWall = (wall: Wall2D, offset: number): Point2D => {
     x: wall.start.x + ((wall.end.x - wall.start.x) * offset) / length,
     y: wall.start.y + ((wall.end.y - wall.start.y) * offset) / length,
   };
+};
+
+/**
+ * Geometric tolerance (in meters) used when detecting wall junctions.
+ * Two walls are considered to meet when they intersect, or when one of their
+ * endpoints lands on the other wall, within this distance. This avoids relying
+ * on exact floating-point equality while still treating two walls that are
+ * genuinely apart (beyond the tolerance) as non-junctions.
+ */
+export const JUNCTION_TOLERANCE = 1e-6;
+
+type WallCut = { t: number; point: Point2D };
+
+const interpolatePoint = (start: Point2D, end: Point2D, t: number): Point2D => ({
+  x: start.x + (end.x - start.x) * t,
+  y: start.y + (end.y - start.y) * t,
+});
+
+/**
+ * Computes the intersection of two wall line segments.
+ *
+ * Returns the parametric `t` along the receiver wall (clamped into [0,1]) and
+ * the intersection point when the segments cross or one endpoint touches the
+ * other segment within `JUNCTION_TOLERANCE`; returns `null` for parallel,
+ * collinear or clearly disjoint segments.
+ */
+const segmentIntersection = (wall: Wall2D, other: Wall2D): { t: number; point: Point2D } | null => {
+  const ax = wall.end.x - wall.start.x;
+  const ay = wall.end.y - wall.start.y;
+  const bx = other.end.x - other.start.x;
+  const by = other.end.y - other.start.y;
+  const denominator = ax * by - ay * bx;
+  if (Math.abs(denominator) <= EPSILON) return null;
+
+  const dx = other.start.x - wall.start.x;
+  const dy = other.start.y - wall.start.y;
+  const t = (dx * by - dy * bx) / denominator;
+  const u = (dx * ay - dy * ax) / denominator;
+
+  if (t < -JUNCTION_TOLERANCE || t > 1 + JUNCTION_TOLERANCE) return null;
+  if (u < -JUNCTION_TOLERANCE || u > 1 + JUNCTION_TOLERANCE) return null;
+
+  const clampedT = Math.min(1, Math.max(0, t));
+  return { t: clampedT, point: interpolatePoint(wall.start, wall.end, clampedT) };
+};
+
+/** True when a cut at parameter `t` lies strictly inside the wall (not at an endpoint). */
+const isInteriorJunction = (wall: Wall2D, t: number): boolean => {
+  const length = distance(wall.start, wall.end);
+  const endTolerance = JUNCTION_TOLERANCE / length;
+  return t > endTolerance && t < 1 - endTolerance;
+};
+
+/**
+ * Finds every meaningful junction point on each wall, expressed as a parametric
+ * position along that wall. A junction is recorded on a wall only when another
+ * wall meets it in its interior, so:
+ *  - corner joins (two walls sharing an endpoint) produce no interior cut,
+ *  - a T-junction splits only the wall that is pierced, not the one that ends,
+ *  - a crossing splits both walls,
+ *  - several walls meeting at the same point each get a cut at that point.
+ */
+const detectJunctionCuts = (walls: Wall2D[]): Map<string, WallCut[]> => {
+  const cuts = new Map<string, WallCut[]>();
+  for (const wall of walls) cuts.set(wall.id, []);
+
+  for (let index = 0; index < walls.length; index += 1) {
+    const wall = walls[index];
+    for (let otherIndex = index + 1; otherIndex < walls.length; otherIndex += 1) {
+      const other = walls[otherIndex];
+
+      const hitWall = segmentIntersection(wall, other);
+      if (hitWall && isInteriorJunction(wall, hitWall.t)) {
+        cuts.get(wall.id)!.push({ t: hitWall.t, point: hitWall.point });
+      }
+
+      const hitOther = segmentIntersection(other, wall);
+      if (hitOther && isInteriorJunction(other, hitOther.t)) {
+        cuts.get(other.id)!.push({ t: hitOther.t, point: hitOther.point });
+      }
+    }
+  }
+
+  return cuts;
+};
+
+/** Maps each room boundary edge to the segment it lies on and assigns room ids. */
+const assignRoomIds = (segments: WallSegment2D[], rooms: Room2D[]): void => {
+  if (rooms.length === 0) return;
+  for (const segment of segments) {
+    const roomIds: string[] = [];
+    for (const room of rooms) {
+      for (let edge = 0; edge < room.boundary.length; edge += 1) {
+        const start = room.boundary[edge];
+        const end = room.boundary[(edge + 1) % room.boundary.length];
+        if (pointOnSegment(start, segment.start, segment.end) && pointOnSegment(end, segment.start, segment.end)) {
+          roomIds.push(room.id);
+          break;
+        }
+      }
+    }
+    segment.roomIds = roomIds.sort();
+  }
+};
+
+/**
+ * Splits every wall of a floor at its meaningful junctions into clean,
+ * contiguous `WallSegment2D` pieces with explicit endpoints. The segments keep
+ * the parent wall's location, thickness, height and kind; consecutive segments
+ * of a wall tile it exactly so the total length is preserved within tolerance.
+ */
+export const buildWallSegments = (walls: Wall2D[], rooms: Room2D[] = []): WallSegment2D[] => {
+  const cuts = detectJunctionCuts(walls);
+  const segments: WallSegment2D[] = [];
+
+  for (const wall of walls) {
+    const length = distance(wall.start, wall.end);
+    const wallCuts = cuts.get(wall.id) ?? [];
+
+    const cutParameters = wallCuts.map((cut) => Math.min(1, Math.max(0, cut.t)));
+    cutParameters.push(0, 1);
+    cutParameters.sort((first, second) => first - second);
+
+    const uniqueParameters: number[] = [];
+    const relativeTolerance = JUNCTION_TOLERANCE / length;
+    for (const parameter of cutParameters) {
+      const previous = uniqueParameters[uniqueParameters.length - 1];
+      if (previous === undefined || Math.abs(parameter - previous) > relativeTolerance) {
+        uniqueParameters.push(parameter);
+      }
+    }
+
+    for (let index = 0; index < uniqueParameters.length - 1; index += 1) {
+      const startT = uniqueParameters[index];
+      const endT = uniqueParameters[index + 1];
+      if (endT - startT <= relativeTolerance) continue;
+
+      const start = interpolatePoint(wall.start, wall.end, startT);
+      const end = interpolatePoint(wall.start, wall.end, endT);
+      segments.push({
+        id: `${wall.id}-seg-${index}`,
+        sourceWallId: wall.id,
+        kind: wall.kind,
+        start,
+        end,
+        length: (endT - startT) * length,
+        thickness: wall.thickness,
+        height: wall.height,
+        startOffset: startT * length,
+        endOffset: endT * length,
+        roomIds: [],
+      });
+    }
+  }
+
+  assignRoomIds(segments, rooms);
+  return segments;
 };
 
 const polygonArea = (vertices: Point2D[]) => Math.abs(vertices.reduce((area, point, index) => {
@@ -455,20 +618,64 @@ const createWallBox = (floorId: string, elevation: number, wall: Wall2D, startOf
   };
 };
 
-const generateWallBoxes = (floorId: string, elevation: number, wall: Wall2D, openings: WallOpening[]): WallBox3D[] => {
-  const wallLengthValue = distance(wall.start, wall.end);
-  const openPlanFloor = toOpenPlan3DProject({
-    id: "wall-segment-adapter",
-    unit: "m",
-    floors: [{ id: floorId, name: floorId, elevation, floorToFloorHeight: wall.height, plan: { unit: "m", walls: [wall], doors: openings.filter((opening): opening is Door2D => !("sillHeight" in opening)), windows: openings.filter((opening): opening is Window2D => "sillHeight" in opening), rooms: [] } }],
-    stairs: [],
-    roof: { id: "unused", floorId, height: 0 },
-  }).floors[0];
+const generateWallBoxes = (floorId: string, elevation: number, wall: Wall2D, openings: WallOpening[], segments: WallSegment2D[]): WallBox3D[] => {
+  const boxes: WallBox3D[] = [];
+  let index = 0;
 
-  return buildOpenPlan3DWallSegments(wallLengthValue * 100, wall.height * 100, openPlanFloor.doors, openPlanFloor.windows).flatMap((segment, index) => {
-    const startOffset = (segment.offsetX - segment.width / 2) / 100;
-    return createWallBox(floorId, elevation, wall, startOffset, startOffset + segment.width / 100, segment.offsetY / 100, segment.height / 100, index) ?? [];
-  });
+  for (const segment of segments) {
+    const segmentStart = segment.startOffset;
+    const segmentEnd = segment.endOffset;
+    const segmentLength = segment.length;
+
+    const subDoors: OpenPlan3DDoor[] = [];
+    const subWindows: OpenPlan3DWindow[] = [];
+
+    for (const opening of openings) {
+      const openingStart = opening.offset;
+      const openingEnd = opening.offset + opening.width;
+      const localStart = Math.max(0, openingStart - segmentStart);
+      const localEnd = Math.min(segmentLength, openingEnd - segmentStart);
+      const localWidth = localEnd - localStart;
+      if (localWidth <= EPSILON) continue;
+      const localCenter = ((localStart + localEnd) / 2) / segmentLength;
+
+      if ("sillHeight" in opening) {
+        subWindows.push({
+          id: opening.id,
+          wallId: wall.id,
+          position: localCenter,
+          width: localWidth * 100,
+          height: opening.height * 100,
+          sillHeight: opening.sillHeight * 100,
+          type: "standard",
+        });
+      } else {
+        subDoors.push({
+          id: opening.id,
+          wallId: wall.id,
+          position: localCenter,
+          width: localWidth * 100,
+          height: opening.height * 100,
+          type: "single",
+          swingDirection: opening.openingDirection === "right" ? "right" : "left",
+          flipSide: opening.openingDirection === "outward",
+        });
+      }
+    }
+
+    const openPlanSegments = buildOpenPlan3DWallSegments(segmentLength * 100, wall.height * 100, subDoors, subWindows);
+    for (const part of openPlanSegments) {
+      const partStartOffset = segmentStart + (part.offsetX - part.width / 2) / 100;
+      const partEndOffset = segmentStart + (part.offsetX + part.width / 2) / 100;
+      const box = createWallBox(floorId, elevation, wall, partStartOffset, partEndOffset, part.offsetY / 100, part.height / 100, index);
+      if (box) {
+        boxes.push(box);
+        index += 1;
+      }
+    }
+  }
+
+  return boxes;
 };
 
 const createOpening3D = (floorId: string, elevation: number, opening: NormalizedOpening, wall: Wall2D): Opening3D => {
@@ -790,9 +997,18 @@ const generateFloorGeometry = (floor: Floor2D) => {
       return createOpening3D(floor.id, floor.elevation, opening, wall);
     });
 
+  const wallSegments = buildWallSegments(floorPlan.walls, floorPlan.rooms);
+  const segmentsForWall = new Map<string, WallSegment2D[]>();
+  for (const segment of wallSegments) {
+    const matches = segmentsForWall.get(segment.sourceWallId) ?? [];
+    matches.push(segment);
+    segmentsForWall.set(segment.sourceWallId, matches);
+  }
+
   return {
     unit: floorPlan.unit,
-    wallBoxes: floorPlan.walls.flatMap((wall) => generateWallBoxes(floor.id, floor.elevation, wall, openingsByWall.get(wall.id) ?? [])),
+    wallBoxes: floorPlan.walls.flatMap((wall) => generateWallBoxes(floor.id, floor.elevation, wall, openingsByWall.get(wall.id) ?? [], segmentsForWall.get(wall.id) ?? [])),
+    wallSegments,
     floors: floorPlan.rooms.map((room) => ({ floorId: floor.id, roomId: room.id, vertices: room.boundary, area: polygonArea(room.boundary), elevation: floor.elevation })),
     ceilings: floorPlan.rooms.map((room) => {
       const boundingWalls = roomBoundingWalls(room.boundary, floorPlan.walls);
@@ -864,6 +1080,9 @@ export const generateBuildingModel = (building: Building): BuildingModel3D => {
     id: building.id,
     floors: building.floors.map(createFloorSpatial),
     walls: building.floors.flatMap((floor) => floor.plan.walls.map((wall) => createWallSpatial(floor, wall))),
+    wallSegments: building.floors.flatMap((floor, floorIndex) =>
+      generatedFloors[floorIndex].wallSegments.map((segment) => ({ ...segment, floorId: floor.id })),
+    ),
     rooms: building.floors.flatMap((floor) => floor.plan.rooms.map((room) => createRoomSpatial(floor, room, floor.plan.walls))),
     doors: building.floors.flatMap((floor) => floor.plan.doors.map((door) => {
       const wall = floor.plan.walls.find((entry) => entry.id === door.wallId);
