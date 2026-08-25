@@ -1281,6 +1281,84 @@ const de: TranslationSchema = {
     hint: 'Ziehen zum Drehen · Scrollen zum Zoomen',
     roomLabel: '{name} · {area} m²',
   },
+  viewers: {
+    nav: {
+      label: 'Viewer-Umschalter',
+      threeD: '3D Viewer',
+      threeSixty: '360 Viewer',
+    },
+    threeD: {
+      badge: '3D Viewer',
+      inspectFloor: 'Etage auswählen',
+      allFloors: 'Alle Etagen',
+      floorNames: {
+        basement: 'Keller',
+        ground: 'Erdgeschoss',
+        first: 'Obergeschoss',
+      },
+      metrics: {
+        floors: 'Etagen',
+        wallBoxes: 'Wandboxen',
+        rooms: 'Räume',
+        stairTreads: 'Treppenstufen',
+        doors: 'Türen',
+        windows: 'Fenster',
+        openings: 'Öffnungen',
+        roof: 'Dach',
+        floorArea: 'Gesamtfläche',
+      },
+      legend: {
+        ariaLabel: 'Geometrie-Legende',
+        exteriorWalls: 'Außenwände',
+        interiorWalls: 'Innenwände',
+        doorOpenings: 'Türöffnungen',
+        windowOpenings: 'Fensteröffnungen',
+        floorSurfaces: 'Bodenflächen',
+      },
+      selection: {
+        title: 'Auswahl',
+        emptyHint:
+          'Klicken Sie im 3D-Modell auf eine Etage, einen Raum, eine Wand, eine Tür oder ein Fenster.',
+      },
+      element: {
+        floor: 'Etage',
+        room: 'Raum',
+        wall: 'Wand',
+        door: 'Tür',
+        window: 'Fenster',
+      },
+      field: {
+        name: 'Name',
+        elevation: 'Höhenlage',
+        floorToFloor: 'Geschosshöhe',
+        area: 'Fläche',
+        width: 'Breite',
+        length: 'Länge',
+        floor: 'Etage',
+        thickness: 'Stärke',
+        height: 'Höhe',
+        hostWall: 'Trägerwand',
+        sillHeight: 'Brüstungshöhe',
+      },
+      valueMeter: '{value} m',
+      valueSqm: '{value} m²',
+      viewerAriaLabel: 'Interaktives 3D-Gebäudemodell',
+    },
+    threeSixty: {
+      badge: '360 Viewer',
+      roomPattern: '360 Viewer · {room}',
+      rooms: {
+        'living-room': 'Wohnzimmer',
+        kitchen: 'Küche',
+        bedroom: 'Schlafzimmer',
+      },
+      annotation: {
+        label: 'Fenster',
+        size: '180 × 140 cm',
+      },
+      viewerAriaLabel: '360°-Panorama-Viewer',
+    },
+  },
 };
 
 export default de;

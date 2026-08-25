@@ -1,0 +1,240 @@
+/* Isolated 3D viewer preview page.
+   Scoped fork of the standalone prototype's `3d/src/styles.css` so it can
+   live inside the Next.js app without affecting other pages. */
+
+.vista-3d-preview {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  background-color: #e7ece8;
+  background-image: linear-gradient(#dbe3df 1px, transparent 1px), linear-gradient(90deg, #dbe3df 1px, transparent 1px);
+  background-size: 28px 28px;
+  color: #15201e;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.vista-3d-preview__intro {
+  padding: 32px 28px;
+  border-right: 1px solid #bccac4;
+  background: #f5f7f3;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.vista-3d-preview__eyebrow {
+  margin: 0 0 10px;
+  color: #3d5a59;
+  font-family: "Courier New", monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vista-3d-preview h1 {
+  margin: 0;
+  font-size: 1.9rem;
+  line-height: 1.08;
+  font-weight: 500;
+}
+
+.vista-3d-preview__summary {
+  margin: 18px 0 24px;
+  color: #4e5c58;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.vista-3d-preview__floor-selector {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 24px;
+  color: #65736e;
+  font-family: "Courier New", monospace;
+  font-size: 0.67rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vista-3d-preview__floor-selector select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #aebdb6;
+  border-radius: 3px;
+  background: #fff;
+  color: #1d3430;
+  font: inherit;
+  font-size: 0.82rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.vista-3d-preview__metrics {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid #ccd5d1;
+}
+
+.vista-3d-preview__metrics div {
+  min-height: 64px;
+  padding: 12px 7px 8px 0;
+  border-bottom: 1px solid #ccd5d1;
+}
+
+.vista-3d-preview__metrics div:nth-child(odd) {
+  border-right: 1px solid #ccd5d1;
+}
+
+.vista-3d-preview__metrics div:nth-child(even) {
+  padding-left: 14px;
+}
+
+.vista-3d-preview__metrics dt {
+  color: #65736e;
+  font-family: "Courier New", monospace;
+  font-size: 0.67rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vista-3d-preview__metrics dd {
+  margin: 8px 0 0;
+  color: #1d3430;
+  font-size: 1.15rem;
+}
+
+.vista-3d-preview__legend {
+  margin: 20px 0 10px;
+  padding: 12px 14px;
+  border: 1px solid #ccd5d1;
+  background: #eff3ef;
+}
+
+.vista-3d-preview__legend p {
+  margin: 7px 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #354744;
+  font-size: 0.9rem;
+}
+
+.vista-3d-preview__swatch {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.vista-3d-preview__swatch--exterior {
+  background: #3d5a59;
+}
+
+.vista-3d-preview__swatch--interior {
+  background: #81938d;
+}
+
+.vista-3d-preview__swatch--door {
+  background: rgba(190, 122, 53, 0.6);
+}
+
+.vista-3d-preview__swatch--window {
+  background: rgba(59, 120, 168, 0.6);
+}
+
+.vista-3d-preview__swatch--floor {
+  background: #d5d8d1;
+}
+
+.vista-3d-preview__selection h2 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.vista-3d-preview__selection dl {
+  margin: 0;
+}
+
+.vista-3d-preview__selection dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid #dde4e0;
+}
+
+.vista-3d-preview__selection dt {
+  color: #65736e;
+  font-family: "Courier New", monospace;
+  font-size: 0.67rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vista-3d-preview__selection dd {
+  margin: 0;
+  color: #1d3430;
+  font-size: 0.9rem;
+}
+
+.vista-3d-preview__selection--empty p {
+  margin: 0;
+  color: #4e5c58;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.vista-3d-preview__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #ccd5d1;
+}
+
+.vista-3d-preview__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: #1d3430;
+  color: #eef3ef;
+  font-family: "Courier New", monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vista-3d-preview__viewer {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.vista-3d-preview__viewer canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 720px) {
+  .vista-3d-preview {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(440px, 1fr);
+  }
+
+  .vista-3d-preview__intro {
+    padding: 24px 20px;
+    border-right: 0;
+    border-bottom: 1px solid #bccac4;
+  }
+
+  .vista-3d-preview__viewer {
+    min-height: 440px;
+  }
+}
