@@ -6,6 +6,8 @@ import type { BuildingModel3D } from "./geometryGenerator";
 type BuildingViewerProps = {
   model: BuildingModel3D;
   selectedFloorId: string;
+  selectedElement: { type: "floor" | "room" | "wall" | "door" | "window"; id: string; floorId: string } | null;
+  onSelectElement: (element: { type: "floor" | "room" | "wall" | "door" | "window"; id: string; floorId: string } | null) => void;
 };
 
 const createFloorMesh = (vertices: { x: number; y: number }[]) => {
@@ -23,7 +25,18 @@ const createFloorMesh = (vertices: { x: number; y: number }[]) => {
   return mesh;
 };
 
-export function BuildingViewer({ model, selectedFloorId }: BuildingViewerProps) {
+const createMeasurementLine = (start: { x: number; y: number; z: number }, end: { x: number; y: number; z: number }, color = "#1b2d35") => {
+  const geometry = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(start.x, start.y, start.z),
+    new THREE.Vector3(end.x, end.y, end.z),
+  ]);
+
+  const material = new THREE.LineBasicMaterial({ color });
+  const line = new THREE.Line(geometry, material);
+  return line;
+};
+
+export function BuildingViewer({ model, selectedFloorId, selectedElement, onSelectElement }: BuildingViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -58,7 +71,16 @@ export function BuildingViewer({ model, selectedFloorId }: BuildingViewerProps) 
       if (!group) { group = new THREE.Group(); floorGroups.set(floor.floorId, group); scene.add(group); }
       const mesh = createFloorMesh(floor.vertices);
       mesh.position.y = floor.elevation - 0.01;
+      mesh.userData = { type: "room", id: floor.roomId, floorId: floor.floorId };
       group.add(mesh);
+
+      const floorSelector = new THREE.Mesh(
+        new THREE.BoxGeometry(10, 0.04, 8),
+        new THREE.MeshBasicMaterial({ color: "#dfe5e2", transparent: true, opacity: 0.03 }),
+      );
+      floorSelector.position.set(4.5, floor.elevation - 0.05, -3.5);
+      floorSelector.userData = { type: "floor", id: floor.floorId, floorId: floor.floorId };
+      group.add(floorSelector);
     }
 
     for (const wall of model.wallBoxes) {
@@ -71,6 +93,7 @@ export function BuildingViewer({ model, selectedFloorId }: BuildingViewerProps) 
       mesh.rotation.y = -wall.rotationZ;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
+      mesh.userData = { type: "wall", id: wall.sourceWallId, floorId: wall.floorId };
       let group = floorGroups.get(wall.floorId);
       if (!group) { group = new THREE.Group(); floorGroups.set(wall.floorId, group); scene.add(group); }
       group.add(mesh);
@@ -88,8 +111,18 @@ export function BuildingViewer({ model, selectedFloorId }: BuildingViewerProps) 
       );
       marker.position.set(opening.center.x, opening.center.y, opening.center.z);
       marker.rotation.y = -opening.rotationZ;
+      marker.userData = { type: opening.type, id: opening.id, floorId: opening.floorId };
       floorGroups.get(opening.floorId)?.add(marker);
     }
+
+    const measurementGroup = new THREE.Group();
+    const measurementColor = "#20363f";
+    for (const measurement of model.measurements) {
+      const line = createMeasurementLine(measurement.start, measurement.end, measurementColor);
+      line.userData = { type: measurement.subjectType, id: measurement.subjectId, floorId: measurement.floorId };
+      measurementGroup.add(line);
+    }
+    scene.add(measurementGroup);
 
     const stairGroup = new THREE.Group();
     for (const stair of model.stairs) {
@@ -106,6 +139,26 @@ export function BuildingViewer({ model, selectedFloorId }: BuildingViewerProps) 
     for (const [floorId, group] of floorGroups) group.visible = selectedFloorId === "all" || selectedFloorId === floorId;
     stairGroup.visible = selectedFloorId === "all" || model.stairs.some((stair) => stair.sourceFloorId === selectedFloorId || stair.targetFloorId === selectedFloorId);
     roof.visible = selectedFloorId === "all" || selectedFloorId === model.roof.floorId;
+    measurementGroup.visible = selectedFloorId === "all" || model.measurements.some((measurement) => measurement.floorId === selectedFloorId);
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const handlePointerDown = (event: PointerEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects(scene.children, true);
+      const pick = hits.find((hit) => hit.object.userData && hit.object.userData.type);
+      if (!pick) {
+        onSelectElement(null);
+        return;
+      }
+      const meta = pick.object.userData as { type: "floor" | "room" | "wall" | "door" | "window"; id: string; floorId: string };
+      onSelectElement(meta);
+    };
+
+    renderer.domElement.addEventListener("pointerdown", handlePointerDown);
 
     const grid = new THREE.GridHelper(12, 12, "#b5c0bd", "#d6ddda");
     grid.position.set(4.5, -0.02, -3.5);
@@ -136,11 +189,12 @@ export function BuildingViewer({ model, selectedFloorId }: BuildingViewerProps) 
     return () => {
       cancelAnimationFrame(frame);
       resizeObserver.disconnect();
+      renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
       controls.dispose();
       renderer.dispose();
       container.removeChild(renderer.domElement);
     };
-  }, [model, selectedFloorId]);
+  }, [model, selectedFloorId, onSelectElement]);
 
   return <div className="viewer" ref={containerRef} aria-label="3D building model" />;
 }

@@ -71,6 +71,7 @@ export type Roof2D = {
 };
 
 export type Building = {
+  id: string;
   unit: "m";
   floors: Floor2D[];
   stairs: Stair2D[];
@@ -125,6 +126,7 @@ const villaPlan = (variant: "basement" | "ground" | "first"): FloorPlan2D => ({
 });
 
 export const demoBuilding: Building = {
+  id: "villa-demo",
   unit: "m",
   floors: [
     { id: "basement", name: "Basement", elevation: -2.8, floorToFloorHeight: 2.8, plan: villaPlan("basement") },
