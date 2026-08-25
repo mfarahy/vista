@@ -50,6 +50,66 @@ export type Opening3D = {
   thickness: number;
 };
 
+/**
+ * A wall-owned architectural opening, resolved to its host junction-split wall
+ * segment. This is the minimal representation an opening needs to cut a wall:
+ * its horizontal extent is expressed relative to the host segment's actual
+ * endpoints, and its vertical extent is expressed as world elevations.
+ */
+export type ArchitecturalOpening = {
+  id: string;
+  floorId: string;
+  type: "door" | "window";
+  /** Id of the canonical wall that contains the opening. */
+  wallId: string;
+  /** Id of the junction-split wall segment that hosts this opening. */
+  segmentId: string;
+  /** Start offset along the host segment measured from its start (m). */
+  startOffset: number;
+  /** End offset along the host segment measured from its start (m). */
+  endOffset: number;
+  width: number;
+  height: number;
+  sillHeight: number;
+  /** World elevation of the opening's bottom edge. */
+  bottomElevation: number;
+  /** World elevation of the opening's top edge. */
+  topElevation: number;
+  openingDirection?: Door2D["openingDirection"];
+  center: Vector3;
+  rotationZ: number;
+  thickness: number;
+};
+
+/** A single axis-aligned box part (frame member, leaf, glass pane) of a door or window. */
+export type BoxPart3D = {
+  id: string;
+  center: Vector3;
+  width: number;
+  height: number;
+  depth: number;
+  rotationZ: number;
+};
+
+export type DoorGeometry3D = {
+  id: string;
+  floorId: string;
+  hostWallId: string;
+  hostSegmentId: string;
+  openingDirection?: Door2D["openingDirection"];
+  leaf: BoxPart3D | null;
+  frame: BoxPart3D[];
+};
+
+export type WindowGeometry3D = {
+  id: string;
+  floorId: string;
+  hostWallId: string;
+  hostSegmentId: string;
+  frame: BoxPart3D[];
+  glass: BoxPart3D | null;
+};
+
 export type StairBox3D = {
   id: string;
   stairId: string;
@@ -115,6 +175,8 @@ export type DoorSpatial = {
   id: string;
   floorId: string;
   hostWallId: string;
+  /** Id of the junction-split wall segment that hosts this door. */
+  hostSegmentId: string;
   positionAlongWall: number;
   width: number;
   height: number;
@@ -127,6 +189,8 @@ export type WindowSpatial = {
   id: string;
   floorId: string;
   hostWallId: string;
+  /** Id of the junction-split wall segment that hosts this window. */
+  hostSegmentId: string;
   positionAlongWall: number;
   width: number;
   height: number;
@@ -167,6 +231,9 @@ export type BuildingModel3D = {
   floors: FloorSurface3D[];
   ceilings: CeilingSurface3D[];
   openings: Opening3D[];
+  architecturalOpenings: ArchitecturalOpening[];
+  doors: DoorGeometry3D[];
+  windows: WindowGeometry3D[];
   stairs: StairBox3D[];
   roof: Roof3D;
   spatialElements: BuildingSpatial;
@@ -186,6 +253,15 @@ type NormalizedOpening = {
 };
 
 const EPSILON = 1e-9;
+
+/** Default thickness of a door frame member (m). Scaled down for narrow doors. */
+export const DOOR_FRAME_WIDTH = 0.06;
+/** Default thickness of a door leaf (m). Clamped to half the wall thickness. */
+export const DOOR_LEAF_THICKNESS = 0.04;
+/** Default thickness of a window frame member (m). Scaled down for narrow windows. */
+export const WINDOW_FRAME_WIDTH = 0.06;
+/** Default thickness of a window glass pane (m). Clamped to a fraction of the wall. */
+export const WINDOW_GLASS_THICKNESS = 0.02;
 
 export class FloorPlanValidationError extends Error {
   readonly issues: string[];
@@ -696,6 +772,157 @@ const createOpening3D = (floorId: string, elevation: number, opening: Normalized
   };
 };
 
+const segmentUnitDirection = (segment: WallSegment2D): Point2D => {
+  const length = distance(segment.start, segment.end);
+  return { x: (segment.end.x - segment.start.x) / length, y: (segment.end.y - segment.start.y) / length };
+};
+
+const pointAtSegmentOffset = (segment: WallSegment2D, offset: number): Point2D => {
+  const direction = segmentUnitDirection(segment);
+  return { x: segment.start.x + direction.x * offset, y: segment.start.y + direction.y * offset };
+};
+
+/**
+ * Resolves the junction-split wall segment that owns an opening. Prefers the
+ * segment that contains the opening's centre, otherwise the segment with the
+ * largest overlap. Because validation keeps openings inside their host wall and
+ * segments tile their wall contiguously, a host segment always exists.
+ */
+const resolveHostSegment = (segments: WallSegment2D[], offset: number, width: number): WallSegment2D => {
+  if (segments.length === 0) throw new Error("Cannot resolve an opening host: host wall has no segments.");
+  const center = offset + width / 2;
+
+  let best = segments[0];
+  let bestOverlap = -1;
+  for (const segment of segments) {
+    const overlap = Math.min(offset + width, segment.endOffset) - Math.max(offset, segment.startOffset);
+    if (overlap > bestOverlap) {
+      bestOverlap = overlap;
+      best = segment;
+    }
+  }
+
+  const containing = segments.filter((segment) => center >= segment.startOffset - EPSILON && center <= segment.endOffset + EPSILON);
+  if (containing.length > 0) {
+    best = containing.reduce((first, second) => (first.endOffset - first.startOffset >= second.endOffset - second.startOffset ? first : second));
+  }
+
+  return best;
+};
+
+const createBoxPart = (
+  id: string,
+  segment: WallSegment2D,
+  elevation: number,
+  rotationZ: number,
+  alongOffset: number,
+  width: number,
+  localBottom: number,
+  height: number,
+  depth: number,
+): BoxPart3D | null => {
+  if (width <= EPSILON || height <= EPSILON || depth <= EPSILON) return null;
+  if (!Number.isFinite(width) || !Number.isFinite(height) || !Number.isFinite(depth) || !Number.isFinite(alongOffset) || !Number.isFinite(localBottom)) return null;
+  const point = pointAtSegmentOffset(segment, alongOffset + width / 2);
+  return {
+    id,
+    center: { x: point.x, y: elevation + localBottom + height / 2, z: -point.y },
+    width,
+    height,
+    depth,
+    rotationZ,
+  };
+};
+
+const createArchitecturalOpening = (floorId: string, elevation: number, opening: NormalizedOpening, segment: WallSegment2D): ArchitecturalOpening => {
+  const openingStart = opening.offset;
+  const openingEnd = opening.offset + opening.width;
+  const localStart = Math.max(0, openingStart - segment.startOffset);
+  const localEnd = Math.min(segment.length, openingEnd - segment.startOffset);
+  const bottomElevation = elevation + opening.sillHeight;
+  const topElevation = bottomElevation + opening.height;
+  const rotationZ = Math.atan2(segment.end.y - segment.start.y, segment.end.x - segment.start.x);
+  const centerPoint = pointAtSegmentOffset(segment, (localStart + localEnd) / 2);
+  return {
+    id: opening.id,
+    floorId,
+    type: opening.type,
+    wallId: opening.wallId,
+    segmentId: segment.id,
+    startOffset: localStart,
+    endOffset: localEnd,
+    width: localEnd - localStart,
+    height: opening.height,
+    sillHeight: opening.sillHeight,
+    bottomElevation,
+    topElevation,
+    openingDirection: opening.openingDirection,
+    center: { x: centerPoint.x, y: (bottomElevation + topElevation) / 2, z: -centerPoint.y },
+    rotationZ,
+    thickness: segment.thickness,
+  };
+};
+
+const createDoorGeometry = (floorId: string, elevation: number, opening: NormalizedOpening, segment: WallSegment2D): DoorGeometry3D => {
+  const rotationZ = Math.atan2(segment.end.y - segment.start.y, segment.end.x - segment.start.x);
+  const localStart = opening.offset - segment.startOffset;
+  const frameWidth = Math.min(DOOR_FRAME_WIDTH, Math.max(0.02, opening.width * 0.15));
+  const leafThickness = Math.min(DOOR_LEAF_THICKNESS, Math.max(0.02, segment.thickness * 0.5));
+  const leafWidth = opening.width - 2 * frameWidth;
+
+  const frame = [
+    createBoxPart(`${opening.id}-jamb-left`, segment, elevation, rotationZ, localStart, frameWidth, 0, opening.height, segment.thickness),
+    createBoxPart(`${opening.id}-jamb-right`, segment, elevation, rotationZ, localStart + opening.width - frameWidth, frameWidth, 0, opening.height, segment.thickness),
+    createBoxPart(`${opening.id}-header`, segment, elevation, rotationZ, localStart, opening.width, opening.height - frameWidth, frameWidth, segment.thickness),
+  ].filter((part): part is BoxPart3D => part !== null);
+
+  const leaf = createBoxPart(`${opening.id}-leaf`, segment, elevation, rotationZ, localStart + frameWidth, leafWidth, 0, opening.height, leafThickness);
+
+  return {
+    id: opening.id,
+    floorId,
+    hostWallId: opening.wallId,
+    hostSegmentId: segment.id,
+    openingDirection: opening.openingDirection,
+    leaf,
+    frame,
+  };
+};
+
+const createWindowGeometry = (floorId: string, elevation: number, opening: NormalizedOpening, segment: WallSegment2D): WindowGeometry3D => {
+  const rotationZ = Math.atan2(segment.end.y - segment.start.y, segment.end.x - segment.start.x);
+  const localStart = opening.offset - segment.startOffset;
+  const frameWidth = Math.min(WINDOW_FRAME_WIDTH, Math.max(0.02, opening.width * 0.15));
+  const glassThickness = Math.min(WINDOW_GLASS_THICKNESS, Math.max(0.01, segment.thickness * 0.25));
+
+  const frame = [
+    createBoxPart(`${opening.id}-jamb-left`, segment, elevation, rotationZ, localStart, frameWidth, opening.sillHeight, opening.height, segment.thickness),
+    createBoxPart(`${opening.id}-jamb-right`, segment, elevation, rotationZ, localStart + opening.width - frameWidth, frameWidth, opening.sillHeight, opening.height, segment.thickness),
+    createBoxPart(`${opening.id}-header`, segment, elevation, rotationZ, localStart, opening.width, opening.sillHeight + opening.height - frameWidth, frameWidth, segment.thickness),
+  ].filter((part): part is BoxPart3D => part !== null);
+
+  const glass = createBoxPart(
+    `${opening.id}-glass`,
+    segment,
+    elevation,
+    rotationZ,
+    localStart + frameWidth,
+    opening.width - 2 * frameWidth,
+    opening.sillHeight + frameWidth,
+    opening.height - 2 * frameWidth,
+    glassThickness,
+  );
+
+  return {
+    id: opening.id,
+    floorId,
+    hostWallId: opening.wallId,
+    hostSegmentId: segment.id,
+    frame,
+    glass,
+  };
+};
+
 const createFloorSpatial = (floor: Floor2D): FloorSpatial => {
   const bounds = floor.plan.walls.reduce((acc, wall) => {
     const points = [wall.start, wall.end];
@@ -770,12 +997,13 @@ const createRoomSpatial = (floor: Floor2D, room: FloorPlan2D["rooms"][number], w
   };
 };
 
-const createDoorSpatial = (floor: Floor2D, door: Door2D, wall: Wall2D): DoorSpatial => {
+const createDoorSpatial = (floor: Floor2D, door: Door2D, wall: Wall2D, hostSegmentId: string): DoorSpatial => {
   const center2D = pointAlongWall(wall, door.offset + door.width / 2);
   return {
     id: door.id,
     floorId: floor.id,
     hostWallId: door.wallId,
+    hostSegmentId,
     positionAlongWall: door.offset + door.width / 2,
     width: door.width,
     height: door.height,
@@ -789,12 +1017,13 @@ const createDoorSpatial = (floor: Floor2D, door: Door2D, wall: Wall2D): DoorSpat
   };
 };
 
-const createWindowSpatial = (floor: Floor2D, window: Window2D, wall: Wall2D): WindowSpatial => {
+const createWindowSpatial = (floor: Floor2D, window: Window2D, wall: Wall2D, hostSegmentId: string): WindowSpatial => {
   const center2D = pointAlongWall(wall, window.offset + window.width / 2);
   return {
     id: window.id,
     floorId: floor.id,
     hostWallId: window.wallId,
+    hostSegmentId,
     positionAlongWall: window.offset + window.width / 2,
     width: window.width,
     height: window.height,
@@ -989,8 +1218,8 @@ const generateFloorGeometry = (floor: Floor2D) => {
   }
 
   const wallsById = new Map(floorPlan.walls.map((wall) => [wall.id, wall]));
-  const openings: Opening3D[] = [...floorPlan.doors, ...floorPlan.windows]
-    .map(asNormalizedOpening)
+  const normalizedOpenings = [...floorPlan.doors, ...floorPlan.windows].map(asNormalizedOpening);
+  const openings: Opening3D[] = normalizedOpenings
     .map((opening) => {
       const wall = wallsById.get(opening.wallId);
       if (!wall) throw new Error(`Unknown wall '${opening.wallId}' while creating opening '${opening.id}'.`);
@@ -1003,6 +1232,20 @@ const generateFloorGeometry = (floor: Floor2D) => {
     const matches = segmentsForWall.get(segment.sourceWallId) ?? [];
     matches.push(segment);
     segmentsForWall.set(segment.sourceWallId, matches);
+  }
+
+  const architecturalOpenings: ArchitecturalOpening[] = [];
+  const doors: DoorGeometry3D[] = [];
+  const windows: WindowGeometry3D[] = [];
+  for (const opening of normalizedOpenings) {
+    const segments = segmentsForWall.get(opening.wallId) ?? [];
+    const hostSegment = resolveHostSegment(segments, opening.offset, opening.width);
+    architecturalOpenings.push(createArchitecturalOpening(floor.id, floor.elevation, opening, hostSegment));
+    if (opening.type === "door") {
+      doors.push(createDoorGeometry(floor.id, floor.elevation, opening, hostSegment));
+    } else {
+      windows.push(createWindowGeometry(floor.id, floor.elevation, opening, hostSegment));
+    }
   }
 
   return {
@@ -1021,6 +1264,9 @@ const generateFloorGeometry = (floor: Floor2D) => {
       };
     }),
     openings,
+    architecturalOpenings,
+    doors,
+    windows,
   };
 };
 
@@ -1084,15 +1330,19 @@ export const generateBuildingModel = (building: Building): BuildingModel3D => {
       generatedFloors[floorIndex].wallSegments.map((segment) => ({ ...segment, floorId: floor.id })),
     ),
     rooms: building.floors.flatMap((floor) => floor.plan.rooms.map((room) => createRoomSpatial(floor, room, floor.plan.walls))),
-    doors: building.floors.flatMap((floor) => floor.plan.doors.map((door) => {
+    doors: building.floors.flatMap((floor, floorIndex) => floor.plan.doors.map((door) => {
       const wall = floor.plan.walls.find((entry) => entry.id === door.wallId);
       if (!wall) throw new Error(`Unknown wall '${door.wallId}' for door '${door.id}'.`);
-      return createDoorSpatial(floor, door, wall);
+      const hostSegments = generatedFloors[floorIndex].wallSegments.filter((segment) => segment.sourceWallId === wall.id);
+      const hostSegment = resolveHostSegment(hostSegments, door.offset, door.width);
+      return createDoorSpatial(floor, door, wall, hostSegment.id);
     })),
-    windows: building.floors.flatMap((floor) => floor.plan.windows.map((window) => {
+    windows: building.floors.flatMap((floor, floorIndex) => floor.plan.windows.map((window) => {
       const wall = floor.plan.walls.find((entry) => entry.id === window.wallId);
       if (!wall) throw new Error(`Unknown wall '${window.wallId}' for window '${window.id}'.`);
-      return createWindowSpatial(floor, window, wall);
+      const hostSegments = generatedFloors[floorIndex].wallSegments.filter((segment) => segment.sourceWallId === wall.id);
+      const hostSegment = resolveHostSegment(hostSegments, window.offset, window.width);
+      return createWindowSpatial(floor, window, wall, hostSegment.id);
     })),
   };
 
@@ -1112,6 +1362,9 @@ export const generateBuildingModel = (building: Building): BuildingModel3D => {
     floors: generatedFloors.flatMap((floor) => floor.floors),
     ceilings: generatedFloors.flatMap((floor) => floor.ceilings),
     openings: generatedFloors.flatMap((floor) => floor.openings),
+    architecturalOpenings: generatedFloors.flatMap((floor) => floor.architecturalOpenings),
+    doors: generatedFloors.flatMap((floor) => floor.doors),
+    windows: generatedFloors.flatMap((floor) => floor.windows),
     stairs,
     roof: { id: building.roof.id, floorId: highest.id, center: { x: 4.5, y: highest.elevation + highest.plan.walls[0].height + building.roof.height / 2, z: -3.5 }, width: 9.4, length: 7.4, height: building.roof.height },
     spatialElements,

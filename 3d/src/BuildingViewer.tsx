@@ -51,6 +51,20 @@ const createMeasurementLine = (start: { x: number; y: number; z: number }, end: 
   return line;
 };
 
+const createPartMesh = (
+  part: { center: { x: number; y: number; z: number }; width: number; height: number; depth: number; rotationZ: number },
+  material: THREE.Material,
+  meta: { type: "door" | "window"; id: string; floorId: string },
+) => {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(part.width, part.height, part.depth), material);
+  mesh.position.set(part.center.x, part.center.y, part.center.z);
+  mesh.rotation.y = -part.rotationZ;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData = meta;
+  return mesh;
+};
+
 export function BuildingViewer({ model, selectedFloorId, selectedElement, onSelectElement }: BuildingViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -123,21 +137,25 @@ export function BuildingViewer({ model, selectedFloorId, selectedElement, onSele
       group.add(mesh);
     }
 
-    for (const opening of model.openings) {
-      const marker = new THREE.Mesh(
-        new THREE.BoxGeometry(opening.width, opening.height, opening.thickness * 1.08),
-        new THREE.MeshStandardMaterial({
-          color: opening.type === "door" ? "#be7a35" : "#3b78a8",
-          transparent: true,
-          opacity: 0.28,
-          roughness: 0.65,
-        }),
-      );
-      marker.position.set(opening.center.x, opening.center.y, opening.center.z);
-      marker.rotation.y = -opening.rotationZ;
-      marker.userData = { type: opening.type, id: opening.id, floorId: opening.floorId };
-      floorGroups.get(opening.floorId)?.add(marker);
+    const doorGroup = new THREE.Group();
+    const doorFrameMaterial = new THREE.MeshStandardMaterial({ color: "#6b4f35", roughness: 0.6 });
+    const doorLeafMaterial = new THREE.MeshStandardMaterial({ color: "#9a6a42", roughness: 0.55 });
+    for (const door of model.doors) {
+      const meta = { type: "door" as const, id: door.id, floorId: door.floorId };
+      for (const part of door.frame) doorGroup.add(createPartMesh(part, doorFrameMaterial, meta));
+      if (door.leaf) doorGroup.add(createPartMesh(door.leaf, doorLeafMaterial, meta));
     }
+    scene.add(doorGroup);
+
+    const windowGroup = new THREE.Group();
+    const windowFrameMaterial = new THREE.MeshStandardMaterial({ color: "#d7deda", roughness: 0.6 });
+    const windowGlassMaterial = new THREE.MeshStandardMaterial({ color: "#9fc4dd", transparent: true, opacity: 0.4, roughness: 0.12, side: THREE.DoubleSide });
+    for (const window of model.windows) {
+      const meta = { type: "window" as const, id: window.id, floorId: window.floorId };
+      for (const part of window.frame) windowGroup.add(createPartMesh(part, windowFrameMaterial, meta));
+      if (window.glass) windowGroup.add(createPartMesh(window.glass, windowGlassMaterial, meta));
+    }
+    scene.add(windowGroup);
 
     const measurementGroup = new THREE.Group();
     const measurementColor = "#20363f";
@@ -163,6 +181,8 @@ export function BuildingViewer({ model, selectedFloorId, selectedElement, onSele
 
     for (const [floorId, group] of floorGroups) group.visible = selectedFloorId === "all" || selectedFloorId === floorId;
     stairGroup.visible = selectedFloorId === "all" || model.stairs.some((stair) => stair.sourceFloorId === selectedFloorId || stair.targetFloorId === selectedFloorId);
+    doorGroup.visible = selectedFloorId === "all" || model.doors.some((door) => door.floorId === selectedFloorId);
+    windowGroup.visible = selectedFloorId === "all" || model.windows.some((window) => window.floorId === selectedFloorId);
     roof.visible = selectedFloorId === "all" || selectedFloorId === model.roof.floorId;
     measurementGroup.visible = selectedFloorId === "all" || model.measurements.some((measurement) => measurement.floorId === selectedFloorId);
 

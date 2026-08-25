@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { demoBuilding, type Building, type FloorPlan2D, type Point2D } from "./floorPlan";
-import { FloorPlanValidationError, generateBuildingModel, validateFloorPlan, wallLength, buildWallSegments } from "./geometryGenerator";
+import { demoBuilding, type Building, type Door2D, type FloorPlan2D, type Point2D, type Wall2D, type Window2D } from "./floorPlan";
+import {
+  DOOR_FRAME_WIDTH,
+  WINDOW_FRAME_WIDTH,
+  FloorPlanValidationError,
+  generateBuildingModel,
+  validateFloorPlan,
+  wallLength,
+  buildWallSegments,
+  type BoxPart3D,
+  type WallBox3D,
+} from "./geometryGenerator";
 import { buildOpenPlan3DWallSegments, toOpenPlan3DProject } from "./openPlan3D";
 
 const baseWallPlan = (wallOverrides: Partial<FloorPlan2D["walls"][number]> = {}): FloorPlan2D => ({
@@ -559,5 +569,296 @@ describe("wall junction segmentation", () => {
       expect(floorSurface.area).toBeCloseTo(room.area, 9);
       expect(ceilingSurface.area).toBeCloseTo(room.area, 9);
     }
+  });
+});
+
+describe("real door and window wall openings", () => {
+  const doorOn = (plan: FloorPlan2D, patch: Partial<Door2D> = {}): FloorPlan2D => {
+    plan.doors.push({ id: "door-1", wallId: "wall-a", offset: 1, width: 1, height: 2.1, ...patch });
+    return plan;
+  };
+
+  const windowOn = (plan: FloorPlan2D, patch: Partial<Window2D> = {}): FloorPlan2D => {
+    plan.windows.push({ id: "window-1", wallId: "wall-a", offset: 2, width: 1.2, height: 1, sillHeight: 0.9, ...patch });
+    return plan;
+  };
+
+  const intervalsOverlap = (first: readonly [number, number], second: readonly [number, number], eps = 1e-6) =>
+    first[0] < second[1] - eps && second[0] < first[1] - eps;
+
+  const boxAlongInterval = (box: WallBox3D, wall: Wall2D): [number, number] => {
+    const cos = Math.cos(box.rotationZ);
+    const sin = Math.sin(box.rotationZ);
+    const along = (box.center.x - wall.start.x) * cos + (-box.center.z - wall.start.y) * sin;
+    return [along - box.length / 2, along + box.length / 2];
+  };
+
+  const boxVerticalInterval = (box: WallBox3D): [number, number] => [box.center.y - box.height / 2, box.center.y + box.height / 2];
+
+  const partOffsetAlong = (part: BoxPart3D, wall: Wall2D): number => {
+    const cos = Math.cos(part.rotationZ);
+    const sin = Math.sin(part.rotationZ);
+    return (part.center.x - wall.start.x) * cos + (-part.center.z - wall.start.y) * sin;
+  };
+
+  const assertNoWallInsideOpenings = (model: ReturnType<typeof generateBuildingModel>, plan: FloorPlan2D, elevation = 0) => {
+    for (const wall of plan.walls) {
+      const boxes = model.wallBoxes.filter((box) => box.sourceWallId === wall.id);
+      const openings = [
+        ...plan.doors.filter((door) => door.wallId === wall.id).map((door) => ({ offset: door.offset, width: door.width, sill: 0, height: door.height })),
+        ...plan.windows.filter((window) => window.wallId === wall.id).map((window) => ({ offset: window.offset, width: window.width, sill: window.sillHeight, height: window.height })),
+      ];
+      for (const opening of openings) {
+        const along = [opening.offset, opening.offset + opening.width] as [number, number];
+        const vertical = [elevation + opening.sill, elevation + opening.sill + opening.height] as [number, number];
+        for (const box of boxes) {
+          expect(intervalsOverlap(boxAlongInterval(box, wall), along) && intervalsOverlap(boxVerticalInterval(box), vertical)).toBe(false);
+        }
+      }
+    }
+  };
+
+  it("splits a straight wall into solid regions around a single door", () => {
+    const plan = doorOn(baseWallPlan());
+    const model = generateBuildingModel(asBuilding(plan));
+    expect(model.wallBoxes).toHaveLength(3);
+    const sorted = model.wallBoxes.map((box) => boxAlongInterval(box, plan.walls[0])).sort((first, second) => first[0] - second[0]);
+    expect(sorted[0][0]).toBeCloseTo(0, 9);
+    expect(sorted[0][1]).toBeCloseTo(1, 9);
+    expect(sorted[1][0]).toBeCloseTo(1, 9);
+    expect(sorted[1][1]).toBeCloseTo(2, 9);
+    expect(sorted[2][0]).toBeCloseTo(2, 9);
+    expect(sorted[2][1]).toBeCloseTo(5, 9);
+    assertNoWallInsideOpenings(model, plan);
+  });
+
+  it("splits a straight wall around a single window into before, sill, lintel, and after regions", () => {
+    const plan = windowOn(baseWallPlan());
+    const model = generateBuildingModel(asBuilding(plan));
+    expect(model.wallBoxes).toHaveLength(4);
+    expect(model.wallBoxes.filter((box) => Math.abs(box.height - 2.8) < 1e-9)).toHaveLength(2);
+    assertNoWallInsideOpenings(model, plan);
+  });
+
+  it("cuts a door opening with the exact canonical width", () => {
+    const plan = doorOn(baseWallPlan(), { width: 1.25 });
+    const model = generateBuildingModel(asBuilding(plan));
+    const intervals = model.wallBoxes.map((box) => boxAlongInterval(box, plan.walls[0])).sort((first, second) => first[0] - second[0]);
+    expect(intervals[intervals.length - 1][0] - intervals[0][1]).toBeCloseTo(1.25, 9);
+    expect(model.architecturalOpenings[0]).toMatchObject({ type: "door", width: 1.25 });
+  });
+
+  it("cuts a window opening with the exact canonical width", () => {
+    const plan = windowOn(baseWallPlan(), { width: 1.6 });
+    const model = generateBuildingModel(asBuilding(plan));
+    const intervals = model.wallBoxes.map((box) => boxAlongInterval(box, plan.walls[0])).sort((first, second) => first[0] - second[0]);
+    expect(intervals[intervals.length - 1][0] - intervals[0][1]).toBeCloseTo(1.6, 9);
+  });
+
+  it("cuts a door opening with the exact canonical height", () => {
+    const plan = doorOn(baseWallPlan(), { height: 2.1 });
+    const model = generateBuildingModel(asBuilding(plan));
+    const lintel = model.wallBoxes.find((box) => {
+      const [start, end] = boxAlongInterval(box, plan.walls[0]);
+      return Math.abs(start - 1) < 1e-9 && Math.abs(end - 2) < 1e-9;
+    });
+    expect(lintel).toBeTruthy();
+    expect(lintel!.height).toBeCloseTo(0.7, 9);
+    expect(model.doors[0].leaf?.height).toBeCloseTo(2.1, 9);
+    expect(model.architecturalOpenings[0]).toMatchObject({ bottomElevation: 0, topElevation: 2.1 });
+  });
+
+  it("cuts a window opening with the exact canonical height and sill elevation", () => {
+    const plan = windowOn(baseWallPlan(), { height: 1.1, sillHeight: 0.9 });
+    const model = generateBuildingModel(asBuilding(plan));
+    const sill = model.wallBoxes.find((box) => {
+      const [start, end] = boxAlongInterval(box, plan.walls[0]);
+      return Math.abs(start - 2) < 1e-9 && Math.abs(end - 3.2) < 1e-9;
+    });
+    expect(sill).toBeTruthy();
+    expect(sill!.height).toBeCloseTo(0.9, 9);
+    expect(model.windows[0].glass?.height).toBeCloseTo(1.1 - 2 * WINDOW_FRAME_WIDTH, 9);
+    expect(model.architecturalOpenings[0]).toMatchObject({ bottomElevation: 0.9, topElevation: 2 });
+  });
+
+  it("centres a door and a window in the middle of a wall", () => {
+    const doorPlan = doorOn(baseWallPlan(), { offset: 2 });
+    const doorModel = generateBuildingModel(asBuilding(doorPlan));
+    expect(partOffsetAlong(doorModel.doors[0].leaf!, doorPlan.walls[0])).toBeCloseTo(2.5, 9);
+
+    const windowPlan = windowOn(baseWallPlan(), { offset: 1.9 });
+    const windowModel = generateBuildingModel(asBuilding(windowPlan));
+    expect(partOffsetAlong(windowModel.windows[0].glass!, windowPlan.walls[0])).toBeCloseTo(2.5, 9);
+  });
+
+  it("handles doors and windows near wall endpoints without breaking geometry", () => {
+    const doorStart = doorOn(baseWallPlan(), { offset: 0 });
+    const doorStartModel = generateBuildingModel(asBuilding(doorStart));
+    expect(doorStartModel.wallBoxes).toHaveLength(2);
+    assertNoWallInsideOpenings(doorStartModel, doorStart);
+
+    const doorEnd = doorOn(baseWallPlan(), { offset: 4 });
+    const doorEndModel = generateBuildingModel(asBuilding(doorEnd));
+    expect(doorEndModel.wallBoxes).toHaveLength(2);
+    assertNoWallInsideOpenings(doorEndModel, doorEnd);
+
+    const windowStart = windowOn(baseWallPlan(), { offset: 0 });
+    const windowStartModel = generateBuildingModel(asBuilding(windowStart));
+    assertNoWallInsideOpenings(windowStartModel, windowStart);
+
+    const windowEnd = windowOn(baseWallPlan(), { offset: 3.8 });
+    const windowEndModel = generateBuildingModel(asBuilding(windowEnd));
+    assertNoWallInsideOpenings(windowEndModel, windowEnd);
+  });
+
+  it("supports multiple non-overlapping openings on one wall", () => {
+    const plan = baseWallPlan();
+    plan.doors.push({ id: "door-1", wallId: "wall-a", offset: 0.5, width: 1, height: 2.1 });
+    plan.windows.push({ id: "window-1", wallId: "wall-a", offset: 2, width: 1.2, height: 1, sillHeight: 0.9 });
+    plan.doors.push({ id: "door-2", wallId: "wall-a", offset: 3.6, width: 0.9, height: 2.1 });
+    const model = generateBuildingModel(asBuilding(plan));
+    expect(model.doors).toHaveLength(2);
+    expect(model.windows).toHaveLength(1);
+    expect(model.architecturalOpenings.map((opening) => opening.id).sort()).toEqual(["door-1", "door-2", "window-1"]);
+    assertNoWallInsideOpenings(model, plan);
+  });
+
+  it("keeps multiple openings strictly non-overlapping along the wall", () => {
+    const plan = baseWallPlan();
+    plan.doors.push({ id: "door-1", wallId: "wall-a", offset: 0.5, width: 1, height: 2.1 });
+    plan.windows.push({ id: "window-1", wallId: "wall-a", offset: 2, width: 1.2, height: 1, sillHeight: 0.9 });
+    plan.doors.push({ id: "door-2", wallId: "wall-a", offset: 3.6, width: 0.9, height: 2.1 });
+    const model = generateBuildingModel(asBuilding(plan));
+    const intervals = model.architecturalOpenings
+      .map((opening) => [opening.startOffset, opening.endOffset] as [number, number])
+      .sort((first, second) => first[0] - second[0]);
+    for (let index = 1; index < intervals.length; index += 1) {
+      expect(intervals[index][0]).toBeGreaterThanOrEqual(intervals[index - 1][1] - 1e-6);
+    }
+    assertNoWallInsideOpenings(model, plan);
+  });
+
+  it("rejects overlapping openings safely instead of generating invalid geometry", () => {
+    const plan = windowOn(baseWallPlan(), { offset: 1.5, width: 1.4 });
+    plan.windows.push({ id: "window-2", wallId: "wall-a", offset: 1.8, width: 1, height: 1, sillHeight: 0.9 });
+    expect(() => generateBuildingModel(asBuilding(plan))).toThrowError(FloorPlanValidationError);
+    expect(() => generateBuildingModel(asBuilding(plan))).toThrowError(/overlap/i);
+  });
+
+  it("places a door on a wall that is not aligned to the world axes", () => {
+    const plan = doorOn(baseWallPlan({ start: { x: 0, y: 0 }, end: { x: 5, y: 5 } }));
+    const model = generateBuildingModel(asBuilding(plan));
+    const door = model.doors[0];
+    expect(door.leaf!.rotationZ).toBeCloseTo(Math.PI / 4, 9);
+    expect(partOffsetAlong(door.leaf!, plan.walls[0])).toBeCloseTo(1 + DOOR_FRAME_WIDTH + (1 - 2 * DOOR_FRAME_WIDTH) / 2, 9);
+    expect(model.architecturalOpenings[0]).toMatchObject({ rotationZ: Math.PI / 4, segmentId: "wall-a-seg-0" });
+    assertNoWallInsideOpenings(model, plan);
+  });
+
+  it("places a window on a rotated wall", () => {
+    const plan = windowOn(baseWallPlan({ start: { x: 0, y: 0 }, end: { x: 3, y: 4 } }));
+    const model = generateBuildingModel(asBuilding(plan));
+    const window = model.windows[0];
+    expect(window.glass!.rotationZ).toBeCloseTo(Math.atan2(4, 3), 9);
+    expect(partOffsetAlong(window.glass!, plan.walls[0])).toBeCloseTo(2 + WINDOW_FRAME_WIDTH + (1.2 - 2 * WINDOW_FRAME_WIDTH) / 2, 9);
+    assertNoWallInsideOpenings(model, plan);
+  });
+
+  it("spans door and window frames across the full wall thickness", () => {
+    const plan = baseWallPlan({ thickness: 0.3 });
+    doorOn(plan);
+    const model = generateBuildingModel(asBuilding(plan));
+    for (const part of model.doors[0].frame) expect(part.depth).toBeCloseTo(0.3, 9);
+    expect(model.doors[0].leaf!.depth).toBeLessThanOrEqual(0.3);
+  });
+
+  it("aligns door and window parts with the host wall orientation", () => {
+    const plan = baseWallPlan({ start: { x: 0, y: 0 }, end: { x: 3, y: 4 } });
+    doorOn(plan);
+    windowOn(plan, { offset: 2.5 });
+    const model = generateBuildingModel(asBuilding(plan));
+    const wallRotation = Math.atan2(4, 3);
+    for (const door of model.doors) {
+      for (const part of door.frame) expect(part.rotationZ).toBeCloseTo(wallRotation, 9);
+      expect(door.leaf!.rotationZ).toBeCloseTo(wallRotation, 9);
+    }
+    for (const window of model.windows) {
+      for (const part of window.frame) expect(part.rotationZ).toBeCloseTo(wallRotation, 9);
+      expect(window.glass!.rotationZ).toBeCloseTo(wallRotation, 9);
+    }
+  });
+
+  it("leaves no solid wall geometry inside any opening volume", () => {
+    const plan = baseWallPlan({ start: { x: 1, y: 0 }, end: { x: 8, y: 0 } });
+    plan.doors.push({ id: "door-1", wallId: "wall-a", offset: 0.5, width: 1, height: 2.1 });
+    plan.windows.push({ id: "window-1", wallId: "wall-a", offset: 2.2, width: 1.4, height: 1.2, sillHeight: 0.9 });
+    plan.doors.push({ id: "door-2", wallId: "wall-a", offset: 4.5, width: 0.9, height: 2.1 });
+    plan.windows.push({ id: "window-2", wallId: "wall-a", offset: 5.8, width: 1, height: 1, sillHeight: 1.1 });
+    const model = generateBuildingModel(asBuilding(plan));
+    assertNoWallInsideOpenings(model, plan);
+  });
+
+  it("resolves architectural openings to host segments with elevations and offsets", () => {
+    const plan = windowOn(baseWallPlan());
+    plan.windows.push({ id: "window-2", wallId: "wall-a", offset: 4, width: 0.8, height: 1, sillHeight: 1.2 });
+    const model = generateBuildingModel(asBuilding(plan, 1.5));
+    expect(model.architecturalOpenings).toHaveLength(2);
+    expect(model.architecturalOpenings[0]).toMatchObject({
+      type: "window",
+      wallId: "wall-a",
+      segmentId: "wall-a-seg-0",
+      startOffset: 2,
+      endOffset: 3.2,
+      bottomElevation: 2.4,
+      topElevation: 3.4,
+    });
+  });
+
+  it("keeps the existing room topology unchanged when openings are added", () => {
+    const model = generateBuildingModel(demoBuilding);
+    const groundSegments = model.spatialElements.wallSegments.filter((segment) => segment.floorId === "ground");
+    expect(groundSegments).toHaveLength(12);
+    const centerSegment = groundSegments.find((segment) => segment.id === "center-divider-seg-0")!;
+    expect(centerSegment.roomIds).toEqual(["ground-east", "ground-main"]);
+    const groundMain = model.spatialElements.rooms.find((room) => room.id === "ground-main")!;
+    expect(groundMain.boundary).toEqual([{ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 5, y: 4 }, { x: 0, y: 4 }]);
+    expect(groundMain.boundingWalls).toEqual(["west", "south", "center-divider", "cross-divider"]);
+    expect(model.spatialElements.doors.find((door) => door.id === "ground-entry")!.hostSegmentId).toBe("south-seg-0");
+    expect(model.spatialElements.windows.find((window) => window.id === "ground-north-window")!.hostSegmentId).toBe("north-seg-0");
+  });
+
+  it("preserves total wall dimensions across opening cuts", () => {
+    const plan = baseWallPlan();
+    doorOn(plan);
+    windowOn(plan);
+    const model = generateBuildingModel(asBuilding(plan));
+    const wall = plan.walls[0];
+    const boxes = model.wallBoxes.filter((box) => box.sourceWallId === "wall-a");
+    expect(boxes.every((box) => box.thickness === 0.2)).toBe(true);
+    let coveredTo = 0;
+    for (const [start, end] of boxes.map((box) => boxAlongInterval(box, wall)).sort((first, second) => first[0] - second[0])) {
+      expect(start).toBeLessThanOrEqual(coveredTo + 1e-6);
+      coveredTo = Math.max(coveredTo, end);
+    }
+    expect(coveredTo).toBeCloseTo(5, 9);
+
+    const demo = generateBuildingModel(demoBuilding);
+    for (const wall of demoBuilding.floors[1].plan.walls) {
+      const wallBoxes = demo.wallBoxes.filter((box) => box.floorId === "ground" && box.sourceWallId === wall.id);
+      let covered = 0;
+      for (const [start, end] of wallBoxes.map((box) => boxAlongInterval(box, wall)).sort((first, second) => first[0] - second[0])) {
+        expect(start).toBeLessThanOrEqual(covered + 1e-6);
+        covered = Math.max(covered, end);
+      }
+      expect(covered).toBeCloseTo(wallLength(wall), 9);
+    }
+  });
+
+  it("clamps door frame members so the leaf always stays positive and finite", () => {
+    const plan = doorOn(baseWallPlan(), { width: 0.05 });
+    const model = generateBuildingModel(asBuilding(plan));
+    expect(model.doors[0].frame.every((part) => Number.isFinite(part.width) && part.width > 0)).toBe(true);
+    expect(model.doors[0].frame.every((part) => Number.isFinite(part.center.x) && Number.isFinite(part.center.y) && Number.isFinite(part.center.z))).toBe(true);
+    expect(model.doors[0].leaf === null || (model.doors[0].leaf.width > 0 && Number.isFinite(model.doors[0].leaf.width))).toBe(true);
   });
 });
