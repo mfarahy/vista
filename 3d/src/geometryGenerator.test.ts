@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { demoBuilding, type Building, type FloorPlan2D } from "./floorPlan";
+import { demoBuilding, type Building, type FloorPlan2D, type Point2D } from "./floorPlan";
 import { FloorPlanValidationError, generateBuildingModel, validateFloorPlan, wallLength } from "./geometryGenerator";
 import { buildOpenPlan3DWallSegments, toOpenPlan3DProject } from "./openPlan3D";
 
@@ -265,6 +265,142 @@ describe("validation and determinism", () => {
 
   it("returns identical geometry for identical building input", () => {
     expect(generateBuildingModel(demoBuilding)).toEqual(generateBuildingModel(demoBuilding));
+  });
+});
+
+const rotatedRect = (width: number, length: number, angle: number, center: Point2D = { x: 0, y: 0 }) => {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return [
+    { x: -width / 2, y: -length / 2 },
+    { x: width / 2, y: -length / 2 },
+    { x: width / 2, y: length / 2 },
+    { x: -width / 2, y: length / 2 },
+  ].map((point) => ({
+    x: center.x + point.x * cos - point.y * sin,
+    y: center.y + point.x * sin + point.y * cos,
+  }));
+};
+
+const rectPlan = (width: number, length: number): FloorPlan2D => {
+  const corners = rotatedRect(width, length, 0);
+  const walls = corners.map((corner, index) => ({
+    id: `wall-${index}`,
+    start: corner,
+    end: corners[(index + 1) % corners.length],
+    thickness: 0.15,
+    height: 2.8,
+    kind: "exterior" as const,
+  }));
+  return { unit: "m", walls, doors: [], windows: [], rooms: [{ id: "room-a", name: "Room A", boundary: corners }] };
+};
+
+const rotatedPlan = (angle: number): FloorPlan2D => {
+  const corners = rotatedRect(4, 2, angle);
+  const walls = corners.map((corner, index) => ({
+    id: `wall-${index}`,
+    start: corner,
+    end: corners[(index + 1) % corners.length],
+    thickness: 0.15,
+    height: 2.8,
+    kind: "exterior" as const,
+  }));
+  return { unit: "m", walls, doors: [], windows: [], rooms: [{ id: "room-rot", name: "Rotated Room", boundary: corners }] };
+};
+
+const axisAlignedPlan = (): FloorPlan2D => ({
+  unit: "m",
+  walls: [
+    { id: "s", start: { x: 0, y: 0 }, end: { x: 6, y: 0 }, thickness: 0.2, height: 2.8, kind: "exterior" },
+    { id: "e", start: { x: 6, y: 0 }, end: { x: 6, y: 4 }, thickness: 0.2, height: 2.8, kind: "exterior" },
+    { id: "n", start: { x: 6, y: 4 }, end: { x: 0, y: 4 }, thickness: 0.2, height: 2.8, kind: "exterior" },
+    { id: "w", start: { x: 0, y: 4 }, end: { x: 0, y: 0 }, thickness: 0.2, height: 2.8, kind: "exterior" },
+  ],
+  doors: [],
+  windows: [],
+  rooms: [{ id: "axis-room", name: "Axis Room", boundary: [{ x: 0, y: 0 }, { x: 6, y: 0 }, { x: 6, y: 4 }, { x: 0, y: 4 }] }],
+});
+
+describe("room boundaries and topology", () => {
+  it("keeps the axis-aligned room boundary intact", () => {
+    const model = generateBuildingModel(asBuilding(axisAlignedPlan()));
+    const room = model.spatialElements.rooms[0];
+    expect(room.boundary).toEqual([{ x: 0, y: 0 }, { x: 6, y: 0 }, { x: 6, y: 4 }, { x: 0, y: 4 }]);
+    expect(room.area).toBeCloseTo(24, 8);
+    expect(room.boundingWalls).toEqual(["s", "e", "n", "w"]);
+  });
+
+  it("keeps a rotated room boundary rotated (not an axis-aligned box)", () => {
+    const plan = rotatedPlan(Math.PI / 6);
+    const model = generateBuildingModel(asBuilding(plan));
+    const room = model.spatialElements.rooms[0];
+    const xs = room.boundary.map((point) => point.x);
+    const ys = room.boundary.map((point) => point.y);
+    expect(room.boundary).not.toEqual([
+      { x: Math.min(...xs), y: Math.min(...ys) },
+      { x: Math.max(...xs), y: Math.min(...ys) },
+      { x: Math.max(...xs), y: Math.max(...ys) },
+      { x: Math.min(...xs), y: Math.max(...ys) },
+    ]);
+    expect(room.area).toBeCloseTo(8, 8);
+    expect(room.boundingWalls).toHaveLength(4);
+  });
+
+  it("measures a rotated room along its own axes", () => {
+    const plan = rotatedPlan(Math.PI / 6);
+    const model = generateBuildingModel(asBuilding(plan));
+    const room = model.spatialElements.rooms[0];
+    expect(Math.max(room.dimensions.width, room.dimensions.length)).toBeCloseTo(4, 8);
+    expect(Math.min(room.dimensions.width, room.dimensions.length)).toBeCloseTo(2, 8);
+  });
+});
+
+describe("ceiling geometry", () => {
+  it("matches the room footprint and sits at the wall-top elevation", () => {
+    const plan = rotatedPlan(Math.PI / 6);
+    const model = generateBuildingModel(asBuilding(plan));
+    const room = model.spatialElements.rooms[0];
+    const ceiling = model.ceilings.find((entry) => entry.roomId === room.id)!;
+    expect(ceiling.vertices).toEqual(room.boundary);
+    expect(ceiling.area).toBeCloseTo(room.area, 8);
+    expect(ceiling.elevation).toBeCloseTo(2.8, 8);
+  });
+
+  it("follows the floor elevation and wall height", () => {
+    const plan = rotatedPlan(0);
+    plan.walls = plan.walls.map((wall) => ({ ...wall, height: 3 }));
+    const model = generateBuildingModel(asBuilding(plan, 1.2));
+    const ceiling = model.ceilings[0];
+    expect(ceiling.elevation).toBeCloseTo(1.2 + 3, 8);
+  });
+
+  it("produces one independent ceiling per room", () => {
+    const model = generateBuildingModel(demoBuilding);
+    const groundRooms = model.spatialElements.rooms.filter((room) => room.floorId === "ground");
+    const groundCeilings = model.ceilings.filter((ceiling) => ceiling.floorId === "ground");
+    expect(groundCeilings).toHaveLength(groundRooms.length);
+    expect(groundCeilings.map((ceiling) => ceiling.roomId).sort()).toEqual(groundRooms.map((room) => room.id).sort());
+    for (const ceiling of groundCeilings) {
+      const room = model.spatialElements.rooms.find((entry) => entry.id === ceiling.roomId)!;
+      expect(ceiling.vertices).toEqual(room.boundary);
+    }
+    const ids = new Set(groundCeilings.map((ceiling) => ceiling.roomId));
+    expect(ids.size).toBe(groundCeilings.length);
+  });
+
+  it("keeps floor and ceiling on the same room footprint", () => {
+    const model = generateBuildingModel(demoBuilding);
+    for (const ceiling of model.ceilings) {
+      const floor = model.floors.find((entry) => entry.floorId === ceiling.floorId && entry.roomId === ceiling.roomId)!;
+      expect(floor.vertices).toEqual(ceiling.vertices);
+    }
+  });
+
+  it("handles invalid or degenerate room geometry safely", () => {
+    const degenerate = { ...baseWallPlan(), rooms: [{ id: "bad", name: "Bad", boundary: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 0 }] }] };
+    expect(() => generateBuildingModel(asBuilding(degenerate))).toThrowError(FloorPlanValidationError);
+    const empty = { ...baseWallPlan(), rooms: [{ id: "bad", name: "Bad", boundary: [] }] };
+    expect(() => generateBuildingModel(asBuilding(empty))).toThrowError(FloorPlanValidationError);
   });
 });
 

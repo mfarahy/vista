@@ -26,6 +26,21 @@ const createFloorMesh = (vertices: { x: number; y: number }[]) => {
   return mesh;
 };
 
+const createCeilingMesh = (vertices: { x: number; y: number }[]) => {
+  const shape = new THREE.Shape();
+  shape.moveTo(vertices[0].x, vertices[0].y);
+  for (const vertex of vertices.slice(1)) shape.lineTo(vertex.x, vertex.y);
+  shape.closePath();
+
+  const mesh = new THREE.Mesh(
+    new THREE.ShapeGeometry(shape),
+    new THREE.MeshStandardMaterial({ color: "#e5e8e1", roughness: 1, side: THREE.DoubleSide }),
+  );
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.receiveShadow = true;
+  return mesh;
+};
+
 const createMeasurementLine = (start: { x: number; y: number; z: number }, end: { x: number; y: number; z: number }, color = "#1b2d35") => {
   const geometry = new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(start.x, start.y, start.z),
@@ -82,6 +97,15 @@ export function BuildingViewer({ model, selectedFloorId, selectedElement, onSele
       floorSelector.position.set(4.5, floor.elevation - 0.05, -3.5);
       floorSelector.userData = { type: "floor", id: floor.floorId, floorId: floor.floorId };
       group.add(floorSelector);
+    }
+
+    for (const ceiling of model.ceilings) {
+      const mesh = createCeilingMesh(ceiling.vertices);
+      mesh.position.y = ceiling.elevation + 0.01;
+      mesh.userData = { type: "room", id: ceiling.roomId, floorId: ceiling.floorId };
+      let group = floorGroups.get(ceiling.floorId);
+      if (!group) { group = new THREE.Group(); floorGroups.set(ceiling.floorId, group); scene.add(group); }
+      group.add(mesh);
     }
 
     for (const wall of model.wallBoxes) {

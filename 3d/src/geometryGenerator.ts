@@ -27,6 +27,14 @@ export type FloorSurface3D = {
   elevation: number;
 };
 
+export type CeilingSurface3D = {
+  floorId: string;
+  roomId: string;
+  vertices: Point2D[];
+  area: number;
+  elevation: number;
+};
+
 export type Opening3D = {
   id: string;
   floorId: string;
@@ -95,6 +103,8 @@ export type RoomSpatial = {
   area: number;
   worldPosition: Vector3;
   dimensions: { width: number; length: number };
+  /** Wall ids that bound this room, derived from the room footprint. */
+  boundingWalls: string[];
 };
 
 export type DoorSpatial = {
@@ -149,6 +159,7 @@ export type BuildingModel3D = {
   unit: "m";
   wallBoxes: WallBox3D[];
   floors: FloorSurface3D[];
+  ceilings: CeilingSurface3D[];
   openings: Opening3D[];
   stairs: StairBox3D[];
   roof: Roof3D;
@@ -216,14 +227,101 @@ const polygonCentroid = (vertices: Point2D[]) => {
   };
 };
 
+const pointOnSegment = (point: Point2D, start: Point2D, end: Point2D) => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared <= EPSILON) return false;
+  const along = ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared;
+  if (along < -EPSILON || along > 1 + EPSILON) return false;
+  const perpendicular = (dx * (point.y - start.y) - dy * (point.x - start.x)) / Math.sqrt(lengthSquared);
+  return Math.abs(perpendicular) <= EPSILON;
+};
+
+/**
+ * Derives the walls that bound a room from the room's footprint and the
+ * floor's wall segments. A boundary edge belongs to a wall when both of its
+ * endpoints lie on that wall's segment, so the derivation is rotation-agnostic
+ * and works for axis-aligned and rotated rooms alike.
+ */
+const roomBoundingWalls = (boundary: Point2D[], walls: Wall2D[]): Wall2D[] => {
+  const ids = new Set<string>();
+  for (let index = 0; index < boundary.length; index += 1) {
+    const start = boundary[index];
+    const end = boundary[(index + 1) % boundary.length];
+    for (const wall of walls) {
+      if (pointOnSegment(start, wall.start, wall.end) && pointOnSegment(end, wall.start, wall.end)) {
+        ids.add(wall.id);
+      }
+    }
+  }
+  return walls.filter((wall) => ids.has(wall.id));
+};
+
+const roomHeight = (boundingWalls: Wall2D[]) => boundingWalls.reduce((height, wall) => Math.max(height, wall.height), 0);
+
 const normalizeZero = (value: number) => (Object.is(value, -0) ? 0 : value);
 
+/**
+ * Measures a room along its own orientation rather than the world X/Y axes.
+ *
+ * An axis-aligned bounding box is wrong for rotated rooms and for rooms whose
+ * walls are not aligned to the world axes. Instead we find the room's two
+ * dominant (principal) directions from the covariance of its boundary points
+ * and measure the extent of the footprint along each of those directions.
+ *
+ * This is exact for the axis-aligned and rotated rectangular rooms the
+ * canonical model produces, and it never treats world X as "width" or world Z
+ * as "depth". `width` is the extent along the first principal axis and
+ * `length` the extent along the second; for axis-aligned rooms this still
+ * yields the conventional width (X) and length (Y).
+ */
 const roomDimensions = (boundary: Point2D[]) => {
-  const xs = boundary.map((point) => point.x);
-  const ys = boundary.map((point) => point.y);
+  const count = boundary.length;
+  if (count < 3) return { width: 0, length: 0 };
+
+  let centroidX = 0;
+  let centroidY = 0;
+  for (const point of boundary) {
+    centroidX += point.x;
+    centroidY += point.y;
+  }
+  centroidX /= count;
+  centroidY /= count;
+
+  let vxx = 0;
+  let vxy = 0;
+  let vyy = 0;
+  for (const point of boundary) {
+    const dx = point.x - centroidX;
+    const dy = point.y - centroidY;
+    vxx += dx * dx;
+    vxy += dx * dy;
+    vyy += dy * dy;
+  }
+
+  const angle = 0.5 * Math.atan2(2 * vxy, vxx - vyy);
+  const primaryX = Math.cos(angle);
+  const primaryY = Math.sin(angle);
+  const secondaryX = -primaryY;
+  const secondaryY = primaryX;
+
+  let minPrimary = Infinity;
+  let maxPrimary = -Infinity;
+  let minSecondary = Infinity;
+  let maxSecondary = -Infinity;
+  for (const point of boundary) {
+    const primary = (point.x - centroidX) * primaryX + (point.y - centroidY) * primaryY;
+    const secondary = (point.x - centroidX) * secondaryX + (point.y - centroidY) * secondaryY;
+    if (primary < minPrimary) minPrimary = primary;
+    if (primary > maxPrimary) maxPrimary = primary;
+    if (secondary < minSecondary) minSecondary = secondary;
+    if (secondary > maxSecondary) maxSecondary = secondary;
+  }
+
   return {
-    width: Math.max(...xs) - Math.min(...xs),
-    length: Math.max(...ys) - Math.min(...ys),
+    width: maxPrimary - minPrimary,
+    length: maxSecondary - minSecondary,
   };
 };
 
@@ -445,8 +543,9 @@ const createWallSpatial = (floor: Floor2D, wall: Wall2D): WallSpatial => {
   };
 };
 
-const createRoomSpatial = (floor: Floor2D, room: FloorPlan2D["rooms"][number]): RoomSpatial => {
+const createRoomSpatial = (floor: Floor2D, room: FloorPlan2D["rooms"][number], walls: Wall2D[]): RoomSpatial => {
   const centroid = polygonCentroid(room.boundary);
+  const boundingWalls = roomBoundingWalls(room.boundary, walls).map((wall) => wall.id);
   const dimensions = roomDimensions(room.boundary);
   return {
     id: room.id,
@@ -460,6 +559,7 @@ const createRoomSpatial = (floor: Floor2D, room: FloorPlan2D["rooms"][number]): 
       z: normalizeZero(-centroid.y),
     },
     dimensions,
+    boundingWalls,
   };
 };
 
@@ -694,6 +794,16 @@ const generateFloorGeometry = (floor: Floor2D) => {
     unit: floorPlan.unit,
     wallBoxes: floorPlan.walls.flatMap((wall) => generateWallBoxes(floor.id, floor.elevation, wall, openingsByWall.get(wall.id) ?? [])),
     floors: floorPlan.rooms.map((room) => ({ floorId: floor.id, roomId: room.id, vertices: room.boundary, area: polygonArea(room.boundary), elevation: floor.elevation })),
+    ceilings: floorPlan.rooms.map((room) => {
+      const boundingWalls = roomBoundingWalls(room.boundary, floorPlan.walls);
+      return {
+        floorId: floor.id,
+        roomId: room.id,
+        vertices: room.boundary,
+        area: polygonArea(room.boundary),
+        elevation: floor.elevation + roomHeight(boundingWalls),
+      };
+    }),
     openings,
   };
 };
@@ -754,7 +864,7 @@ export const generateBuildingModel = (building: Building): BuildingModel3D => {
     id: building.id,
     floors: building.floors.map(createFloorSpatial),
     walls: building.floors.flatMap((floor) => floor.plan.walls.map((wall) => createWallSpatial(floor, wall))),
-    rooms: building.floors.flatMap((floor) => floor.plan.rooms.map((room) => createRoomSpatial(floor, room))),
+    rooms: building.floors.flatMap((floor) => floor.plan.rooms.map((room) => createRoomSpatial(floor, room, floor.plan.walls))),
     doors: building.floors.flatMap((floor) => floor.plan.doors.map((door) => {
       const wall = floor.plan.walls.find((entry) => entry.id === door.wallId);
       if (!wall) throw new Error(`Unknown wall '${door.wallId}' for door '${door.id}'.`);
@@ -781,6 +891,7 @@ export const generateBuildingModel = (building: Building): BuildingModel3D => {
     unit: building.unit,
     wallBoxes: generatedFloors.flatMap((floor) => floor.wallBoxes),
     floors: generatedFloors.flatMap((floor) => floor.floors),
+    ceilings: generatedFloors.flatMap((floor) => floor.ceilings),
     openings: generatedFloors.flatMap((floor) => floor.openings),
     stairs,
     roof: { id: building.roof.id, floorId: highest.id, center: { x: 4.5, y: highest.elevation + highest.plan.walls[0].height + building.roof.height / 2, z: -3.5 }, width: 9.4, length: 7.4, height: building.roof.height },
