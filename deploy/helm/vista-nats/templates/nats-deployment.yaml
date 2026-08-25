@@ -36,11 +36,27 @@ spec:
               name: monitor
               protocol: TCP
           args:
+            - "-c"
+            - "/etc/nats-config/nats-server.conf"
+          env:
+            - name: SURVEYOR_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vista-nats.fullname" . }}-secrets
+                  key: SURVEYOR_USER
+            - name: SURVEYOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vista-nats.fullname" . }}-secrets
+                  key: SURVEYOR_PASSWORD
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nats-config
+              readOnly: true
             {{- if .Values.jetstream.enabled }}
-            - "-js"
+            - name: data
+              mountPath: {{ .Values.jetstream.storeDir }}
             {{- end }}
-            - "-m"
-            - {{ .Values.service.monitorPort | quote }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           readinessProbe:
@@ -59,3 +75,11 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 3
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "vista-nats.fullname" . }}-config
+        {{- if .Values.jetstream.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}

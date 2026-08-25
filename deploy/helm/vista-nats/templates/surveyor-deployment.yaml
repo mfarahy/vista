@@ -66,6 +66,16 @@ spec:
               value: {{ .Values.surveyor.serverCount | quote }}
             - name: NATS_SURVEYOR_PORT
               value: {{ .Values.surveyor.service.port | quote }}
+            - name: NATS_SURVEYOR_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vista-nats.fullname" . }}-secrets
+                  key: SURVEYOR_USER
+            - name: NATS_SURVEYOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vista-nats.fullname" . }}-secrets
+                  key: SURVEYOR_PASSWORD
           volumeMounts:
             - name: observations
               mountPath: /observations

@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vista-nats.fullname" . }}-config
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: nats
+data:
+  nats-server.conf: |
+    # NATS server configuration for the Vista broker.
+    #
+    # The system account is required by nats-surveyor (it polls $SYS.REQ.* for
+    # server/JetStream stats). Credentials below are resolved at startup from the
+    # pod environment, which is fed from the `{{ include "vista-nats.fullname" . }}-secrets`
+    # Secret, so the password never lands in plain text in this ConfigMap.
+    server_name: {{ include "vista-nats.fullname" . }}
+    listen: 0.0.0.0:{{ .Values.service.clientPort }}
+    http: {{ .Values.service.monitorPort }}
+
+    {{- if .Values.jetstream.enabled }}
+    jetstream {
+      store_dir: {{ .Values.jetstream.storeDir | quote }}
+    }
+    {{- end }}
+
+    # Bringing up a system account leaves the implicit $G global account in
+    # place, so existing anonymous clients (job-processor, expose-service) keep
+    # working unchanged. See templates/nats-deployment.yaml for the env vars.
+    system_account: SYS
+
+    accounts {
+      SYS {
+        users = [
+          { user: $SURVEYOR_USER, password: $SURVEYOR_PASSWORD }
+        ]
+      }
+    }

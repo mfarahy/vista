@@ -19,6 +19,12 @@ service:
 jetstream:
   enabled: true
 
+# System-account credentials for nats-surveyor (must stay in sync with the NATS
+# server config, which resolves them from the deployment env).
+secrets:
+  SURVEYOR_USER: "${NATS_SURVEYOR_USER}"
+  SURVEYOR_PASSWORD: "${NATS_SURVEYOR_PASSWORD}"
+
 surveyor:
   replicaCount: ${VISTA_NATS_SURVEYOR_REPLICAS}
   image:

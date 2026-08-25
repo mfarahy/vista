@@ -18,6 +18,17 @@ service:
 
 jetstream:
   enabled: true
+  # Store directory mounted into the NATS pod (emptyDir); mirrored by the
+  # `-js` flag the chart previously used (in-memory storage was dropped in
+  # favour of a config file that also enables the system account).
+  storeDir: /data
+
+# System-account credentials used by nats-surveyor. The NATS server config
+# resolves these via env vars, so they must stay in sync with `surveyor`.
+# Override in production (see values.pipeline.yaml).
+secrets:
+  SURVEYOR_USER: "surveyor"
+  SURVEYOR_PASSWORD: "vista-surveyor-dev"
 
 # NATS monitoring "observer": nats-surveyor exposes Prometheus metrics for the
 # broker (accounts, JetStream stats, observations). Reachable at
