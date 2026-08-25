@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { demoBuilding, type Building, type Door2D, type FloorPlan2D, type Point2D, type Wall2D, type Window2D } from "./floorPlan";
 import {
   DOOR_FRAME_WIDTH,
+  DOOR_SWING_ANGLE,
   WINDOW_FRAME_WIDTH,
+  WINDOW_SILL_OVERHANG,
+  WINDOW_SILL_PROTRUSION,
+  WINDOW_SILL_THICKNESS,
   FloorPlanValidationError,
   generateBuildingModel,
   validateFloorPlan,
@@ -860,5 +864,105 @@ describe("real door and window wall openings", () => {
     expect(model.doors[0].frame.every((part) => Number.isFinite(part.width) && part.width > 0)).toBe(true);
     expect(model.doors[0].frame.every((part) => Number.isFinite(part.center.x) && Number.isFinite(part.center.y) && Number.isFinite(part.center.z))).toBe(true);
     expect(model.doors[0].leaf === null || (model.doors[0].leaf.width > 0 && Number.isFinite(model.doors[0].leaf.width))).toBe(true);
+  });
+
+  it("lines a door opening with a full-thickness frame and keeps the leaf narrower than the opening", () => {
+    const plan = doorOn(baseWallPlan(), { width: 1, height: 2.1 });
+    const model = generateBuildingModel(asBuilding(plan));
+    const door = model.doors[0];
+    expect(door.frame).toHaveLength(3);
+    for (const part of door.frame) expect(part.depth).toBeCloseTo(0.2, 9);
+    expect(door.leaf!.width).toBeCloseTo(1 - 2 * DOOR_FRAME_WIDTH, 9);
+    expect(door.leaf!.width).toBeLessThan(1);
+    expect(door.leaf!.depth).toBeLessThanOrEqual(0.2);
+  });
+
+  it("represents the door swing with a swung leaf and a handle that rotate about the hinge", () => {
+    const plan = doorOn(baseWallPlan(), { width: 1, height: 2.1 });
+    const model = generateBuildingModel(asBuilding(plan));
+    const door = model.doors[0];
+    const wall = plan.walls[0];
+    const wallRotation = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x);
+
+    expect(door.leaf!.rotationZ).toBeCloseTo(wallRotation, 9);
+    expect(door.leafSwing).not.toBeNull();
+    expect(door.handle).not.toBeNull();
+
+    expect(door.leafSwing!.rotationZ).toBeCloseTo(wallRotation - DOOR_SWING_ANGLE, 9);
+    expect(door.leafSwing!.width).toBe(door.leaf!.width);
+    expect(door.leafSwing!.height).toBe(door.leaf!.height);
+    expect(door.leafSwing!.center.x).not.toBeCloseTo(door.leaf!.center.x, 6);
+    expect(door.leafSwing!.center.z).not.toBeCloseTo(door.leaf!.center.z, 6);
+    expect(door.handle!.rotationZ).toBeCloseTo(door.leafSwing!.rotationZ, 9);
+  });
+
+  it("swings the leaf about a fixed vertical hinge so the pivot distance is preserved", () => {
+    const plan = doorOn(baseWallPlan(), { width: 1, height: 2.1 });
+    const model = generateBuildingModel(asBuilding(plan));
+    const door = model.doors[0];
+    const wall = plan.walls[0];
+    const hinge = { x: wall.start.x + plan.doors[0].offset + DOOR_FRAME_WIDTH, z: -wall.start.y };
+    const horizontalDistance = (point: { x: number; z: number }) => Math.hypot(point.x - hinge.x, point.z - hinge.z);
+    expect(horizontalDistance(door.leaf!.center)).toBeCloseTo(horizontalDistance(door.leafSwing!.center), 6);
+  });
+
+  it("keeps the door swing consistent on rotated and diagonal walls", () => {
+    const plan = doorOn(baseWallPlan({ start: { x: 0, y: 0 }, end: { x: 3, y: 4 } }), { width: 1, height: 2.1 });
+    const model = generateBuildingModel(asBuilding(plan));
+    const door = model.doors[0];
+    const wallRotation = Math.atan2(4, 3);
+    expect(door.leaf!.rotationZ).toBeCloseTo(wallRotation, 9);
+    expect(door.leafSwing!.rotationZ).toBeCloseTo(wallRotation - DOOR_SWING_ANGLE, 9);
+    assertNoWallInsideOpenings(model, plan);
+  });
+
+  it("frames a window with four bars and keeps the glass strictly inside the opening", () => {
+    const plan = windowOn(baseWallPlan(), { width: 1.6, height: 1.2, sillHeight: 0.9 });
+    const model = generateBuildingModel(asBuilding(plan));
+    const win = model.windows[0];
+    expect(win.frame).toHaveLength(4);
+    for (const part of win.frame) expect(part.depth).toBeCloseTo(0.2, 9);
+    const glass = win.glass!;
+    expect(glass.width).toBeCloseTo(1.6 - 2 * WINDOW_FRAME_WIDTH, 9);
+    expect(glass.height).toBeCloseTo(1.2 - 2 * WINDOW_FRAME_WIDTH, 9);
+    expect(glass.center.y - glass.height / 2).toBeCloseTo(0.9 + WINDOW_FRAME_WIDTH, 9);
+    assertNoWallInsideOpenings(model, plan);
+  });
+
+  it("adds a protruding sill board that is wider than and deeper than the enclosing wall", () => {
+    const plan = windowOn(baseWallPlan(), { width: 1.6, height: 1.2, sillHeight: 0.9 });
+    const model = generateBuildingModel(asBuilding(plan));
+    const sill = model.windows[0].sill!;
+    expect(sill).not.toBeNull();
+    expect(sill.width).toBeCloseTo(1.6 + 2 * WINDOW_SILL_OVERHANG, 9);
+    expect(sill.depth).toBeCloseTo(0.2 + 2 * WINDOW_SILL_PROTRUSION, 9);
+    expect(sill.height).toBeCloseTo(WINDOW_SILL_THICKNESS, 9);
+    expect(sill.center.y - sill.height / 2).toBeCloseTo(0.9 - WINDOW_SILL_THICKNESS, 9);
+    expect(sill.center.y + sill.height / 2).toBeCloseTo(0.9, 9);
+    expect(sill.rotationZ).toBeCloseTo(Math.atan2(plan.walls[0].end.y - plan.walls[0].start.y, plan.walls[0].end.x - plan.walls[0].start.x), 9);
+    assertNoWallInsideOpenings(model, plan);
+  });
+
+  it("aligns the sill and the window frame on a rotated wall", () => {
+    const plan = windowOn(baseWallPlan({ start: { x: 0, y: 0 }, end: { x: 3, y: 4 } }), { width: 1.4, height: 1.2, sillHeight: 0.9 });
+    const model = generateBuildingModel(asBuilding(plan));
+    const win = model.windows[0];
+    const wallRotation = Math.atan2(4, 3);
+    expect(win.sill!.rotationZ).toBeCloseTo(wallRotation, 9);
+    for (const part of win.frame) expect(part.rotationZ).toBeCloseTo(wallRotation, 9);
+    expect(win.glass!.rotationZ).toBeCloseTo(wallRotation, 9);
+    assertNoWallInsideOpenings(model, plan);
+  });
+
+  it("keeps the real openings empty on a wall with door, window and sill combinations", () => {
+    const plan = baseWallPlan({ end: { x: 8, y: 0 } });
+    plan.doors.push({ id: "door-1", wallId: "wall-a", offset: 0.5, width: 1, height: 2.1 });
+    plan.windows.push({ id: "window-1", wallId: "wall-a", offset: 2, width: 1.2, height: 1, sillHeight: 0.9 });
+    plan.doors.push({ id: "door-2", wallId: "wall-a", offset: 3.6, width: 0.9, height: 2.1 });
+    plan.windows.push({ id: "window-2", wallId: "wall-a", offset: 5, width: 0.8, height: 1, sillHeight: 1 });
+    const model = generateBuildingModel(asBuilding(plan));
+    assertNoWallInsideOpenings(model, plan);
+    expect(model.windows.every((window) => window.sill)).toBe(true);
+    expect(model.doors.every((door) => door.leafSwing && door.handle)).toBe(true);
   });
 });

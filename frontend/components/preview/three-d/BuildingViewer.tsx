@@ -141,20 +141,25 @@ export function BuildingViewer({ model, selectedFloorId, selectedElement, onSele
     const doorGroup = new THREE.Group();
     const doorFrameMaterial = new THREE.MeshStandardMaterial({ color: "#6b4f35", roughness: 0.6 });
     const doorLeafMaterial = new THREE.MeshStandardMaterial({ color: "#9a6a42", roughness: 0.55 });
+    const doorHandleMaterial = new THREE.MeshStandardMaterial({ color: "#c9c2b4", metalness: 0.7, roughness: 0.3 });
     for (const door of model.doors) {
       const meta = { type: "door" as const, id: door.id, floorId: door.floorId };
       for (const part of door.frame) doorGroup.add(createPartMesh(part, doorFrameMaterial, meta));
-      if (door.leaf) doorGroup.add(createPartMesh(door.leaf, doorLeafMaterial, meta));
+      const leafPart = door.leafSwing ?? door.leaf;
+      if (leafPart) doorGroup.add(createPartMesh(leafPart, doorLeafMaterial, meta));
+      if (door.handle) doorGroup.add(createPartMesh(door.handle, doorHandleMaterial, meta));
     }
     scene.add(doorGroup);
 
     const windowGroup = new THREE.Group();
     const windowFrameMaterial = new THREE.MeshStandardMaterial({ color: "#d7deda", roughness: 0.6 });
     const windowGlassMaterial = new THREE.MeshStandardMaterial({ color: "#9fc4dd", transparent: true, opacity: 0.4, roughness: 0.12, side: THREE.DoubleSide });
+    const windowSillMaterial = new THREE.MeshStandardMaterial({ color: "#c7cec9", roughness: 0.7 });
     for (const window of model.windows) {
       const meta = { type: "window" as const, id: window.id, floorId: window.floorId };
       for (const part of window.frame) windowGroup.add(createPartMesh(part, windowFrameMaterial, meta));
       if (window.glass) windowGroup.add(createPartMesh(window.glass, windowGlassMaterial, meta));
+      if (window.sill) windowGroup.add(createPartMesh(window.sill, windowSillMaterial, meta));
     }
     scene.add(windowGroup);
 

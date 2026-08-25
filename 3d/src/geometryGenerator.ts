@@ -97,8 +97,19 @@ export type DoorGeometry3D = {
   hostWallId: string;
   hostSegmentId: string;
   openingDirection?: Door2D["openingDirection"];
+  /** The door leaf in its closed position, filling the wall opening. This is the
+   *  canonical leaf placement used by measurements and by the existing tests. */
   leaf: BoxPart3D | null;
+  /** The door frame (jambs + header) occupying the real wall opening. */
   frame: BoxPart3D[];
+  /**
+   * The leaf repositioned as a static, gently-ajar panel about its hinge edge,
+   * representing the door swing. When present the renderer draws this instead of
+   * the closed `leaf`. `null` when the opening is too degenerate to swing safely.
+   */
+  leafSwing?: BoxPart3D | null;
+  /** A small lever on the swing side of the leaf, so hinge and free edge read clearly. */
+  handle?: BoxPart3D | null;
 };
 
 export type WindowGeometry3D = {
@@ -106,8 +117,11 @@ export type WindowGeometry3D = {
   floorId: string;
   hostWallId: string;
   hostSegmentId: string;
+  /** Outer framing bars (left/right jambs, top header, bottom bar) that line the opening. */
   frame: BoxPart3D[];
   glass: BoxPart3D | null;
+  /** A protruding sill board that runs along the wall at the bottom of the opening. */
+  sill: BoxPart3D | null;
 };
 
 export type StairBox3D = {
@@ -262,6 +276,31 @@ export const DOOR_LEAF_THICKNESS = 0.04;
 export const WINDOW_FRAME_WIDTH = 0.06;
 /** Default thickness of a window glass pane (m). Clamped to a fraction of the wall. */
 export const WINDOW_GLASS_THICKNESS = 0.02;
+
+/**
+ * Static swing angle (radians) applied to every door leaf about its hinge edge,
+ * matching OpenPlan3D's gently-ajar (~15°) default door. This is a static pose,
+ * not an animation, and is enough to communicate the leaf, its hinge and its
+ * swing direction.
+ */
+export const DOOR_SWING_ANGLE = 0.26;
+/** Height (m) of the door handle's lever above the finished floor. */
+export const DOOR_HANDLE_HEIGHT = 1.0;
+/** Horizontal length (m) of the door handle lever along the leaf. */
+export const DOOR_HANDLE_LENGTH = 0.12;
+/** Vertical extent (m) of the door handle lever. */
+export const DOOR_HANDLE_VERTICAL = 0.02;
+/** Depth (m) of the door handle lever measured from the leaf face. */
+export const DOOR_HANDLE_DEPTH = 0.03;
+/** Inset (m) of the handle from the leaf's free (non-hinge) edge. */
+export const DOOR_HANDLE_INSET = 0.12;
+
+/** Horizontal overhang (m) of the window sill board beyond each side of the opening. */
+export const WINDOW_SILL_OVERHANG = 0.08;
+/** How far (m) the window sill protrudes beyond each face of the wall. */
+export const WINDOW_SILL_PROTRUSION = 0.05;
+/** Vertical thickness (m) of the window sill board. */
+export const WINDOW_SILL_THICKNESS = 0.04;
 
 export class FloorPlanValidationError extends Error {
   readonly issues: string[];
@@ -863,6 +902,85 @@ const createArchitecturalOpening = (floorId: string, elevation: number, opening:
   };
 };
 
+/**
+ * Rotates a point around a vertical (world Y) axis passing through `pivot` by
+ * `angle` radians. Both the wall rotation and the door swing are rotations about
+ * the vertical axis, so they combine into the single `rotationZ` quantity that
+ * `BoxPart3D` carries and the renderer applies as a Y rotation.
+ */
+const rotateAboutVertical = (point: Vector3, pivot: Vector3, angle: number): Vector3 => {
+  const dx = point.x - pivot.x;
+  const dz = point.z - pivot.z;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return {
+    x: pivot.x + dx * cos + dz * sin,
+    y: point.y,
+    z: pivot.z - dx * sin + dz * cos,
+  };
+};
+
+/**
+ * Builds the swung leaf and its handle for a door.
+ *
+ * Hinge convention: the canonical `openingDirection` ("left"/"right"/"inward"/
+ * "outward") does not reliably encode a hinge side, so in keeping with the phase
+ * requirements Vista deliberately avoids inventing per-door hinge data. A single
+ * deterministic convention is used: the hinge sits on the leaf's near edge in the
+ * wall-running direction, and every door renders as gently ajar by
+ * `DOOR_SWING_ANGLE`. Because the pivot and swing are always expressed in the
+ * host segment's own local frame, the result stays consistent on world-axis,
+ * 45-degree and arbitrary rotated walls and is never mirrored incorrectly.
+ */
+const createDoorSwing = (
+  closedLeaf: BoxPart3D,
+  segment: WallSegment2D,
+  elevation: number,
+  opening: NormalizedOpening,
+  rotationZ: number,
+): { leafSwing: BoxPart3D; handle: BoxPart3D } | null => {
+  if (!Number.isFinite(opening.height) || opening.height <= EPSILON) return null;
+
+  const swing = DOOR_SWING_ANGLE;
+  const frameWidth = Math.min(DOOR_FRAME_WIDTH, Math.max(0.02, opening.width * 0.15));
+  const localStart = opening.offset - segment.startOffset;
+
+  const hingePoint2D = pointAtSegmentOffset(segment, localStart + frameWidth);
+  const hinge: Vector3 = { x: hingePoint2D.x, y: elevation + opening.height / 2, z: -hingePoint2D.y };
+
+  const leafSwing: BoxPart3D = {
+    id: `${opening.id}-leaf-swing`,
+    center: rotateAboutVertical(closedLeaf.center, hinge, swing),
+    width: closedLeaf.width,
+    height: closedLeaf.height,
+    depth: closedLeaf.depth,
+    rotationZ: rotationZ - swing,
+  };
+
+  const freeEdgeLocal = localStart + opening.width - frameWidth;
+  const handleAlong = Math.max(localStart + frameWidth, freeEdgeLocal - DOOR_HANDLE_INSET);
+  const handlePoint2D = pointAtSegmentOffset(segment, handleAlong);
+  const normalX = -Math.sin(rotationZ);
+  const normalZ = Math.cos(rotationZ);
+  const handleOffset = closedLeaf.depth / 2 + DOOR_HANDLE_DEPTH / 2;
+  const handleCenterClosed: Vector3 = {
+    x: handlePoint2D.x + normalX * handleOffset,
+    y: elevation + DOOR_HANDLE_HEIGHT,
+    z: -handlePoint2D.y + normalZ * handleOffset,
+  };
+
+  const handle: BoxPart3D = {
+    id: `${opening.id}-handle`,
+    center: rotateAboutVertical(handleCenterClosed, hinge, swing),
+    width: DOOR_HANDLE_LENGTH,
+    height: DOOR_HANDLE_VERTICAL,
+    depth: DOOR_HANDLE_DEPTH,
+    rotationZ: rotationZ - swing,
+  };
+
+  return { leafSwing, handle };
+};
+
 const createDoorGeometry = (floorId: string, elevation: number, opening: NormalizedOpening, segment: WallSegment2D): DoorGeometry3D => {
   const rotationZ = Math.atan2(segment.end.y - segment.start.y, segment.end.x - segment.start.x);
   const localStart = opening.offset - segment.startOffset;
@@ -878,6 +996,16 @@ const createDoorGeometry = (floorId: string, elevation: number, opening: Normali
 
   const leaf = createBoxPart(`${opening.id}-leaf`, segment, elevation, rotationZ, localStart + frameWidth, leafWidth, 0, opening.height, leafThickness);
 
+  let leafSwing: BoxPart3D | null = null;
+  let handle: BoxPart3D | null = null;
+  if (leaf) {
+    const swing = createDoorSwing(leaf, segment, elevation, opening, rotationZ);
+    if (swing) {
+      leafSwing = swing.leafSwing;
+      handle = swing.handle;
+    }
+  }
+
   return {
     id: opening.id,
     floorId,
@@ -886,6 +1014,8 @@ const createDoorGeometry = (floorId: string, elevation: number, opening: Normali
     openingDirection: opening.openingDirection,
     leaf,
     frame,
+    leafSwing,
+    handle,
   };
 };
 
@@ -899,6 +1029,7 @@ const createWindowGeometry = (floorId: string, elevation: number, opening: Norma
     createBoxPart(`${opening.id}-jamb-left`, segment, elevation, rotationZ, localStart, frameWidth, opening.sillHeight, opening.height, segment.thickness),
     createBoxPart(`${opening.id}-jamb-right`, segment, elevation, rotationZ, localStart + opening.width - frameWidth, frameWidth, opening.sillHeight, opening.height, segment.thickness),
     createBoxPart(`${opening.id}-header`, segment, elevation, rotationZ, localStart, opening.width, opening.sillHeight + opening.height - frameWidth, frameWidth, segment.thickness),
+    createBoxPart(`${opening.id}-bottom`, segment, elevation, rotationZ, localStart, opening.width, opening.sillHeight, frameWidth, segment.thickness),
   ].filter((part): part is BoxPart3D => part !== null);
 
   const glass = createBoxPart(
@@ -913,6 +1044,18 @@ const createWindowGeometry = (floorId: string, elevation: number, opening: Norma
     glassThickness,
   );
 
+  const sill = createBoxPart(
+    `${opening.id}-sill`,
+    segment,
+    elevation,
+    rotationZ,
+    localStart + opening.width / 2 - (opening.width + 2 * WINDOW_SILL_OVERHANG) / 2,
+    opening.width + 2 * WINDOW_SILL_OVERHANG,
+    opening.sillHeight - WINDOW_SILL_THICKNESS,
+    WINDOW_SILL_THICKNESS,
+    segment.thickness + 2 * WINDOW_SILL_PROTRUSION,
+  );
+
   return {
     id: opening.id,
     floorId,
@@ -920,6 +1063,7 @@ const createWindowGeometry = (floorId: string, elevation: number, opening: Norma
     hostSegmentId: segment.id,
     frame,
     glass,
+    sill,
   };
 };
 

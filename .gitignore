@@ -13,3 +13,6 @@ vista-ci/
 .playwright-mcp
 # Phase 9 verification output
 data/photo-verify/
+
+# Local 3D visual-check screenshots (not part of source)
+.vischeck/
