@@ -30,8 +30,8 @@ const baseOptions: LoggerOptions = {
 
 export function resolveFormat(): 'json' | 'text' {
   const format = (process.env.LOG_FORMAT || '').toLowerCase();
-  if (['text', 'pretty'].includes(format)) return 'text';
-  return 'json';
+  if (format === 'json') return 'json';
+  return 'text';
 }
 
 export const logger: Logger = pino(
