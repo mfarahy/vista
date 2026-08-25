@@ -7,6 +7,241 @@ export type Vector3 = {
   z: number;
 };
 
+/**
+ * Axis-aligned world-space bounds of the whole building scene, used only to
+ * determine the overall extent of the generated geometry (camera framing,
+ * clipping planes, orbit limits, roof/ground cover). Unlike the orientation-
+ * aware per-room measurements, these are a plain world AABB and may safely
+ * ignore local element orientation.
+ */
+export type SceneBounds = {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  minZ: number;
+  maxZ: number;
+};
+
+/** Diagnostic camera/controls setup derived entirely from `SceneBounds`. */
+export type CameraFraming = {
+  position: Vector3;
+  target: Vector3;
+  near: number;
+  far: number;
+  minDistance: number;
+  maxDistance: number;
+};
+
+const DEFAULT_FRAMING = {
+  position: { x: 10, y: 9, z: 11 },
+  target: { x: 0, y: 0, z: 0 },
+  near: 0.1,
+  far: 100,
+  minDistance: 4,
+  maxDistance: 25,
+};
+
+/** The empty/invalid placeholder used so that empty scenes still frame safely. */
+export const emptySceneBounds = (): SceneBounds => ({
+  minX: Infinity,
+  maxX: -Infinity,
+  minY: Infinity,
+  maxY: -Infinity,
+  minZ: Infinity,
+  maxZ: -Infinity,
+});
+
+/** True when the bounds contain no valid finite, non-degenerate region. */
+export const isSceneBoundsEmpty = (bounds: SceneBounds): boolean => {
+  if (
+    !Number.isFinite(bounds.minX) ||
+    !Number.isFinite(bounds.maxX) ||
+    !Number.isFinite(bounds.minY) ||
+    !Number.isFinite(bounds.maxY) ||
+    !Number.isFinite(bounds.minZ) ||
+    !Number.isFinite(bounds.maxZ)
+  ) {
+    return true;
+  }
+  return bounds.maxX < bounds.minX || bounds.maxY < bounds.minY || bounds.maxZ < bounds.minZ;
+};
+
+/** Returns the union of two bounds, ignoring any empty input. */
+export const expandSceneBounds = (bounds: SceneBounds, other: SceneBounds): SceneBounds => {
+  if (isSceneBoundsEmpty(other)) return bounds;
+  if (isSceneBoundsEmpty(bounds)) return other;
+  return {
+    minX: Math.min(bounds.minX, other.minX),
+    maxX: Math.max(bounds.maxX, other.maxX),
+    minY: Math.min(bounds.minY, other.minY),
+    maxY: Math.max(bounds.maxY, other.maxY),
+    minZ: Math.min(bounds.minZ, other.minZ),
+    maxZ: Math.max(bounds.maxZ, other.maxZ),
+  };
+};
+
+/** Grows a valid bounds by a uniform margin on every side. */
+export const expandSceneBoundsByMargin = (bounds: SceneBounds, margin: number): SceneBounds => ({
+  minX: bounds.minX - margin,
+  maxX: bounds.maxX + margin,
+  minY: bounds.minY - margin,
+  maxY: bounds.maxY + margin,
+  minZ: bounds.minZ - margin,
+  maxZ: bounds.maxZ + margin,
+});
+
+/**
+ * Exact world AABB of an axis-aligned box rotated by `rotationY` about the
+ * vertical (Y) axis. The |cos|/|sin| product terms are the correct extent each
+ * rotated half-extent contributes along X and Z, so rotated walls and doors are
+ * framed just as tightly as axis-aligned ones.
+ */
+const rotatedBoxBounds = (
+  center: Vector3,
+  halfX: number,
+  halfY: number,
+  halfZ: number,
+  rotationY: number,
+): SceneBounds => {
+  const cos = Math.abs(Math.cos(rotationY));
+  const sin = Math.abs(Math.sin(rotationY));
+  return {
+    minX: center.x - (halfX * cos + halfZ * sin),
+    maxX: center.x + (halfX * cos + halfZ * sin),
+    minY: center.y - halfY,
+    maxY: center.y + halfY,
+    minZ: center.z - (halfX * sin + halfZ * cos),
+    maxZ: center.z + (halfX * sin + halfZ * cos),
+  };
+};
+
+/** AABB contribution of a horizontal polygon surface (floor/ceiling) at a fixed elevation. */
+const polygonBounds = (vertices: Point2D[], elevation: number): SceneBounds => {
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const point of vertices) {
+    if (point.x < minX) minX = point.x;
+    if (point.x > maxX) maxX = point.x;
+    if (point.y < minY) minY = point.y;
+    if (point.y > maxY) maxY = point.y;
+  }
+  return {
+    minX,
+    maxX,
+    minY: elevation,
+    maxY: elevation,
+    minZ: -maxY,
+    maxZ: -minY,
+  };
+};
+
+/**
+ * Derives the overall world-space AABB of the generated building geometry from
+ * the actual architectural elements (walls, floors, ceilings, stairs, doors,
+ * windows), not from room bounding boxes alone, so any element that extends
+ * beyond a room's footprint still contributes to the scene extent.
+ */
+type BoundsInput = {
+  wallBoxes: WallBox3D[];
+  floors: FloorSurface3D[];
+  ceilings: CeilingSurface3D[];
+  stairs: StairBox3D[];
+  doors: DoorGeometry3D[];
+  windows: WindowGeometry3D[];
+};
+
+const computeGeometryBounds = (geometry: BoundsInput): SceneBounds => {
+  let bounds = emptySceneBounds();
+
+  for (const wall of geometry.wallBoxes) {
+    bounds = expandSceneBounds(bounds, rotatedBoxBounds(wall.center, wall.length / 2, wall.height / 2, wall.thickness / 2, wall.rotationZ));
+  }
+
+  for (const floor of geometry.floors) {
+    bounds = expandSceneBounds(bounds, polygonBounds(floor.vertices, floor.elevation));
+  }
+
+  for (const ceiling of geometry.ceilings) {
+    bounds = expandSceneBounds(bounds, polygonBounds(ceiling.vertices, ceiling.elevation));
+  }
+
+  for (const stair of geometry.stairs) {
+    bounds = expandSceneBounds(bounds, rotatedBoxBounds(stair.center, stair.width / 2, stair.height / 2, stair.length / 2, stair.rotationY));
+  }
+
+  for (const door of geometry.doors) {
+    for (const part of [door.leaf, door.leafSwing, door.handle, ...door.frame]) {
+      if (!part) continue;
+      bounds = expandSceneBounds(bounds, rotatedBoxBounds(part.center, part.width / 2, part.height / 2, part.depth / 2, part.rotationZ));
+    }
+  }
+
+  for (const window of geometry.windows) {
+    for (const part of [window.glass, window.sill, ...window.frame]) {
+      if (!part) continue;
+      bounds = expandSceneBounds(bounds, rotatedBoxBounds(part.center, part.width / 2, part.height / 2, part.depth / 2, part.rotationZ));
+    }
+  }
+
+  return bounds;
+};
+
+export const computeBuildingBounds = (model: BuildingModel3D): SceneBounds => {
+  const bounds = computeGeometryBounds({
+    wallBoxes: model.wallBoxes,
+    floors: model.floors,
+    ceilings: model.ceilings,
+    stairs: model.stairs,
+    doors: model.doors,
+    windows: model.windows,
+  });
+  return expandSceneBounds(bounds, rotatedBoxBounds(model.roof.center, model.roof.width / 2, model.roof.height / 2, model.roof.length / 2, 0));
+};
+
+/**
+ * Chooses a camera position, target, clipping planes and orbit limits that frame
+ * the whole building determined by `bounds`, leaving a margin and avoiding
+ * clipping for both very small and very large buildings. The default fallback is
+ * returned when the bounds are empty or degenerate, so an empty/invalid scene
+ * never produces NaN/Infinity camera values.
+ */
+export const computeCameraFraming = (bounds: SceneBounds): CameraFraming => {
+  if (isSceneBoundsEmpty(bounds)) {
+    return { ...DEFAULT_FRAMING };
+  }
+
+  const centerX = (bounds.minX + bounds.maxX) / 2;
+  const centerY = (bounds.minY + bounds.maxY) / 2;
+  const centerZ = (bounds.minZ + bounds.maxZ) / 2;
+  const sizeX = bounds.maxX - bounds.minX;
+  const sizeY = bounds.maxY - bounds.minY;
+  const sizeZ = bounds.maxZ - bounds.minZ;
+  const radius = 0.5 * Math.hypot(sizeX, sizeY, sizeZ);
+
+  const target = { x: centerX, y: centerY, z: centerZ };
+
+  const distance = Math.max(radius * 2.8, 5);
+
+  const direction = { x: 0.55, y: 0.5, z: 0.67 };
+  const directionLength = Math.hypot(direction.x, direction.y, direction.z);
+  const position = {
+    x: target.x + (distance * direction.x) / directionLength,
+    y: target.y + (distance * direction.y) / directionLength,
+    z: target.z + (distance * direction.z) / directionLength,
+  };
+
+  const near = Math.max(0.05, radius * 0.1);
+  const far = Math.max(distance + radius * 4, radius * 12, near * 10);
+
+  const minDistance = Math.max(radius * 1.2, near * 2);
+  const maxDistance = Math.max(distance * 3, radius * 10, distance + 1);
+
+  return { position, target, near, far, minDistance, maxDistance };
+};
+
 export type WallBox3D = {
   id: string;
   floorId: string;
@@ -252,6 +487,8 @@ export type BuildingModel3D = {
   roof: Roof3D;
   spatialElements: BuildingSpatial;
   measurements: Measurement[];
+  /** World-space AABB of the whole generated scene, derived from the geometry. */
+  bounds: SceneBounds;
 };
 
 type WallOpening = Door2D | Window2D;
@@ -1520,6 +1757,39 @@ const createStairBoxes = (stair: Stair2D, sourceElevation: number, targetElevati
   });
 };
 
+/** Margin (m) by which the roof overhangs the building footprint. */
+export const ROOF_MARGIN = 0.3;
+
+/**
+ * Derives the roof slab from the actual building footprint so it always covers
+ * the whole building (with a small margin) and stays centered, regardless of
+ * building size, rotation or asymmetry. Degenerate footprints correctly fall
+ * back to a tiny centered slab instead of producing NaN/Infinity.
+ */
+export const deriveRoof = (roof: Roof2D, floorId: string, geometry: BoundsInput): Roof3D => {
+  const bounds = computeGeometryBounds(geometry);
+  if (isSceneBoundsEmpty(bounds)) {
+    return {
+      id: roof.id,
+      floorId,
+      center: { x: 0, y: roof.height / 2, z: 0 },
+      width: ROOF_MARGIN * 2,
+      length: ROOF_MARGIN * 2,
+      height: roof.height,
+    };
+  }
+  const centerX = (bounds.minX + bounds.maxX) / 2;
+  const centerZ = (bounds.minZ + bounds.maxZ) / 2;
+  return {
+    id: roof.id,
+    floorId,
+    center: { x: centerX, y: bounds.maxY + roof.height / 2, z: centerZ },
+    width: (bounds.maxX - bounds.minX) + ROOF_MARGIN * 2,
+    length: (bounds.maxZ - bounds.minZ) + ROOF_MARGIN * 2,
+    height: roof.height,
+  };
+};
+
 export const generateBuildingModel = (building: Building): BuildingModel3D => {
   const floorIds = new Set<string>();
   for (const floor of building.floors) {
@@ -1565,19 +1835,31 @@ export const generateBuildingModel = (building: Building): BuildingModel3D => {
   const highest = building.floors.find((floor) => floor.id === building.roof.floorId);
   if (!highest) throw new FloorPlanValidationError([`Roof references an unknown floor '${building.roof.floorId}'.`]);
 
+  const wallBoxes = generatedFloors.flatMap((floor) => floor.wallBoxes);
+  const floors = generatedFloors.flatMap((floor) => floor.floors);
+  const ceilings = generatedFloors.flatMap((floor) => floor.ceilings);
+  const doors = generatedFloors.flatMap((floor) => floor.doors);
+  const windows = generatedFloors.flatMap((floor) => floor.windows);
+  const roof = deriveRoof(building.roof, highest.id, { wallBoxes, floors, ceilings, doors, windows, stairs });
+  const bounds = expandSceneBounds(
+    computeGeometryBounds({ wallBoxes, floors, ceilings, doors, windows, stairs }),
+    rotatedBoxBounds(roof.center, roof.width / 2, roof.height / 2, roof.length / 2, 0),
+  );
+
   return {
     unit: building.unit,
-    wallBoxes: generatedFloors.flatMap((floor) => floor.wallBoxes),
-    floors: generatedFloors.flatMap((floor) => floor.floors),
-    ceilings: generatedFloors.flatMap((floor) => floor.ceilings),
+    wallBoxes,
+    floors,
+    ceilings,
     openings: generatedFloors.flatMap((floor) => floor.openings),
     architecturalOpenings: generatedFloors.flatMap((floor) => floor.architecturalOpenings),
-    doors: generatedFloors.flatMap((floor) => floor.doors),
-    windows: generatedFloors.flatMap((floor) => floor.windows),
+    doors,
+    windows,
     stairs,
-    roof: { id: building.roof.id, floorId: highest.id, center: { x: 4.5, y: highest.elevation + highest.plan.walls[0].height + building.roof.height / 2, z: -3.5 }, width: 9.4, length: 7.4, height: building.roof.height },
+    roof,
     spatialElements,
     measurements: createMeasurements(building, spatialElements),
+    bounds,
   };
 };
 
