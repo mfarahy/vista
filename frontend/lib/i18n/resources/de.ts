@@ -135,6 +135,23 @@ const de: TranslationSchema = {
       'Laden Sie ein Grundrissbild hoch, um die normalisierte Vista-Geometrie als 2D-Overlay zu sehen und das resultierende JSON zu prüfen. Es wird nichts gespeichert.',
     emptyTitle: 'Noch kein Grundriss',
     emptyDescription: 'Laden Sie einen PNG- oder JPG-Grundriss hoch, um dessen Geometrie zu prüfen.',
+    provider: {
+      label: 'Geometriequelle',
+      mock: 'Mock',
+      ai: 'KI-Modell',
+      aiHint: 'Nutzt das CubiCasa5K-UNet im lokalen geometry-ai-Dienst',
+    },
+    extracting: 'Geometrie wird extrahiert…',
+    extractFailed: 'Die Geometrie konnte nicht extrahiert werden.',
+    ai: {
+      error: {
+        missingImage: 'Das hochgeladene Bild konnte nicht gelesen werden.',
+        serviceUnreachable:
+          'Der KI-Geometriedienst ist nicht erreichbar. Starten Sie ihn lokal (geometry-ai) und versuchen Sie es erneut — der Mock-Provider funktioniert weiterhin offline.',
+        extractFailed: 'Der KI-Dienst konnte aus diesem Bild keine Geometrie extrahieren.',
+        invalidResult: 'Der KI-Dienst hat ein ungültiges Ergebnis geliefert.',
+      },
+    },
     upload: {
       dropzone: 'Grundrissbild klicken oder ablegen',
       dropzoneHint: 'PNG · JPG, bis 15 MB',
@@ -155,6 +172,8 @@ const de: TranslationSchema = {
       windows: 'Fenster',
       version: 'Version',
       units: 'Einheiten',
+      provider: 'Quelle',
+      confidence: 'Konfidenz',
     },
     json: {
       title: 'Geometrie-JSON',

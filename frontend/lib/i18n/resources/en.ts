@@ -132,6 +132,23 @@ const en = {
       'Upload a floor plan image to see the normalized Vista geometry rendered as a 2D overlay and inspect the resulting JSON. Nothing is persisted.',
     emptyTitle: 'No floor plan yet',
     emptyDescription: 'Upload a PNG or JPG floor plan to inspect its geometry.',
+    provider: {
+      label: 'Geometry source',
+      mock: 'Mock',
+      ai: 'AI model',
+      aiHint: 'Runs the CubiCasa5K UNet in the local geometry-ai service',
+    },
+    extracting: 'Extracting geometry…',
+    extractFailed: 'The geometry could not be extracted.',
+    ai: {
+      error: {
+        missingImage: 'The uploaded image could not be read.',
+        serviceUnreachable:
+          'The AI geometry service is not reachable. Start it locally (geometry-ai) and retry — the Mock provider keeps working offline.',
+        extractFailed: 'The AI service could not extract geometry from this image.',
+        invalidResult: 'The AI service returned an invalid result.',
+      },
+    },
     upload: {
       dropzone: 'Click or drop a floor plan image',
       dropzoneHint: 'PNG · JPG, up to 15 MB',
@@ -152,6 +169,8 @@ const en = {
       windows: 'Windows',
       version: 'Version',
       units: 'Units',
+      provider: 'Provider',
+      confidence: 'Confidence',
     },
     json: {
       title: 'Geometry JSON',

@@ -1,0 +1,11 @@
+# Downloaded model weights (~100 MB) — fetch with download_weights.py
+weights/
+
+# Evaluation artifacts
+output/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
