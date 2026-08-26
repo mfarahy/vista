@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import type { BuildingModel3D } from "./geometryGenerator";
+import { computeCameraFraming, isSceneBoundsEmpty, type BuildingModel3D, type SceneBounds } from "./geometryGenerator";
 
 type BuildingViewerProps = {
   model: BuildingModel3D;
@@ -106,8 +106,18 @@ export function BuildingViewer({ model, selectedFloorId, selectedElement, onSele
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color("#eef2f1");
-    const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 100);
-    camera.position.set(10, 9, 11);
+
+    const framing = computeCameraFraming(model.bounds);
+    const hasValidBounds = model.bounds !== undefined && !isSceneBoundsEmpty(model.bounds);
+    const geometryBounds: SceneBounds = hasValidBounds
+      ? model.bounds
+      : { minX: -1, maxX: 1, minY: 0, maxY: 1, minZ: -1, maxZ: 1 };
+    const boundsCenterX = (geometryBounds.minX + geometryBounds.maxX) / 2;
+    const boundsCenterZ = (geometryBounds.minZ + geometryBounds.maxZ) / 2;
+    const boundsSpan = Math.max(geometryBounds.maxX - geometryBounds.minX, geometryBounds.maxZ - geometryBounds.minZ, 1);
+
+    const camera = new THREE.PerspectiveCamera(48, 1, framing.near, framing.far);
+    camera.position.set(framing.position.x, framing.position.y, framing.position.z);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -115,14 +125,14 @@ export function BuildingViewer({ model, selectedFloorId, selectedElement, onSele
     container.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(4.5, 1.2, -3.5);
+    controls.target.set(framing.target.x, framing.target.y, framing.target.z);
     controls.enableDamping = true;
-    controls.minDistance = 4;
-    controls.maxDistance = 25;
+    controls.minDistance = framing.minDistance;
+    controls.maxDistance = framing.maxDistance;
 
     scene.add(new THREE.HemisphereLight("#ffffff", "#9aa9a4", 2.2));
     const keyLight = new THREE.DirectionalLight("#ffffff", 2.5);
-    keyLight.position.set(6, 10, 5);
+    keyLight.position.set(boundsCenterX + boundsSpan, framing.target.y + boundsSpan * 1.5, boundsCenterZ + boundsSpan);
     keyLight.castShadow = true;
     scene.add(keyLight);
 
@@ -136,10 +146,10 @@ export function BuildingViewer({ model, selectedFloorId, selectedElement, onSele
       group.add(mesh);
 
       const floorSelector = new THREE.Mesh(
-        new THREE.BoxGeometry(10, 0.04, 8),
+        new THREE.BoxGeometry(geometryBounds.maxX - geometryBounds.minX, 0.04, geometryBounds.maxZ - geometryBounds.minZ),
         new THREE.MeshBasicMaterial({ color: "#dfe5e2", transparent: true, opacity: 0.03 }),
       );
-      floorSelector.position.set(4.5, floor.elevation - 0.05, -3.5);
+      floorSelector.position.set(boundsCenterX, floor.elevation - 0.05, boundsCenterZ);
       floorSelector.userData = { type: "floor", id: floor.floorId, floorId: floor.floorId };
       group.add(floorSelector);
     }
@@ -258,8 +268,8 @@ export function BuildingViewer({ model, selectedFloorId, selectedElement, onSele
 
     renderer.domElement.addEventListener("pointerdown", handlePointerDown);
 
-    const grid = new THREE.GridHelper(12, 12, "#b5c0bd", "#d6ddda");
-    grid.position.set(4.5, -0.02, -3.5);
+    const grid = new THREE.GridHelper(boundsSpan * 2, 14, "#b5c0bd", "#d6ddda");
+    grid.position.set(boundsCenterX, geometryBounds.minY - 0.02, boundsCenterZ);
     scene.add(grid);
 
     const axes = new THREE.AxesHelper(1.4);
