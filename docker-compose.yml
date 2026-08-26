@@ -132,7 +132,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # Input normalization: none | gray | binary. binary (Otsu → dark lines
       # on white) recovers walls from colour/photo plans (brown/tiled etc).
-      GEOMETRY_PREPROCESS: ${GEOMETRY_PREPROCESS:-none}
+      GEOMETRY_PREPROCESS: ${GEOMETRY_PREPROCESS:-binary}
     networks:
       - monitor-net
 

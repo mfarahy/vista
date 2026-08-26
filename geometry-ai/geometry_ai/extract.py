@@ -502,7 +502,7 @@ class GeometryInference:
         self.letterbox: bool = cfg["data"].get("letterbox", True)
         self.normalize: bool = cfg["data"].get("normalize", True)
         self.preprocess: str = os.environ.get(
-            "GEOMETRY_PREPROCESS", cfg["data"].get("preprocess", "none")
+            "GEOMETRY_PREPROCESS", cfg["data"].get("preprocess", "binary")
         )
 
         self.model = build_model(encoder_name=cfg["model"]["encoder_name"]).to(device)
