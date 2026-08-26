@@ -160,6 +160,12 @@ const en = {
       imageAlt: 'Floor plan with geometry overlay',
       replace: 'Replace image',
     },
+    debug: {
+      label: 'Geometry view',
+      raw: 'AI raw',
+      normalized: 'Normalized',
+      hint: 'Developer compare mode',
+    },
     inspector: {
       floorPlan: 'Floor plan',
       title: 'Geometry',

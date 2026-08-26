@@ -163,6 +163,12 @@ const de: TranslationSchema = {
       imageAlt: 'Grundriss mit Geometrie-Overlay',
       replace: 'Bild ersetzen',
     },
+    debug: {
+      label: 'Geometrieansicht',
+      raw: 'KI-Rohdaten',
+      normalized: 'Normalisiert',
+      hint: 'Entwickler-Vergleichsmodus',
+    },
     inspector: {
       floorPlan: 'Grundriss',
       title: 'Geometrie',

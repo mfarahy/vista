@@ -1,26 +1,32 @@
-import { GEOMETRY_VERSION, type Door, type Point2D, type Room, type VistaGeometry, type Wall, type Window } from '../models/geometry';
+import {
+  GEOMETRY_VERSION,
+  type Door,
+  type Point2D,
+  type Room,
+  type VistaGeometry,
+  type Wall,
+  type Window,
+} from '../models/geometry';
 import type { RawModelResult, RawPoint, RawPolygon } from './types';
 
 /**
- * Converts the model's raw output into the canonical `VistaGeometry` schema.
+ * Converts the model's raw output (and its deterministic normalization) into
+ * the canonical `VistaGeometry` schema.
  *
  * The adapter is the *only* place model-specific structures are translated.
- * Mapping rules:
+ * It produces two `VistaGeometry` variants so the UI can compare them in debug
+ * mode without ever seeing model structures:
  *
- * - walls        → centerline wall segments (already derived by the model
- *                  post-processing); thickness and type are kept as-is.
- * - rooms        → floor regions enclosed by walls (`floor_regions`).
- * - doors/windows→ openings are *snapped* onto the nearest wall segment
- *                  (position = fraction along the wall, width = opening
- *                  extent along the wall). Only openings within
- *                  `MAX_OPENING_WALL_DISTANCE` of a wall survive; the rest
- *                  are genuinely dropped — the model's opening detections
- *                  are noisy and this is a feasibility-phase heuristic.
- * - stairs       → the model has no stair class; the array stays empty and
- *                  the limitation is documented (nothing is invented).
- * - confidence   → entity-level confidence is carried over from the model's
- *                  own softmax probabilities; the overall `confidence` is the
- *                  area/entity-weighted mean. Never fabricated.
+ * - `rawResultToVistaGeometry`   — what the AI produced (walls as-is, rooms =
+ *   `floor_regions`, openings snapped within a fixed distance). This is the
+ *   Phase 2 pipeline, kept intact for inspection.
+ * - `normalizedResultToVistaGeometry` — what the Phase 3 normalization layer
+ *   produced (merged walls, topology-derived rooms, wall-validated openings).
+ *   Rooms are derived from walls and flagged `<derived>`; openings keep the AI
+ *   confidence and a `<corrected>` flag when post-processing moved them.
+ *
+ * Confidence is always the model's own softmax value — it is never fabricated
+ * for geometry the model did not detect.
  */
 
 /** Max source-pixel distance an opening centroid may be from its host wall. */
@@ -119,10 +125,20 @@ function rawPointsToPoints(points: RawPoint[]): Point2D[] {
   return points.map(([x, y]) => ({ x, y }));
 }
 
+function aggregateConfidence(entities: { confidence?: number }[]): number | undefined {
+  const confidences = entities
+    .map((e) => e.confidence)
+    .filter((c): c is number => typeof c === 'number' && Number.isFinite(c) && c > 0);
+  if (confidences.length === 0) return undefined;
+  return confidences.reduce((a, b) => a + b, 0) / confidences.length;
+}
+
+/** Phase 2 "AI raw" view of the model output. */
 export function rawResultToVistaGeometry(raw: RawModelResult): VistaGeometry {
+  const extraction = raw.raw;
   const source = { width: raw.input.width, height: raw.input.height };
 
-  const walls: Wall[] = raw.walls.map((segment, i) => ({
+  const walls: Wall[] = extraction.walls.map((segment, i) => ({
     id: `ai-wall-${i}`,
     start: { x: segment.start[0], y: segment.start[1] },
     end: { x: segment.end[0], y: segment.end[1] },
@@ -131,7 +147,7 @@ export function rawResultToVistaGeometry(raw: RawModelResult): VistaGeometry {
     confidence: segment.confidence,
   }));
 
-  const rooms: Room[] = raw.floor_regions.map((region, i) => {
+  const rooms: Room[] = extraction.floor_regions.map((region, i) => {
     const polygon = rawPointsToPoints(region.outer);
     return {
       id: `ai-room-${i}`,
@@ -143,25 +159,18 @@ export function rawResultToVistaGeometry(raw: RawModelResult): VistaGeometry {
   });
 
   const doors: Door[] = [];
-  for (const poly of raw.polygons.door) {
+  for (const poly of extraction.polygons.door) {
     const snapped = snapOpeningToWall(poly, walls);
     if (!snapped) continue;
     doors.push({ id: `ai-door-${doors.length}`, ...snapped, swing: DEFAULT_SWING });
   }
 
   const windows: Window[] = [];
-  for (const poly of raw.polygons.window) {
+  for (const poly of extraction.polygons.window) {
     const snapped = snapOpeningToWall(poly, walls);
     if (!snapped) continue;
     windows.push({ id: `ai-window-${windows.length}`, ...snapped });
   }
-
-  const confidences: number[] = [
-    ...walls.map((w) => w.confidence ?? 0),
-    ...rooms.map((r) => r.confidence ?? 0),
-    ...doors.map((d) => d.confidence ?? 0),
-    ...windows.map((w) => w.confidence ?? 0),
-  ].filter((c) => Number.isFinite(c) && c > 0);
 
   return {
     version: GEOMETRY_VERSION,
@@ -173,7 +182,59 @@ export function rawResultToVistaGeometry(raw: RawModelResult): VistaGeometry {
     windows,
     stairs: [],
     scale: null,
-    confidence:
-      confidences.length > 0 ? confidences.reduce((a, b) => a + b, 0) / confidences.length : undefined,
+    confidence: aggregateConfidence([...walls, ...rooms, ...doors, ...windows]),
+  };
+}
+
+/** Phase 3 normalized view: merged walls, topology rooms, validated openings. */
+export function normalizedResultToVistaGeometry(raw: RawModelResult): VistaGeometry {
+  const extraction = raw.normalized;
+  const source = { width: raw.input.width, height: raw.input.height };
+
+  const walls: Wall[] = extraction.walls.map((wall) => ({
+    id: wall.id,
+    start: { x: wall.start[0], y: wall.start[1] },
+    end: { x: wall.end[0], y: wall.end[1] },
+    thickness: Math.max(1, Math.round(wall.thickness)),
+    type: wall.type,
+    confidence: wall.confidence,
+  }));
+
+  const rooms: Room[] = extraction.rooms.map((room) => ({
+    id: room.id,
+    name: null,
+    polygon: rawPointsToPoints(room.polygon),
+    wallIds: room.wall_ids,
+    confidence: room.confidence ?? undefined,
+  }));
+
+  const doors: Door[] = extraction.doors.map((opening) => ({
+    id: opening.id,
+    wallId: opening.wall_id,
+    position: opening.position,
+    width: opening.width,
+    swing: DEFAULT_SWING,
+    confidence: opening.confidence,
+  }));
+
+  const windows: Window[] = extraction.windows.map((opening) => ({
+    id: opening.id,
+    wallId: opening.wall_id,
+    position: opening.position,
+    width: opening.width,
+    confidence: opening.confidence,
+  }));
+
+  return {
+    version: GEOMETRY_VERSION,
+    units: 'px',
+    source,
+    walls,
+    rooms,
+    doors,
+    windows,
+    stairs: [],
+    scale: null,
+    confidence: aggregateConfidence([...walls, ...rooms, ...doors, ...windows]),
   };
 }

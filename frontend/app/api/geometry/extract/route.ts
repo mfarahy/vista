@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchRawGeometry } from '@/lib/geometry/ai/ai-service';
-import { rawResultToVistaGeometry } from '@/lib/geometry/ai/geometry-adapter';
+import {
+  normalizedResultToVistaGeometry,
+  rawResultToVistaGeometry,
+} from '@/lib/geometry/ai/geometry-adapter';
 
 export const runtime = 'nodejs';
 
@@ -9,9 +12,10 @@ const MAX_BYTES = 15 * 1024 * 1024;
 /**
  * Proxy for the local geometry-ai Python service.
  *
- * Receives the uploaded floor plan, runs the raw model extraction through the
- * AI adapter, and returns only a `VistaGeometry` (plus display metadata). The
- * frontend never sees model-specific structures.
+ * Receives the uploaded floor plan, runs the raw model extraction plus the
+ * deterministic Phase 3 normalization, and returns *two* `VistaGeometry`
+ * variants (raw and normalized) plus display metadata. The frontend never sees
+ * model-specific structures.
  */
 export async function POST(req: NextRequest) {
   let form: FormData;
@@ -33,9 +37,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const raw = await fetchRawGeometry(buffer, file.type);
-    const geometry = rawResultToVistaGeometry(raw);
+    const rawGeometry = rawResultToVistaGeometry(raw);
+    const geometry = normalizedResultToVistaGeometry(raw);
     return NextResponse.json({
       geometry,
+      rawGeometry,
       meta: {
         modelId: raw.model.id,
         epoch: raw.model.epoch,

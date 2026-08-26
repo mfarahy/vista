@@ -1,4 +1,4 @@
-import type { VistaGeometry } from '../models/geometry';
+import type { GeometryExtraction } from './geometry-provider';
 import type { FloorPlanImage, GeometryProvider } from './geometry-provider';
 
 /**
@@ -25,12 +25,12 @@ export class AIGeometryError extends Error {
  * Real inference provider. Sends the uploaded floor plan to the local
  * `/api/geometry/extract` proxy (which talks to the geometry-ai Python
  * service and runs the VistaGeometry adapter); the client-side only receives
- * a normalized `VistaGeometry`.
+ * normalized `VistaGeometry` variants.
  */
 export class AIGeometryProvider implements GeometryProvider {
   readonly type = 'ai' as const;
 
-  async extract(image: FloorPlanImage): Promise<VistaGeometry> {
+  async extract(image: FloorPlanImage): Promise<GeometryExtraction> {
     if (!image.data) {
       throw new AIGeometryError('missing-image');
     }
@@ -54,8 +54,11 @@ export class AIGeometryProvider implements GeometryProvider {
     }
 
     try {
-      const payload = (await res.json()) as { geometry: VistaGeometry };
-      return payload.geometry;
+      const payload = (await res.json()) as {
+        geometry: import('../models/geometry').VistaGeometry;
+        rawGeometry?: import('../models/geometry').VistaGeometry;
+      };
+      return { geometry: payload.geometry, rawGeometry: payload.rawGeometry };
     } catch {
       throw new AIGeometryError('invalid-result');
     }

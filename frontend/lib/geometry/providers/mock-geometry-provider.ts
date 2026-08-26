@@ -13,8 +13,8 @@ import type { FloorPlanImage, GeometryProvider } from './geometry-provider';
 export class MockGeometryProvider implements GeometryProvider {
   readonly type = 'mock' as const;
 
-  async extract(image: FloorPlanImage): Promise<VistaGeometry> {
-    return buildMockGeometry(image);
+  async extract(image: FloorPlanImage) {
+    return { geometry: buildMockGeometry(image) };
   }
 }
 
