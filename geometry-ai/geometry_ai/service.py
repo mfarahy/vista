@@ -58,6 +58,7 @@ def build_app(weights_dir: str | Path, device: str | None = None, ckpt: str = "b
                     "epoch": inference.epoch,
                     "model": inference.model.__class__.__name__,
                     "image_size": list(inference.image_size),
+                    "preprocess": inference.preprocess,
                 },
             )
 

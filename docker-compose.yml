@@ -130,6 +130,9 @@ services:
       HOST: 0.0.0.0
       PORT: 8787
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Input normalization: none | gray | binary. binary (Otsu → dark lines
+      # on white) recovers walls from colour/photo plans (brown/tiled etc).
+      GEOMETRY_PREPROCESS: ${GEOMETRY_PREPROCESS:-none}
     networks:
       - monitor-net
 

@@ -26,6 +26,7 @@ on the original image.
 
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 from typing import Any, Iterable
@@ -500,6 +501,9 @@ class GeometryInference:
         self.image_size: tuple[int, int] = tuple(cfg["data"]["image_size"])  # (H, W)
         self.letterbox: bool = cfg["data"].get("letterbox", True)
         self.normalize: bool = cfg["data"].get("normalize", True)
+        self.preprocess: str = os.environ.get(
+            "GEOMETRY_PREPROCESS", cfg["data"].get("preprocess", "none")
+        )
 
         self.model = build_model(encoder_name=cfg["model"]["encoder_name"]).to(device)
         self.epoch = load_inference_checkpoint(self.model, str(weights_dir / ckpt), device)
@@ -514,7 +518,7 @@ class GeometryInference:
         src_size = (image.size[0], image.size[1])
 
         input_t, content_rect = to_input_tensor(
-            image, self.image_size, self.letterbox, self.normalize
+            image, self.image_size, self.letterbox, self.normalize, preprocess=self.preprocess
         )
         t_infer0 = time.perf_counter()
         logits = self.model(input_t.to(self.device))

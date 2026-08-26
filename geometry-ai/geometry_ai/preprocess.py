@@ -18,6 +18,7 @@ import io
 import numpy as np
 import torch
 from PIL import Image
+from skimage.filters import threshold_otsu
 
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
@@ -28,6 +29,27 @@ ContentRect = tuple[int, int, int, int]
 def load_source_rgb(image_bytes: bytes) -> Image.Image:
     """Decode a raster image to RGB, preserving original pixel dims."""
     return Image.open(io.BytesIO(image_bytes)).convert("RGB")
+
+
+def binarize_gray(image: Image.Image) -> Image.Image:
+    """Render the plan as dark lines on a white background (Otsu threshold).
+
+    The UNet was trained on black-and-white line drawings. Colour and photo
+    floor plans — light-brown paper, tiled kitchen floors, washed-out scans —
+    push the model toward labelling the whole image as background/floor, so
+    no walls are detected. Binarizing restores the model's training domain.
+    Applied at source resolution, before the letterbox resize, to preserve
+    line contrast for the threshold.
+    """
+    gray = np.asarray(image.convert("L"))
+    thr = threshold_otsu(gray)
+    binary = np.where(gray > thr, 255, 0).astype(np.uint8)
+    return Image.fromarray(np.stack([binary] * 3, axis=-1))
+
+
+def to_grayscale(image: Image.Image) -> Image.Image:
+    """Drop colour (keep luminance) as 3 identical channels."""
+    return image.convert("L").convert("RGB")
 
 
 def _normalize(image_t: torch.Tensor) -> torch.Tensor:
@@ -41,12 +63,22 @@ def to_input_tensor(
     image_size: tuple[int, int] = (512, 512),
     letterbox: bool = True,
     normalize: bool = True,
+    preprocess: str = "none",
 ) -> tuple[torch.Tensor, ContentRect]:
     """Convert a raster floor plan into the model's input tensor.
 
     Returns (tensor [1, 3, H, W], content_rect). Content rect is expressed
     in canvas (mask) pixel coordinates.
+
+    `preprocess` may be `"none"`, `"gray"` (drop colour) or `"binary"`
+    (Otsu binarization to dark lines on white). It runs on the source image
+    before letterboxing so line contrast is preserved for the threshold.
     """
+    if preprocess == "binary":
+        image = binarize_gray(image)
+    elif preprocess == "gray":
+        image = to_grayscale(image)
+
     src_w, src_h = image.size
     H, W = image_size
 
@@ -58,7 +90,7 @@ def to_input_tensor(
         inner_w, inner_h = W, H
 
     resized = image.resize((inner_w, inner_h), Image.BILINEAR)
-    image_t = torch.from_numpy(np.asarray(resized)).permute(2, 0, 1).contiguous().float().div_(255.0)
+    image_t = torch.from_numpy(np.array(resized)).permute(2, 0, 1).contiguous().float().div_(255.0)
     if normalize:
         image_t = _normalize(image_t)
 
