@@ -7,8 +7,10 @@ A single bare-bones stdlib HTTP server (no FastAPI/uvicorn) exposing:
                        returns the raw model output document (VistaGeometry
                        adapter runs in the frontend API route, not here).
 
-This is intentionally the smallest possible local service — there is no Docker,
-queueing, auth or deployment wiring. Start it with:
+This is intentionally a minimal service — there is no queueing, auth or
+database wiring. It runs both locally and in a container (Dockerfile +
+`deploy/helm/vista-geometry-ai`); `HOST`/`PORT` may be set via environment
+variables and default to `127.0.0.1:8787`. Start it with:
 
     python -m geometry_ai.service --weights weights --port 8787
 
@@ -20,6 +22,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -91,16 +94,17 @@ def build_app(weights_dir: str | Path, device: str | None = None, ckpt: str = "b
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--weights", type=Path, default=Path(__file__).resolve().parent.parent / "weights")
-    p.add_argument("--port", type=int, default=8787)
+    p.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
+    p.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8787")))
     p.add_argument("--device", default=None)
     p.add_argument("--verbose", action="store_true")
     args = p.parse_args()
 
     inference, Handler = build_app(args.weights, args.device)
-    httpd = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
+    httpd = ThreadingHTTPServer((args.host, args.port), Handler)
     httpd.verbose = args.verbose  # type: ignore[attr-defined]
     print(
-        f"[geometry-ai] ready on http://127.0.0.1:{args.port} "
+        f"[geometry-ai] ready on http://{args.host}:{args.port} "
         f"(model '{inference.model.__class__.__name__}', device {inference.device}, epoch {inference.epoch})"
     )
     try:

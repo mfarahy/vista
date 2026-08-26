@@ -119,6 +119,20 @@ services:
     networks:
       - monitor-net
 
+  # ── Geometry Inference (floor-plan UNet — consumes images over HTTP) ─────────
+  geometry-ai:
+    build:
+      context: ./geometry-ai
+    restart: unless-stopped
+    ports:
+      - "${GEOMETRY_AI_PORT:-8787}:8787"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8787
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    networks:
+      - monitor-net
+
 volumes:
   pgdata:
   prometheus_data:

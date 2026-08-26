@@ -27,29 +27,28 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-        - name: frontend
+        - name: geometry-ai
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - containerPort: {{ .Values.service.targetPort }}
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
           env:
-            - name: NEXT_PUBLIC_API_BASE_URL
-              value: {{ .Values.config.NEXT_PUBLIC_API_BASE_URL | quote }}
-            - name: NEXT_PUBLIC_APP_URL
-              value: {{ .Values.config.NEXT_PUBLIC_APP_URL | quote }}
-            - name: NEXT_PUBLIC_ENABLE_DEMO
-              value: {{ .Values.config.NEXT_PUBLIC_ENABLE_DEMO | quote }}
-            - name: GEOMETRY_AI_SERVICE_URL
-              value: {{ .Values.config.GEOMETRY_AI_SERVICE_URL | quote }}
+            - name: HOST
+              value: {{ .Values.config.HOST | quote }}
+            - name: PORT
+              value: {{ .Values.config.PORT | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.config.LOG_LEVEL | quote }}
           readinessProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: {{ .Values.service.targetPort }}
             initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: {{ .Values.service.targetPort }}
             initialDelaySeconds: 20
             periodSeconds: 20

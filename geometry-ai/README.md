@@ -11,8 +11,9 @@ destructive**: every candidate (accepted, ambiguous, rejected) is preserved
 with status + reasons, opening validation is conservative
 (`valid` / `uncertain` / `invalid`), `/geometry` gains a developer debug
 view/entity inspector, and only genuinely ambiguous openings can be passed to
-an optional `GeometryRefinementProvider`. This is the minimal local inference
-service — intentionally **not** production infrastructure.
+an optional `GeometryRefinementProvider`. This is the minimal inference
+service — it can run locally on CPU or as a container in the deployment
+(Dockerfile + `deploy/helm/vista-geometry-ai`).
 
 ```
 python -m geometry_ai.evaluate      # run skim fixtures, write output/
@@ -76,3 +77,17 @@ nearest wall, distance, width, status and rejection reasons.
 `GEOMETRY_AI_SERVICE_URL` (frontend env, default `http://127.0.0.1:8787`)
 points the Next.js API route at this service. Optional refinement wiring
 (`GEOMETRY_REFINEMENT_PROVIDER=ai`) is described under `refinement.py`.
+
+## Container / deployment
+
+- `Dockerfile` — builds the CPU-only service image (PyTorch wheels from the
+  CPU index, ~98 MB MIT weights baked in at build time). `HOST`/`PORT` default
+  to `0.0.0.0:8787` inside the container; the stdlib HTTP server keeps a
+  `/healthz` probe so it works behind k8s probes without an extra runtime.
+- `docker-compose.yml` (repo root) — runs it as `geometry-ai` on
+  `0.0.0.0:8787` for local development.
+- `deploy/helm/vista-geometry-ai` — Helm chart: `Deployment` + `Service`
+  (ClusterIP, internal only). The frontend chart defaults
+  `GEOMETRY_AI_SERVICE_URL` to `http://vista-geometry-ai:80`
+  (`deploy/helm/vista-frontend/values.yaml`); override there for other
+  environments — it is not driven by CI variables.

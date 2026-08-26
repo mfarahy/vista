@@ -1,0 +1,24 @@
+replicaCount: ${VISTA_GEOMETRY_AI_REPLICAS}
+
+image:
+  repository: "${CI_REGISTRY_IMAGE}/geometry-ai"
+  tag: "${RELEASE_VERSION}"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8787
+
+config:
+  HOST: "0.0.0.0"
+  PORT: "8787"
+  LOG_LEVEL: "${LOG_LEVEL}"
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
