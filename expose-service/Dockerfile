@@ -24,6 +24,8 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/src ./src
 COPY --from=build /app/public ./public
+COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/prisma.config.ts ./
 RUN mkdir -p data public/uploads
 EXPOSE 4000
 CMD ["node", "dist/index.js"]
