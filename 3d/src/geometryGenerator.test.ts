@@ -13,6 +13,11 @@ import {
   validateFloorPlan,
   wallLength,
   buildWallSegments,
+  computeBuildingBounds,
+  computeCameraFraming,
+  expandSceneBounds,
+  emptySceneBounds,
+  isSceneBoundsEmpty,
   type BoxPart3D,
   type WallBox3D,
 } from "./geometryGenerator";
@@ -1182,5 +1187,233 @@ describe("orientation-aware measurement rendering", () => {
     const rotation = Math.atan2(4, 3);
     expect(direction.x).toBeCloseTo(Math.cos(rotation), 6);
     expect(direction.z).toBeCloseTo(-Math.sin(rotation), 6);
+  });
+});
+
+const finiteBounds = (model: ReturnType<typeof generateBuildingModel>) => {
+  for (const key of ["minX", "maxX", "minY", "maxY", "minZ", "maxZ"] as const) {
+    expect(Number.isFinite(model.bounds[key])).toBe(true);
+  }
+};
+
+const multiRoomPlan = ((): FloorPlan2D => {
+  const corners = rotatedRect(12, 8, 0);
+  const left = [
+    { x: -6, y: -4 }, { x: 0, y: -4 }, { x: 0, y: 4 }, { x: -6, y: 4 },
+  ];
+  const right = [
+    { x: 0, y: -4 }, { x: 6, y: -4 }, { x: 6, y: 4 }, { x: 0, y: 4 },
+  ];
+  return {
+    unit: "m",
+    walls: [
+      { id: "w-outer-s", start: { x: -6, y: -4 }, end: { x: 6, y: -4 }, thickness: 0.2, height: 2.8, kind: "exterior" },
+      { id: "w-outer-e", start: { x: 6, y: -4 }, end: { x: 6, y: 4 }, thickness: 0.2, height: 2.8, kind: "exterior" },
+      { id: "w-outer-n", start: { x: 6, y: 4 }, end: { x: -6, y: 4 }, thickness: 0.2, height: 2.8, kind: "exterior" },
+      { id: "w-outer-w", start: { x: -6, y: 4 }, end: { x: -6, y: -4 }, thickness: 0.2, height: 2.8, kind: "exterior" },
+      { id: "w-divider", start: { x: 0, y: -4 }, end: { x: 0, y: 4 }, thickness: 0.15, height: 2.8, kind: "interior" },
+    ],
+    doors: [{ id: "conn", wallId: "w-divider", offset: 1, width: 1, height: 2.1 }],
+    windows: [],
+    rooms: [
+      { id: "room-l", name: "Left", boundary: left },
+      { id: "room-r", name: "Right", boundary: right },
+    ],
+  };
+})();
+
+const multiFloorBuilding = (): Building => ({
+  id: "multi-floor",
+  unit: "m",
+  floors: [
+    { id: "f1", name: "Floor 1", elevation: 0, floorToFloorHeight: 3, plan: rectPlan(8, 6) },
+    { id: "f2", name: "Floor 2", elevation: 3, floorToFloorHeight: 3, plan: rectPlan(8, 6) },
+    { id: "f3", name: "Floor 3", elevation: 6, floorToFloorHeight: 3, plan: rectPlan(8, 6) },
+  ],
+  stairs: [],
+  roof: { id: "roof", floorId: "f3", height: 0.3 },
+});
+
+describe("derived scene bounds", () => {
+  it("empty helper bounds are reported as empty and expand with input", () => {
+    const empty = emptySceneBounds();
+    expect(isSceneBoundsEmpty(empty)).toBe(true);
+    const nonEmpty = { minX: 0, maxX: 4, minY: 0, maxY: 3, minZ: -4, maxZ: 0 };
+    expect(expandSceneBounds(empty, nonEmpty)).toEqual(nonEmpty);
+    expect(isSceneBoundsEmpty(nonEmpty)).toBe(false);
+  });
+
+  it("small single-room building produces finite, minimal scene bounds", () => {
+    const model = generateBuildingModel(asBuilding(rectPlan(2, 1.5)));
+    finiteBounds(model);
+    expect(model.bounds.minX).toBeCloseTo(-1.375, 1);
+    expect(model.bounds.maxX).toBeCloseTo(1.375, 1);
+    expect(model.bounds.minZ).toBeCloseTo(-1.125, 1);
+    expect(model.bounds.maxZ).toBeCloseTo(1.125, 1);
+    expect(model.bounds.maxX - model.bounds.minX).toBeGreaterThan(2);
+    expect(model.bounds.maxY).toBeCloseTo(2.8 + 0.3, 6);
+    expect(model.bounds.minY).toBeCloseTo(0, 6);
+  });
+
+  it("large building produces proportionally larger bounds (no fixed-size assumption)", () => {
+    const small = generateBuildingModel(asBuilding(rectPlan(4, 4)));
+    const large = generateBuildingModel(asBuilding(rectPlan(200, 100)));
+    const smallSpan = small.bounds.maxX - small.bounds.minX;
+    const largeSpan = large.bounds.maxX - large.bounds.minX;
+    expect(largeSpan).toBeGreaterThan(smallSpan * 10);
+    expect(large.bounds.maxX - large.bounds.minX).toBeGreaterThan(199);
+  });
+
+  it("walls and floors are both included so rotated/asym geometry is covered", () => {
+    const model = generateBuildingModel(asBuilding(axisAlignedPlan()));
+    const room = model.spatialElements.rooms[0];
+    const roomMinX = Math.min(...room.boundary.map((p) => p.x));
+    const roomMaxX = Math.max(...room.boundary.map((p) => p.x));
+    expect(model.bounds.minX).toBeLessThanOrEqual(roomMinX);
+    expect(model.bounds.maxX).toBeGreaterThanOrEqual(roomMaxX);
+    expect(model.bounds.minY).toBeLessThanOrEqual(0);
+  });
+
+  it("rotated building still produces a correct covering axis-aligned bounds", () => {
+    const model = generateBuildingModel(asBuilding(rotatedPlan(Math.PI / 4)));
+    finiteBounds(model);
+    const centroid = {
+      x: (model.bounds.minX + model.bounds.maxX) / 2,
+      y: (model.bounds.minY + model.bounds.maxY) / 2,
+      z: (model.bounds.minZ + model.bounds.maxZ) / 2,
+    };
+    expect(centroid.x).toBeCloseTo(0, 5);
+    expect(centroid.z).toBeCloseTo(0, 5);
+    const spanX = model.bounds.maxX - model.bounds.minX;
+    const spanZ = model.bounds.maxZ - model.bounds.minZ;
+    expect(spanX).toBeCloseTo(spanZ, 5);
+    expect(spanX).toBeGreaterThan(4);
+  });
+
+  it("multi-room building covers the union footprint of all rooms", () => {
+    const model = generateBuildingModel(asBuilding(multiRoomPlan));
+    finiteBounds(model);
+    expect(model.bounds.maxX - model.bounds.minX).toBeGreaterThan(12 - 0.2);
+    expect(model.bounds.maxZ - model.bounds.minZ).toBeGreaterThan(8 - 0.2);
+  });
+
+  it("multi-floor building includes the full vertical extent of every floor", () => {
+    const model = generateBuildingModel(multiFloorBuilding());
+    finiteBounds(model);
+    expect(model.bounds.minY).toBeCloseTo(0, 6);
+    expect(model.bounds.maxY).toBeGreaterThan(6 + 2.8);
+  });
+
+  it("stairs extend the bounds beyond the room footprint when they protrude", () => {
+    const longStairPlan = (): FloorPlan2D => rectPlan(4, 4);
+    const building: Building = {
+      id: "stair-protrude",
+      unit: "m",
+      floors: [
+        { id: "lower", name: "Lower", elevation: 0, floorToFloorHeight: 3, plan: longStairPlan() },
+        { id: "upper", name: "Upper", elevation: 3, floorToFloorHeight: 3, plan: longStairPlan() },
+      ],
+      stairs: [{ id: "long", sourceFloorId: "lower", targetFloorId: "upper", position: { x: 0, y: 0 }, width: 1, length: 10, height: 3 }],
+      roof: { id: "roof", floorId: "upper", height: 0.3 },
+    };
+    const model = generateBuildingModel(building);
+    finiteBounds(model);
+    expect(model.bounds.maxZ - model.bounds.minZ).toBeGreaterThan(10);
+  });
+
+  it("doors and windows keep bounds within (and at least as large as) wall bounds", () => {
+    const plan: FloorPlan2D = {
+      unit: "m",
+      walls: [{ id: "w", start: { x: 0, y: 0 }, end: { x: 8, y: 0 }, thickness: 0.2, height: 2.8, kind: "exterior" }],
+      doors: [{ id: "d", wallId: "w", offset: 1, width: 1.2, height: 2.1 }],
+      windows: [{ id: "win", wallId: "w", offset: 4, width: 1.6, height: 1.2, sillHeight: 0.9 }],
+      rooms: [],
+    };
+    const model = generateBuildingModel(asBuilding(plan));
+    finiteBounds(model);
+    expect(model.bounds.maxX - model.bounds.minX).toBeGreaterThanOrEqual(8);
+    expect(Number.isFinite(model.bounds.maxY)).toBe(true);
+  });
+
+  it("empty building (no walls/rooms) produces a tiny finite fallback and safe framing", () => {
+    const emptyPlan: FloorPlan2D = { unit: "m", walls: [], doors: [], windows: [], rooms: [] };
+    const model = generateBuildingModel(asBuilding(emptyPlan));
+    finiteBounds(model);
+    const spanX = model.bounds.maxX - model.bounds.minX;
+    expect(spanX).toBeGreaterThan(0);
+    expect(spanX).toBeLessThanOrEqual(0.7);
+    const framing = computeCameraFraming(model.bounds);
+    for (const value of [framing.position.x, framing.position.y, framing.position.z, framing.near, framing.far, framing.minDistance, framing.maxDistance]) {
+      expect(Number.isFinite(value)).toBe(true);
+    }
+  });
+
+  it("degenerate zero-size bounds fail safely in framing", () => {
+    const degenerate = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
+    expect(isSceneBoundsEmpty(degenerate)).toBe(false);
+    const framing = computeCameraFraming(degenerate);
+    for (const value of [framing.position.x, framing.position.y, framing.position.z, framing.near, framing.far, framing.minDistance, framing.maxDistance]) {
+      expect(Number.isFinite(value)).toBe(true);
+    }
+  });
+
+  it("NaN/Infinity coordinates are treated as empty and framed safely", () => {
+    const invalid = { minX: NaN, maxX: Infinity, minY: 0, maxY: NaN, minZ: 0, maxZ: 0 };
+    expect(isSceneBoundsEmpty(invalid)).toBe(true);
+    const framing = computeCameraFraming(invalid);
+    for (const value of [framing.position.x, framing.position.y, framing.position.z, framing.near, framing.far, framing.minDistance, framing.maxDistance]) {
+      expect(Number.isFinite(value)).toBe(true);
+    }
+  });
+
+  it("core room bounds derivation is finite for the canonical demo villa", () => {
+    const model = generateBuildingModel(demoBuilding);
+    expect(isSceneBoundsEmpty(model.bounds)).toBe(false);
+    expect(model.bounds.minY).toBeCloseTo(-2.8, 6);
+  });
+});
+
+describe("camera framing derived from scene size", () => {
+  it("empty scene falls back to the fixed safe default (deterministic, no NaN)", () => {
+    const framing = computeCameraFraming(emptySceneBounds());
+    expect(framing.position).toEqual({ x: 10, y: 9, z: 11 });
+    expect(framing.near).toBe(0.1);
+    expect(framing.far).toBe(100);
+    expect(framing.minDistance).toBe(4);
+    expect(framing.maxDistance).toBe(25);
+  });
+
+  it("target is the centre of the scene bounds", () => {
+    const bounds = { minX: -10, maxX: 10, minY: 0, maxY: 10, minZ: -5, maxZ: 5 };
+    const framing = computeCameraFraming(bounds);
+    expect(framing.target).toEqual({ x: 0, y: 5, z: 0 });
+  });
+
+  it("larger buildings get proportionally larger camera distance and clipping planes", () => {
+    const small = computeCameraFraming({ minX: 0, maxX: 5, minY: 0, maxY: 3, minZ: -5, maxZ: 0 });
+    const large = computeCameraFraming({ minX: 0, maxX: 100, minY: 0, maxY: 50, minZ: -100, maxZ: 0 });
+    const dist = (f: { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } }) =>
+      Math.hypot(f.position.x - f.target.x, f.position.y - f.target.y, f.position.z - f.target.z);
+    expect(dist(large)).toBeGreaterThan(dist(small) * 10);
+    expect(large.far).toBeGreaterThan(small.far);
+    expect(large.near).toBeGreaterThan(small.near);
+    expect(large.minDistance).toBeGreaterThan(small.minDistance);
+    expect(large.maxDistance).toBeGreaterThan(small.maxDistance);
+  });
+
+  it("clipping planes enclose the framing distance with conservative margin", () => {
+    const bounds = { minX: 0, maxX: 20, minY: 0, maxY: 20, minZ: -20, maxZ: 0 };
+    const framing = computeCameraFraming(bounds);
+    const dist = Math.hypot(framing.position.x - framing.target.x, framing.position.y - framing.target.y, framing.position.z - framing.target.z);
+    const radius = 0.5 * Math.hypot(20, 20, 20);
+    expect(framing.far).toBeGreaterThan(dist + radius);
+    expect(framing.near).toBeLessThan(dist - radius);
+  });
+
+  it("multi-floor building framing includes every floor in the vertical extent", () => {
+    const model = generateBuildingModel(multiFloorBuilding());
+    const framing = computeCameraFraming(model.bounds);
+    expect(framing.target.y).toBeGreaterThan(3);
+    expect(framing.far).toBeGreaterThan(model.bounds.maxY - model.bounds.minY);
   });
 });
