@@ -6,6 +6,8 @@ inspect how well the model aligns with the source floor plan.
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 from PIL import Image, ImageDraw
 
@@ -71,10 +73,45 @@ def draw_rooms_on(base: Image.Image, regions) -> Image.Image:
     canvas = base.convert("RGB")
     draw = ImageDraw.Draw(canvas)
     for r in regions:
-        pts = [(x, y) for x, y in r["outer"]]
+        pts = [(x, y) for x, y in (r.get("outer") or r.get("polygon") or [])]
         if len(pts) >= 3:
             draw.polygon(pts, outline=(30, 150, 200), fill=(30, 150, 200, 0))
             draw.line(pts + [pts[0]], fill=(30, 150, 200), width=2)
+    return canvas
+
+
+def _point_along(start, end, fraction):
+    return (
+        start[0] + (end[0] - start[0]) * fraction,
+        start[1] + (end[1] - start[1]) * fraction,
+    )
+
+
+def draw_doors_windows_on(base: Image.Image, doors, windows, walls) -> Image.Image:
+    """Draw normalized door/window marks on their host wall centerlines."""
+    canvas = base.convert("RGB")
+    draw = ImageDraw.Draw(canvas)
+    wall_by_id = {w["id"]: w for w in walls}
+
+    def length(w):
+        return math.hypot(w["end"][0] - w["start"][0], w["end"][1] - w["start"][1])
+
+    for d in doors:
+        w = wall_by_id.get(d["wall_id"])
+        if not w:
+            continue
+        ln = max(length(w), 1e-6)
+        a = _point_along(w["start"], w["end"], d["position"] - d["width"] / 2 / ln)
+        b = _point_along(w["start"], w["end"], d["position"] + d["width"] / 2 / ln)
+        draw.line([a, b], fill=(230, 120, 50), width=max(4, int(w["thickness"] // 2)))
+    for wnd in windows:
+        w = wall_by_id.get(wnd["wall_id"])
+        if not w:
+            continue
+        ln = max(length(w), 1e-6)
+        a = _point_along(w["start"], w["end"], wnd["position"] - wnd["width"] / 2 / ln)
+        b = _point_along(w["start"], w["end"], wnd["position"] + wnd["width"] / 2 / ln)
+        draw.line([a, b], fill=(60, 150, 220), width=max(4, int(w["thickness"] // 2)))
     return canvas
 
 

@@ -60,6 +60,7 @@ const en = {
     newExpose: 'New Exposé',
     floorplan3d: 'Floorplan 3D',
     brokerProfile: 'Broker Profile',
+    geometry: 'Geometry',
     draft: 'Draft',
     newProperty: 'New property',
     photoCount: '{count} photos',
@@ -159,6 +160,12 @@ const en = {
     viewer: {
       imageAlt: 'Floor plan with geometry overlay',
       replace: 'Replace image',
+    },
+    debug: {
+      label: 'Geometry view',
+      raw: 'AI raw',
+      normalized: 'Normalized',
+      hint: 'Developer compare mode',
     },
     inspector: {
       floorPlan: 'Floor plan',

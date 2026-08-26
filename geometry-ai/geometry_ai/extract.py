@@ -37,8 +37,9 @@ import yaml
 
 from skimage.morphology import skeletonize
 
-from .labels import CLASS_NAMES, CLASS_TO_ID, DOOR_ID, FLOOR_ID, WALL_ID, WINDOW_ID
+from .labels import CLASS_NAMES, CLASS_TO_ID, FLOOR_ID, WALL_ID
 from .model import build_model, load_inference_checkpoint
+from .normalize import normalize_raw
 from .preprocess import (
     ContentRect,
     load_source_rgb,
@@ -50,6 +51,7 @@ MODEL_ID = "cubicasa5k-unet-resnet34"
 WEIGHTS_SOURCE = "https://huggingface.co/Yytsi/floorplan-to-3d-walls"
 WEIGHTS_LICENSE = "MIT"
 RAW_SCHEMA = "vista-geometry-ai-raw-v1"
+DOC_SCHEMA = "vista-geometry-ai-v2"
 
 # Polygon extraction tuning (aligned with the source project defaults).
 CLOSING_KERNEL_PX = 3
@@ -544,10 +546,35 @@ class GeometryInference:
         outside = build_outside_mask(mask, content_rect)
         floor_regions = extract_floor_regions(mask, outside, content_rect, src_size, probs)
         walls = extract_walls(mask, outside, content_rect, src_size, probs)
+        t_post = time.perf_counter()
+
+        raw = {
+            "schema": RAW_SCHEMA,
+            "counts": {
+                "floor": len(polygons["floor"]),
+                "wall_polygons": len(polygons["wall"]),
+                "door": len(polygons["door"]),
+                "window": len(polygons["window"]),
+                "rooms": len(floor_regions),
+                "wall_segments": len(walls),
+            },
+            "polygons": polygons,
+            "floor_regions": floor_regions,
+            "walls": walls,
+        }
+        normalized = normalize_raw(
+            {
+                "input": {"width": src_size[0], "height": src_size[1]},
+                "content_rect": list(content_rect),
+                "walls": walls,
+                "polygons": polygons,
+                "floor_regions": floor_regions,
+            }
+        )
         t_end = time.perf_counter()
 
         return {
-            "schema": RAW_SCHEMA,
+            "schema": DOC_SCHEMA,
             "model": {
                 "id": MODEL_ID,
                 "artifact": WEIGHTS_SOURCE,
@@ -562,18 +589,10 @@ class GeometryInference:
             "timing_ms": {
                 "preprocess": round((t_infer0 - t0) * 1000, 1),
                 "inference": round((t_infer1 - t_infer0) * 1000, 1),
-                "postprocess": round((t_end - t_infer1) * 1000, 1),
+                "postprocess": round((t_post - t_infer1) * 1000, 1),
+                "normalize": round((t_end - t_post) * 1000, 1),
                 "total": round((t_end - t0) * 1000, 1),
             },
-            "counts": {
-                "floor": len(polygons["floor"]),
-                "wall_polygons": len(polygons["wall"]),
-                "door": len(polygons["door"]),
-                "window": len(polygons["window"]),
-                "rooms": len(floor_regions),
-                "wall_segments": len(walls),
-            },
-            "polygons": polygons,
-            "floor_regions": floor_regions,
-            "walls": walls,
+            "raw": raw,
+            "normalized": normalized,
         }

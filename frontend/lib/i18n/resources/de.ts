@@ -62,6 +62,7 @@ const de: TranslationSchema = {
     newExpose: 'Neues Exposé',
     floorplan3d: 'Floorplan 3D',
     brokerProfile: 'Broker-Profil',
+    geometry: 'Geometrie',
     draft: 'Entwurf',
     newProperty: 'Neues Objekt',
     photoCount: '{count} Fotos',
@@ -162,6 +163,12 @@ const de: TranslationSchema = {
     viewer: {
       imageAlt: 'Grundriss mit Geometrie-Overlay',
       replace: 'Bild ersetzen',
+    },
+    debug: {
+      label: 'Geometrieansicht',
+      raw: 'KI-Rohdaten',
+      normalized: 'Normalisiert',
+      hint: 'Entwickler-Vergleichsmodus',
     },
     inspector: {
       floorPlan: 'Grundriss',
