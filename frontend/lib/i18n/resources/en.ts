@@ -60,6 +60,7 @@ const en = {
     newExpose: 'New Exposé',
     floorplan3d: 'Floorplan 3D',
     brokerProfile: 'Broker Profile',
+    geometry: 'Geometry',
     draft: 'Draft',
     newProperty: 'New property',
     photoCount: '{count} photos',

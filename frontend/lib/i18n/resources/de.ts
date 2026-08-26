@@ -62,6 +62,7 @@ const de: TranslationSchema = {
     newExpose: 'Neues Exposé',
     floorplan3d: 'Floorplan 3D',
     brokerProfile: 'Broker-Profil',
+    geometry: 'Geometrie',
     draft: 'Entwurf',
     newProperty: 'Neues Objekt',
     photoCount: '{count} Fotos',
