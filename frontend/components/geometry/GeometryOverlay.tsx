@@ -12,14 +12,14 @@ import type { Door, VistaGeometry, Wall, Window } from '@/lib/geometry/models/ge
  * resized.
  */
 
-const WALL_EXTERIOR = 'var(--foreground)';
-const WALL_INTERIOR = 'var(--muted-foreground)';
-const ROOM_FILL = 'color-mix(in oklab, var(--primary) 12%, transparent)';
-const ROOM_STROKE = 'var(--primary)';
-const DOOR_COLOR = 'var(--amber-600)';
-const WINDOW_COLOR = 'var(--sky-600)';
+export const WALL_EXTERIOR = 'var(--foreground)';
+export const WALL_INTERIOR = 'var(--muted-foreground)';
+export const ROOM_FILL = 'color-mix(in oklab, var(--primary) 12%, transparent)';
+export const ROOM_STROKE = 'var(--primary)';
+export const DOOR_COLOR = 'var(--amber-600)';
+export const WINDOW_COLOR = 'var(--sky-600)';
 
-function pointAlongWall(wall: Wall, fraction: number) {
+export function pointAlongWall(wall: Wall, fraction: number) {
   return {
     x: wall.start.x + (wall.end.x - wall.start.x) * fraction,
     y: wall.start.y + (wall.end.y - wall.start.y) * fraction,
@@ -30,7 +30,7 @@ function wallAngle(wall: Wall) {
   return Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x);
 }
 
-function DoorMark({ door, wall }: { door: Door; wall: Wall }) {
+export function DoorMark({ door, wall }: { door: Door; wall: Wall }) {
   const hinge = pointAlongWall(wall, door.position - door.width / 2 / Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y));
   const leafEnd = pointAlongWall(wall, door.position + door.width / 2 / Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y));
   const angle = wallAngle(wall);
@@ -64,7 +64,7 @@ function DoorMark({ door, wall }: { door: Door; wall: Wall }) {
   );
 }
 
-function WindowMark({ window, wall }: { window: Window; wall: Wall }) {
+export function WindowMark({ window, wall }: { window: Window; wall: Wall }) {
   const length = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
   const start = pointAlongWall(wall, window.position - window.width / 2 / length);
   const end = pointAlongWall(wall, window.position + window.width / 2 / length);

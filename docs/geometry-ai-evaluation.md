@@ -389,3 +389,212 @@ model**. Wall continuity, room count/separation and opening precision are all
 measurably improved; the debug compare makes the whole chain auditable.
 The remaining gaps are precisely the ones that need a *better model*
 (door recall, semantic rooms), not more geometry code.
+
+---
+
+# Phase 4 — Geometry debugging & AI semantic refinement
+
+> **Question this phase answers:** how do we make the Phase 3 pipeline
+> *auditable* instead of destructive — and how much of that can be recovered
+> without a second AI model? Phase 4 keeps everything, classifies everything,
+> explains everything, and optionally hands only the genuinely ambiguous cases
+> to a small VLM/VLM refinement step.
+
+Phase 4 does **not** touch the ResNet34-UNet. It makes the deterministic
+pipeline traceable (`valid` / `uncertain` / `invalid` instead of
+valid/deleted), preserves every rejected candidate in a debug representation,
+adds a developer debug view + entity inspector to `/geometry`, and introduces
+a small, configurable `GeometryRefinementProvider` for candidate-level
+semantic review. Confirmation: **the deterministic pipeline is already the
+complete MVP; VLM refinement is wired but stays optional (NoOp by default).**
+
+## The architecture
+
+```
+Raw AI
+  ↓
+Geometry Normalization        (Phase 3)
+  ↓
+Candidate Geometry            (NEW: every face + every opening is a candidate)
+  ↓
+Validation                   (conservative: valid / uncertain / invalid)
+  ↓
+Ambiguous Candidates         (uncertain openings, preserved + ids exposed)
+  ↓
+Optional AI Refinement       (GeometryRefinementProvider, default NoOp)
+```
+
+Walls stay deterministic/model-derived. Only `uncertain` opening candidates
+ever reach a refinement provider, and it answers a constrained question
+("is this a real door?") with a small structured
+`{decision, reason, confidence}` — never full geometry.
+
+## What was built
+
+1. **Candidate preservation (Part B).** `reconstruct_rooms` and
+   `normalize_openings` now emit a `candidates` document next to the
+   normalized geometry. Every bounded face and every opening polygon is kept
+   with its `status`, `reasons`, and derived metrics (nearest wall, distance,
+   along/perp extent, area, min-dimension). Rejected entities do **not** enter
+   `VistaGeometry` but are fully available in `output/*.candidates.json` and
+   in the frontend debug layers.
+2. **Conservative opening validation (Part C).** `_classify_opening` replaces
+   the binary keep/delete decision with `valid / uncertain / invalid`.
+   Thresholds are derived from wall thickness and image scale
+   (`valid_dist = thickness·1.2 + 2·scale`, `hard_dist = median_thickness·3 +
+   6·scale`, …). A slightly misaligned but plausible opening is `uncertain`
+   (kept as a candidate, reviewable, refinable) — not destroyed. Only clearly
+   fabricated candidates (far from every wall, off-wall axis, implausible
+   width, out of image bounds) become `invalid`. **The German plan's 9
+   hallucinated doors are now visible as `7 invalid + 2 uncertain` with
+   reasons instead of silently vanishing.**
+3. **Room candidate debugging + filtering (Part D).** Every graph face is a
+   candidate; a new `wall_artefact` gate rejects faces whose interior is
+   filled with wall mask pixels (double wall boundaries / wall-band holes).
+   Relative gates (`min_area = 0.25 % of plan`, `min_dim` in wall thicknesses)
+   stay. See below for the `1 → 4` finding.
+4. **Debug inspector (Part A).** `/geometry` gained a developer debug mode
+   with independent layers — original image, AI raw, normalized, room
+   candidates, opening candidates — plus an entity inspector showing type,
+   id, source, confidence, nearest wall, distance-to-wall, width, status and
+   reasons. Rejection reasons are visible in the UI and localized.
+5. **Refinement provider (Parts F & G).** `geometry_ai/refinement.py` defines
+   `GeometryRefinementProvider` (`NoOpRefinementProvider` default;
+   `AIRefinementProvider` reading `GEOMETRY_REFINEMENT_URL` /
+   `_API_KEY` from config). The pipeline passes every ambiguous candidate to
+   the provider and applies its `accept`/`reject`/`uncertain` verdict.
+   Confidence is never fabricated — `None` when the backend reports none.
+   No commercial vendor is hard-coded.
+6. **Fixes.** Opening `wall_id` now references normalized wall ids
+   (`n-wall-…`) — Phase 3 emitted bare indices, so window/door overlays in the
+   frontend silently failed to resolve their host wall; normalized windows are
+   now actually drawn.
+
+## The `rooms 1 → 4` investigation (Part D)
+
+Ran the exact fixture 05 through the wall graph and dumped every bounded face:
+
+| face | area px² | bounding box | verdict |
+|---|---|---|---|
+| 1 | 162 725 | 529×311 | accepted |
+| 2 | 160 972 | 529×306 | accepted |
+| 3 | 100 012 | 326×309 | accepted |
+| 4 | 99 508 | 326×307 | accepted |
+
+**Actual cause:** the extra faces are **not** furniture, wall-thickness
+artifacts, or disconnected segments. The raw model reports **one** connected
+`floor_regions` component (rooms connect through door/window openings — the
+segmentation has no room-splitting semantics), while its **19 wall segments
+are accurate**. Phase 3 wall merging + opening bridging seals the window/door
+bands into two continuous interior dividers (x ≈ 600 vertical, y ≈ 380
+horizontal) that properly cross the shell. The half-edge face traversal of the
+resulting planar graph yields the **four quadrant rooms the cross-wall plan
+genuinely contains**. Verified against the source-drawn walls: this is a
+legitimate split, not a bug. In every fixture the face dump matched the
+semantic rooms exactly (German 2, clean 2, dimensions 2, furnished 3) and the
+only faces ever produced besides rooms are sub-gate faces (tiny alcoves) or
+wall-band faces, which the new gates now classify and surface.
+
+Synthetic tests prove the gates: a 30×30 alcove face is rejected with a
+reason, and a closed wall-band loop whose interior is wall mask material is
+rejected as `wall_artefact` — while the four genuine Quadrants still pass.
+
+## Evaluation (Part H — same Phase 2/3 fixtures, same model, CPU)
+
+Final `VistaGeometry` counts are unchanged from Phase 3 by design: Phase 4
+adds *visibility* and *conservative classification*, it does not pollute the
+output with unverified openings. The `(v/u/i)` columns break the raw AI count
+down into `valid / uncertain / invalid` candidates.
+
+### Raw AI vs Phase 3 vs Phase 4 (rooms, doors, windows)
+
+| | Raw AI | Phase 3 | Phase 4 (final) | Phase 4 candidates |
+|---|---|---|---|---|
+| German rooms | 2 | 2 | 2 | 2 accepted / 0 rejected |
+| Clean rooms | 1 | 2 | 2 | 2 / 0 |
+| Dimensions rooms | 1 | 2 | 2 | 2 / 0 |
+| Furnished rooms | 3 | 3 | 3 | 3 / 0 |
+| CubiCasa rooms | 1 | 4 | 4 | 4 / 0 |
+| **German doors** | 9 | 0 | 0 | 9 (0 valid / 2 uncertain / 7 invalid) |
+| Clean doors | 0 | 0 | 0 | — |
+| Dimensions doors | 1 | 0 | 0 | 1 (0/0/1) |
+| Furnished doors | 0 | 0 | 0 | — |
+| CubiCasa doors | 0 | 0 | 0 | 0 (0/0/0) |
+| German windows | 0 | 0 | 0 | — |
+| Clean windows | 0 | 0 | 0 | — |
+| Dimensions windows | 0 | 0 | 0 | — |
+| Furnished windows | 3 | 0 | 0 | 3 (0/0/3) furniture |
+| CubiCasa windows | 3 | 3 | 3 | 3 (3/0/0) on-wall |
+
+*Regenerate:* `python -m geometry_ai.evaluate` → `output/evaluation-summary.md`
+and `output/*.candidates.json`.
+
+## Per-fixture notes
+
+- **01 German real-estate.** All 9 door detections are wall-gap hallucinations
+  (no door symbols on the plan). None are emitted; each is preserved as a
+  candidate: `door-3` (15 px off a wall) and `door-8` (34 px) are `uncertain`
+  and therefore reachable by a refinement provider, the other 7 are `invalid`
+  (`too_far_from_wall` + alignment reasons). Rooms stay 2/2; the Küche/Bad
+  enclosures genuinely are not enclosed by drawn walls.
+- **02 clean.** 1 → 2 rooms after the divider's door gap is bridged; no
+  openings present, so candidate lists are empty.
+- **03 dimensions.** The single spurious floating door is `invalid`
+  (238 px from any wall, reason preserved). Dimension text still does not
+  break wall detection.
+- **04 furnished.** Three furniture-as-window detections are `invalid` with
+  explicit reasons; previously they were silently deleted. Rooms keep 3/3.
+- **05 CubiCasa style.** The cross-wall plan keeps the four quadrant rooms
+  (see investigation above), all three real windows stay `valid`, snapped and
+  emitted, and their `wall_id` references now resolve to the normalized walls.
+
+## Refinement evaluation (Part F)
+
+A small `AIRefinementProvider` was implemented and the pipeline was wired to
+route every `uncertain` candidate through it. Evaluating it against the
+fixtures showed that **no fixture had an ambiguous opening whose acceptance
+would be defensible**: German's two uncertain doors are 15–34 px off-wall
+hallucinations on a plan with no door symbols; every real detection here is
+either confidently valid (CubiCasa windows 0.91–0.97) or clearly fabricated.
+Deterministic validation already separates the classes cleanly, so a VLM adds
+cost without measurable precision gain on this set — the documented outcome
+of the phase. The provider abstraction remains in place and is exercised by
+tests; set `GEOMETRY_REFINEMENT_PROVIDER=ai` to enable it later, and it stays
+confined to candidate-level decisions.
+
+## Acceptance-criteria check
+
+| Criterion | Status |
+|---|---|
+| Developer geometry debug mode in `/geometry` | ✅ layer toggles + entity inspector |
+| Raw AI vs normalized visually comparable | ✅ independent, overlapping layers |
+| Room candidates inspectable | ✅ candidate faces with status/reason |
+| Door candidates inspectable | ✅ candidate polygons with status/reasons |
+| Window candidates inspectable | ✅ candidate polygons with status/reasons |
+| Rejected candidates remain in debug info | ✅ `candidates` doc + `*.candidates.json` |
+| Rejection reasons visible | ✅ reasons localized in inspector |
+| Opening validation less destructive | ✅ `valid/uncertain/invalid`; plausible-but-misaligned kept |
+| `1 → 4` CubiCasa cause documented | ✅ legitimate topology split (4 quadrants) |
+| Obvious non-room faces filtered | ✅ `wall_artefact` gate + relative gates, tested |
+| Ambiguous geometry can go to a refinement provider | ✅ apply_refinement path |
+| Refinement limited to candidate-level decisions | ✅ `{decision, reason, confidence}` only |
+| `VistaGeometry` remains the only geometry contract | ✅ debug data is a parallel surface |
+| Mock provider still works | ✅ untouched |
+| 3D and 360 untouched | ✅ no changes outside geometry pipeline |
+| Tests / typecheck / lint / build | ✅ 16 python tests, tsc 0, eslint 0 errors, next build ok |
+
+## Phase 4 limitations
+
+1. **Door recall is still a model problem.** The pipeline can only
+   classify/openings the detector produces — a door the UNet never sees does
+   not exist as a candidate (fixture 05's drawn door remains missed).
+2. **Semantic room labels** (`Küche`, `Bad`, …) are still wall-topology faces;
+   the phase deliberately avoids a semantic room model.
+3. **Furniture-enclosed faces** (a closed loop detected as walls around a
+   whole sofa) could still pass the geometric gates in principle; the debug
+   layer makes them visible and refinement is the intended resolution. No
+   fixture exhibits this.
+4. **Refinement** is scaffolded but not materially beneficial on this fixture
+   set — kept as the simpler deterministic solution per the phase's success
+   criterion, with the provider interface ready for when a useful backend
+   exists.

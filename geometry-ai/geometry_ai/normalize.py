@@ -162,6 +162,38 @@ def _clean_polygon(points: list[Sequence[float]]) -> list[Sequence[float]]:
     return pts
 
 
+def _point_in_polygon(
+    pt: Sequence[float], poly: Sequence[Sequence[float]] | None
+) -> bool:
+    """Even-odd ray-casting point-in-polygon test."""
+    if not poly or len(poly) < 3:
+        return False
+    x, y = pt
+    inside = False
+    n = len(poly)
+    for i in range(n):
+        x_i, y_i = poly[i]
+        x_j, y_j = poly[(i + 1) % n]
+        if ((y_i > y) != (y_j > y)) and (
+            x < (x_j - x_i) * (y - y_i) / (y_j - y_i) + x_i
+        ):
+            inside = not inside
+    return inside
+
+
+def _point_in_rings(
+    pt: Sequence[float], rings: Sequence[Sequence[Sequence[float]]] | None
+) -> bool:
+    """Point-in-polygon over an outer ring plus its holes (even-odd)."""
+    if not rings:
+        return False
+    parity = False
+    for ring in rings:
+        if _point_in_polygon(pt, ring):
+            parity = not parity
+    return parity
+
+
 def _polygon_is_simple(points: Sequence[Sequence[float]]) -> bool:
     n = len(points)
     if n < 3:
@@ -721,6 +753,43 @@ def find_faces(topology: WallTopology) -> list[dict[str, Any]]:
 # ----------------------------------------------------------------------------
 
 
+def _face_wall_occupancy(
+    poly: Sequence[Sequence[float]], wall_polygons: Sequence[dict[str, Any]]
+) -> float:
+    """Fraction of a face's interior samples that fall inside wall mask pixels.
+
+    A face produced by *double wall boundaries* (two near-parallel centerlines
+    of one wall band) or by a closed wall-band artifact has its interior filled
+    with wall material, not floor. Genuine rooms, by construction, have their
+    interior outside every wall mask ring. Sampling a handful of points is
+    enough to separate the two classes.
+    """
+    if not wall_polygons:
+        return 0.0
+    xs = [p[0] for p in poly]
+    ys = [p[1] for p in poly]
+    cx = sum(xs) / len(xs)
+    cy = sum(ys) / len(ys)
+    bw = max(xs) - min(xs)
+    bh = max(ys) - min(ys)
+    samples: list[tuple[float, float]] = [(cx, cy)]
+    for fx in (-0.35, 0.0, 0.35):
+        for fy in (-0.35, 0.0, 0.35):
+            if fx == 0.0 and fy == 0.0:
+                continue
+            samples.append((cx + fx * bw, cy + fy * bh))
+    hits = 0
+    for sx, sy in samples:
+        for wp in wall_polygons:
+            rings = [wp["outer"]] + list(wp.get("holes", []))
+            if _point_in_polygon((sx, sy), wp["outer"]) and not any(
+                _point_in_polygon((sx, sy), h) for h in rings[1:]
+            ):
+                hits += 1
+                break
+    return hits / len(samples)
+
+
 def reconstruct_rooms(
     topology: WallTopology,
     walls: list[dict[str, Any]],
@@ -728,39 +797,34 @@ def reconstruct_rooms(
     src_h: int,
     median_th: float,
     scale: float,
+    wall_polygons: Sequence[dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Minimal faces of the wall graph → validated room candidates.
+
+    Every bounded face becomes a *room candidate* kept in the debug output.
+    Faces that meet the geometric gates become accepted `rooms`; everything
+    else stays available as a rejected candidate with the decisive cause.
+    Gates are relative to walls/image scale — no arbitrary pixel constants.
+    """
     faces = find_faces(topology)
     min_area = 0.0025 * (src_w * src_h)
     min_dim = max(1.5 * median_th, 2.0 * 2.0 * scale)
     rooms: list[dict[str, Any]] = []
-    rejected: list[dict[str, Any]] = []
-    for f in faces:
+    candidates: list[dict[str, Any]] = []
+    for i, f in enumerate(faces):
         poly = _clean_polygon(f["polygon"])
-        area = _polygon_area(poly)
-        if area < min_area:
-            rejected.append({"cause": "too_small", "area": round(area, 1)})
-            continue
-        if not _polygon_is_simple(poly):
-            rejected.append({"cause": "not_simple", "area": round(area, 1)})
-            continue
         xs = [p[0] for p in poly]
         ys = [p[1] for p in poly]
         box_w = max(xs) - min(xs)
         box_h = max(ys) - min(ys)
-        if min(box_w, box_h) < min_dim:
-            rejected.append({"cause": "too_thin", "area": round(area, 1)})
-            continue
-        if min(xs) < -50 or min(ys) < -50 or max(xs) > src_w + 50 or max(ys) > src_h + 50:
-            rejected.append({"cause": "out_of_bounds", "area": round(area, 1)})
-            continue
 
-        wall_ids: set[int] = set()
+        wall_ix: set[int] = set()
         confs: list[float] = []
         lengths: list[float] = []
         for u, v in f["chain"]:
             key = (min(u, v), max(u, v))
             wids = topology.edge_walls.get(key, set())
-            wall_ids |= wids
+            wall_ix |= wids
             for wid in wids:
                 w = walls[wid]
                 lengths.append(
@@ -768,27 +832,81 @@ def reconstruct_rooms(
                 )
                 confs.append(w["confidence"])
         denom = sum(max(l, 1e-6) for l in lengths)
-        room_conf = (
+        face_conf = (
             sum(c * max(l, 1e-6) for c, l in zip(confs, lengths)) / denom
             if denom
             else None
         )
+
+        reason = _room_rejection_reason(
+            poly, area=_polygon_area(poly), box_w=box_w, box_h=box_h,
+            min_area=min_area, min_dim=min_dim, src_w=src_w, src_h=src_h,
+            occupancy=_face_wall_occupancy(poly, wall_polygons or []),
+        )
+        accepted = reason is None
+
+        candidate_poly = [[round(px, 2), round(py, 2)] for px, py in poly]
+        candidate: dict[str, Any] = {
+            "id": f"room-cand-{i}",
+            "polygon": candidate_poly,
+            "area_px": round(_polygon_area(poly), 1),
+            "min_dim_px": round(min(box_w, box_h), 2),
+            "status": "accepted" if accepted else "rejected",
+            "reason": reason or "valid",
+            "wall_ids": [f"n-wall-{j}" for j in sorted(wall_ix)],
+            "confidence": None if face_conf is None else round(face_conf, 4),
+        }
+        candidates.append(candidate)
+        if not accepted:
+            continue
+
         rooms.append(
             {
-                "polygon": [[round(px, 2), round(py, 2)] for px, py in poly],
-                "area_px": round(area, 1),
-                "wall_indices": sorted(wall_ids),
-                "confidence": room_conf,
+                "polygon": candidate_poly,
+                "area_px": candidate["area_px"],
+                "wall_indices": sorted(wall_ix),
+                "confidence": face_conf,
                 "derived": True,
+                "candidate_id": candidate["id"],
                 "validation": {
                     "closed": True,
                     "simple": True,
-                    "min_dim_px": round(min(box_w, box_h), 2),
+                    "min_dim_px": candidate["min_dim_px"],
                 },
             }
         )
+    candidates.sort(key=lambda c: -c["area_px"])
     rooms.sort(key=lambda r: -r["area_px"])
-    return rooms, rejected
+    return rooms, candidates
+
+
+def _room_rejection_reason(
+    poly: Sequence[Sequence[float]],
+    *,
+    area: float,
+    box_w: float,
+    box_h: float,
+    min_area: float,
+    min_dim: float,
+    src_w: int,
+    src_h: int,
+    occupancy: float,
+) -> str | None:
+    """Return the decisive rejection reason for a face, or None when accepted."""
+    polygons = list(poly)
+    xs = [p[0] for p in polygons]
+    ys = [p[1] for p in polygons]
+    if area < min_area:
+        return "too_small"
+    if not _polygon_is_simple(polygons):
+        return "not_simple"
+    if min(box_w, box_h) < min_dim:
+        return "too_thin"
+    if min(xs) < -50 or min(ys) < -50 or max(xs) > src_w + 50 or max(ys) > src_h + 50:
+        return "out_of_bounds"
+    if occupancy >= 0.5:
+        return "wall_artefact"
+    return None
 
 
 # ----------------------------------------------------------------------------
@@ -796,83 +914,203 @@ def reconstruct_rooms(
 # ----------------------------------------------------------------------------
 
 
+def _opening_geometry(
+    outer: list[list[float]], wall: dict[str, Any]
+) -> tuple[float, float, float, float, float, float] | None:
+    """Centroid distance, along-width, perp-width, wall length and direction."""
+    if len(outer) < 3:
+        return None
+    cx = sum(p[0] for p in outer) / len(outer)
+    cy = sum(p[1] for p in outer) / len(outer)
+    wlen = math.hypot(wall["end"][0] - wall["start"][0], wall["end"][1] - wall["start"][1])
+    if wlen < 1e-6:
+        return None
+    u = _norm(wall["end"][0] - wall["start"][0], wall["end"][1] - wall["start"][1])
+    along: list[float] = []
+    perp: list[float] = []
+    for x, y in outer:
+        relx = x - wall["start"][0]
+        rely = y - wall["start"][1]
+        along.append(_dot(u[0], u[1], relx, rely))
+        perp.append(_cross(u[0], u[1], relx, rely))
+    dist, _t = _seg_segment_dist((cx, cy), wall["start"], wall["end"])
+    return dist, max(along) - min(along), max(perp) - min(perp), wlen, cx, cy
+
+
+def _classify_opening(
+    *,
+    kind: str,
+    confidence: float,
+    dist: float,
+    along_w: float,
+    perp_w: float,
+    wlen: float,
+    in_bounds: bool,
+    wall_thickness: float,
+    median_th: float,
+    scale: float,
+) -> tuple[str, list[str]]:
+    """Conservative valid / uncertain / invalid classification.
+
+    Thresholds are derived from wall thickness and image scale; a candidate
+    that is merely *misaligned* is kept as `uncertain` (available for review
+    or AI refinement) instead of being destroyed. Only clearly fabricated
+    candidates become `invalid`.
+    """
+    valid_dist = wall_thickness * 1.2 + 2.0 * scale
+    valid_perp = max(wall_thickness * 1.7, median_th * 1.9) + 2.0 * scale
+    hard_dist = median_th * 3.0 + 6.0 * scale
+    loose_perp = max(wall_thickness * 3.0, median_th * 3.4) + 4.0 * scale
+    min_width = max(3.0, median_th * 0.35)
+    max_width = wlen * 0.92
+
+    reasons: list[str] = []
+    hard = False
+    if not in_bounds:
+        reasons.append("out_of_image_bounds")
+        hard = True
+    if dist > hard_dist:
+        reasons.append("too_far_from_wall")
+        hard = True
+    elif dist > valid_dist:
+        reasons.append("off_wall_misaligned")
+    if along_w < min_width:
+        reasons.append("implausible_width")
+        hard = True
+    if along_w > max_width:
+        reasons.append("width_exceeds_wall")
+        hard = True
+    if along_w < perp_w * 0.25:
+        reasons.append("not_wall_aligned")
+        hard = True
+    elif along_w < perp_w * 0.4:
+        reasons.append("weak_alignment")
+    if perp_w > loose_perp:
+        reasons.append("off_wall_axis")
+        hard = True
+    elif perp_w > valid_perp:
+        reasons.append("weak_axis")
+    if confidence is not None and confidence < 0.55:
+        reasons.append("low_confidence")
+
+    if hard:
+        status = "invalid"
+    elif reasons:
+        status = "uncertain"
+    else:
+        status = "valid"
+    return status, reasons
+
+
 def normalize_openings(
     polys: list[dict[str, Any]],
+    kind: str,
     walls: list[dict[str, Any]],
     *,
     median_th: float,
     scale: float,
     src_w: int,
     src_h: int,
-) -> tuple[list[dict[str, Any]], int]:
-    """Validate AI openings against the walls; snap the slightly misaligned.
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Validate AI openings against the walls; classify conservative statuses.
 
-    Rejects openings that are far from any wall, not aligned with a wall, or
-    of implausible size. Never invents openings: a dropped opening stays dropped
-    (and is counted in `notes`).
+    Every candidate polygon becomes a *candidate record* kept in the debug
+    output with its classification (`valid` / `uncertain` / `invalid`) and the
+    reasons behind it. Only `valid` candidates become emitted openings; the
+    others remain available for inspection and optional AI refinement. Nothing
+    is silently destroyed.
     """
     openings: list[dict[str, Any]] = []
-    rejected = 0
-    for poly in polys:
-        outer = [(p[0], p[1]) for p in poly["outer"]]
+    candidates: list[dict[str, Any]] = []
+    for i, poly in enumerate(polys):
+        outer = [(p[0], p[1]) for p in poly.get("outer", [])]
+        candidate: dict[str, Any] = {
+            "id": f"{kind}-{i}",
+            "kind": kind,
+            "polygon": [[round(x, 2), round(y, 2)] for x, y in outer],
+            "confidence": round(float(poly.get("confidence", 0.0)), 4),
+            "status": "invalid",
+            "reasons": ["malformed"],
+            "nearest_wall_index": None,
+            "nearest_wall_id": None,
+            "distance_to_wall_px": None,
+            "extent_along_px": None,
+            "extent_perp_px": None,
+        }
         if len(outer) < 3:
-            rejected += 1
+            candidates.append(candidate)
             continue
-        cx, cy = _polygon_centroid(outer)
 
-        best: tuple[float, float, int] | None = None
+        cx = sum(p[0] for p in outer) / len(outer)
+        cy = sum(p[1] for p in outer) / len(outer)
+        in_bounds = 0.0 <= cx <= src_w and 0.0 <= cy <= src_h
+
+        best: tuple[float, int] | None = None
         for wi, w in enumerate(walls):
-            d, t = _seg_segment_dist((cx, cy), w["start"], w["end"])
+            d, _t = _seg_segment_dist((cx, cy), w["start"], w["end"])
             if best is None or d < best[0]:
-                best = (d, t, wi)
+                best = (d, wi)
         if best is None:
-            rejected += 1
+            candidates.append(candidate)
             continue
-        dist, t, wi = best
+        dist, wi = best
         wall = walls[wi]
-        wlen = math.hypot(wall["end"][0] - wall["start"][0], wall["end"][1] - wall["start"][1])
-        if wlen < 1e-6:
-            rejected += 1
+        geom = _opening_geometry(outer, wall)
+        if geom is None:
+            candidates.append(candidate)
             continue
-        u = _norm(wall["end"][0] - wall["start"][0], wall["end"][1] - wall["start"][1])
-        along: list[float] = []
-        perp: list[float] = []
-        for x, y in outer:
-            relx = x - wall["start"][0]
-            rely = y - wall["start"][1]
-            along.append(_dot(u[0], u[1], relx, rely))
-            perp.append(_cross(u[0], u[1], relx, rely))
-        along_w = max(along) - min(along)
-        perp_w = max(perp) - min(perp)
+        dist, along_w, perp_w, wlen, cx, cy = geom
 
-        max_dist = wall["thickness"] * 1.2 + 2.0 * scale
-        max_perp = max(
-            wall["thickness"] * 1.7 + 2.0 * scale, median_th * 1.9 + 2.0 * scale
+        status, reasons = _classify_opening(
+            kind=kind,
+            confidence=candidate["confidence"],
+            dist=dist,
+            along_w=along_w,
+            perp_w=perp_w,
+            wlen=wlen,
+            in_bounds=in_bounds,
+            wall_thickness=wall["thickness"],
+            median_th=median_th,
+            scale=scale,
         )
-        min_width = max(3.0, median_th * 0.35)
-        max_width = wlen * 0.92
+        candidate.update(
+            {
+                "status": status,
+                "reasons": reasons,
+                "nearest_wall_index": wi,
+                "nearest_wall_id": f"n-wall-{wi}",
+                "distance_to_wall_px": round(dist, 2),
+                "extent_along_px": round(along_w, 2),
+                "extent_perp_px": round(perp_w, 2),
+            }
+        )
+        candidates.append(candidate)
 
-        valid = (
-            dist <= max_dist
-            and perp_w <= max_perp
-            and min_width <= along_w <= max_width
-            and along_w >= perp_w * 0.4
-        )
-        if not valid:
-            rejected += 1
+        if status != "valid":
             continue
 
         corrected = dist > max(2.0, scale)
         openings.append(
             {
-                "wall_id": str(wi),
-                "position": round(t, 4),
+                "candidate_id": candidate["id"],
+                "wall_id": f"n-wall-{wi}",
+                "position": _opening_position(outer, wall),
                 "width": round(max(along_w, 1.0), 2),
-                "confidence": float(poly.get("confidence", 0.0)),
+                "confidence": candidate["confidence"],
                 "corrected": bool(corrected),
             }
         )
-    return openings, rejected
+    return openings, candidates
+
+
+def _opening_position(outer: list[list[float]], wall: dict[str, Any]) -> float:
+    """Fractional position of the opening centre along its host wall."""
+    cx = sum(p[0] for p in outer) / len(outer)
+    cy = sum(p[1] for p in outer) / len(outer)
+    wlen = math.hypot(wall["end"][0] - wall["start"][0], wall["end"][1] - wall["start"][1])
+    u = _norm(wall["end"][0] - wall["start"][0], wall["end"][1] - wall["start"][1])
+    t = _dot(u[0], u[1], cx - wall["start"][0], cy - wall["start"][1])
+    return round(min(1.0, max(0.0, t / wlen)), 4)
 
 
 # ----------------------------------------------------------------------------
@@ -882,12 +1120,15 @@ def normalize_openings(
 NORMALIZED_SCHEMA = "vista-geometry-normalized-v1"
 
 
-def normalize_raw(raw: dict[str, Any]) -> dict[str, Any]:
+def normalize_raw(raw: dict[str, Any], *, wall_polygons: Sequence[dict[str, Any]] | None = None) -> dict[str, Any]:
     """Normalize a raw model document into the normalized geometry document."""
     src_w = int(raw["input"]["width"])
     src_h = int(raw["input"]["height"])
     scale = _scale_from_content(src_w, src_h, raw["content_rect"])
     raw_walls = raw["walls"]
+
+    if wall_polygons is None:
+        wall_polygons = raw.get("polygons", {}).get("wall", [])
 
     walls, wall_notes = normalize_walls(raw_walls, src_w, src_h, scale)
 
@@ -896,19 +1137,21 @@ def normalize_raw(raw: dict[str, Any]) -> dict[str, Any]:
     snap_tol = max(1.25 * median_th, 2.5 * scale)
 
     topology = WallTopology(walls, snap_tol, scale, corner_tol=1.75 * median_th)
-    rooms, rejected_rooms = reconstruct_rooms(
-        topology, walls, src_w, src_h, median_th, scale
+    rooms, room_candidates = reconstruct_rooms(
+        topology, walls, src_w, src_h, median_th, scale, wall_polygons
     )
-    doors, rejected_doors = normalize_openings(
+    doors, door_candidates = normalize_openings(
         raw["polygons"]["door"],
+        "door",
         walls,
         median_th=median_th,
         scale=scale,
         src_w=src_w,
         src_h=src_h,
     )
-    windows, rejected_windows = normalize_openings(
+    windows, window_candidates = normalize_openings(
         raw["polygons"]["window"],
+        "window",
         walls,
         median_th=median_th,
         scale=scale,
@@ -943,6 +1186,22 @@ def normalize_raw(raw: dict[str, Any]) -> dict[str, Any]:
     door_out = [{**d, "id": f"n-door-{i}"} for i, d in enumerate(doors)]
     window_out = [{**w, "id": f"n-window-{i}"} for i, w in enumerate(windows)]
 
+    selected_room_candidates = [
+        c["id"]
+        for c in room_candidates
+        if c["status"] == "accepted"
+    ]
+    ambiguous_openings = [
+        c["id"]
+        for c in door_candidates + window_candidates
+        if c["status"] == "uncertain"
+    ]
+    invalid_openings = [
+        c["id"]
+        for c in door_candidates + window_candidates
+        if c["status"] == "invalid"
+    ]
+
     counts = {
         "walls": len(wall_out),
         "rooms": len(room_out),
@@ -953,9 +1212,22 @@ def normalize_raw(raw: dict[str, Any]) -> dict[str, Any]:
         **wall_notes,
         "rooms_raw": len(raw.get("floor_regions", [])),
         "rooms_reconstructed": len(room_out),
-        "rooms_rejected": len(rejected_rooms),
-        "room_rejection_causes": _count_causes(rejected_rooms),
-        "openings_rejected": {"door": rejected_doors, "window": rejected_windows},
+        "rooms_rejected": sum(1 for c in room_candidates if c["status"] == "rejected"),
+        "room_rejection_causes": _count_causes(room_candidates),
+        "openings_candidates": {
+            "door": len(door_candidates),
+            "window": len(window_candidates),
+        },
+        "openings_valid": {"door": len(door_out), "window": len(window_out)},
+        "openings_uncertain": {
+            "door": sum(1 for c in door_candidates if c["status"] == "uncertain"),
+            "window": sum(1 for c in window_candidates if c["status"] == "uncertain"),
+        },
+        # Backwards-compatible counters for summary tooling.
+        "openings_rejected": {
+            "door": len(invalid_openings),
+            "window": sum(1 for c in window_candidates if c["status"] == "invalid"),
+        },
     }
     return {
         "schema": NORMALIZED_SCHEMA,
@@ -965,11 +1237,142 @@ def normalize_raw(raw: dict[str, Any]) -> dict[str, Any]:
         "windows": window_out,
         "counts": counts,
         "notes": notes,
+        "candidates": {
+            "schema": "vista-geometry-candidates-v1",
+            "rooms": room_candidates,
+            "openings": {"door": door_candidates, "window": window_candidates},
+            "ambiguous_opening_ids": ambiguous_openings,
+            "invalid_opening_ids": invalid_openings,
+            "selected_room_ids": selected_room_candidates,
+        },
     }
 
 
-def _count_causes(rejected: list[dict[str, Any]]) -> dict[str, int]:
+def _count_causes(candidates: Sequence[dict[str, Any]]) -> dict[str, int]:
     counts: dict[str, int] = {}
-    for r in rejected:
-        counts[r["cause"]] = counts.get(r["cause"], 0) + 1
+    for c in candidates:
+        cause = c.get("reason", "unknown")
+        counts[cause] = counts.get(cause, 0) + 1
     return counts
+
+
+# ----------------------------------------------------------------------------
+# 6. Optional ambiguity refinement
+# ----------------------------------------------------------------------------
+
+
+def _snap_candidate_to_wall(
+    candidate: dict[str, Any], walls: Sequence[dict[str, Any]]
+) -> dict[str, Any] | None:
+    """Build an emitted opening record for a candidate promoted by refinement."""
+    idx = candidate.get("nearest_wall_index")
+    if idx is None or idx >= len(walls):
+        return None
+    wall = walls[idx]
+    outer = candidate.get("polygon", [])
+    if len(outer) < 3:
+        return None
+    geom = _opening_geometry(outer, wall)
+    if geom is None:
+        return None
+    _dist, along_w, perp_w, _wlen, cx, cy = geom
+    u = _norm(wall["end"][0] - wall["start"][0], wall["end"][1] - wall["start"][1])
+    wlen = math.hypot(wall["end"][0] - wall["start"][0], wall["end"][1] - wall["start"][1])
+    t = _dot(u[0], u[1], cx - wall["start"][0], cy - wall["start"][1])
+    position = round(min(1.0, max(0.0, t / wlen)), 4)
+    return {
+        "candidate_id": candidate["id"],
+        "wall_id": f"n-wall-{idx}",
+        "position": position,
+        "width": round(max(along_w, 1.0), 2),
+        "confidence": candidate.get("confidence", 0.0),
+        "corrected": bool(candidate.get("distance_to_wall_px", 0) > max(2.0, 1.0)),
+    }
+
+
+def apply_refinement(
+    output: dict[str, Any],
+    provider: Any,
+    *,
+    image_bytes: bytes | None,
+) -> dict[str, Any]:
+    """Run the ambiguity refinement step over the preserved candidates.
+
+    Only `uncertain` opening candidates reach the provider (walled geometry is
+    never touched). A `reject` keeps the candidate in the debug output but
+    marks it invalid; an `accept` promotes it to an emitted opening. With the
+    default (NoOp) provider nothing changes.
+    """
+    from .refinement import NoOpRefinementProvider
+
+    if provider is None or isinstance(provider, NoOpRefinementProvider):
+        return output
+    walls = output["walls"]
+    candidates = output["candidates"]
+    ambiguous_ids = set(candidates.get("ambiguous_opening_ids", []))
+    if not ambiguous_ids:
+        return output
+
+    all_openings = [
+        *candidates["openings"]["door"],
+        *candidates["openings"]["window"],
+    ]
+    current_kept = {
+        o["candidate_id"]
+        for o in [*output["doors"], *output["windows"]]
+        if "candidate_id" in o
+    }
+    accepted: list[dict[str, Any]] = []
+    for cand in all_openings:
+        if cand["id"] not in ambiguous_ids:
+            continue
+        decision = provider.refine(
+            candidate=cand, candidates=all_openings, image_bytes=image_bytes
+        )
+        if decision.decision == "accept":
+            cand["status"] = "valid"
+            cand["reasons"] = cand.get("reasons", [])
+            if cand["id"] not in current_kept:
+                snapped = _snap_candidate_to_wall(cand, walls)
+                if snapped:
+                    accepted.append(snapped)
+        elif decision.decision == "reject":
+            cand["status"] = "invalid"
+            cand["reasons"] = [*(cand.get("reasons") or []), "ai_refinement_reject"]
+
+    for snap in accepted:
+        if snap["candidate_id"].startswith("door"):
+            output["doors"].append(snap)
+        else:
+            output["windows"].append(snap)
+
+    door_cands = candidates["openings"]["door"]
+    window_cands = candidates["openings"]["window"]
+    candidates["ambiguous_opening_ids"] = [
+        c["id"] for c in door_cands + window_cands if c["status"] == "uncertain"
+    ]
+    candidates["invalid_opening_ids"] = [
+        c["id"] for c in door_cands + window_cands if c["status"] == "invalid"
+    ]
+    counts = output["counts"]
+    counts.update(
+        rooms=len(output["rooms"]),
+        doors=len(output["doors"]),
+        windows=len(output["windows"]),
+    )
+    output["notes"].update(
+        peaks_valid={
+            "door": len(output["doors"]),
+            "window": len(output["windows"]),
+        },
+        openings_uncertain={
+            "door": sum(1 for c in door_cands if c["status"] == "uncertain"),
+            "window": sum(1 for c in window_cands if c["status"] == "uncertain"),
+        },
+        openings_rejected={
+            "door": sum(1 for c in door_cands if c["status"] == "invalid"),
+            "window": sum(1 for c in window_cands if c["status"] == "invalid"),
+        },
+    )
+    output["refinement"] = {"provider": getattr(provider, "name", "unknown")}
+    return output

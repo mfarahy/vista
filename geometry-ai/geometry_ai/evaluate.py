@@ -1,9 +1,11 @@
-"""Phase 2+3 evaluation harness: run real inference across the fixtures.
+"""Phase 2+3+4 evaluation harness: run real inference across the fixtures.
 
 For every fixture this writes:
 
     output/<name>.raw.json       — the full model document (raw + normalized)
     output/<name>.normalized.json — just the normalized geometry document
+    output/<name>.candidates.json — Phase 4 candidate/debug document (accepted,
+                                    ambiguous and rejected entities with reasons)
     output/<name>.debug.png      — source | predicted mask | raw overlay |
                                    normalized overlay
     output/evaluation-summary.md — compact per-image comparison table
@@ -58,6 +60,9 @@ def main() -> None:
         (out / f"{img_path.stem}.normalized.json").write_text(
             json.dumps(result["normalized"], indent=2)
         )
+        (out / f"{img_path.stem}.candidates.json").write_text(
+            json.dumps(result["normalized"].get("candidates", {}), indent=2)
+        )
         _render_debug(img_path, image_bytes, result, inf, out)
         print(
             "raw:",
@@ -111,6 +116,11 @@ def _summarize(img_path: Path, result: dict) -> dict:
     nw = norm["walls"]
     rr = raw["floor_regions"]
     nr = norm["rooms"]
+    candidates = norm.get("candidates", {})
+    open_cands = candidates.get("openings", {})
+    room_cands = candidates.get("rooms", [])
+    door_cands = open_cands.get("door", [])
+    window_cands = open_cands.get("window", [])
     return {
         "file": img_path.name,
         "w": result["input"]["width"],
@@ -137,6 +147,19 @@ def _summarize(img_path: Path, result: dict) -> dict:
             round(sum(w["confidence"] for w in nw) / len(nw), 3) if nw else None
         ),
         "norm_rooms_rejected": norm["notes"].get("rooms_rejected"),
+        # Phase 4 candidate breakdown
+        "rooms_accepted": sum(1 for c in room_cands if c["status"] == "accepted"),
+        "rooms_rejected_cand": sum(1 for c in room_cands if c["status"] == "rejected"),
+        "room_rejection_causes": norm["notes"].get("room_rejection_causes"),
+        "door_candidates": len(door_cands),
+        "door_valid": sum(1 for c in door_cands if c["status"] == "valid"),
+        "door_uncertain": sum(1 for c in door_cands if c["status"] == "uncertain"),
+        "door_invalid": sum(1 for c in door_cands if c["status"] == "invalid"),
+        "window_candidates": len(window_cands),
+        "window_valid": sum(1 for c in window_cands if c["status"] == "valid"),
+        "window_uncertain": sum(1 for c in window_cands if c["status"] == "uncertain"),
+        "window_invalid": sum(1 for c in window_cands if c["status"] == "invalid"),
+        "ambiguous": len(candidates.get("ambiguous_opening_ids", [])),
         "rejected_doors": norm["notes"].get("openings_rejected", {}).get("door"),
         "rejected_windows": norm["notes"].get("openings_rejected", {}).get("window"),
     }
@@ -144,10 +167,12 @@ def _summarize(img_path: Path, result: dict) -> dict:
 
 def _write_summary(out: Path, rows: list[dict]) -> None:
     lines = [
-        "# Geometry AI — inference summary (Phase 2 raw + Phase 3 normalized)",
+        "# Geometry AI — inference summary (Phase 2 raw · Phase 3 normalized · Phase 4 candidates)",
         "",
         f"- Hardware: {platform.node()} · {platform.processor()} · Python {platform.python_version()}",
         "- Device: CPU",
+        "",
+        "## Raw → normalized counts",
         "",
         "| Fixture | size | total(ms) | raw walls | norm walls | raw rooms | norm rooms | "
         "raw doors | norm doors | raw win | norm win | wall conf raw/norm |",
@@ -158,6 +183,26 @@ def _write_summary(out: Path, rows: list[dict]) -> None:
             "| {file} | {w}×{h} | {total_ms} | {raw_walls} | {norm_walls} | {raw_rooms} | "
             "{norm_rooms} | {raw_doors} | {norm_doors} | {raw_windows} | {norm_windows} | "
             "{raw_wall_conf}/{norm_wall_conf} |".format(**r)
+        )
+    lines += [
+        "",
+        "## Phase 4 candidate classification",
+        "",
+        "Room candidates: every bounded face is kept as a candidate with a status. "
+        "Opening candidates are classified conservatively (`valid` / `uncertain` / "
+        "`invalid`) and the rejected ones remain available for inspection.",
+        "",
+        "| Fixture | room cand (acc/adv) | room reasons | door cand (v/u/i) | window cand (v/u/i) | ambiguous |",
+        "|---|---|---|---|---|---|",
+    ]
+    for r in rows:
+        causes = r["room_rejection_causes"] or {}
+        cause_str = ", ".join(f"{k}:{v}" for k, v in sorted(causes.items())) or "—"
+        lines.append(
+            "| {file} | {rooms_accepted}/{rooms_rejected_cand} | {cause_str} | "
+            "{door_candidates} ({door_valid}/{door_uncertain}/{door_invalid}) | "
+            "{window_candidates} ({window_valid}/{window_uncertain}/{window_invalid}) | "
+            "{ambiguous} |".format(cause_str=cause_str, **r)
         )
     (out / "evaluation-summary.md").write_text("\n".join(lines) + "\n")
 
