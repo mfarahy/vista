@@ -48,6 +48,10 @@ export async function POST(req: NextRequest) {
         license: raw.model.license,
         inferenceMs: raw.timing_ms?.inference ?? null,
       },
+      debug: {
+        candidates: raw.normalized.candidates ?? null,
+        refinementProvider: raw.normalized.refinement?.provider ?? null,
+      },
     });
   } catch (err) {
     if (err instanceof Error && err.name === 'GeometryAiUnreachableError') {

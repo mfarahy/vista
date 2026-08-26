@@ -1,4 +1,5 @@
 import type { VistaGeometry } from '../models/geometry';
+import type { GeometryDebug } from '../geometry-debug';
 
 /**
  * Input to a geometry provider: the source floor plan image, its natural
@@ -16,12 +17,15 @@ export type FloorPlanImage = {
  * Result of an extraction. `geometry` is always the primary Vista geometry the
  * UI renders. `rawGeometry` is an optional *debug* variant (the untouched AI
  * output translated to `VistaGeometry`) that lets the geometry playground
- * compare AI raw vs normalized output. React only ever consumes
- * `VistaGeometry` — never model-specific structures.
+ * compare AI raw vs normalized output. `debug` carries the Phase 4 candidate
+ * representation (accepted / ambiguous / rejected candidates with reasons)
+ * for the developer inspect tools. React only ever consumes `VistaGeometry`
+ * as final geometry — the debug data never replaces it.
  */
 export type GeometryExtraction = {
   geometry: VistaGeometry;
   rawGeometry?: VistaGeometry;
+  debug?: GeometryDebug;
 };
 
 /**

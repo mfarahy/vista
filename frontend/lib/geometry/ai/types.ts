@@ -84,6 +84,56 @@ export type NormalizedExtraction = {
   windows: NormalizedOpening[];
   counts: { walls: number; rooms: number; doors: number; windows: number };
   notes: Record<string, unknown>;
+  candidates?: CandidatesExtraction;
+  refinement?: { provider: string } | null;
+};
+
+/** Room candidate status in the Phase 4 debug representation. */
+export type RoomCandidateStatus = 'accepted' | 'rejected';
+
+/** Opening candidate status in the Phase 4 debug representation. */
+export type OpeningCandidateStatus = 'valid' | 'uncertain' | 'invalid';
+
+export type RoomCandidate = {
+  id: string;
+  polygon: RawPoint[];
+  area_px: number;
+  min_dim_px: number;
+  status: RoomCandidateStatus;
+  /** Decisive rejection reason, or "valid" when accepted. */
+  reason: string;
+  wall_ids: string[];
+  confidence: number | null;
+};
+
+export type OpeningCandidate = {
+  id: string;
+  kind: 'door' | 'window';
+  polygon: RawPoint[];
+  confidence: number;
+  status: OpeningCandidateStatus;
+  /** Machine-readable codes explaining an uncertainty/invalidation. */
+  reasons: string[];
+  nearest_wall_index: number | null;
+  nearest_wall_id: string | null;
+  distance_to_wall_px: number | null;
+  extent_along_px: number | null;
+  extent_perp_px: number | null;
+};
+
+/**
+ * Phase 4 debug representation. Every candidate the pipeline considered is
+ * preserved here — accepted, ambiguous and rejected alike — with the reasons
+ * behind its final classification. Rejected candidates do not enter
+ * `VistaGeometry` but stay available for inspection and AI refinement.
+ */
+export type CandidatesExtraction = {
+  schema: string;
+  rooms: RoomCandidate[];
+  openings: { door: OpeningCandidate[]; window: OpeningCandidate[] };
+  ambiguous_opening_ids: string[];
+  invalid_opening_ids: string[];
+  selected_room_ids: string[];
 };
 
 export type RawModelResult = {

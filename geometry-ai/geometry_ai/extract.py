@@ -39,13 +39,14 @@ from skimage.morphology import skeletonize
 
 from .labels import CLASS_NAMES, CLASS_TO_ID, FLOOR_ID, WALL_ID
 from .model import build_model, load_inference_checkpoint
-from .normalize import normalize_raw
+from .normalize import apply_refinement, normalize_raw
 from .preprocess import (
     ContentRect,
     load_source_rgb,
     mask_to_source_points,
     to_input_tensor,
 )
+from .refinement import GeometryRefinementProvider, build_refinement_provider
 
 MODEL_ID = "cubicasa5k-unet-resnet34"
 WEIGHTS_SOURCE = "https://huggingface.co/Yytsi/floorplan-to-3d-walls"
@@ -487,6 +488,7 @@ class GeometryInference:
         ckpt: str = "best.safetensors",
         config: str = "config.yaml",
         device: str | None = None,
+        refinement_provider: GeometryRefinementProvider | None = None,
     ) -> None:
         weights_dir = Path(weights_dir)
         with (weights_dir / config).open() as f:
@@ -503,6 +505,7 @@ class GeometryInference:
         self.epoch = load_inference_checkpoint(self.model, str(weights_dir / ckpt), device)
         self.model.eval()
         self.ckpt_path = str(weights_dir / ckpt)
+        self.refinement_provider = refinement_provider or build_refinement_provider()
 
     @torch.no_grad()
     def _infer(self, image_bytes: bytes):
@@ -570,6 +573,10 @@ class GeometryInference:
                 "polygons": polygons,
                 "floor_regions": floor_regions,
             }
+        )
+        normalized = apply_refinement(normalized, self.refinement_provider, image_bytes=image_bytes)
+        normalized.setdefault(
+            "refinement", {"provider": self.refinement_provider.name}
         )
         t_end = time.perf_counter()
 

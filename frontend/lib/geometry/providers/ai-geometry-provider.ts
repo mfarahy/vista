@@ -57,8 +57,13 @@ export class AIGeometryProvider implements GeometryProvider {
       const payload = (await res.json()) as {
         geometry: import('../models/geometry').VistaGeometry;
         rawGeometry?: import('../models/geometry').VistaGeometry;
+        debug?: import('../geometry-debug').GeometryDebug;
       };
-      return { geometry: payload.geometry, rawGeometry: payload.rawGeometry };
+      return {
+        geometry: payload.geometry,
+        rawGeometry: payload.rawGeometry,
+        debug: payload.debug,
+      };
     } catch {
       throw new AIGeometryError('invalid-result');
     }
