@@ -17,14 +17,19 @@ export type FloorPlanImage = {
  * Result of an extraction. `geometry` is always the primary Vista geometry the
  * UI renders. `rawGeometry` is an optional *debug* variant (the untouched AI
  * output translated to `VistaGeometry`) that lets the geometry playground
- * compare AI raw vs normalized output. `debug` carries the Phase 4 candidate
- * representation (accepted / ambiguous / rejected candidates with reasons)
- * for the developer inspect tools. React only ever consumes `VistaGeometry`
- * as final geometry — the debug data never replaces it.
+ * compare AI raw vs normalized output. `fusedGeometry` is the Phase 6 *fused*
+ * variant (the same deterministic geometry with VLM semantics attached — room
+ * names/types, semantic opening matches, stairs) rendered as a comparison
+ * layer. `debug` carries the Phase 4 candidate representation (accepted /
+ * ambiguous / rejected candidates with reasons) plus the Phase 6 semantic
+ * document and fusion match explanations for the developer inspect tools.
+ * React only ever consumes `VistaGeometry` as final geometry — the debug data
+ * never replaces it.
  */
 export type GeometryExtraction = {
   geometry: VistaGeometry;
   rawGeometry?: VistaGeometry;
+  fusedGeometry?: VistaGeometry | null;
   debug?: GeometryDebug;
 };
 

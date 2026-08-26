@@ -152,6 +152,181 @@ export type RawModelResult = {
   timing_ms: Record<string, number>;
   raw: RawExtraction;
   normalized: NormalizedExtraction;
+  /** Phase 6: the validated VLM semantic document (optional). */
+  semantic?: SemanticDocument | null;
+  /** Phase 6: the deterministic fusion document (optional). */
+  fused?: FusedExtraction | null;
+};
+
+// ---------------------------------------------------------------------------
+// Phase 5 semantic document (the validated VLM reading, re-used verbatim)
+// ---------------------------------------------------------------------------
+
+export type SemanticSpace = {
+  label: string | null;
+  type: string;
+  enclosed: boolean;
+  usable: boolean;
+  relative_location: string | null;
+};
+
+export type SemanticDoor = {
+  count: number;
+  type: string;
+  connects: string | null;
+  relative_location: string | null;
+};
+
+export type SemanticWindow = {
+  count: number;
+  space: string | null;
+  wall: string | null;
+  relative_location: string | null;
+};
+
+export type SemanticStairs = {
+  present: boolean;
+  relative_location: string | null;
+  direction: 'up' | 'down' | null;
+};
+
+export type SemanticFurniture = {
+  item: string | null;
+  space: string | null;
+};
+
+export type SemanticDocument = {
+  schema?: string;
+  spaces: SemanticSpace[];
+  doors: SemanticDoor[];
+  windows: SemanticWindow[];
+  stairs: SemanticStairs;
+  dimensions: { value: string | null; unit: string }[];
+  annotations: { text: string | null; kind: string }[];
+  furniture: SemanticFurniture[];
+};
+
+// ---------------------------------------------------------------------------
+// Phase 6 fused document (`vista-geometry-fused-v1`)
+// ---------------------------------------------------------------------------
+
+export type FusedRoom = {
+  id: string;
+  polygon: RawPoint[];
+  area_px?: number;
+  wall_ids?: string[];
+  confidence: number | null;
+  derived: boolean;
+  name: string | null;
+  type: string;
+  relative_location?: string | null;
+  provenance: { geometric: string | null; semantic: string | null };
+  match_reason?: string;
+};
+
+export type FusedWall = {
+  id: string;
+  start: RawPoint;
+  end: RawPoint;
+  thickness: number;
+  type: 'exterior' | 'interior' | 'unknown';
+  confidence: number;
+  provenance: { geometric: string | null; semantic: string | null };
+  type_evidence: string[];
+};
+
+export type FusedOpening = {
+  candidate_id: string;
+  wall_id: string;
+  position: number;
+  width: number;
+  confidence: number | null;
+  corrected: boolean;
+  /** Present only when a semantic observation selected this candidate. */
+  semantic_match?: boolean;
+  connects?: string | null;
+  semantic_type?: string | null;
+  space?: string | null;
+  match_reason?: string;
+  score?: number;
+  provenance: { geometric: string | null; semantic: string | null };
+};
+
+export type FusedStair = {
+  anchor: [number, number];
+  direction: 'up' | 'down' | null;
+  relative_location: string | null;
+  confidence: null;
+  geometric: boolean;
+  provenance: { geometric: null; semantic: string };
+  region_id?: string | null;
+  region_label?: string | null;
+};
+
+export type FusedUnresolved = {
+  spaces: { label: string | null; type: string; relative_location: string | null; reason: string }[];
+  doors: { connects: string | null; relative_location: string | null; reason: string }[];
+  windows: { space: string | null; wall: string | null; relative_location: string | null; reason: string }[];
+};
+
+export type FusedExtraction = {
+  schema: string;
+  counts: {
+    walls: number;
+    rooms: number;
+    doors: number;
+    windows: number;
+    stairs: number;
+    unresolved_spaces: number;
+    unresolved_doors: number;
+    unresolved_windows: number;
+  };
+  walls: FusedWall[];
+  rooms: FusedRoom[];
+  doors: FusedOpening[];
+  windows: FusedOpening[];
+  stairs: FusedStair[];
+  dimensions: { value: string | null; unit: string; source: string }[];
+  furniture: SemanticFurniture[];
+  unresolved: FusedUnresolved;
+  suppressed_openings: {
+    candidate_id: string;
+    kind: 'door' | 'window';
+    space: string | null;
+    reason: string;
+  }[];
+  debug: {
+    schema: string;
+    room_matches: {
+      space_index: number;
+      space_label: string | null;
+      candidate_id: string;
+      score: number;
+      contained: boolean;
+      anchor_distance_px: number;
+      reason: string;
+    }[];
+    door_matches: {
+      semantic_index: number;
+      connects: string | null;
+      candidate_id: string;
+      wall_id: string;
+      score: number;
+      factors: string[];
+    }[];
+    window_matches: {
+      semantic_index: number;
+      space: string | null;
+      wall: string | null;
+      candidate_id: string;
+      wall_id: string;
+      score: number;
+      factors: string[];
+    }[];
+    thresholds: { door: number; window: number };
+    stairs_hint: { x: number; y: number } | null;
+  };
+  notes: Record<string, unknown>;
 };
 
 export type GeometryAiMeta = {

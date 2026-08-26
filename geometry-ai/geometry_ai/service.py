@@ -7,6 +7,13 @@ A single bare-bones stdlib HTTP server (no FastAPI/uvicorn) exposing:
                        returns the raw model output document (VistaGeometry
                        adapter runs in the frontend API route, not here).
 
+The `/extract` request may additionally carry a validated VLM semantic
+document (`"semantic": {...}` — the Phase 5 normalized payload). When
+present, the deterministic Phase 6 fusion layer runs and the response gains
+`"semantic"` and `"fused"` fields; without it the response is the Phase 2–4
+document only. Fusion never runs without semantics — the VLM stays a
+per-plan advisory input, never a geometry source.
+
 This is intentionally a minimal service — there is no queueing, auth or
 database wiring. It runs both locally and in a container (Dockerfile +
 `deploy/helm/vista-geometry-ai`); `HOST`/`PORT` may be set via environment
@@ -28,6 +35,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from .extract import GeometryInference
+from .fusion import fuse
 
 MAX_BODY_BYTES = 20 * 1024 * 1024
 
@@ -79,6 +87,15 @@ def build_app(weights_dir: str | Path, device: str | None = None, ckpt: str = "b
                 return
             try:
                 result = inference.run(image_bytes)
+                semantic = req.get("semantic")
+                if isinstance(semantic, dict):
+                    result["semantic"] = semantic
+                    result["fused"] = fuse(
+                        result["normalized"],
+                        semantic,
+                        src_w=result["input"]["width"],
+                        src_h=result["input"]["height"],
+                    )
             except Exception as exc:  # surface failures as JSON, not HTML
                 self._send_json(422, {"error": str(exc)})
                 return

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchRawGeometry } from '@/lib/geometry/ai/ai-service';
 import {
+  fusedResultToVistaGeometry,
   normalizedResultToVistaGeometry,
   rawResultToVistaGeometry,
 } from '@/lib/geometry/ai/geometry-adapter';
@@ -14,8 +15,11 @@ const MAX_BYTES = 15 * 1024 * 1024;
  *
  * Receives the uploaded floor plan, runs the raw model extraction plus the
  * deterministic Phase 3 normalization, and returns *two* `VistaGeometry`
- * variants (raw and normalized) plus display metadata. The frontend never sees
- * model-specific structures.
+ * variants (raw and normalized) plus display metadata. When the service also
+ * ran the Phase 6 semantic fusion (a validated VLM semantic document was
+ * available), a third *fused* `VistaGeometry` variant and the semantic/fusion
+ * debug surfaces are included. The frontend never sees model-specific
+ * structures.
  */
 export async function POST(req: NextRequest) {
   let form: FormData;
@@ -39,9 +43,11 @@ export async function POST(req: NextRequest) {
     const raw = await fetchRawGeometry(buffer, file.type);
     const rawGeometry = rawResultToVistaGeometry(raw);
     const geometry = normalizedResultToVistaGeometry(raw);
+    const fusedGeometry = fusedResultToVistaGeometry(raw);
     return NextResponse.json({
       geometry,
       rawGeometry,
+      fusedGeometry,
       meta: {
         modelId: raw.model.id,
         epoch: raw.model.epoch,
@@ -51,6 +57,8 @@ export async function POST(req: NextRequest) {
       debug: {
         candidates: raw.normalized.candidates ?? null,
         refinementProvider: raw.normalized.refinement?.provider ?? null,
+        semantic: raw.semantic ?? null,
+        fused: raw.fused ?? null,
       },
     });
   } catch (err) {

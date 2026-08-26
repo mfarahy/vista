@@ -599,8 +599,6 @@ confined to candidate-level decisions.
    criterion, with the provider interface ready for when a useful backend
    exists.
 
----
-
 # Phase 5 — VLM semantic floor-plan benchmark
 
 > **Question this phase answers:** can a Vision-Language Model reliably provide
@@ -618,6 +616,8 @@ Execution details and raw responses are reproduced in `geometry-ai/output/phase5
 (regenerate with `python -m geometry_ai.vlm_benchmark --models gpt-4o-mini,gpt-5.6-luna`
 — requires `OPENAI_API_KEY`; `--summary-only` regenerates the summary from
 saved responses without API calls).
+
+
 
 ## Executive summary
 
@@ -975,4 +975,353 @@ semantic document (rooms→polygon labels, openings→candidate hints,
 stairs→new entity, furniture→exclusion gates, dimensions→text), while the
 UNet + deterministic normalization remains the sole source of wall geometry
 and polygons. The VLM must never be asked for pixel coordinates, and its
-output must always pass the validation gate before use.
+output must always pass the validation gate before use.---
+
+# Phase 6 — Semantic geometry fusion
+
+> **Question this phase answers:** can the two validated sources from the
+> previous phases — ResNet34-UNet geometry and VLM semantics — be combined by a
+> *deterministic* fusion layer into a substantially better `VistaGeometry`,
+> without ever letting the VLM become the source of pixel geometry?
+
+**Yes — measured.** Fusion attaches the VLM's semantic reading to the UNet's
+geometric evidence: rooms receive their exact visible labels and controlled
+types, doors/windows are selected from the UNet candidates by semantic wall
+and room-connectivity evidence, stairs finally become representable, and every
+entity carries provenance. The VLM never produces a coordinate, a polygon or
+a dimension conversion; when no geometric candidate exists, the semantic
+observation stays an **unresolved candidate** instead of becoming fabricated
+geometry.
+
+Execution details and raw results are reproduced in
+`geometry-ai/output/phase6/` (regenerate with `python -m geometry_ai.evaluate`
+— the fusion pass reuses the **saved Phase 5 VLM responses**, so no new API
+calls are needed to reproduce the tables below).
+
+## The architecture
+
+Preserved from Phases 2–5, with the fusion layer inserted:
+
+```
+Floor Plan
+    │
+    ├───────────────┐
+    ▼               ▼
+UNet              VLM
+    │               │
+    ▼               ▼
+Raw Geometry     Semantic Document      (Phase 5 schema, validation-gated)
+    │               │
+    ▼               ▼
+Normalization    Validation
+    │               │
+    └───────┬───────┘
+            ▼
+      Geometry Fusion      (NEW: geometry_ai/fusion.py, deterministic)
+            │
+            ▼
+       VistaGeometry
+```
+
+Responsibilities are strictly separated:
+
+* **UNet + deterministic normalization** — the sole source of walls, polygons
+  and opening geometry. Fusion never moves, deletes or invents geometry.
+* **VLM** — semantic evidence only (rooms, labels, types, doors, windows,
+  stairs, furniture, dimensions as text, approximate relative locations).
+  Its normalized document is consumed *as produced by the Phase 5 gate*
+  (`vlm_benchmark.normalize`) — no second schema was created.
+* **Fusion layer** (`fusion.py`) — deterministic, model-free, byte-identical
+  for identical inputs. It matches, names, classifies, anchors and vetoes —
+  it does not draw.
+
+The service (`POST /extract`) runs fusion when the request carries a validated
+`semantic` document; `/geometry` gains **Fused geometry** and **VLM semantics**
+debug layers plus per-entity "selected because" explanations.
+
+## Step 1 — Reused semantic schema
+
+The fusion layer consumes exactly the Phase 5 normalized document
+(`vista-geometry-semantic-v1`): `spaces[]` (label, type, enclosed, usable,
+relative_location), `doors[]`, `windows[]`, `stairs`, `dimensions`,
+`annotations`, `furniture`, `notes`. Raw payloads are passed through the same
+`validate()` → `normalize()` gate before any fusion runs. The semantic
+document stays a separate surface from `VistaGeometry` (it is exposed in the
+debug view, never in the geometry contract).
+
+## Steps 3–5 — Room fusion & matching
+
+**Approach.** Each semantic space's `relative_location` is parsed into a
+deterministic image-space anchor (compass lexicon: "top-left" → 0.2/0.2,
+"left-middle" → left × middle-height, "upper-left of centre" → pulled toward
+the centre, "south side of Heizung" → a room-relative side hint). Anchors are
+computed against the **drawing's own bounding box** (derived from the wall
+extents), not the full image — this keeps letterboxed real scans aligned.
+Each space is then matched to the accepted geometric room candidate whose
+polygon contains its anchor (containment dominates: a containing candidate
+scores ≥ 1.5, an adjacent one can never exceed 0.5). One candidate per space,
+greedy by best score; a space whose region is already claimed stays an
+**unresolved candidate** with a concrete reason (`region_shared_with_space:X`)
+rather than a fabricated polygon.
+
+**Result (rooms, luna semantics over the current UNet run):**
+
+| Fixture | GT rooms | matched | named | unresolved | matched labels (exact) |
+|---|---|---|---|---|---|
+| 01 german real-estate | 8 | 2 | 2 | 6 | Wohnen / Essen · 34 m², Bad · 6 m² |
+| 02 clean | 4 | 2 | 0 | 1 | (unlabeled plan) |
+| 03 dimensions | 2 | 2 | 1 | 0 | Wohnzimmer |
+| 04 furnished | 3 | 3 | 0 | 0 | (unlabeled plan) |
+| 05 cubicasa-style | 4 | 4 | 0 | 0 | (unlabeled plan) |
+| 06 basement (authored) | 4 | 3 | 3 | 1 | Heizung, Hobbyraum, Flur |
+| 07 basement (real scan) | 4 | 2 | 2 | 3 | Heizung, Flur |
+| 08 upper floor (real) | 5 | 1 | 1 | 5 | Kind II / Arbeiten |
+| 09 ground floor (real) | 6 | 1 | 1 | 6 | Kochen |
+
+*Regenerate:* `output/phase6/fusion-summary.md`.
+
+The headline cases:
+
+* **06 — the authored basement plan.** Heizung → top-left region (`utility`),
+  Hobbyraum → top-right (`hobby_room`), Flur → bottom region (`hallway`).
+  **Öl stays unresolved with `region_shared_with_space:Heizung`** — and that
+  is geometrically true: the drawing has *no wall* between Heizung and Öl
+  (the horizontal divider starts at x=250), so the UNet's left strip is one
+  open region. Fusion refuses to invent a dividing wall. The German label
+  `Öl` is preserved verbatim wherever it is used.
+* **01 — the German real-estate plan.** The UNet produces two regions for
+  eight rooms; fusion names the two it can defend (Wohnen/Essen → the large
+  east region, Bad → the west strip — "left-middle" parsing, not a
+  hard-coded coordinate) and leaves the other six honestly unresolved.
+* **03 — dimensions plan.** Both UNet regions matched, one labeled
+  (`Wohnzimmer`), one unlabeled (no label on the plan).
+
+Label handling follows the spec: the visible label is preserved exactly
+(`Wohnen / Essen · 34 m²`, `Heizung`, `Flur`, `Kind II / Arbeiten`), and only
+the *type* is mapped onto the controlled VLM enum (`hobby_room`, `utility`,
+`hallway`, `storage`, …). Nothing is translated.
+
+## Step 6 — Door fusion
+
+For each semantic door: wall-side evidence (interior partition vs. specific
+wall, orientation, "south side of <room>" hints against the matched rooms'
+bounding walls), anchor distance to the candidate's point on its wall, and
+**room connectivity** (the candidate's host wall must border the matched rooms
+named in `connects`). Assignment is pair-lock greedy (the globally best
+candidate–semantic pair is locked first) so a strong observation cannot be
+displaced by a weaker earlier one.
+
+**Result:**
+
+| Fixture | GT doors | matched | kept geo-only | unresolved semantic |
+|---|---|---|---|---|
+| 05 cubicasa | 1 | **1** (door-0, score 0.57) | 0 | 0 |
+| 06 basement | 5 | **2** (Hobbyraum↔Flur 0.94, Heizung↔Flur 0.93) | 0 | 3 (Heizung↔Hobbyraum, Öl↔Flur, exterior) |
+| 07 basement real | ~5 | **1** (Flur↔Öl on the south wall) | 1 | 4 |
+| 08 upper floor real | ~4 | **1** (Kind II↔Flur on the east wall, 0.85) | 3 | 3 |
+| 09 ground floor real | ~6 | **1** (Kochen↔Diele on Kochen's south wall) | 2 | 5 |
+
+The two matched doors on the authored basement plan are the two the UNet
+actually found — and the fusion selected them *by their semantic identity*:
+`door-0` (x≈692) became "Hobbyraum and Flur", `door-1` (x≈331) became
+"Heizung and Flur" — the connectivity + "left/centre-right side of the
+horizontal dividing wall" hints were enough to tell the two apart. The
+Heizung↔Hobbyraum door (x=420 wall), the Öl↔Flur door and the exterior entry
+have **no UNet candidate** and are reported as unresolved — no geometry was
+fabricated (this is the exact complementarity Phase 5 measured: the VLM sees
+doors the UNet does not).
+
+## Step 7 — Window fusion
+
+Same principle with the window's explicit `wall` field as the strongest
+signal ("north wall" → the candidate's host wall must classify as north) plus
+space→room connectivity. In this evaluation run the UNet detected windows only
+on the real scans (its window recall varies run to run — the same model
+produced 3 windows for fixture 05 in the Phase 3 run and 0 here):
+
+| Fixture | GT windows | matched | kept geo-only | unresolved semantic |
+|---|---|---|---|---|
+| 07 basement real | ~3 | **1** (Heizung, north wall, score 0.74) | 0 | 2 |
+| 08 upper floor real | ~4 | **1** (window on the big room's north wall) | 0 | 3 |
+| 05/06 | 3/4 | 0 | 0 | 3/4 unresolved |
+
+The authored plans' four basement windows remain unresolved — the UNet
+produced no window candidates in this run — which is the honest outcome:
+fusion can select, it cannot invent.
+
+## Step 8 — Stairs
+
+The UNet has no stair class, so `VistaGeometry.stairs` was always `[]`.
+Fusion turns the VLM's `stairs.present/location/direction` into a **semantic
+region candidate**: an anchor point (from the relative location), the hosting
+matched room, the direction — and *no* tread geometry, *no* width/length, *no*
+confidence. Detected on all four plans that have stairs (06–09), direction
+`up` on the authored basement:
+
+| Fixture | stairs | hosting region |
+|---|---|---|
+| 06 basement | 1, direction up | Flur |
+| 07 basement real | 1 | Flur |
+| 08 upper floor real | 1 | Kind II / Arbeiten (the only enclosed region) |
+| 09 ground floor real | 1 | no region (anchor outside every enclosed region) |
+
+The `Stair` model was minimally extended (`direction`, `regionId`, `source:
+'semantic'`, optional width/length) — backward compatible; 3D/360 untouched.
+
+## Step 9 — Furniture exclusion
+
+Furniture is a **suppression signal**: a *weak* (uncertain/invalid) UNet
+opening candidate whose room is furnished per the VLM — and for which the VLM
+reports no openings of that kind in that room — is suppressed and preserved as
+`suppressed_by_furniture` in the debug surface. Valid geometry is never
+deleted because furniture is nearby. On unlabeled plans (furniture without a
+space attribution) a weaker fallback applies: a weak opening inside any room
+while the VLM reports no openings of that kind anywhere.
+
+No fixture exercised the veto in this evaluation run (the UNet produced no
+weak window candidates here), so the mechanism is proven by the unit tests
+(`test_furniture_suppresses_weak_window_candidate`,
+`test_furniture_does_not_suppress_vlm_confirmed_window`,
+`test_furniture_never_suppresses_valid_geometry`) — including the invariant
+that VLM-confirmed windows are never suppressed.
+
+## Step 10 — Interior/exterior wall classification
+
+The room-boundary ring verifies every wall type against the matched room
+polygons (a wall with exactly one outside-facing perpendicular side is on the
+building boundary); the check agrees with the mask heuristic on **every
+fixture** — no silent disagreement was found. Additional semantic evidence: a
+wall hosting a **matched exterior door** is forced exterior with
+`type_evidence: ["semantic_exterior_door"]`. `unknown` is now a valid wall
+type and is used only when neither side is determinable — evidence is never
+forced. All other walls keep their original classification plus
+`type_evidence`.
+
+## Step 11 — Dimensions
+
+VLM dimensions are preserved verbatim (`{"value": "8800", "unit": "unknown",
+"source": "visual_text"}`), carried in the fused document, and **never** used
+to scale or transform geometry. `notes.dimensions_preserved_only: true`;
+scale calibration is explicitly deferred to the next phase.
+
+## Step 12 — Confidence and provenance
+
+No confidence is fabricated. Fused rooms/doors/windows carry the UNet
+confidence they came from; semantic-only entities (stairs) carry `null`.
+Every fused entity has explicit provenance:
+
+```json
+"provenance": {"geometric": "unet", "semantic": "vlm"}
+```
+
+Valid UNet openings that no semantic observation claimed are **kept** in the
+fused output marked `semantic_match: false` (geometric-only) — fusion never
+deletes geometry the deterministic pipeline accepted.
+
+## Step 13 — Debug comparison in `/geometry`
+
+The developer debug view gained two layers next to Original / AI raw /
+Normalized / candidates:
+
+* **Fused geometry** (green) — matched rooms with their exact labels and
+  types drawn on the polygons, matched vs geometric-only doors/windows,
+  semantic stair markers with direction, and a fusion summary card
+  (named rooms, stairs, unresolved counts, suppressed openings).
+* **VLM semantics** (violet) — every semantic space's anchor with its label
+  (unresolved spaces in red, furniture markers grey).
+
+Selecting any fused room/opening/stair or semantic space shows the entity
+inspector with the *reason it was selected* — e.g. for `door-1` on the
+basement plan: `semantic door at 'left side of the horizontal dividing wall'
+matches candidate door-1 on wall n-wall-24 (score=0.93)`, plus the factor
+breakdown (`orientation:horizontal`, `anchor_distance_px`, `connectivity`)
+in the fused document's `debug` surface. All new UI text is localized
+(en/de). The Mock provider and the non-debug geometry view are unchanged.
+
+## Step 14/15 — Evaluation discipline
+
+The exact Phase 2–5 fixture set was used, fused against the *saved* Phase 5
+VLM responses (reproducible, no new API calls). All rules are generic — there
+are no fixture names or coordinate constants anywhere in `fusion.py`; the
+lexicon, scoring weights and thresholds are the same for authored and scanned
+plans. Where a result is wrong, the documentation below says so instead of
+adding a special case.
+
+## What improved (measured) vs. UNet alone
+
+| Capability | Phase 3/4 UNet | + Phase 6 fusion |
+|---|---|---|
+| Room semantics | none (faces only) | labels + types on every matched room (6 named across fixtures) |
+| Room count | 2/2/2/3/4/3/2/3/1 | same polygons, 6 unresolved spaces explained per-reason |
+| Door identity | "a door at position 0.36 on n-wall-24" | "the Hobbyraum↔Flur door" (connectivity + wall-side evidence) |
+| Stairs | `[]` everywhere | 4 semantic region candidates with hosting rooms |
+| False geometry | furniture can become openings | furniture veto + documented suppression |
+| Auditing | candidates + reasons | plus match scores, factors and provenance on every entity |
+
+The single most valuable improvement is **room identity**: on the authored
+basement plan the three regions are now *named and typed* (Heizung/
+Hobbyraum/Flur + Öl honestly unresolved), on the German plan the two regions
+are named (Wohnen / Essen, Bad), and the doors on the basement plan carry
+their semantic connections — information the UNet pipeline cannot produce at
+all.
+
+## Remaining failures (documented, not worked around)
+
+1. **Room count is still the UNet's ceiling.** Fixtures 01, 07, 08, 09 have
+   semantic rooms that no geometric region corresponds to (thin-line walls the
+   model cannot enclose). Fusion reports them unresolved with reasons — it
+   does not split polygons. Fixing this is a *model* problem (a room-polygon
+   model such as Raster2Seq once GPU inference exists), not a fusion problem.
+2. **Window fusion is empty on the authored plans in this run** because the
+   UNet produced no window candidates (its window recall varies run to run;
+   the Phase 3 run found 3 on fixture 05). Fusion can only select what the
+   UNet detects.
+3. **Doors the UNet misses** (fixture 06: Heizung↔Hobbyraum, Öl↔Flur,
+   exterior entry) stay unresolved even though the VLM sees them — the spec
+   forbids fabricating them, and the spec is right.
+4. **Furniture veto not exercised live** on this run (no weak opening
+   candidates were produced); it is covered by unit tests and remains armed.
+5. **Heizung ↔ Öl on the authored basement plan** — one region, two labels.
+   Fusion picks the first claim and reports the second as shared. The drawing
+   genuinely lacks the dividing wall; only a semantic room model could split
+   it.
+6. **Run-to-run UNet variance** affects the exact counts above (e.g. this
+   run's fixture 05 has 1 door/0 windows vs. the Phase 3 run's 0 doors/3
+   windows). The fusion rules are stable; the tables are from the run that
+   regenerated `output/phase6/`.
+
+## Acceptance-criteria check
+
+| Criterion | Status |
+|---|---|
+| Existing UNet extraction still functional | ✅ same pipeline; +2–8 ms fusion |
+| Existing VLM semantic extraction still functional | ✅ same schema/gate, reused verbatim |
+| Dedicated fusion layer exists | ✅ `geometry_ai/fusion.py`, deterministic |
+| Rooms matched to geometric candidates | ✅ containment + anchor scoring, 17/17 unit tests |
+| Matched rooms receive labels/types | ✅ exact labels, controlled enum types |
+| Doors semantically matched | ✅ wall-side + connectivity + pair-lock greedy |
+| Windows semantically matched | ✅ wall-field + space connectivity |
+| Stairs represented when detected | ✅ semantic region candidates (4 fixtures) |
+| Furniture as exclusion signal | ✅ weak-opening suppression + tests |
+| Interior/exterior uses semantic evidence | ✅ exterior-door forcing + boundary verification |
+| Missing geometry never fabricated | ✅ unresolved candidates with reasons everywhere |
+| Provenance preserved | ✅ `provenance` + `semantic_match` + `type_evidence` |
+| `/geometry` shows fused output | ✅ fused layer + fusion summary card |
+| Raw/normalized/VLM/fused comparable | ✅ 7 independent debug layers |
+| Same fixtures evaluated | ✅ all 9, saved Phase 5 responses |
+| Actual improvement documented | ✅ tables above + measured summary |
+| Mock provider still works | ✅ untouched |
+| 3D and 360 untouched | ✅ no changes outside the geometry pipeline |
+| Typecheck / lint / tests / build | ✅ 39/39 python tests (17 new), tsc 0 new, eslint 0 errors, next build ok |
+
+## Verdict
+
+The success criterion was: *UNet provides reliable geometric evidence, VLM
+provides semantic understanding, and deterministic fusion combines them into
+substantially better VistaGeometry.* **Met**: room identity, door semantics,
+stairs, furniture exclusion and per-entity provenance are real, measured
+improvements that neither source alone provides — without the VLM ever being
+asked for a pixel coordinate. The remaining gaps are precisely the ones the
+phase spec predicted: rooms the UNet cannot enclose and openings the UNet
+cannot see are reported as unresolved candidates rather than fabricated
+geometry. That is the architecture working as designed, not a failure mode.

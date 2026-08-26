@@ -19,7 +19,7 @@ export type Point2D = {
   y: number;
 };
 
-export type WallType = 'interior' | 'exterior';
+export type WallType = 'interior' | 'exterior' | 'unknown';
 
 export type Wall = {
   id: string;
@@ -37,6 +37,12 @@ export type Room = {
   polygon: Point2D[];
   wallIds: string[];
   confidence?: number;
+  /**
+   * Semantic room type from the controlled VLM enum (bedroom, kitchen,
+   * hallway, …) when the Phase 6 fusion layer matched a semantic space to
+   * this polygon. `null`/undefined when unknown.
+   */
+  type?: string | null;
 };
 
 export type DoorSwing = 'left' | 'right';
@@ -60,11 +66,24 @@ export type Window = {
   confidence?: number;
 };
 
+export type StairDirection = 'up' | 'down';
+
+/**
+ * A stair entity. Phase 6 stairs are *semantic region candidates*: the UNet
+ * has no stair class, so a fused stair carries the VLM's anchor point, the
+ * hosting room and the direction — never fabricated tread geometry. Hence
+ * `width`/`length` are optional and only present when real geometry exists.
+ */
 export type Stair = {
   id: string;
   position: Point2D;
-  width: number;
-  length: number;
+  width?: number;
+  length?: number;
+  direction?: StairDirection | null;
+  /** Hosting room id when the anchor landed inside a matched room. */
+  regionId?: string | null;
+  /** `semantic` = VLM-derived region candidate (no UNet geometry). */
+  source?: 'semantic' | 'unet';
   confidence?: number;
 };
 

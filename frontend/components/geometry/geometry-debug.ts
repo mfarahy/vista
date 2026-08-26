@@ -26,11 +26,18 @@ export type InspectedRow = {
   valueKey?: string;
 };
 
-/** Layers the developer debug view can toggle independently. */
+/**
+ * Layers the developer debug view can toggle independently. `fused` renders
+ * the Phase 6 fused geometry (room names/types, semantic opening matches,
+ * stairs); `vlmSemantic` renders the validated VLM semantic reading itself
+ * (space anchors/labels, unresolved spaces, furniture).
+ */
 export type GeometryDebugLayers = {
   original: boolean;
   raw: boolean;
   normalized: boolean;
+  fused: boolean;
+  vlmSemantic: boolean;
   roomCandidates: boolean;
   openingCandidates: boolean;
 };
@@ -39,6 +46,8 @@ export const DEFAULT_DEBUG_LAYERS: GeometryDebugLayers = {
   original: true,
   raw: false,
   normalized: true,
+  fused: true,
+  vlmSemantic: false,
   roomCandidates: false,
   openingCandidates: false,
 };
@@ -47,6 +56,8 @@ export const DEBUG_LAYER_ORDER: (keyof GeometryDebugLayers)[] = [
   'original',
   'raw',
   'normalized',
+  'fused',
+  'vlmSemantic',
   'roomCandidates',
   'openingCandidates',
 ];

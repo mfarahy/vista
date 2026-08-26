@@ -17,6 +17,7 @@ export function FloorPlanViewer({
   geometry,
   onReplace,
   rawGeometry,
+  fusedGeometry,
   debug,
   layers,
   selectedKey,
@@ -27,6 +28,7 @@ export function FloorPlanViewer({
   geometry: VistaGeometry;
   onReplace: () => void;
   rawGeometry?: VistaGeometry | null;
+  fusedGeometry?: VistaGeometry | null;
   debug?: GeometryDebug | null;
   layers?: GeometryDebugLayers;
   selectedKey?: string | null;
@@ -50,6 +52,7 @@ export function FloorPlanViewer({
           <GeometryDebugOverlay
             geometry={geometry}
             raw={rawGeometry ?? null}
+            fused={fusedGeometry ?? null}
             debug={debug ?? null}
             layers={layers}
             selectedKey={selectedKey ?? null}
