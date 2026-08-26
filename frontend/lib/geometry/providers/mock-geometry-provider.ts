@@ -11,7 +11,18 @@ import type { FloorPlanImage, GeometryProvider } from './geometry-provider';
  * and keeps the whole pipeline testable.
  */
 export class MockGeometryProvider implements GeometryProvider {
-  extract(image: FloorPlanImage): VistaGeometry {
+  readonly type = 'mock' as const;
+
+  async extract(image: FloorPlanImage): Promise<VistaGeometry> {
+    return buildMockGeometry(image);
+  }
+}
+
+/**
+ * Deterministic geometry synthesis shared by the async provider wrapper, so
+ * every page glance still uses the same geometry.
+ */
+export function buildMockGeometry(image: FloorPlanImage): VistaGeometry {
     const { width, height } = image;
     const margin = Math.min(width, height) * 0.05;
 
@@ -59,8 +70,6 @@ export class MockGeometryProvider implements GeometryProvider {
         type: 'interior',
       },
     ];
-
-    const wallIds = ['wall-north', 'wall-east', 'wall-south', 'wall-west', 'wall-divider'];
 
     const roomWest: Point2D[] = [
       topLeft,
@@ -120,7 +129,6 @@ export class MockGeometryProvider implements GeometryProvider {
       stairs: [],
       scale: null,
     };
-  }
 }
 
 /**

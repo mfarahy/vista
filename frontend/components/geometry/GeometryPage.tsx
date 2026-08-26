@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { Building2, Shrink } from 'lucide-react';
+import { Building2, Loader2, Shrink } from 'lucide-react';
 import { VistaLogoLink } from '@/components/vista-logo';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { EmptyState } from '@/components/empty-state';
 import { useI18n } from '@/lib/i18n';
 import { mockGeometryProvider } from '@/lib/geometry/providers/mock-geometry-provider';
+import { aiGeometryProvider, AIGeometryError } from '@/lib/geometry/providers/ai-geometry-provider';
+import type { GeometryProvider, GeometryProviderType } from '@/lib/geometry/providers/geometry-provider';
 import type { VistaGeometry } from '@/lib/geometry/models/geometry';
 import { FloorPlanUploader, type FloorPlanImageUpload } from './FloorPlanUploader';
 import { FloorPlanViewer } from './FloorPlanViewer';
@@ -19,17 +21,64 @@ const LEGEND_SWATCH: Record<string, string> = {
   window: 'bg-[var(--sky-600)]',
 };
 
+const PROVIDERS: Record<GeometryProviderType, GeometryProvider> = {
+  mock: mockGeometryProvider,
+  ai: aiGeometryProvider,
+};
+
 export function GeometryPage() {
   const { t } = useI18n();
   const [upload, setUpload] = useState<FloorPlanImageUpload | null>(null);
   const [geometry, setGeometry] = useState<VistaGeometry | null>(null);
+  const [providerType, setProviderType] = useState<GeometryProviderType>('mock');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleUpload = useCallback((next: FloorPlanImageUpload) => {
-    setUpload(next);
-    setGeometry(mockGeometryProvider.extract({ width: next.width, height: next.height }));
+  const handleSelectProvider = useCallback((type: GeometryProviderType) => {
+    setProviderType(type);
+    setUpload(null);
+    setGeometry(null);
+    setError(null);
   }, []);
 
+  const handleUpload = useCallback(
+    async (next: FloorPlanImageUpload) => {
+      setBusy(true);
+      setError(null);
+      try {
+        const provider = PROVIDERS[providerType];
+        const extracted = await provider.extract({
+          width: next.width,
+          height: next.height,
+          data: next.file,
+        });
+        setUpload(next);
+        setGeometry(extracted);
+      } catch (err) {
+        setUpload(null);
+        setGeometry(null);
+        setError(describeError(err));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [providerType],
+  );
+
+  const describeError = useCallback(
+    (err: unknown) => {
+      if (err instanceof AIGeometryError) {
+        return t(`geometry.ai.error.${err.code}`);
+      }
+      return t('geometry.extractFailed');
+    },
+    [t],
+  );
+
   const handleReplace = useCallback(() => {
+    setUpload(null);
+    setGeometry(null);
+    setError(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
@@ -109,6 +158,20 @@ export function GeometryPage() {
                     ))}
                   </ul>
                   <div className="rounded-xl border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+                    {t('geometry.inspector.provider')}{' '}
+                    <code className="rounded bg-muted px-1.5 py-0.5">
+                      {t(providerType === 'mock' ? 'geometry.provider.mock' : 'geometry.provider.ai')}
+                    </code>
+                    {typeof geometry.confidence === 'number' && (
+                      <>
+                        {' · '}
+                        {t('geometry.inspector.confidence')}{' '}
+                        <code className="rounded bg-muted px-1.5 py-0.5">
+                          {Math.round(geometry.confidence * 100)}%
+                        </code>
+                      </>
+                    )}
+                    <br />
                     {t('geometry.inspector.version')}{' '}
                     <code className="rounded bg-muted px-1.5 py-0.5">{geometry.version}</code>
                     {' · '}
@@ -125,7 +188,45 @@ export function GeometryPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              <FloorPlanUploader onUpload={handleUpload} />
+              <div role="group" aria-label={t('geometry.provider.label')} className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('geometry.provider.label')}
+                </span>
+                {(['mock', 'ai'] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    aria-pressed={providerType === type}
+                    disabled={busy}
+                    onClick={() => handleSelectProvider(type)}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
+                      providerType === type
+                        ? 'border-primary/40 bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {t(type === 'mock' ? 'geometry.provider.mock' : 'geometry.provider.ai')}
+                  </button>
+                ))}
+                {providerType === 'ai' && (
+                  <span className="text-xs text-muted-foreground">{t('geometry.provider.aiHint')}</span>
+                )}
+              </div>
+
+              <FloorPlanUploader onUpload={(next) => void handleUpload(next)} />
+
+              {busy && (
+                <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" /> {t('geometry.extracting')}
+                </p>
+              )}
+
+              {error && (
+                <p className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                  {error}
+                </p>
+              )}
+
               <EmptyState
                 icon={Shrink}
                 title={t('geometry.emptyTitle')}

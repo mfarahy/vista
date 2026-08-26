@@ -27,6 +27,8 @@ export type Wall = {
   end: Point2D;
   thickness: number;
   type: WallType;
+  /** Optional 0..1 confidence that this entity was extracted correctly. */
+  confidence?: number;
 };
 
 export type Room = {
@@ -34,6 +36,7 @@ export type Room = {
   name: string | null;
   polygon: Point2D[];
   wallIds: string[];
+  confidence?: number;
 };
 
 export type DoorSwing = 'left' | 'right';
@@ -45,6 +48,7 @@ export type Door = {
   position: number;
   width: number;
   swing: DoorSwing;
+  confidence?: number;
 };
 
 export type Window = {
@@ -53,6 +57,7 @@ export type Window = {
   /** Fractional position (0..1) of the window centre along its host wall. */
   position: number;
   width: number;
+  confidence?: number;
 };
 
 export type Stair = {
@@ -60,6 +65,7 @@ export type Stair = {
   position: Point2D;
   width: number;
   length: number;
+  confidence?: number;
 };
 
 export type GeometrySource = {
@@ -77,6 +83,9 @@ export type VistaGeometry = {
   windows: Window[];
   stairs: Stair[];
   scale: number | null;
+  /** Optional overall 0..1 confidence of the extraction, when the provider
+   *  exposes it. Providers that have no confidence signal omit it. */
+  confidence?: number;
 };
 
 /** Current version constant used by providers when emitting geometry. */
