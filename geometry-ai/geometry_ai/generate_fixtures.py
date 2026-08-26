@@ -12,6 +12,8 @@ plan styles Phase 3 targets:
     04-furnished        — plan with furniture symbols.
     05-cubicasa-style   — CubiCasa-like CAD drawing with wall bands and
                           explicit door arcs / window double-lines.
+    06-basement         — German basement plan (Heizung, Öl, Hobbyraum, Flur,
+                          stairs, doors, windows, pool table in the Hobbyraum).
 
 Coordinate system: white canvas, dark walls, thin lines — mirroring the
 distribution the CubiCasa5K-trained model expects.
@@ -205,12 +207,124 @@ def cubicasa_style_plan(path: Path) -> None:
     im.save(path)
 
 
+def basement_plan(path: Path) -> None:
+    """German basement plan: Heizung, Öl, Hobbyraum, Flur + stairs + doors +
+    windows + furniture (pool table in the Hobbyraum), dimension lines.
+
+    Layout (ground truth for the Phase 5 benchmark):
+    - Heizung   top-left   (60..420  × 60..380)   boiler symbol
+    - Hobbyraum top-right  (420..940 × 60..380)   pool table + sofa
+    - Öl        bottom-left (60..250  × 380..700)  oil tank symbol
+    - Flur      bottom     (250..940 × 380..700)  stairs in the south-east
+    - 5 doors: Heizung↔Hobbyraum, Heizung↔Flur, Hobbyraum↔Flur, Öl↔Flur,
+      exterior entry on the east wall
+    - 4 windows: Heizung N, Hobbyraum N + E, Öl W
+    - dimension lines: 6400 (west), 8800 (north)
+    """
+    W, H = 1000, 760
+    im = Image.new("RGB", (W, H), (251, 251, 249))
+    draw = ImageDraw.Draw(im)
+    _noise_floor(draw, W, H, 251)
+    t = 12
+    m = 60
+    _draw_wall(draw, (m, m), (W - m, m), t)  # north
+    _draw_wall(draw, (W - m, m), (W - m, H - m), t)  # east
+    _draw_wall(draw, (W - m, H - m), (m, H - m), t)  # south
+    _draw_wall(draw, (m, H - m), (m, m), t)  # west
+    # interior dividers (each with a door gap drawn below)
+    _draw_wall(draw, (420, m), (420, 380), t)  # Heizung | Hobbyraum
+    _draw_wall(draw, (250, 380), (250, 540), t)  # Öl | Flur (upper part)
+    _draw_wall(draw, (250, 580), (250, H - m), t)  # Öl | Flur (lower part)
+    _draw_wall(draw, (250, 380), (W - m, 380), t)  # Hobbyraum | Öl/Flur
+
+    # doors (hinge + leaf + arc) and the wall gaps they sit in
+    for (gap, hinge, leaf) in [
+        # Heizung <-> Hobbyraum
+        ([(420, 170), (420, 200)], (420, 180), (480, 180)),
+        # Heizung <-> Flur
+        ([(310, 380), (340, 380)], (330, 380), (330, 430)),
+        # Hobbyraum <-> Flur
+        ([(670, 380), (700, 380)], (680, 380), (680, 430)),
+        # Öl <-> Flur
+        ([(250, 550), (250, 580)], (250, 560), (310, 560)),
+        # entry door on the east wall (exterior)
+        ([(920, 540), (940, 540)], (940, 540), (880, 540)),
+    ]:
+        (ax, ay), (bx, by) = gap
+        draw.line([(ax, ay), (bx, by)], fill=(251, 251, 249), width=20)  # erase wall
+        _door_arc(draw, hinge, leaf)
+
+    # windows: thin double lines across exterior walls
+    for (ax, ay, bx, by) in [
+        (140, m, 280, m),  # north wall of Heizung
+        (560, m, 700, m),  # north wall of Hobbyraum
+        (W - m, 140, W - m, 260),  # east wall of Hobbyraum
+        (m, 470, m, 570),  # west wall of Öl
+    ]:
+        _window_mark(draw, (ax, ay), (bx, by))
+
+    # stairs in the Flur (bottom-right): treads + direction arrow
+    sx, sy = 760, 560
+    for i in range(8):
+        draw.line(
+            [(sx, sy + i * 16), (sx + 110, sy + i * 16)],
+            fill=(80, 80, 88),
+            width=3,
+        )
+    draw.line([(sx + 55, sy + 4), (sx + 55, sy + 118)], fill=(80, 80, 88), width=3)
+    draw.polygon(
+        [(sx + 50, sy + 6), (sx + 60, sy + 6), (sx + 55, sy - 2)],
+        fill=(80, 80, 88),
+    )
+
+    # furniture (must not become geometry)
+    furn_color = (168, 168, 176)
+    # pool table in the Hobbyraum
+    draw.rectangle([540, 110, 800, 270], outline=furn_color, width=5)
+    for (px, py) in [
+        (540, 110), (670, 110), (800, 110),
+        (540, 270), (670, 270), (800, 270),
+    ]:
+        draw.ellipse([px - 8, py - 8, px + 8, py + 8], outline=furn_color, width=4)
+    # sofa in the Hobbyraum
+    draw.rounded_rectangle([820, 300, 920, 370], radius=10, outline=furn_color, width=5)
+    # boiler in the Heizung
+    draw.ellipse([150, 130, 230, 210], outline=furn_color, width=5)
+    draw.ellipse([178, 158, 202, 182], outline=furn_color, width=4)
+    # oil tank in the Öl room
+    draw.rounded_rectangle([90, 500, 200, 590], radius=18, outline=furn_color, width=5)
+
+    # room labels (keep the exact German source labels)
+    f = _font(28)
+    draw.text((170, 310), "Heizung", fill=(70, 70, 76), font=f)
+    draw.text((95, 650), "Öl", fill=(70, 70, 76), font=f)
+    draw.text((470, 330), "Hobbyraum", fill=(70, 70, 76), font=f)
+    draw.text((560, 630), "Flur", fill=(70, 70, 76), font=f)
+    f18 = _font(20)
+    draw.text((790, 505), "OG", fill=(70, 70, 76), font=f18)
+
+    # dimension lines + values outside the shell
+    dim_color = (120, 120, 128)
+    draw.line([(m, 200), (m, 520)], fill=dim_color, width=1)
+    draw.line([(m - 24, 200), (m - 24, 520)], fill=dim_color, width=1)
+    draw.line([(m - 24, 200), (m, 200)], fill=dim_color, width=1)
+    draw.line([(m - 24, 520), (m, 520)], fill=dim_color, width=1)
+    draw.text((m - 30, 340), "6400", fill=dim_color, font=f18)
+    draw.line([(200, m), (620, m)], fill=dim_color, width=1)
+    draw.line([(200, m - 24), (620, m - 24)], fill=dim_color, width=1)
+    draw.line([(200, m - 24), (200, m)], fill=dim_color, width=1)
+    draw.line([(620, m - 24), (620, m)], fill=dim_color, width=1)
+    draw.text((380, m - 40), "8800", fill=dim_color, font=f18)
+    im.save(path)
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     clean_plan(OUT / "02-clean.png")
     dimensions_plan(OUT / "03-dimensions.png")
     furnished_plan(OUT / "04-furnished.png")
     cubicasa_style_plan(OUT / "05-cubicasa-style.png")
+    basement_plan(OUT / "06-basement.png")
     print("wrote fixtures to", OUT)
 
 

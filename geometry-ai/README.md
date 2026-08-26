@@ -1,4 +1,4 @@
-# Vista Geometry — AI feasibility harness (Phases 2–4)
+# Vista Geometry — AI feasibility harness (Phases 2–5)
 
 Local, CPU-capable harness that runs **real inference** with the
 CubiCasa5K-trained ResNet34-UNet floor-plan segmentation model
@@ -11,15 +11,21 @@ destructive**: every candidate (accepted, ambiguous, rejected) is preserved
 with status + reasons, opening validation is conservative
 (`valid` / `uncertain` / `invalid`), `/geometry` gains a developer debug
 view/entity inspector, and only genuinely ambiguous openings can be passed to
-an optional `GeometryRefinementProvider`. This is the minimal inference
-service — it can run locally on CPU or as a container in the deployment
-(Dockerfile + `deploy/helm/vista-geometry-ai`).
+an optional `GeometryRefinementProvider`. Phase 5 is a **VLM semantic
+benchmark only**: a vision-language model reads the same fixtures and returns
+rooms/labels/doors/windows/stairs/furniture as validated structured JSON —
+deliberately no pixel geometry, no fusion into `VistaGeometry`. This is the
+minimal inference service — it can run locally on CPU or as a container in
+the deployment (Dockerfile + `deploy/helm/vista-geometry-ai`).
 
 ```
 python -m geometry_ai.evaluate      # run skim fixtures, write output/
 python -m geometry_ai.service       # start the local HTTP service (port 8787)
+python -m geometry_ai.vlm_benchmark --models gpt-4o-mini,gpt-5.6-luna
+                                    # Phase 5 VLM semantic benchmark → output/phase5
 python -m geometry_ai.tests.test_normalize    # weight-free normalization tests
 python -m geometry_ai.tests.test_refinement   # weight-free refinement tests
+python -m geometry_ai.tests.test_vlm_benchmark  # weight-free VLM harness tests
 ```
 
 ## Setup
@@ -57,12 +63,24 @@ equivalent machine (see `docs/geometry-ai-evaluation.md` for tables).
 - `geometry_ai/evaluate.py` — feasibility + Phase 3 + Phase 4 evaluation over
   `fixtures/`, writes raw JSON + normalized JSON + candidate JSON + debug
   overlays + summary into `output/`.
+- `geometry_ai/vlm_benchmark.py` — **Phase 5 benchmark only**: prompts a
+  vision-language model (OpenAI-compatible chat completions, strict JSON
+  schema) for the *semantic* reading of each fixture (rooms with labels and
+  types, doors, windows, stairs, dimensions, furniture), validates and
+  normalizes the response, and records latency/tokens/cost into
+  `output/phase5/`. No output from this module reaches `VistaGeometry`.
+- `geometry_ai/identify_plans.py` — one-off Phase 5 classification pass over
+  the untracked real-world scans in `sample_inputs/` (which ones are clean
+  floor plans worth adopting as fixtures); writes
+  `output/phase5/real-fixture-identification.md`.
 - `geometry_ai/tests/` — weight-free unit tests (`test_normalize.py`,
-  `test_refinement.py`; synthetic plans only, no model needed).
+  `test_refinement.py`, `test_vlm_benchmark.py`; synthetic plans only, no
+  model needed).
 - `geometry_ai/generate_fixtures.py` — regenerates the synthetic `fixtures/`
   (authored here, no third-party images).
 - `fixtures/` — representative floor-plan images (incl. the repo's German
-  real-estate demo plan).
+  real-estate demo plan, the authored basement plan, and the real scanned
+  basement/upper-floor/ground-floor plans).
 - `output/` — inference results (gitignored).
 
 The frontend AI adapter lives in `frontend/lib/geometry/ai/` and is invoked

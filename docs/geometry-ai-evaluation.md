@@ -598,3 +598,381 @@ confined to candidate-level decisions.
    set — kept as the simpler deterministic solution per the phase's success
    criterion, with the provider interface ready for when a useful backend
    exists.
+
+---
+
+# Phase 5 — VLM semantic floor-plan benchmark
+
+> **Question this phase answers:** can a Vision-Language Model reliably provide
+> the *semantic* understanding that the current geometry model is missing —
+> rooms, room semantics, labels/OCR, doors, windows, stairs, furniture vs
+> architecture — measured against the same fixtures, with validated structured
+> output?
+
+**This phase is a benchmark only.** The VLM was run against the real Vista
+fixtures, its structured JSON was validated before use, and nothing from it
+was fused into `VistaGeometry`. No UNet behavior, no Mock/UNet provider, no 3D
+and no 360 code was touched.
+
+Execution details and raw responses are reproduced in `geometry-ai/output/phase5/`
+(regenerate with `python -m geometry_ai.vlm_benchmark --models gpt-4o-mini,gpt-5.6-luna`
+— requires `OPENAI_API_KEY`; `--summary-only` regenerates the summary from
+saved responses without API calls).
+
+## Executive summary
+
+| Aspect | Result |
+|---|---|
+| Models tested | **gpt-4o-mini** (project's existing low-cost option) and **gpt-5.6-luna** (project default model, `OPENAI_MODEL`) — OpenAI-compatible chat completions + strict JSON schema |
+| Structured output | 18/18 valid JSON with zero markdown fences; enums stable in 18/18; **17/18 passed the validation gate for each model** (both emitted one `count: 0` placeholder row — the gate caught it both times) |
+| Rooms | **luna: 39/40 spaces** with correct labels/types across nine fixtures (1 merge miss on an unlabeled plan); gpt-4o-mini 36/40 (missed the Balkon, the unlabeled room in 03, the synthetic `Öl`, and `WC/Duschbad`; invented a phantom `OG` room) |
+| Doors | **luna: 6/6** on the plans with known counts, incl. the interior/exterior distinction and the connecting rooms; gpt-4o-mini unstable (basement count 5→2 across runs) and hallucinated 1 door on the furnished plan |
+| Windows | **luna: 7/7** on the plans with known counts (+2 false positives: balcony bars misread); gpt-4o-mini: 3/7 (missed **all four** basement windows) and hallucinated 1 window on the furnished plan |
+| Stairs | Both models: detected on every plan that has them, with location; direction is reliable on clear symbols (`up` on the synthetic basement) and honestly `unknown`/disagreeing on noisy scans |
+| Labels/OCR | Strong: German labels incl. `Heizung`, `Hobbyraum`, `Flur`, `Öl`, `WC/Duschbad`, `Terrasse` read exactly; luna read `Kochen` where 4o-mini misread `Kocen`, and read area annotations (`ca. 24,60 m²`, `8,40 m`, `8800`) without scale conversion |
+| Furniture | **Never became geometry in either model** (the UNet misclassifies furniture as windows). Luna identified items by name incl. the pool table, oil tank and boiler; 4o-mini identified almost none |
+| Cost / latency | gpt-4o-mini ~$0.004–0.006, 2–8 s per image; **luna ~$0.001–0.004, 8–27 s per image** (compact vision encoder: ~1.8–2.8k input tokens vs 26–38k) |
+| Verdict | **A — VLM is valuable as the semantic layer** (over UNet geometry + deterministic normalization) |
+
+**One-line answer:** **yes** — gpt-5.6-luna reliably provides exactly the
+semantic understanding the current pipeline is missing (rooms, semantics,
+labels, doors, windows, stairs, furniture exclusion) at ~$0.001–0.004 per
+image, provided its output goes through the validation + normalization gate
+described below. It does **not** provide geometry, and the next phase must not
+ask it to.
+
+---
+
+## Step 1 — Candidate evaluation
+
+The project already has an OpenAI-compatible key and base URL
+(`OPENAI_API_KEY` / `OPENAI_BASE_URL` / `OPENAI_MODEL` in `expose-service/.env`,
+already used by the floorplan-3d and marketing-content providers), so the
+practical MVP is the OpenAI chat-completions API with strict JSON schema — no
+new account, no new SDK, no new infrastructure. Qwen-VL class models were
+evaluated as the alternative.
+
+| Candidate | Provider | Input | Structured output | Cost (per 1M tokens) | Latency (measured or typical) | Context / image limits | Commercial use | Floor-plan understanding |
+|---|---|---|---|---|---|---|---|---|
+| **gpt-5.6-luna** (tested) | OpenAI API (already configured) | image (base64/URL) + text | **strict JSON schema** ✅ | $0.20 in / $1.20 out (2026-07-30 list price); cached in $0.02 | **8–27 s/image** (reasoning model, measured) | 1.05M token context; ~1.8–2.8k input tokens per plan | ✅ commercial, no training-data restrictions in T&C for API use | **Excellent** — 39/40 rooms, 6/6 doors, 7/7 windows, stairs, exact German OCR |
+| gpt-4o-mini (tested) | OpenAI API | image + text | strict JSON schema ✅ | $0.15 in / $0.60 out | **2–8 s/image** (measured) | 128K context; 26–38k input tokens per plan (tile-based vision) | ✅ | **Good but inconsistent** — 36/40 rooms, missed all basement windows, placeholder-row schema drift |
+| gpt-4o / gpt-5.x family (not tested) | OpenAI API | image + text | strict JSON schema ✅ | $2.50/$10 (4o), $5/$30 (5.5), $2/$12 (5.6 Terra) | slower than mini | 128K–1.05M | ✅ | presumed ≥ luna for vision, not needed for the MVP |
+| Qwen3-VL (Qwen3-VL-Plus, Qwen3-VL-235B-A22B) | Qwen Cloud / Alibaba Model Studio (DashScope successor) | image, video, text | JSON via prompt; **no strict-schema guarantee** | $0.20 in / $1.60 out (VL-Plus); $0.40/$4.00 (235B A22B) | n/a here (no key) | 131–262K context; strong OCR (32 languages) | ✅ weights Apache-2.0; hosted API commercial | strong per Alibaba benchmark claims; **not measured here — no project key** |
+| Local Qwen2.5/3-VL (self-hosted) | local vLLM/Ollama | image + text | JSON via prompt only | $0 (GPU/CPU cost) | seconds on GPU; **unusable CPU-only** | depends on VRAM | ✅ Apache-2.0 weights | plausible; **not runnable on this repo's CPU-only harness** |
+| Google Gemini (flash class) | Google AI Studio | image + text | JSON via prompt / constrained decoding | ~$0.1–1 range | fast | 1M context | ✅ | strong per vendor claims; **no project key** |
+
+**Chosen for the benchmark: gpt-4o-mini + gpt-5.6-luna** through the existing
+project credentials — the smallest practical solution for the MVP (zero new
+accounts, SDK, or infra). Qwen-VL and Gemini remain documented alternatives
+if a provider-neutral or non-OpenAI route is ever required; no provider
+abstraction framework was added.
+
+## Step 2 — Real Vista fixtures
+
+The VLM ran against the **original fixture images, unmodified** (no redraw,
+simplification, crop, or cleaning):
+
+| # | Fixture | Ground truth used for scoring |
+|---|---|---|
+| 01 | German real-estate plan (Obergeschoss, `floorplan.svg`) | 8 spaces (7 labeled + Balkon), 0 doors, 0 windows, title + m² area labels |
+| 02 | clean plan | 4 spaces, no annotations |
+| 03 | dimensions plan | 2 spaces (`Wohnzimmer` labeled), dims `8,40 m` / `6,10 m` |
+| 04 | furnished plan | 3 spaces, furniture: sofa, round table + chairs, bed, bathtub, kitchen counter |
+| 05 | CubiCasa-style plan | 4 spaces, 1 interior door, 3 windows |
+| 06 | **basement plan (authored)** | 4 spaces (`Heizung`, `Öl`, `Hobbyraum`, `Flur`), 5 doors (4 interior + exterior entry), 4 windows, stairs up, dims `8800`/`6400`, furniture: boiler, oil tank, pool table, sofa |
+| 07 | **basement plan (real scan)** | real scanned German plan found in `geometry-ai/sample_inputs/` — labels `Heizung`, `Hobbyraum`, `Flur`, `Öl`, area `ca. 24,60 m²`, stairs; doors/windows present (counts verified by model agreement) |
+| 08 | **upper floor (real scan)** | real scanned plan — `Kind II/Arbeiten`, `Schlafen`, `Flur`, `Bad`, `Kind I` with `ca.` areas, stairs, doors, windows |
+| 09 | **ground floor (real scan)** | real scanned plan — `Kochen`, `Wohnen`, `Diele`, `Windfang`, `WC/Duschbad`, `Terrasse` with `ca.` areas, stairs, doors, windows |
+
+Notes on the real scans: the untracked `geometry-ai/sample_inputs/` directory
+contained the project's real scanned plans (three clean drawings + two
+photos of printed OKAL-house plans + a 1968 Bauplan PDF of sections/
+elevations). The three clean drawings were adopted as fixtures 07–09
+verbatim; the basement scan (07) is the exact plan the phase spec required.
+The photo/PDF scans were identified with the VLM and are documented in
+`output/phase5/` identification notes but not benchmarked (photos of printed
+plans and section/elevation drawings are out of scope for the semantic
+extraction contract). Fixture 06 was authored with the existing fixture
+generator (same convention as 02–05) before the scans were discovered; it
+remains as the clean, in-distribution basement case. The Phase 5 ground
+truth above is the fixture source itself, not an assumption.
+
+## Step 3–7 — Semantic extraction
+
+One prompt + one strict JSON schema (see `vlm_benchmark.py`) for every
+fixture and model. The model is told to read the plan as an architectural
+drawing, to report **semantics only** (never coordinates/polygons/pixels), to
+preserve visible labels exactly, to report dimensions as text only, and to
+put every furniture/decoration item in `furniture` — never in spaces, doors
+or windows.
+
+Output contract (validated before use):
+
+```json
+{
+  "spaces":    [{"label": "Hobbyraum", "type": "hobby_room", "enclosed": true,
+                 "usable": true, "relative_location": "top-right"}],
+  "doors":     [{"count": 1, "type": "interior", "connects": "Heizung and Hobbyraum",
+                 "relative_location": "north-central partition"}],
+  "windows":   [{"count": 1, "space": "Heizung", "wall": "north wall", "relative_location": "upper-left"}],
+  "stairs":    {"present": true, "relative_location": "bottom-right of Flur", "direction": "up"},
+  "dimensions":[{"value": "8800", "unit": "mm"}],
+  "annotations":[{"text": "OG", "kind": "note"}],
+  "furniture": [{"item": "pool table", "space": "Hobbyraum"}],
+  "notes":     {"overall_confidence": "high", "issues": []}
+}
+```
+
+Room types stayed at the simple allowed set (bedroom, bathroom, kitchen,
+living_room, dining_room, hallway, storage, utility, hobby_room, garage,
+porch, balcony, stairs, other, unknown). Visible labels are preserved
+verbatim (`Wohnen / Essen`, `Heizung`, `Öl`, `Hobbyraum`, `Flur`, `Bedroom 3`
+style); nothing is translated.
+
+## Step 8 — Semantic quality (measured counts)
+
+### Rooms
+
+| Fixture | GT | gpt-4o-mini | gpt-5.6-luna |
+|---|---|---|---|
+| 01 german | 8 | 7 (missed **Balkon**) — labels/types all correct | **8/8** incl. Balkon (`enclosed: false`, `usable: true`) |
+| 02 clean | 4 | 4/4 | 3/4 in the committed run (the two right-side rooms merged into one; 4/4 in the earlier run — **run-to-run variance on unlabeled plans**) |
+| 03 dimensions | 2 | **1/2** (missed the unlabeled right space) | **2/2** |
+| 04 furnished | 3 | 3/3 | 3/3 |
+| 05 cubicasa | 4 | 4/4 | 4/4 |
+| 06 basement (authored) | 4 | 3/4 (missed **Öl**; phantom `OG` room) | **4/4** exact labels + types (+1 stair space in the earlier run) |
+| 07 basement (real scan) | 4 | **4/4** incl. `Öl` | **4/4** (+1 stair space) |
+| 08 upper floor (real) | 5 | **5/5** | **5/5** (+1 stair space) |
+| 09 ground floor (real) | 6 | 5/6 (missed **WC/Duschbad**) | **6/6** (+1 stair space) |
+| **Total** | **40** | 36 correct + 1 phantom | **39 correct + 3 defensible stair spaces** |
+
+- Room types: 100 % correct on every labeled/typeable room in both models
+  (`Wohnen / Essen`→living_room, `Küche`→kitchen, `Flur`→hallway, `Bad`→bathroom,
+  `Abstellraum`→storage, `Heizung`→utility, `Öl`→storage, `Hobbyraum`→hobby_room,
+  `Schlafzimmer`→bedroom, `Terrasse`→porch (luna) / other (4o-mini)).
+- The `stairs`-typed spaces luna adds on the real scans are defensible — the
+  staircase occupies a real space and the enum contains `stairs`.
+- `enclosed`/`usable` are the weak flags: luna marks the clean plan's four
+  genuine rooms `enclosed: false` in one run; the flags should be treated as
+  hints, not facts, in a fusion phase.
+- **Run-to-run stability:** room counts were stable for labeled plans across
+  the two full benchmark executions, but unlabeled plans vary (fixture 02:
+  luna 4/4 then 3/4; 4o-mini's basement phantom room `OG` appeared in both
+  runs while its door count swung 5→2).
+
+### Doors (known GT total: 6 — one in 05, five in 06)
+
+| Model | Known-count fixtures | Interior/exterior | Room relationship | Placement |
+|---|---|---|---|---|
+| gpt-4o-mini | 05: 1 ✓ · 06: 2 (5 in the earlier run — **unstable**) + 1 door hallucination on 04 | exterior misread as "Flur to OG" on 06 | wrong on 06 (grouped "Hobbyraum to Flur and Heizung to Flur") | vague ("left wall", "bottom wall") |
+| gpt-5.6-luna | **05: 1/1 · 06: 5/5 (both runs)** | **4 interior + 1 exterior, correct** | **exact**: Heizung↔Hobbyraum, Heizung↔Flur, Hobbyraum↔Flur, Öl↔Flur, Flur↔outside | wall-level ("central partition", "lower-left partition") |
+
+The door the UNet never sees (fixture 05) is found by **both** VLMs — this is
+the complementarity the phase was designed to measure. On the real scans both
+models report plausible door sets with room connections (07: 3 vs 5, 08: 4 vs
+4, 09: 4 vs 6 — luna consistently more detailed).
+
+### Windows (known GT total: 7 — three in 05, four in 06)
+
+| Model | Known-count fixtures | Wall/space attribution | Notes |
+|---|---|---|---|
+| gpt-4o-mini | 3/7 | right on 05 | **missed all four basement windows** (authored 06) and reported none on the real basement scan; 1 hallucination on 04 |
+| gpt-5.6-luna | **7/7** + 2 FP | correct wall + room per window on 05/06 | FPs: 2 on 01 (the two balcony wall bars misread as bedroom windows). On the real scans: 3 windows on 07 (Heizung N, Hobbyraum N, Öl S), 4 on 08, 3 on 09 — consistently specific attributions |
+
+### Stairs
+
+Both models: detected with location on every plan that has stairs (06–09)
+and correctly `absent` on 01–05. Direction: **reliable on clear symbols**
+(both models: `up` on the authored basement with its explicit arrow), and
+honestly `unknown`/disagreeing on the noisy scans (07: "down" vs null, 09:
+"down" vs "up"). This capability does not exist at all in the UNet (no stair
+class).
+
+### Labels / OCR
+
+- All German room labels read exactly on the authored fixtures and the real
+  scans: `Wohnen / Essen`, `Küche`, `Schlafzimmer`, `Flur`, `Bad`,
+  `Arbeitszimmer`, `Abstellraum`, `Heizung`, `Hobbyraum`, `Öl`, `Kind II/
+  Arbeiten`, `Schlafen`, `Kind I`, `Kochen`, `Wohnen`, `Diele`, `Windfang`,
+  `WC/Duschbad`, `Terrasse`. **`Öl` on the real scan was read by both models**
+  (4o-mini missed the synthetic one); on the ground-floor scan **luna read
+  `Kochen` and `WC/Duschbad` where 4o-mini wrote `Kocen` and missed the room**.
+- Title `2. Obergeschoss · ca. 92 m²` and notes `OG`, `N`, title-block text
+  read correctly.
+- Dimensions/areas read as text, not converted to scale: `8,40 m` + `6,10 m`
+  (03, both models, German decimal comma preserved), `8800` + `6400` (06,
+  both), all `ca. … m²` area annotations on the real scans (luna: 5/5 on 08
+  and 6/6 on 09, incl. the `ca. 3,42 m²` WC; 4o-mini 5/6).
+- Known OCR-adjacent gaps: 4o-mini reported the m² area labels of fixture 01
+  (34/9/15/7/6/11/3) under `dimensions` — a schema-understanding gap (they are
+  areas, not lengths); luna folded them into the room labels, which is the
+  exact source text.
+
+### Furniture (known GT: 9 items across 04 and 06)
+
+| Model | Known-count fixtures | Real scans |
+|---|---|---|
+| gpt-4o-mini | 0 detected | table/sofa on 07, detailed on 08 (8), sparse on 09 (5) |
+| gpt-5.6-luna | 9 entries: 6 exact (sofa, round table, bed, pool table, boiler, oil tank), 2 mislabeled as "wardrobe/cabinet", 1 phantom duplicate | **rich and accurate**: 07 incl. pool table, sofa, oil tank, heating equipment (7); 08 beds/desks/bath fixtures (26, over-detailed); 09 dining set, corner sofa, shower/WC, terrace table + plants (14) |
+
+**Critical requirement met by both models:** the pool table and every other
+furniture item in the Hobbyraum, Heizung and Öl rooms — on the authored and
+on the real basement plan — **never became walls, rooms, doors or windows**,
+while the UNet still misclassifies the same furniture as windows (3
+detections in fixture 04).
+
+## Step 9 — VLM vs the current geometry pipeline
+
+| Capability | UNet (+ normalization) | VLM (gpt-5.6-luna) |
+|---|---|---|
+| Wall geometry | **Strong** — ≤2 px centerlines, thickness recovered | Weak/none — deliberately not requested, not produced |
+| Room count | Weak→OK — 2/2/2/3/4; the German plan stays 2 rooms | **Strong** — 8/4/3-4/3/4/4/4/5/6, matching the drawn plans |
+| Room semantics | None | **Strong** — every room typed correctly |
+| Room labels / OCR | None | **Strong** — exact German labels incl. `Öl`, `Heizung`, `WC/Duschbad` |
+| Door detection | Weak — near-zero recall; 9 hallucinations on 01 | **Strong** — 6/6 on known counts with room connections |
+| Window detection | Weak — 0–3, furniture FPs in 04 | **Strong** — 7/7 on known counts with wall attribution (+2 FPs) |
+| Stairs | Not represented (no class) | **Strong** — detected, located, direction on clear symbols |
+| Furniture | Misclassified as windows | **Strong** — excluded from geometry, mostly named |
+| Dimensions | Not read | Read as text (no scale conversion) |
+| Determinism / cost | Deterministic, ~0.5 s, $0 (CPU) | Non-deterministic, 8–27 s, ~$0.001–0.004/image |
+
+The two are strictly complementary: the UNet is a wall-geometry machine, the
+VLM is a semantics/OCR machine. Neither replaces the other. The VLM's only
+geometry-adjacent weakness is that its relative locations are wall/room-level
+(never coordinates) and its counts drift run-to-run on unlabeled plans — both
+reasons to keep it advisory over deterministic geometry.
+
+## Step 10 — Structured-output reliability
+
+Tested explicitly (per fixture × model, 18 calls in the committed run):
+
+| Check | Result |
+|---|---|
+| Valid JSON | **18/18** — strict `json_schema`; `json.loads` succeeded directly on every raw response |
+| Markdown wrapping | **0/18** — no fences or commentary when structured output is requested (API-contract guaranteed, and re-verified at parse time) |
+| Required fields | **18/18** — all eight top-level fields present; the validation gate checks them and the harness tests cover a missing-field case |
+| Schema explosion | Both models emit **`count: 0` placeholder rows + `"null"` strings** occasionally — luna once (01), 4o-mini once (03) in the committed run (4o-mini did it on 3/6 fixtures in the earlier run). **The validation gate caught every occurrence; luna 17/18, gpt-4o-mini 17/18** |
+| Stable enums | **18/18** — zero out-of-enum values (room types, door types, units, confidence levels); the one "surprise" (`type: stairs` on the basement stair space) is in the allowed enum |
+| Graceful unknowns | Good — both models correctly returned "nothing here" for absent doors/windows/stairs; the failure mode is silent *misses* (4o-mini: all basement windows) or *over-grouping* (luna merging the unlabeled rooms in 02), which are recall/segmentation gaps, not schema violations |
+
+The harness therefore **never trusts raw model output**: every response goes
+through `validate()` (parse, required fields, enum checks, count sanity) and a
+documented `normalize()` (drops placeholder rows, maps `"null"`/`"unknown"`
+strings to `null`) before any count is reported. Both steps are weight-free
+and unit-tested (`geometry_ai/tests/test_vlm_benchmark.py`).
+
+## Step 12 — Cost and latency (representative fixtures, measured)
+
+| Fixture | Model | Input tokens | Output tokens | Latency | Cost (list price) |
+|---|---|---|---|---|---|
+| 01 german (1200×840) | gpt-4o-mini | 37 728 | 305 | 4.3 s | $0.0058 |
+| 01 german (1200×840) | gpt-5.6-luna | 2 120 | 1 556 | 16.3 s | $0.0023 |
+| 03 dimensions (1200×800) | gpt-5.6-luna | 2 029 | 709 | 10.2 s | $0.0013 |
+| 06 basement (1000×760) | gpt-5.6-luna | 1 810 | 1 523 | 15.8 s | $0.0022 |
+| 07 basement real (1500×1060) | gpt-4o-mini | 37 728 | 266 | 4.2 s | $0.0058 |
+| 07 basement real (1500×1060) | gpt-5.6-luna | 2 806 | 2 530 | 25.9 s | $0.0036 |
+| 09 ground floor real (1500×1060) | gpt-5.6-luna | 2 806 | 2 077 | 21.6 s | $0.0031 |
+
+Notes: gpt-4o-mini charges per vision tile (26–38k tokens per plan) and is
+**more expensive than luna** on this workload. Luna's vision encoder is
+compact (~1.8–2.8k tokens) and its output includes reasoning tokens; its
+latency is 8–27 s, driven by reasoning. Repeat calls cache the prompt prefix
+(1 792 of 2 120 input tokens were cached on a second identical call at
+$0.02/1M). At a 10 000-image batch this is roughly **$11–36 (luna)** vs
+**$41–59 (gpt-4o-mini)**. No caching, queues, batching or billing
+infrastructure was built — this is raw per-image cost only.
+
+## Step 11 — No geometry fusion (complied)
+
+The VLM output never entered `VistaGeometry`: no room polygon was changed, no
+wall was moved, no coordinate was snapped, and the Mock and UNet providers are
+untouched. `vlm_benchmark.py` writes only to `geometry-ai/output/phase5/`.
+
+## Step 13 — Architecture decision: **A — the VLM is valuable**
+
+Evidence for A: luna detects **39/40 spaces with correct semantics**, **6/6
+doors with room connections**, **7/7 windows with wall attribution** on the
+known-count fixtures, stairs with location and direction on clear symbols,
+exact German labels (incl. `Öl`, `Heizung`, `WC/Duschbad`), and never turns
+furniture into geometry — on authored **and** real scanned plans — for
+~$0.001–0.004 per image through credentials the project already has. This is
+precisely the set of capabilities Phase 2–4 documented as missing (see the
+Limitations sections above). Evidence that it is *not* a geometry replacement:
+it has no coordinate output (by design), its relative locations are
+wall/room-level at best, its counts drift run-to-run on unlabeled plans, and
+it occasionally hallucinates (2 balcony-bar "windows", 1 phantom `OG` room in
+4o-mini, `enclosed` misflags, luna's `Kochen`-vs-`Kocen` OCR edge).
+
+The B-alternative caveat that remains true: **the UNet + deterministic
+normalization stays the geometry authority** — walls, polygons, and
+openings-as-geometry keep coming from the current pipeline. What the next
+**Geometry Fusion** phase should consume from the VLM is strictly semantic:
+
+1. **Room labeling** — map `spaces[]` (label, type, relative location) onto
+   the normalized room polygons by label/location matching; assign
+   `bedroom`/`kitchen`/… types and the exact visible label to each polygon.
+2. **Door/window hints** — `doors[]`/`windows[]` (count, type, connects,
+   wall, relative location) as *validation hints* over UNet opening
+   candidates: promote a `valid/uncertain` candidate the VLM confirms, flag a
+   wall the VLM says has a door but where the UNet found nothing (the missed
+   door in fixture 05), and only with deterministic geometry, never VLM
+   coordinates.
+3. **Stairs** — create the missing stair entity from
+   `stairs.present/location/direction` (no UNet class exists).
+4. **Furniture exclusion** — pass `furniture[]` + room `enclosed/usable`
+   flags into the room-candidate gates so furniture-enclosed faces are
+   rejected semantically, not just geometrically.
+5. **Dimension annotations** — keep as text on the plan (for the exposé), no
+   scale conversion without a separate calibration step.
+
+Fusion rules must stay deterministic over these hints; the VLM stays a
+per-plan advisory call with a validation gate — never a provider framework,
+never a coordinate source.
+
+### Candidate classification
+
+| Approach | Verdict |
+|---|---|
+| ResNet34-UNet + normalization (current) | **kept as the geometry backbone** |
+| **gpt-5.6-luna VLM semantic layer** | **A — selected for the next Geometry Fusion phase** (validation-gated) |
+| gpt-4o-mini | B/C for this task — too unreliable on windows/OCR recall and schema drift; fine as a cheap fallback only with strict gating |
+| Qwen3-VL / Gemini | documented alternatives (not measured here — no project key); revisit only if provider neutrality is required |
+
+## Acceptance-criteria check
+
+| Criterion | Status |
+|---|---|
+| At least one practical VLM tested | ✅ two (`gpt-4o-mini`, `gpt-5.6-luna`), via existing project credentials |
+| Run against the same Vista fixtures | ✅ all original images, unmodified — 6 authored fixtures + 3 real scanned plans |
+| Room detection + semantic labeling evaluated | ✅ 39/40 (luna) with types; tables above |
+| Doors evaluated | ✅ 6/6 on known counts, with interior/exterior + connections |
+| Windows evaluated | ✅ 7/7 on known counts, with wall attribution |
+| Stairs evaluated | ✅ present/location/direction |
+| Labels/OCR evaluated | ✅ exact German labels, title, notes, dimension/area annotations |
+| Furniture-vs-architecture evaluated | ✅ never becomes geometry; mostly named |
+| Structured JSON validated | ✅ 18/18 parse, enums stable, placeholder drift caught + normalized |
+| Latency/cost recorded | ✅ per-fixture tokens, ms, and USD |
+| VLM vs UNet strengths documented | ✅ comparison table (Step 9) |
+| `docs/geometry-ai-evaluation.md` contains Phase 5 | ✅ this section |
+| No VLM geometry merged into `VistaGeometry` | ✅ benchmark writes to `output/phase5/` only |
+| Mock + UNet providers unchanged | ✅ no provider code touched |
+| 3D / 360 isolated | ✅ no changes outside the geometry benchmark |
+| Typecheck / lint / tests / build | ✅ 22/22 python tests (6 new), tsc/eslint/build unchanged (no frontend changes) |
+
+## Final question
+
+> **Can a VLM reliably provide the semantic understanding that the current
+> geometry model is missing?**
+
+**Yes — gpt-5.6-luna can**, on authored and real scanned plans, at
+~$0.001–0.004/image and 8–27 s per plan. It reads rooms, room semantics,
+German labels (including `Öl`, `Heizung`, `WC/Duschbad`), doors with their
+connections, windows with their walls, stairs with location and direction on
+clear symbols, and dimension annotations, and it keeps furniture out of
+geometry — the exact gaps Phase 2–4 documented in the UNet pipeline. The next
+**Geometry Fusion** phase should consume only the *normalized, validated*
+semantic document (rooms→polygon labels, openings→candidate hints,
+stairs→new entity, furniture→exclusion gates, dimensions→text), while the
+UNet + deterministic normalization remains the sole source of wall geometry
+and polygons. The VLM must never be asked for pixel coordinates, and its
+output must always pass the validation gate before use.
