@@ -18,6 +18,7 @@ Then open `http://localhost:3000` and select **New Exposé**.
 - `expose-service/`: separately deployable Express/Mastra service
 - `expose-service/prisma/`: PostgreSQL schema, migrations, and seed for production persistence
 - `job-processor/`: standalone async job worker that consumes jobs from NATS and persists status to PostgreSQL
+- `agent-bridge/`: minimal local HTTP bridge that lets an external client (e.g. an AI supervisor) drive an OpenCode session programmatically. See [OpenCode Agent Bridge](#opencode-agent-bridge)
 - `deploy/frontend/`, `deploy/expose-service/`, and `deploy/job-processor/`: Kubernetes manifests
 - `deploy/helm/vista-expose-service/` and `deploy/helm/vista-job-processor/`: Helm charts
 - `geometry-ai/`: Phase 2 feasibility harness for AI floor-plan geometry extraction (local Python inference service + evaluation). See `docs/geometry-ai-evaluation.md`.
@@ -69,6 +70,145 @@ Document file bytes live behind a swappable storage abstraction (`expose-service
 
 The (shared) `Job` and `Document` models live in `expose-service/prisma/schema.prisma`; both expose-service and job-processor persist to the same PostgreSQL tables. NATS and PostgreSQL run via `docker-compose.yml` locally, and in production they are deployed from the separate Helm charts `deploy/helm/vista-nats` (NATS broker + `nats-surveyor` Prometheus observer, reachable at `nats:4222` / `nats-surveyor:7777`) and `deploy/helm/vista-postgres`. In the `vista` namespace both expose-service and job-processor point at `nats://nats:4222`, expose-service stores document bytes in R2 (`DOCUMENT_STORAGE_PROVIDER=r2`), and job-processor reads them from the same R2 bucket to run the pipeline.
 
+## OpenCode Agent Bridge
+
+`agent-bridge/` is a minimal local HTTP bridge that exposes an OpenCode session
+to external clients (e.g. a ChatGPT-based supervisor for this project) without
+touching the OpenCode CLI directly. It talks to the official OpenCode HTTP API
+via the official `@opencode-ai/sdk` (version-matched to the installed CLI) and
+only supports the MVP flow: create/reuse a session, send a prompt, wait for the
+agent response, report session status, and — for visual verification — capture
+a screenshot of the running Vista frontend with Playwright. No auth, database,
+or queues.
+
+### 1. Start OpenCode in server mode
+
+Run the OpenCode server in the directory the agent should work in (the bridge
+reuses the server's project directory):
+
+```bash
+# in the project root (D:\repo\vista)
+opencode serve --port 4096
+```
+
+This starts a headless server on `http://127.0.0.1:4096`. Verify it with
+`curl http://127.0.0.1:4096/global/health`.
+
+### 2. Start the bridge
+
+```bash
+cd agent-bridge
+npm install
+cp .env.example .env
+npm run dev        # or: npm run build && npm start
+```
+
+Configuration (see `agent-bridge/.env.example`):
+
+- `OPENCODE_URL`: OpenCode server URL, default `http://127.0.0.1:4096`
+- `OPENCODE_TIMEOUT_MS`: max time to wait for an agent response, default `600000`
+- `PORT` / `HOST`: bridge HTTP server, default `4200` / `0.0.0.0`
+- `VISTA_APP_URL`: base URL of the running Vista frontend, default
+  `http://localhost:3000` (used by `POST /screenshot` as default target and as
+  prefix for relative page paths)
+- `SCREENSHOT_TIMEOUT_MS`: max time to wait for a page to load before
+  screenshotting, default `60000`
+- `SCREENSHOT_DIR`: directory where captured screenshots are stored, default
+  `./data/screenshots` (relative to `agent-bridge/`)
+- `SCREENSHOT_HEADLESS`: launch the screenshot browser headless,
+  default `true`
+
+### 3. Create a session
+
+```bash
+curl -X POST http://localhost:4200/session \
+  -H "content-type: application/json" \
+  -d '{"title":"Vista review"}'
+```
+
+Returns `201` with `{ "sessionId": "...", "title": "...", "createdAt": ... }`.
+Keep the `sessionId` and reuse it for subsequent prompts.
+
+### 4. Send a prompt
+
+```bash
+curl -X POST http://localhost:4200/prompt \
+  -H "content-type: application/json" \
+  -d '{"sessionId":"<sessionId>","prompt":"Inspect this repository and report the project structure."}'
+```
+
+The bridge blocks until the agent finishes and returns `200` with
+`{ "sessionId", "status": "completed", "messageId", "response", "tokens", "cost" }`.
+
+### 5. Check session status
+
+```bash
+curl http://localhost:4200/session/<sessionId>
+```
+
+Returns basic session information and the OpenCode status
+(`idle` | `busy` | `retry`).
+
+### 6. Capture a screenshot (visual verification)
+
+The bridge can capture a screenshot of the running Vista frontend with
+Playwright (headless Chromium) so an external supervisor can verify that
+agent-made changes actually render. It assumes the Vista app is already
+running and never starts it itself.
+
+Start the Vista frontend (if not running):
+
+```bash
+cd frontend
+npm install
+cp .env.example .env   # optional; defaults work for the demo
+npm run dev            # serves http://localhost:3000
+```
+
+Request a screenshot:
+
+```bash
+curl -X POST http://localhost:4200/screenshot \
+  -H "content-type: application/json" \
+  -d '{"url":"/demo"}'
+```
+
+The request body is optional and supports:
+
+- `url`: absolute URL or page path to capture (default: the `VISTA_APP_URL`
+  root)
+- `selector`: CSS selector of an element to capture instead of the whole page
+- `fullPage`: `true` to capture the full scrollable page instead of the
+  viewport (ignored when `selector` is set)
+
+Returns `200` with a file reference (the PNG is written to disk, not
+base64-encoded into the response):
+
+```json
+{
+  "status": "ok",
+  "format": "png",
+  "path": "D:\\repo\\vista\\agent-bridge\\data\\screenshots\\vista-2026-08-27T09-15-00Z-1a2b3c.png",
+  "url": "http://localhost:3000/demo",
+  "width": 1440,
+  "height": 900,
+  "bytes": 182347
+}
+```
+
+Screenshots are stored under `SCREENSHOT_DIR` (default
+`agent-bridge/data/screenshots/`, git-ignored). Full flow with an OpenCode
+edit: `POST /prompt` to change the app, then `POST /screenshot` against the
+changed page, and read the returned `path` to inspect the result.
+
+### Error handling
+
+The bridge maps failures to clear HTTP status codes: `400` malformed requests,
+`404` unknown session or missing screenshot selector, `503` OpenCode server
+unreachable, `504` prompt timeout or screenshot page timeout, `502`
+OpenCode API/agent errors or an unreachable screenshot target. `GET /health`
+reports bridge liveness.
+
 ## Tests
 
 Unit tests are deterministic and require no infrastructure:
@@ -84,6 +224,16 @@ RUN_LOCATION_INTEGRATION=1 GEOCODING_PROVIDER=nominatim PLACES_PROVIDER=overpass
 ```
 
 Without these variables, integration tests are skipped. No API keys are logged or committed.
+
+The bridge's real-browser screenshot test (`agent-bridge/src/screenshot.e2e.ts`)
+is isolated from the fast unit suite because it launches Chromium. It serves a
+local page, captures it through `POST /screenshot`, and verifies a valid PNG:
+
+```bash
+cd agent-bridge
+npm test            # fast unit tests (fake screenshot service)
+npm run test:e2e    # real headless Chromium (requires `npx playwright install chromium`)
+```
 
 Job integration tests (NATS publishing, job status persistence, consumer execution/failure) need a running NATS and PostgreSQL and are skipped unless enabled:
 
