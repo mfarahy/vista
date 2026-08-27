@@ -19,6 +19,7 @@ Then open `http://localhost:3000` and select **New Exposé**.
 - `expose-service/prisma/`: PostgreSQL schema, migrations, and seed for production persistence
 - `job-processor/`: standalone async job worker that consumes jobs from NATS and persists status to PostgreSQL
 - `agent-bridge/`: minimal local HTTP bridge that lets an external client (e.g. an AI supervisor) drive an OpenCode session programmatically. See [OpenCode Agent Bridge](#opencode-agent-bridge)
+- `mcp-server/`: minimal stateless MCP server exposing the Agent Bridge as `vista_task`, `vista_screenshot`, and `vista_session` tools for an external supervisor. See [Vista MCP Supervisor Server](#vista-mcp-supervisor-server)
 - `deploy/frontend/`, `deploy/expose-service/`, and `deploy/job-processor/`: Kubernetes manifests
 - `deploy/helm/vista-expose-service/` and `deploy/helm/vista-job-processor/`: Helm charts
 - `geometry-ai/`: Phase 2 feasibility harness for AI floor-plan geometry extraction (local Python inference service + evaluation). See `docs/geometry-ai-evaluation.md`.
@@ -286,6 +287,123 @@ The bridge maps failures to clear HTTP status codes: `400` malformed requests,
 timeout, `502` OpenCode API/agent errors or an unreachable screenshot target.
 `GET /health` reports bridge liveness.
 
+## Vista MCP Supervisor Server
+
+`mcp-server/` is a minimal, stateless MCP server that exposes the existing
+Agent Bridge as three tools for an external supervisor such as ChatGPT. It is a
+thin adapter only: it talks to the Agent Bridge HTTP API (`/task`, `/screenshot`,
+`/session/:id`) and never communicates with OpenCode or captures screenshots
+itself. No database, no authentication, no OpenCode/screenshot logic of its own.
+
+```
+ChatGPT
+ → MCP (Streamable HTTP)
+ → Vista MCP Server (mcp-server/)
+ → Vista Agent Bridge HTTP API (agent-bridge/)
+ → OpenCode (opencode serve)
+```
+
+### 1. Start the Agent Bridge (and its dependencies)
+
+The MCP server only needs the Agent Bridge running. Follow the
+[OpenCode Agent Bridge](#opencode-agent-bridge) steps above — OpenCode server,
+bridge — and optionally the Vista frontend for screenshots:
+
+```bash
+# terminal 1: opencode serve --port 4096
+# terminal 2: cd agent-bridge && npm run dev     (http://127.0.0.1:4200)
+# terminal 3: cd frontend && npm run dev         (http://localhost:3000, for screenshots)
+```
+
+### 2. Start the MCP server
+
+```bash
+cd mcp-server
+npm install
+cp .env.example .env
+npm run dev        # or: npm run build && npm start
+```
+
+Configuration (see `mcp-server/.env.example`):
+
+- `AGENT_BRIDGE_URL`: base URL of the running Agent Bridge, default
+  `http://127.0.0.1:4200` — every tool call is forwarded to this server.
+- `MCP_HOST`: MCP server bind address, default `127.0.0.1`
+- `MCP_PORT`: MCP server port, default `4300`
+- `LOG_LEVEL` / `LOG_FORMAT`: same semantics as the Agent Bridge
+
+The MCP server uses the official `@modelcontextprotocol/sdk` with the
+**Streamable HTTP** transport at `http://localhost:4300/mcp` (stateless:
+one server instance per request, no sessions tracked).
+
+### 3. The three tools
+
+| Tool | Purpose | Key input | Output |
+| --- | --- | --- | --- |
+| `vista_task` | Send a task to OpenCode via the bridge `POST /task` | `prompt` (required), `sessionId` (optional), `screenshot` (optional) | session id, status, agent response, tokens/cost, screenshot metadata + retrieval URL |
+| `vista_screenshot` | Capture the current Vista UI via the bridge `POST /screenshot` | `url`, `selector`, `fullPage` (all optional) | filename, retrieval URL, width, height, bytes, format |
+| `vista_session` | Inspect an existing session via the bridge `GET /session/:id` | `sessionId` (required) | title, directory, status, timestamps |
+
+`vista_task` with a `screenshot` block, or `vista_screenshot`, returns the
+screenshot `filename` and a `retrievalUrl` pointing at the bridge's safe
+`GET /screenshot/:filename` endpoint (the only way the MCP server ever exposes
+screenshot bytes). Absolute filesystem paths are never returned.
+
+### 4. Test the MCP server locally
+
+Try it directly with any MCP-compatible client or test inspector. A quick
+HTTP-only sanity check of the Streamable HTTP endpoint:
+
+```bash
+# initialize
+curl -X POST http://localhost:4300/mcp \
+  -H 'content-type: application/json' \
+  -H 'accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"curl","version":"0.0.1"}}}'
+
+# list tools
+curl -X POST http://localhost:4300/mcp \
+  -H 'content-type: application/json' \
+  -H 'accept: application/json, text/event-stream' \
+  -H 'mcp-protocol-version: 2025-03-26' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+
+# call vista_task
+curl -X POST http://localhost:4300/mcp \
+  -H 'content-type: application/json' \
+  -H 'accept: application/json, text/event-stream' \
+  -H 'mcp-protocol-version: 2025-03-26' \
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"vista_task","arguments":{"prompt":"Inspect this repository and report the project structure."}}}'
+```
+
+The unit suite covers the three tools (success, screenshot-in-task, session
+lookup, screenshot capture, bridge unavailable, unknown session, malformed
+input) and runs without any infrastructure:
+
+```bash
+cd mcp-server
+npm test
+```
+
+### 5. How the MCP server connects to the Agent Bridge
+
+Every tool forwards to the Agent Bridge over plain HTTP: `vista_task` →
+`POST /task`, `vista_screenshot` → `POST /screenshot`, and `vista_session` →
+`GET /session/:id`. When `vista_task` is called with a `screenshot` block, the
+block is forwarded verbatim and the returned `retrievalUrl` is built from
+`AGENT_BRIDGE_URL`. Bridge error bodies (`{ "error": "..." }`) are translated
+into MCP tool errors with `isError: true`, preserving the bridge's status and
+message. If the bridge is unreachable the tool reports a `503`
+bridge-unavailable error.
+
+### Connecting to ChatGPT
+
+This repository contains only the **local** MCP server. Pointing ChatGPT (or
+another remote MCP host) at it requires a supported remote MCP / tunnel setup
+(e.g. an MCP-enabled tunnel that exposes the local `4300` port over HTTPS with
+authentication). That is a separate integration step and is **not** implemented
+or claimed here.
+
 ## Tests
 
 Unit tests are deterministic and require no infrastructure:
@@ -310,6 +428,15 @@ local page, captures it through `POST /screenshot`, and verifies a valid PNG:
 cd agent-bridge
 npm test            # fast unit tests (fake screenshot service)
 npm run test:e2e    # real headless Chromium (requires `npx playwright install chromium`)
+```
+
+The MCP server's unit suite covers `vista_task`, `vista_screenshot`, and
+`vista_session` (success, screenshot-in-task, session lookup, bridge errors,
+malformed input) with no infrastructure required:
+
+```bash
+cd mcp-server
+npm test
 ```
 
 Job integration tests (NATS publishing, job status persistence, consumer execution/failure) need a running NATS and PostgreSQL and are skipped unless enabled:
