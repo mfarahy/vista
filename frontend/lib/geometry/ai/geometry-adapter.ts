@@ -238,3 +238,74 @@ export function normalizedResultToVistaGeometry(raw: RawModelResult): VistaGeome
     confidence: aggregateConfidence([...walls, ...rooms, ...doors, ...windows]),
   };
 }
+
+/**
+ * Phase 6 fused view: the same geometry with VLM semantics attached.
+ *
+ * The fused document carries exactly the deterministic geometry the
+ * normalized pipeline produced — polygons, walls and openings are untouched.
+ * Fusion only *adds* semantic information: room names/types, semantic
+ * opening matches (connects/space/type), stairs as semantic region
+ * candidates, and wall-type evidence. No VLM coordinate ever enters here.
+ */
+export function fusedResultToVistaGeometry(raw: RawModelResult): VistaGeometry | null {
+  const fused = raw.fused;
+  if (!fused) return null;
+  const source = { width: raw.input.width, height: raw.input.height };
+
+  const walls: Wall[] = fused.walls.map((wall) => ({
+    id: wall.id,
+    start: { x: wall.start[0], y: wall.start[1] },
+    end: { x: wall.end[0], y: wall.end[1] },
+    thickness: Math.max(1, Math.round(wall.thickness)),
+    type: wall.type,
+    confidence: wall.confidence,
+  }));
+
+  const rooms: Room[] = fused.rooms.map((room) => ({
+    id: room.id,
+    name: room.name,
+    polygon: rawPointsToPoints(room.polygon),
+    wallIds: room.wall_ids ?? [],
+    confidence: room.confidence ?? undefined,
+    type: room.type ?? null,
+  }));
+
+  const doors: Door[] = fused.doors.map((opening, i) => ({
+    id: `f-door-${i}`,
+    wallId: opening.wall_id,
+    position: opening.position,
+    width: opening.width,
+    swing: DEFAULT_SWING,
+    confidence: opening.confidence ?? undefined,
+  }));
+
+  const windows: Window[] = fused.windows.map((opening, i) => ({
+    id: `f-window-${i}`,
+    wallId: opening.wall_id,
+    position: opening.position,
+    width: opening.width,
+    confidence: opening.confidence ?? undefined,
+  }));
+
+  const stairs: VistaGeometry['stairs'] = fused.stairs.map((stair, i) => ({
+    id: `f-stair-${i}`,
+    position: { x: stair.anchor[0], y: stair.anchor[1] },
+    direction: stair.direction ?? null,
+    regionId: stair.region_id ?? null,
+    source: 'semantic',
+  }));
+
+  return {
+    version: GEOMETRY_VERSION,
+    units: 'px',
+    source,
+    walls,
+    rooms,
+    doors,
+    windows,
+    stairs,
+    scale: null,
+    confidence: aggregateConfidence([...walls, ...rooms, ...doors, ...windows]),
+  };
+}

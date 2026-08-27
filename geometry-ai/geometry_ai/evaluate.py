@@ -1,4 +1,4 @@
-"""Phase 2+3+4 evaluation harness: run real inference across the fixtures.
+"""Phase 2+3+4+6 evaluation harness: run real inference across the fixtures.
 
 For every fixture this writes:
 
@@ -9,6 +9,16 @@ For every fixture this writes:
     output/<name>.debug.png      — source | predicted mask | raw overlay |
                                    normalized overlay
     output/evaluation-summary.md — compact per-image comparison table
+
+Phase 6 adds the semantic fusion pass over the *saved Phase 5 VLM responses*
+(no new API calls): when `output/phase5/responses/<name>.gpt-5.6-luna.json`
+(or the gpt-4o-mini fallback) exists, the same normalized geometry is fused
+with the validated VLM semantics and written to:
+
+    output/phase6/<name>.fused.json — the fused document (rooms/doors/windows/
+                                      stairs, unresolved candidates, provenance)
+    output/phase6/<name>.fusion.png — source | normalized | fused overlay
+    output/phase6/fusion-summary.md — Phase 6 comparison table
 
 Run:  python -m geometry_ai.evaluate [--output OUTPUT] [--device cpu]
 """
@@ -22,6 +32,7 @@ import time
 from pathlib import Path
 
 from .extract import GeometryInference
+from .fusion import fuse
 from .labels import CLASS_COLORS
 from .preprocess import load_source_rgb
 from .visualize import (
@@ -32,6 +43,16 @@ from .visualize import (
     draw_walls_on,
     hconcat,
 )
+
+FUSION_MODELS = ("gpt-5.6-luna", "gpt-4o-mini")
+
+
+def _find_semantic_response(stem: str, phase5: Path) -> tuple[Path | None, str | None]:
+    for model in FUSION_MODELS:
+        p = phase5 / "responses" / f"{stem}.{model}.json"
+        if p.exists():
+            return p, model
+    return None, None
 
 
 def main() -> None:
@@ -44,10 +65,14 @@ def main() -> None:
 
     out = args.output
     out.mkdir(parents=True, exist_ok=True)
+    phase5 = out / "phase5"
+    phase6 = out / "phase6"
+    phase6.mkdir(parents=True, exist_ok=True)
     inf = GeometryInference(args.weights, device=args.device or None)
 
-    images = sorted(args.fixtures.glob("*.png"))
+    images = sorted(args.fixtures.glob("*.png")) + sorted(args.fixtures.glob("*.jpg"))
     rows: list[dict] = []
+    fused_rows: list[dict] = []
     for img_path in images:
         print(f"\n=== {img_path.name} ===")
         image_bytes = img_path.read_bytes()
@@ -56,12 +81,15 @@ def main() -> None:
         wall_clock_ms = round((time.perf_counter() - t_start) * 1000, 1)
         result["timing_ms"]["wall_clock"] = wall_clock_ms
 
-        (out / f"{img_path.stem}.raw.json").write_text(json.dumps(result, indent=2))
+        (out / f"{img_path.stem}.raw.json").write_text(
+            json.dumps(result, indent=2), encoding="utf-8"
+        )
         (out / f"{img_path.stem}.normalized.json").write_text(
-            json.dumps(result["normalized"], indent=2)
+            json.dumps(result["normalized"], indent=2), encoding="utf-8"
         )
         (out / f"{img_path.stem}.candidates.json").write_text(
-            json.dumps(result["normalized"].get("candidates", {}), indent=2)
+            json.dumps(result["normalized"].get("candidates", {}), indent=2),
+            encoding="utf-8",
         )
         _render_debug(img_path, image_bytes, result, inf, out)
         print(
@@ -72,9 +100,33 @@ def main() -> None:
             "| total_ms:",
             result["timing_ms"],
         )
-        rows.append(_summarize(img_path, result))
+        row = _summarize(img_path, result)
+        rows.append(row)
+
+        resp_path, model = _find_semantic_response(img_path.stem, phase5)
+        if resp_path is not None:
+            resp = json.loads(resp_path.read_text(encoding="utf-8"))
+            semantic = resp.get("normalized") or resp.get("payload") or {}
+            fused_doc = fuse(
+                result["normalized"],
+                semantic,
+                src_w=result["input"]["width"],
+                src_h=result["input"]["height"],
+            )
+            (phase6 / f"{img_path.stem}.fused.json").write_text(
+                json.dumps(fused_doc, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+            _render_fusion(img_path, image_bytes, result, fused_doc, phase6)
+            fused_rows.append(_summarize_fusion(img_path, fused_doc, model))
+            print(
+                "fused:",
+                fused_doc["counts"],
+                "| unresolved:",
+                {k: len(v) for k, v in fused_doc["unresolved"].items()},
+            )
 
     _write_summary(out, rows)
+    _write_fusion_summary(phase6, fused_rows)
     print(f"\nDone. Output in {out}")
 
 
@@ -106,6 +158,129 @@ def _render_debug(
         [img_path.name, "predicted mask", "AI raw", "normalized"],
     )
     panel.save(out / f"{img_path.stem}.debug.png")
+
+
+def _render_fusion(
+    img_path: Path, image_bytes: bytes, result: dict, fused: dict, out: Path
+) -> None:
+    """Phase 6 overlay: normalized | fused rooms with labels + openings + stairs."""
+    source = load_source_rgb(image_bytes)
+    max_side = 640
+    if max(source.size) > max_side:
+        k = max_side / max(source.size)
+        source = source.resize((max(1, int(source.width * k)), max(1, int(source.height * k))))
+
+    norm = result["normalized"]
+    norm_overlay = draw_walls_on(source, norm["walls"])
+    norm_overlay = draw_rooms_on(norm_overlay, norm["rooms"])
+    norm_overlay = draw_doors_windows_on(norm_overlay, norm["doors"], norm["windows"], norm["walls"])
+
+    from PIL import Image, ImageDraw, ImageFont
+
+    fused_overlay = draw_walls_on(source, fused["walls"])
+    draw = ImageDraw.Draw(fused_overlay)
+    for r in fused["rooms"]:
+        pts = [(x, y) for x, y in r["polygon"]]
+        if len(pts) >= 3:
+            draw.polygon(pts, outline=(40, 170, 90), fill=(40, 170, 90, 0))
+            draw.line(pts + [pts[0]], fill=(40, 170, 90), width=3)
+        name = r.get("name") or f"({r.get('type')})"
+        cx = sum(p[0] for p in pts) / len(pts)
+        cy = sum(p[1] for p in pts) / len(pts)
+        draw.text((cx - 40, cy - 8), str(name), fill=(10, 90, 40))
+    draw_doors_windows_on(fused_overlay, fused["doors"], fused["windows"], fused["walls"])
+    for u in fused["unresolved"]["spaces"]:
+        if u.get("label"):
+            draw.text((30, 30), f"unresolved: {u['label']} ({u['reason']})", fill=(180, 40, 40))
+    for s in fused["stairs"]:
+        ax, ay = s["anchor"]
+        draw.ellipse([ax - 8, ay - 8, ax + 8, ay + 8], outline=(150, 60, 200), width=3)
+        draw.text((ax + 10, ay - 10), f"stairs {s.get('direction') or ''}", fill=(150, 60, 200))
+
+    panel = hconcat(
+        [norm_overlay, fused_overlay],
+        ["normalized", "fused"],
+    )
+    panel.save(out / f"{img_path.stem}.fusion.png")
+
+
+def _summarize_fusion(img_path: Path, fused: dict, model: str | None) -> dict:
+    rooms = fused["rooms"]
+    unresolved = fused["unresolved"]
+    doors = fused["doors"]
+    windows = fused["windows"]
+    return {
+        "file": img_path.name,
+        "semantic_model": model or "none",
+        "rooms_matched": len(rooms),
+        "rooms_named": sum(1 for r in rooms if r.get("name")),
+        "rooms_labeled": sum(1 for r in rooms if r.get("label")),
+        "rooms_types": sorted({r.get("type", "unknown") for r in rooms}),
+        "room_names": [r.get("name") for r in rooms],
+        "rooms_unresolved": len(unresolved["spaces"]),
+        "unresolved_reasons": _count_reasons(unresolved["spaces"]),
+        "doors_matched": sum(1 for d in doors if d.get("semantic_match") is not False and "score" in d),
+        "doors_geometric_only": sum(1 for d in doors if d.get("semantic_match") is False),
+        "doors_total": len(doors),
+        "doors_unresolved": len(unresolved["doors"]),
+        "windows_matched": sum(1 for w in windows if w.get("semantic_match") is not False and "score" in w),
+        "windows_geometric_only": sum(1 for w in windows if w.get("semantic_match") is False),
+        "windows_total": len(windows),
+        "windows_unresolved": len(unresolved["windows"]),
+        "stairs": len(fused["stairs"]),
+        "stairs_region": [s.get("region_label") for s in fused["stairs"]],
+        "dimensions": len(fused["dimensions"]),
+        "suppressed_openings": len(fused["suppressed_openings"]),
+    }
+
+
+def _count_reasons(entries: list[dict]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for e in entries:
+        reason = e.get("reason", "unknown")
+        counts[reason] = counts.get(reason, 0) + 1
+    return counts
+
+
+def _write_fusion_summary(out: Path, rows: list[dict]) -> None:
+    lines = [
+        "# Phase 6 — Semantic geometry fusion summary",
+        "",
+        f"- Hardware: {platform.node()} · {platform.processor()} · Python {platform.python_version()}",
+        "- Semantics: saved Phase 5 VLM responses (validation-gated), fused "
+        "deterministically with the UNet normalization output of this run",
+        "",
+        "## Rooms",
+        "",
+        "| Fixture | semantic model | matched | named | unresolved | room names | unresolved reasons |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for r in rows:
+        reasons = ", ".join(f"{k}:{v}" for k, v in sorted(r["unresolved_reasons"].items())) or "—"
+        names = ", ".join(str(n) for n in r["room_names"]) or "—"
+        lines.append(
+            "| {file} | {semantic_model} | {rooms_matched} | {rooms_named} | {rooms_unresolved} | "
+            "{names} | {reasons} |".format(names=names, reasons=reasons, **r)
+        )
+    lines += [
+        "",
+        "## Doors / windows / stairs",
+        "",
+        "Doors/windows: `matched` = semantic observation selected a geometric candidate; ",
+        "`kept` = valid UNet openings that no semantic observation claimed (never deleted, ",
+        "marked geometric-only). `unresolved` = semantic observations with no geometric candidate.",
+        "",
+        "| Fixture | doors matched | doors kept (geo-only) | doors unresolved | windows matched | "
+        "windows kept (geo-only) | windows unresolved | stairs | stairs region | dimensions | suppressed openings |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for r in rows:
+        lines.append(
+            "| {file} | {doors_matched} | {doors_geometric_only} | {doors_unresolved} | "
+            "{windows_matched} | {windows_geometric_only} | {windows_unresolved} | "
+            "{stairs} | {stairs_region} | {dimensions} | {suppressed_openings} |".format(**r)
+        )
+    (out / "fusion-summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _summarize(img_path: Path, result: dict) -> dict:
@@ -204,7 +379,9 @@ def _write_summary(out: Path, rows: list[dict]) -> None:
             "{window_candidates} ({window_valid}/{window_uncertain}/{window_invalid}) | "
             "{ambiguous} |".format(cause_str=cause_str, **r)
         )
-    (out / "evaluation-summary.md").write_text("\n".join(lines) + "\n")
+    (out / "evaluation-summary.md").write_text(
+        "\n".join(lines) + "\n", encoding="utf-8"
+    )
 
 
 if __name__ == "__main__":

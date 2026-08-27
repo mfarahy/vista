@@ -1,4 +1,4 @@
-# Vista Geometry — AI feasibility harness (Phases 2–5)
+# Vista Geometry — AI feasibility harness (Phases 2–6)
 
 Local, CPU-capable harness that runs **real inference** with the
 CubiCasa5K-trained ResNet34-UNet floor-plan segmentation model
@@ -14,18 +14,26 @@ view/entity inspector, and only genuinely ambiguous openings can be passed to
 an optional `GeometryRefinementProvider`. Phase 5 is a **VLM semantic
 benchmark only**: a vision-language model reads the same fixtures and returns
 rooms/labels/doors/windows/stairs/furniture as validated structured JSON —
-deliberately no pixel geometry, no fusion into `VistaGeometry`. This is the
-minimal inference service — it can run locally on CPU or as a container in
-the deployment (Dockerfile + `deploy/helm/vista-geometry-ai`).
+deliberately no pixel geometry. Phase 6 adds the **deterministic semantic
+fusion layer** (`fusion.py`) that combines both sources: the VLM's validated
+semantic document selects, names, classifies and anchors the UNet's geometric
+evidence (room labels/types, door/window matches by wall + room connectivity,
+stairs as semantic region candidates, furniture as an exclusion signal,
+wall-type evidence, per-entity provenance) — the VLM never produces geometry,
+and unmatched semantic observations stay unresolved candidates instead of
+being fabricated. This is the minimal inference service — it can run locally
+on CPU or as a container in the deployment (Dockerfile +
+`deploy/helm/vista-geometry-ai`).
 
 ```
-python -m geometry_ai.evaluate      # run skim fixtures, write output/
+python -m geometry_ai.evaluate      # run skim fixtures, write output/ (incl. Phase 6 fusion)
 python -m geometry_ai.service       # start the local HTTP service (port 8787)
 python -m geometry_ai.vlm_benchmark --models gpt-4o-mini,gpt-5.6-luna
                                     # Phase 5 VLM semantic benchmark → output/phase5
 python -m geometry_ai.tests.test_normalize    # weight-free normalization tests
 python -m geometry_ai.tests.test_refinement   # weight-free refinement tests
 python -m geometry_ai.tests.test_vlm_benchmark  # weight-free VLM harness tests
+python -m geometry_ai.tests.test_fusion       # weight-free Phase 6 fusion tests
 ```
 
 ## Setup
@@ -62,7 +70,16 @@ equivalent machine (see `docs/geometry-ai-evaluation.md` for tables).
   `GET /healthz`).
 - `geometry_ai/evaluate.py` — feasibility + Phase 3 + Phase 4 evaluation over
   `fixtures/`, writes raw JSON + normalized JSON + candidate JSON + debug
-  overlays + summary into `output/`.
+  overlays + summary into `output/`. Phase 6 reuses the saved Phase 5 VLM
+  responses to run the fusion pass and writes `output/phase6/*.fused.json`,
+  `*.fusion.png` overlays and `fusion-summary.md` (no new API calls).
+- `geometry_ai/fusion.py` — **Phase 6 deterministic semantic fusion**:
+  semantic rooms → geometric candidates (containment + anchor scoring),
+  doors/windows → UNet candidates (wall side, interior partition, room
+  connectivity, pair-lock greedy assignment), stairs → semantic region
+  candidates, furniture → weak-opening suppression, wall-type verification +
+  exterior-door evidence, provenance on every entity, and a debug surface
+  with the "selected because" reasons. Deterministic and model-free.
 - `geometry_ai/vlm_benchmark.py` — **Phase 5 benchmark only**: prompts a
   vision-language model (OpenAI-compatible chat completions, strict JSON
   schema) for the *semantic* reading of each fixture (rooms with labels and
@@ -74,8 +91,8 @@ equivalent machine (see `docs/geometry-ai-evaluation.md` for tables).
   floor plans worth adopting as fixtures); writes
   `output/phase5/real-fixture-identification.md`.
 - `geometry_ai/tests/` — weight-free unit tests (`test_normalize.py`,
-  `test_refinement.py`, `test_vlm_benchmark.py`; synthetic plans only, no
-  model needed).
+  `test_refinement.py`, `test_vlm_benchmark.py`, `test_fusion.py`; synthetic
+  plans only, no model needed).
 - `geometry_ai/generate_fixtures.py` — regenerates the synthetic `fixtures/`
   (authored here, no third-party images).
 - `fixtures/` — representative floor-plan images (incl. the repo's German
@@ -86,9 +103,13 @@ equivalent machine (see `docs/geometry-ai-evaluation.md` for tables).
 The frontend AI adapter lives in `frontend/lib/geometry/ai/` and is invoked
 through `frontend/app/api/geometry/extract/route.ts`; the UI continues to
 consume only `VistaGeometry`. The `/geometry` developer debug mode renders the
-raw/normalized geometry, room candidates and opening candidates as
-independently toggled layers, with an entity inspector that shows confidence,
-nearest wall, distance, width, status and rejection reasons.
+raw/normalized/fused geometry, the VLM semantic reading, room candidates and
+opening candidates as independently toggled layers, with an entity inspector
+that shows confidence, nearest wall, distance, width, status, rejection
+reasons and — for fused entities — the "selected because" match explanation.
+The service's `/extract` runs the Phase 6 fusion when the request carries a
+validated `semantic` document (`{"semantic": {...}}`), returning `fused` and
+`semantic` fields alongside the existing document.
 
 ## Environment
 

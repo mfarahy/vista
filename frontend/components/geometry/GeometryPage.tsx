@@ -39,6 +39,7 @@ export function GeometryPage() {
   const [upload, setUpload] = useState<FloorPlanImageUpload | null>(null);
   const [geometry, setGeometry] = useState<VistaGeometry | null>(null);
   const [rawGeometry, setRawGeometry] = useState<VistaGeometry | null>(null);
+  const [fusedGeometry, setFusedGeometry] = useState<VistaGeometry | null>(null);
   const [debug, setDebug] = useState<GeometryDebug | null>(null);
   const [layers, setLayers] = useState<GeometryDebugLayers>(DEFAULT_DEBUG_LAYERS);
   const [selectedEntity, setSelectedEntity] = useState<InspectedEntity | null>(null);
@@ -51,6 +52,7 @@ export function GeometryPage() {
     setUpload(null);
     setGeometry(null);
     setRawGeometry(null);
+    setFusedGeometry(null);
     setDebug(null);
     setLayers(DEFAULT_DEBUG_LAYERS);
     setSelectedEntity(null);
@@ -73,11 +75,13 @@ export function GeometryPage() {
         setUpload(next);
         setGeometry(extracted.geometry);
         setRawGeometry(extracted.rawGeometry ?? null);
+        setFusedGeometry(extracted.fusedGeometry ?? null);
         setDebug(extracted.debug ?? null);
       } catch (err) {
         setUpload(null);
         setGeometry(null);
         setRawGeometry(null);
+        setFusedGeometry(null);
         setDebug(null);
         setError(describeError(err));
       } finally {
@@ -101,6 +105,7 @@ export function GeometryPage() {
     setUpload(null);
     setGeometry(null);
     setRawGeometry(null);
+    setFusedGeometry(null);
     setDebug(null);
     setLayers(DEFAULT_DEBUG_LAYERS);
     setSelectedEntity(null);
@@ -140,9 +145,13 @@ export function GeometryPage() {
     original: t('geometry.debug.layers.original'),
     raw: t('geometry.debug.layers.raw'),
     normalized: t('geometry.debug.layers.normalized'),
+    fused: t('geometry.debug.layers.fused'),
+    vlmSemantic: t('geometry.debug.layers.vlmSemantic'),
     roomCandidates: t('geometry.debug.layers.roomCandidates'),
     openingCandidates: t('geometry.debug.layers.openingCandidates'),
   };
+
+  const hasFusion = hasDebug && debug?.fused != null && fusedGeometry !== null;
 
   return (
     <main className="min-h-screen bg-background pb-20">
@@ -186,6 +195,7 @@ export function GeometryPage() {
                           url={upload.url}
                           geometry={geometry}
                           rawGeometry={rawGeometry}
+                          fusedGeometry={fusedGeometry}
                           debug={debug}
                           layers={layers}
                           selectedKey={selectedEntity?.key ?? null}
@@ -257,6 +267,51 @@ export function GeometryPage() {
                       </li>
                     ))}
                   </ul>
+                  {hasFusion && (
+                    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 text-xs text-foreground">
+                      <p className="font-semibold text-emerald-700">
+                        {t('geometry.debug.fusion.title')}
+                      </p>
+                      <ul className="mt-1.5 space-y-1 text-muted-foreground">
+                        {fusedGeometry!.rooms.some((r) => r.name) && (
+                          <li>
+                            {t('geometry.debug.fusion.namedRooms')}{' '}
+                            <code className="rounded bg-muted px-1 py-0.5">
+                              {fusedGeometry!.rooms.filter((r) => r.name).length}/
+                              {fusedGeometry!.rooms.length}
+                            </code>
+                          </li>
+                        )}
+                        {fusedGeometry!.stairs.length > 0 && (
+                          <li>
+                            {t('geometry.debug.fusion.stairs')}{' '}
+                            <code className="rounded bg-muted px-1 py-0.5">
+                              {fusedGeometry!.stairs.length}
+                            </code>
+                          </li>
+                        )}
+                        {debug?.fused?.unresolved && (
+                          <li>
+                            {t('geometry.debug.fusion.unresolved')}{' '}
+                            <code className="rounded bg-muted px-1 py-0.5">
+                              {debug.fused.unresolved.spaces.length} /{' '}
+                              {debug.fused.unresolved.doors.length} /{' '}
+                              {debug.fused.unresolved.windows.length}
+                            </code>
+                          </li>
+                        )}
+                        {debug?.fused?.suppressed_openings &&
+                          debug.fused.suppressed_openings.length > 0 && (
+                            <li>
+                              {t('geometry.debug.fusion.suppressed')}{' '}
+                              <code className="rounded bg-muted px-1 py-0.5">
+                                {debug.fused.suppressed_openings.length}
+                              </code>
+                            </li>
+                          )}
+                      </ul>
+                    </div>
+                  )}
                   {hasDebug && (
                     <>
                       <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
