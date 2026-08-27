@@ -3,6 +3,9 @@ import { after, before, describe, it } from 'node:test';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import express from 'express';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { errorHandler } from '../lib/http.js';
 import {
   ScreenshotNavigationError,
@@ -18,6 +21,7 @@ import { screenshotsRouter } from './screenshots.js';
 function makeResult(overrides: Partial<ScreenshotResult> = {}): ScreenshotResult {
   return {
     path: 'C:\\screenshots\\vista-test.png',
+    filename: 'vista-test.png',
     url: 'http://localhost:3000/',
     format: 'png',
     width: 1440,
@@ -76,6 +80,7 @@ describe('POST /screenshot', () => {
     app.use(express.json());
     app.use(
       screenshotsRouter({
+        dir: '/tmp/screenshots',
         capture: (request) => capture(request),
       }),
     );
@@ -174,5 +179,89 @@ describe('POST /screenshot', () => {
     });
     const response = await post('/screenshot', { selector: '#nope' });
     assert.equal(response.status, 404);
+  });
+});
+
+describe('GET /screenshot/:filename', () => {
+  let server: Server;
+  let baseUrl: string;
+  let screenshotDir: string;
+  let dirName: string;
+
+  before(async () => {
+    dirName = await mkdtemp(path.join(tmpdir(), 'vista-served-'));
+    screenshotDir = dirName;
+    const app = express();
+    app.use(
+      screenshotsRouter({
+        dir: screenshotDir,
+        capture: async () => {
+          throw new Error('capture not used in GET tests');
+        },
+      }),
+    );
+    app.use(errorHandler);
+    server = app.listen(0);
+    await new Promise<void>((resolve) => server.once('listening', resolve));
+    baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+
+  after(async () => {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+    await rm(screenshotDir, { recursive: true, force: true });
+  });
+
+  const PNG_SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+  it('serves a stored PNG with the image content type', async () => {
+    await mkdir(screenshotDir, { recursive: true });
+    const payload = Buffer.concat([PNG_SIG, Buffer.from([1, 2, 3, 4])]);
+    await writeFile(path.join(screenshotDir, 'vista-ok.png'), payload);
+
+    const response = await fetch(`${baseUrl}/screenshot/vista-ok.png`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('content-type'), 'image/png');
+    const body = Buffer.from(await response.arrayBuffer());
+    assert.ok(body.subarray(0, 8).equals(PNG_SIG));
+  });
+
+  it('returns 404 when the file does not exist', async () => {
+    const response = await fetch(`${baseUrl}/screenshot/does-not-exist.png`);
+    assert.equal(response.status, 404);
+  });
+
+  it('rejects path traversal attempts', async () => {
+    // Multi-segment traversal is normalized by the HTTP layer to a non-matching
+    // route (404); a decoded backslash or single-segment traversal hits the
+    // handler's validation (400). Either way the file is never served, so only
+    // a 200 is unacceptable.
+    const attempts = [
+      '../../etc/passwd',
+      '..%2F..%2Fetc%2Fpasswd',
+      'sub%2F..%2F..%2Fetc%2Fpasswd',
+      '..%5C..%5Csecret',
+      '.',
+      '..',
+    ];
+    for (const attempt of attempts) {
+      const response = await fetch(`${baseUrl}/screenshot/${attempt}`);
+      assert.ok(
+        response.status === 404 || response.status === 400,
+        `expected 400/404 for "${attempt}" but got ${response.status}`,
+      );
+    }
+  });
+
+  it('never serves files outside the screenshot directory', async () => {
+    const outside = path.join(dirName, '..', 'outside-secret.png');
+    await writeFile(outside, Buffer.from('secret'));
+    try {
+      const response = await fetch(`${baseUrl}/screenshot/outside-secret.png`);
+      assert.equal(response.status, 404, 'a sibling file must not be reachable');
+    } finally {
+      await rm(outside, { force: true });
+    }
   });
 });

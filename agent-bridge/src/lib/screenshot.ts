@@ -26,6 +26,11 @@ export interface ScreenshotRequest {
 export interface ScreenshotResult {
   /** Absolute path of the stored PNG file. */
   path: string;
+  /**
+   * The file name (basename) of the stored PNG, safe for an external caller to
+   * pass to GET /screenshot/:filename. Never contains path separators.
+   */
+  filename: string;
   /** The resolved URL that was captured. */
   url: string;
   format: 'png';
@@ -46,7 +51,36 @@ export interface ScreenshotServiceOptions {
 }
 
 export interface ScreenshotService {
+  /** Absolute path of the configured screenshot directory. */
+  dir: string;
   capture(request: ScreenshotRequest): Promise<ScreenshotResult>;
+}
+
+/**
+ * Whether a caller-supplied file name may be served. Only a plain basename
+ * (no path separators, no `.` / `..` traversal) is allowed, so an external
+ * caller can never address a file outside the configured screenshot directory.
+ */
+export function isSafeServedFileName(filename: string): boolean {
+  if (!filename || filename.length === 0) return false;
+  if (filename.length > 255) return false;
+  if (path.basename(filename) !== filename) return false;
+  if (filename.includes('/') || filename.includes('\\')) return false;
+  if (filename === '.' || filename === '..') return false;
+  if (filename.includes('..')) return false;
+  return true;
+}
+
+/**
+ * Resolves a caller-supplied file name to an absolute path inside
+ * `screenshotDir`, or returns null when the name is unsafe (path traversal).
+ */
+export function servedFilePath(screenshotDir: string, filename: string): string | null {
+  if (!isSafeServedFileName(filename)) return null;
+  const root = path.resolve(screenshotDir);
+  const candidate = path.resolve(root, filename);
+  if (!candidate.startsWith(root + path.sep)) return null;
+  return candidate;
 }
 
 export class ScreenshotNavigationError extends Error {
@@ -106,6 +140,7 @@ export function createScreenshotService(options: ScreenshotServiceOptions): Scre
   const { appUrl, screenshotDir, timeoutMs, headless } = options;
 
   return {
+    dir: path.resolve(screenshotDir),
     async capture(request): Promise<ScreenshotResult> {
       const targetUrl = resolveScreenshotUrl(appUrl, request.url);
       const fileName = screenshotFileName();
@@ -170,6 +205,7 @@ export function createScreenshotService(options: ScreenshotServiceOptions): Scre
         await writeFile(filePath, buffer);
         return {
           path: filePath,
+          filename: fileName,
           url: page.url(),
           format: 'png',
           width,

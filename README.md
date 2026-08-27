@@ -201,13 +201,90 @@ Screenshots are stored under `SCREENSHOT_DIR` (default
 edit: `POST /prompt` to change the app, then `POST /screenshot` against the
 changed page, and read the returned `path` to inspect the result.
 
+### 7. Retrieve a screenshot
+
+Because `POST /screenshot` returns an absolute filesystem `path`, an external
+caller should not treat that string as directly addressable. Instead it should
+use the returned `filename` (a plain basename inside `SCREENSHOT_DIR`) with a
+safe retrieval endpoint:
+
+```bash
+curl -o shot.png http://localhost:4200/screenshot/<filename>
+```
+
+`GET /screenshot/:filename` serves the PNG with `Content-Type: image/png` and
+returns `404` when the file does not exist. Only files inside the configured
+`SCREENSHOT_DIR` are reachable; path traversal (e.g. `..`, `%2F`, `%5C`) is
+rejected — arbitrary filesystem files are never exposed.
+
+### 8. Combined task (single call)
+
+`POST /task` wraps session handling + prompt + optional screenshot into one
+call, which is what an external supervisor drives. Request:
+
+```json
+{
+  "prompt": "Inspect this repository and report the project structure.",
+  "sessionId": "ses_...",                 // optional; a new session is created when omitted
+  "screenshot": { "url": "/demo", "fullPage": false }  // optional
+}
+```
+
+Behavior:
+
+1. Creates a new OpenCode session when `sessionId` is omitted (otherwise it
+   verifies and reuses the given session, preserving agent context).
+2. Sends the prompt and blocks until the agent finishes.
+3. If screenshot options are provided, captures the Vista app.
+4. Returns a single structured response with the session, agent response,
+   token/cost data, screenshot metadata (when requested), and duration.
+
+```json
+{
+  "sessionId": "ses_...",
+  "status": "completed",
+  "messageId": "msg_...",
+  "response": "Top-level structure of `/root/vista`: ...",
+  "tokens": { "input": 186, "output": 205, "reasoning": 0 },
+  "cost": 0.000234,
+  "screenshot": {
+    "filename": "vista-2026-08-27T09-14-00Z-4wupt4.png",
+    "path": "/root/vista/agent-bridge/data/screenshots/vista-...png",
+    "url": "http://localhost:3000/",
+    "format": "png",
+    "width": 1440,
+    "height": 900,
+    "bytes": 84835
+  },
+  "durationMs": 12740
+}
+```
+
+### Intended supervisor workflow
+
+The bridge is supervisor-ready: reuse the same `sessionId` across tasks so the
+agent keeps its conversational context, and pair each task with a screenshot
+retrieved by filename:
+
+```
+POST /task   { "prompt": "Inspect the current 3D renderer." }        → create session
+POST /task   { "sessionId": "<id>", "prompt": "Fix the door geometry.",
+               "screenshot": { "url": "/demo" } }                     → same session + visual check
+GET  /screenshot/<filename>                                            → inspect the PNG
+POST /task   { "sessionId": "<id>", "prompt": "Now fix the stairs." } → same session continues
+```
+
+A ChatGPT-based supervisor is a possible future consumer of this interface, but
+it is **not** implemented in this repository yet — the bridge only exposes the
+HTTP endpoints the supervisor would call.
+
 ### Error handling
 
 The bridge maps failures to clear HTTP status codes: `400` malformed requests,
-`404` unknown session or missing screenshot selector, `503` OpenCode server
-unreachable, `504` prompt timeout or screenshot page timeout, `502`
-OpenCode API/agent errors or an unreachable screenshot target. `GET /health`
-reports bridge liveness.
+`404` unknown session, missing screenshot selector, or missing screenshot file,
+`503` OpenCode server unreachable, `504` prompt timeout or screenshot page
+timeout, `502` OpenCode API/agent errors or an unreachable screenshot target.
+`GET /health` reports bridge liveness.
 
 ## Tests
 
