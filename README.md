@@ -18,6 +18,7 @@ Then open `http://localhost:3000` and select **New Exposé**.
 - `expose-service/`: separately deployable Express/Mastra service
 - `expose-service/prisma/`: PostgreSQL schema, migrations, and seed for production persistence
 - `job-processor/`: standalone async job worker that consumes jobs from NATS and persists status to PostgreSQL
+- `agent-bridge/`: minimal local HTTP bridge that lets an external client (e.g. an AI supervisor) drive an OpenCode session programmatically. See [OpenCode Agent Bridge](#opencode-agent-bridge)
 - `deploy/frontend/`, `deploy/expose-service/`, and `deploy/job-processor/`: Kubernetes manifests
 - `deploy/helm/vista-expose-service/` and `deploy/helm/vista-job-processor/`: Helm charts
 - `geometry-ai/`: Phase 2 feasibility harness for AI floor-plan geometry extraction (local Python inference service + evaluation). See `docs/geometry-ai-evaluation.md`.
@@ -68,6 +69,80 @@ Document processing is fully asynchronous: `POST /api/properties/:id/documents` 
 Document file bytes live behind a swappable storage abstraction (`expose-service/src/lib/document-storage.ts`): `DOCUMENT_STORAGE_PROVIDER=local` (default, dev/tests) stores files on disk under `UPLOAD_DIR`, while `DOCUMENT_STORAGE_PROVIDER=r2` stores them in Cloudflare R2 / any S3-compatible bucket (see `CLOUDFLARE_*` variables in `expose-service/.env.example`). expose-service uploads the bytes on `POST /api/properties/:id/documents` and serves them back via `GET /api/documents/:id/file`; it never reads them for processing. `job-processor` downloads the bytes directly from the same storage (R2) and runs the OCR → understanding pipeline locally, writing the results back to the shared `Document` table. There is no HTTP call from the worker to expose-service.
 
 The (shared) `Job` and `Document` models live in `expose-service/prisma/schema.prisma`; both expose-service and job-processor persist to the same PostgreSQL tables. NATS and PostgreSQL run via `docker-compose.yml` locally, and in production they are deployed from the separate Helm charts `deploy/helm/vista-nats` (NATS broker + `nats-surveyor` Prometheus observer, reachable at `nats:4222` / `nats-surveyor:7777`) and `deploy/helm/vista-postgres`. In the `vista` namespace both expose-service and job-processor point at `nats://nats:4222`, expose-service stores document bytes in R2 (`DOCUMENT_STORAGE_PROVIDER=r2`), and job-processor reads them from the same R2 bucket to run the pipeline.
+
+## OpenCode Agent Bridge
+
+`agent-bridge/` is a minimal local HTTP bridge that exposes an OpenCode session
+to external clients (e.g. a ChatGPT-based supervisor for this project) without
+touching the OpenCode CLI directly. It talks to the official OpenCode HTTP API
+via the official `@opencode-ai/sdk` (version-matched to the installed CLI) and
+only supports the MVP flow: create/reuse a session, send a prompt, wait for the
+agent response, and report session status. No auth, database, or queues.
+
+### 1. Start OpenCode in server mode
+
+Run the OpenCode server in the directory the agent should work in (the bridge
+reuses the server's project directory):
+
+```bash
+# in the project root (D:\repo\vista)
+opencode serve --port 4096
+```
+
+This starts a headless server on `http://127.0.0.1:4096`. Verify it with
+`curl http://127.0.0.1:4096/global/health`.
+
+### 2. Start the bridge
+
+```bash
+cd agent-bridge
+npm install
+cp .env.example .env
+npm run dev        # or: npm run build && npm start
+```
+
+Configuration (see `agent-bridge/.env.example`):
+
+- `OPENCODE_URL`: OpenCode server URL, default `http://127.0.0.1:4096`
+- `OPENCODE_TIMEOUT_MS`: max time to wait for an agent response, default `600000`
+- `PORT` / `HOST`: bridge HTTP server, default `4200` / `0.0.0.0`
+
+### 3. Create a session
+
+```bash
+curl -X POST http://localhost:4200/session \
+  -H "content-type: application/json" \
+  -d '{"title":"Vista review"}'
+```
+
+Returns `201` with `{ "sessionId": "...", "title": "...", "createdAt": ... }`.
+Keep the `sessionId` and reuse it for subsequent prompts.
+
+### 4. Send a prompt
+
+```bash
+curl -X POST http://localhost:4200/prompt \
+  -H "content-type: application/json" \
+  -d '{"sessionId":"<sessionId>","prompt":"Inspect this repository and report the project structure."}'
+```
+
+The bridge blocks until the agent finishes and returns `200` with
+`{ "sessionId", "status": "completed", "messageId", "response", "tokens", "cost" }`.
+
+### 5. Check session status
+
+```bash
+curl http://localhost:4200/session/<sessionId>
+```
+
+Returns basic session information and the OpenCode status
+(`idle` | `busy` | `retry`).
+
+### Error handling
+
+The bridge maps failures to clear HTTP status codes: `400` malformed requests,
+`404` unknown session, `503` OpenCode server unreachable, `504` prompt timeout,
+`502` OpenCode API/agent errors. `GET /health` reports bridge liveness.
 
 ## Tests
 
