@@ -58,12 +58,14 @@ export class AIGeometryProvider implements GeometryProvider {
         geometry: import('../models/geometry').VistaGeometry;
         rawGeometry?: import('../models/geometry').VistaGeometry;
         fusedGeometry?: import('../models/geometry').VistaGeometry | null;
+        recoveredGeometry?: import('../models/geometry').VistaGeometry | null;
         debug?: import('../geometry-debug').GeometryDebug;
       };
       return {
         geometry: payload.geometry,
         rawGeometry: payload.rawGeometry,
         fusedGeometry: payload.fusedGeometry ?? null,
+        recoveredGeometry: payload.recoveredGeometry ?? null,
         debug: payload.debug,
       };
     } catch {

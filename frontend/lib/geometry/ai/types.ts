@@ -156,6 +156,13 @@ export type RawModelResult = {
   semantic?: SemanticDocument | null;
   /** Phase 6: the deterministic fusion document (optional). */
   fused?: FusedExtraction | null;
+  /**
+   * Phase 7: the fused document extended by the deterministic recovery layer
+   * (only present when fusion ran and recovery executed). Resolved entities
+   * are appended to `fused`/`recovered` arrays; `recovery` holds the debug
+   * surface and the still-unresolved observations.
+   */
+  recovered?: FusedExtraction | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -250,6 +257,10 @@ export type FusedOpening = {
   match_reason?: string;
   score?: number;
   provenance: { geometric: string | null; semantic: string | null };
+  /** Phase 7: set true on entities re-derived by the recovery layer. */
+  recovery?: boolean;
+  /** Phase 7: evidence level of a recovered opening (high/medium/low). */
+  evidence_level?: 'high' | 'medium' | 'low';
 };
 
 export type FusedStair = {
@@ -261,6 +272,16 @@ export type FusedStair = {
   provenance: { geometric: null; semantic: string };
   region_id?: string | null;
   region_label?: string | null;
+  /** Phase 7: recovery provenance/region for a recovered stair. */
+  recovery?: boolean;
+  evidence_level?: 'high' | 'medium' | 'low';
+  recovered_reason?: string;
+  region?: {
+    center: [number, number];
+    extent_x: [number, number];
+    extent_y: [number, number];
+    orientation: 'horizontal' | 'vertical';
+  };
 };
 
 export type FusedUnresolved = {
@@ -325,6 +346,88 @@ export type FusedExtraction = {
     }[];
     thresholds: { door: number; window: number };
     stairs_hint: { x: number; y: number } | null;
+  };
+  notes: Record<string, unknown>;
+  /**
+   * Phase 7: the recovery surface. When present, resolved entities were
+   * appended to the arrays above (marked `recovery` in provenance) and the
+   * still-unresolved observations carry `recovery_reason`.
+   */
+  recovery?: RecoveryExtraction | null;
+};
+
+// ---------------------------------------------------------------------------
+// Phase 7 recovery document (`vista-geometry-recovery-v1`)
+// ---------------------------------------------------------------------------
+
+export type RecoveredWindow = {
+  candidate_id: string;
+  wall_id: string;
+  position: number;
+  width: number;
+  confidence: null;
+  corrected: boolean;
+  semantic_match: boolean;
+  recovery: boolean;
+  space?: string | null;
+  wall?: string | null;
+  semantic_index?: number;
+  evidence_level: 'high' | 'medium' | 'low';
+  recovered_reason: string;
+  provenance: { geometric: 'image_recovery'; semantic: 'vlm'; recovery: true };
+};
+
+export type RecoveredDoor = {
+  candidate_id: string;
+  wall_id: string;
+  position: number;
+  width: number;
+  confidence: null;
+  corrected: boolean;
+  semantic_match: boolean;
+  recovery: boolean;
+  semantic_type?: string;
+  connects?: string | null;
+  swing?: string;
+  evidence_level: 'high' | 'medium' | 'low';
+  recovered_reason: string;
+  provenance: { geometric: 'image_recovery'; semantic: 'vlm'; recovery: true };
+};
+
+export type RecoveredStair = {
+  anchor: [number, number];
+  direction: 'up' | 'down' | null;
+  geometric: boolean;
+  region?: {
+    center: [number, number];
+    extent_x: [number, number];
+    extent_y: [number, number];
+    orientation: 'horizontal' | 'vertical';
+  };
+  evidence_level: 'high' | 'medium' | 'low';
+  recovered_reason: string;
+  provenance: { geometric: 'image_recovery'; semantic: 'vlm'; recovery: true };
+};
+
+export type RecoveryExtraction = {
+  schema: string;
+  counts: {
+    recovered_windows: number;
+    recovered_doors: number;
+    recovered_rooms: number;
+    recovered_stairs: number;
+    unresolved_windows: number;
+    unresolved_doors: number;
+    unresolved_spaces: number;
+  };
+  windows: RecoveredWindow[];
+  doors: RecoveredDoor[];
+  rooms: unknown[];
+  stairs: RecoveredStair[];
+  unresolved: {
+    windows: { space: string | null; recovery_reason: string }[];
+    doors: { connects: string | null; recovery_reason: string }[];
+    spaces: { label: string | null; recovery_reason: string }[];
   };
   notes: Record<string, unknown>;
 };

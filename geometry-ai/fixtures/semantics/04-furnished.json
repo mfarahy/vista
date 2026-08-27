@@ -1,0 +1,21 @@
+{
+  "schema": "vista-geometry-semantic-v1",
+  "spaces": [
+    {"label": null, "type": "living_room", "enclosed": true, "usable": true, "relative_location": "upper-left"},
+    {"label": null, "type": "bathroom", "enclosed": true, "usable": true, "relative_location": "lower-left"},
+    {"label": null, "type": "bedroom", "enclosed": true, "usable": true, "relative_location": "right-middle"}
+  ],
+  "doors": [],
+  "windows": [],
+  "stairs": {"present": false, "relative_location": null, "direction": null},
+  "dimensions": [],
+  "annotations": [],
+  "furniture": [
+    {"item": "sofa", "space": null},
+    {"item": "round table and chairs", "space": null},
+    {"item": "bed", "space": null},
+    {"item": "bathtub", "space": null},
+    {"item": "kitchen counter", "space": null}
+  ],
+  "notes": {"overall_confidence": "high", "issues": []}
+}

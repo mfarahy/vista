@@ -1,0 +1,20 @@
+{
+  "schema": "vista-geometry-semantic-v1",
+  "spaces": [
+    {"label": "Wohnen / Essen · 34 m²", "type": "living_room", "enclosed": true, "usable": true, "relative_location": "top-centre"},
+    {"label": "Küche · 9 m²", "type": "kitchen", "enclosed": true, "usable": true, "relative_location": "upper-left"},
+    {"label": "Schlafzimmer · 15 m²", "type": "bedroom", "enclosed": true, "usable": true, "relative_location": "upper-right"},
+    {"label": "Flur · 7 m²", "type": "hallway", "enclosed": true, "usable": true, "relative_location": "centre"},
+    {"label": "Bad · 6 m²", "type": "bathroom", "enclosed": true, "usable": true, "relative_location": "lower-left"},
+    {"label": "Arbeitszimmer · 11 m²", "type": "other", "enclosed": true, "usable": true, "relative_location": "lower-centre"},
+    {"label": "Abstellraum · 3 m²", "type": "storage", "enclosed": true, "usable": true, "relative_location": "lower-right"},
+    {"label": "Balkon", "type": "balcony", "enclosed": false, "usable": true, "relative_location": "top-right corner"}
+  ],
+  "doors": [],
+  "windows": [],
+  "stairs": {"present": false, "relative_location": null, "direction": null},
+  "dimensions": [],
+  "annotations": [{"text": "2. Obergeschoss · ca. 92 m²", "kind": "title"}],
+  "furniture": [],
+  "notes": {"overall_confidence": "high", "issues": []}
+}

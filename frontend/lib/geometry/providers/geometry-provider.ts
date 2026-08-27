@@ -30,6 +30,8 @@ export type GeometryExtraction = {
   geometry: VistaGeometry;
   rawGeometry?: VistaGeometry;
   fusedGeometry?: VistaGeometry | null;
+  /** Phase 7: fused geometry plus deterministically recovered entities. */
+  recoveredGeometry?: VistaGeometry | null;
   debug?: GeometryDebug;
 };
 

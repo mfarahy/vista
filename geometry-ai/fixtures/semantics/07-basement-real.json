@@ -1,0 +1,31 @@
+{
+  "schema": "vista-geometry-semantic-v1",
+  "spaces": [
+    {"label": "Heizung", "type": "utility", "enclosed": true, "usable": true, "relative_location": "top-left"},
+    {"label": "Hobbyraum", "type": "hobby_room", "enclosed": true, "usable": true, "relative_location": "top-right"},
+    {"label": "Öl", "type": "storage", "enclosed": true, "usable": true, "relative_location": "lower-middle left"},
+    {"label": "Flur", "type": "hallway", "enclosed": true, "usable": true, "relative_location": "bottom"}
+  ],
+  "doors": [
+    {"count": 1, "type": "interior", "connects": "Heizung and Hobbyraum", "relative_location": "upper central partition"},
+    {"count": 1, "type": "interior", "connects": "Heizung and Flur", "relative_location": "left side of the horizontal dividing wall"},
+    {"count": 1, "type": "interior", "connects": "Hobbyraum and Flur", "relative_location": "right side of the horizontal dividing wall"},
+    {"count": 1, "type": "interior", "connects": "Flur and Öl", "relative_location": "south wall"},
+    {"count": 1, "type": "exterior", "connects": "Flur and outside", "relative_location": "east wall"}
+  ],
+  "windows": [
+    {"count": 1, "space": "Heizung", "wall": "north wall", "relative_location": "upper-left"},
+    {"count": 1, "space": "Hobbyraum", "wall": "north wall", "relative_location": "upper-right"},
+    {"count": 1, "space": "Öl", "wall": "south wall", "relative_location": "lower-left"}
+  ],
+  "stairs": {"present": true, "relative_location": "bottom-right of Flur", "direction": "unknown"},
+  "dimensions": [{"value": "ca. 24,60 m²", "unit": "unknown"}],
+  "annotations": [],
+  "furniture": [
+    {"item": "pool table", "space": "Hobbyraum"},
+    {"item": "sofa", "space": "Hobbyraum"},
+    {"item": "oil tank", "space": "Öl"},
+    {"item": "boiler", "space": "Heizung"}
+  ],
+  "notes": {"overall_confidence": "high", "issues": []}
+}
