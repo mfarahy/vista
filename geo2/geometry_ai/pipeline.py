@@ -24,7 +24,7 @@ from typing import Optional
 import numpy as np
 from PIL import Image
 
-from .providers.base import FloorPlanProvider
+from .providers.base import FloorPlanProvider, UsageInfo
 from .schema import FloorPlanGeometry
 from .validation import validate_geometry
 
@@ -40,6 +40,7 @@ class PipelineResult:
     validation_errors: list[str] = field(default_factory=list)
     latency_ms: float = field(default=0.0)
     error: Optional[str] = None
+    usage: Optional[UsageInfo] = None
 
     def to_dict(self) -> dict:
         d = {
@@ -48,8 +49,12 @@ class PipelineResult:
             "success": self.success,
             "latency_ms": round(self.latency_ms, 3),
             "validation_errors": self.validation_errors,
-            "estimated_cost_usd": None,
         }
+        if self.usage is not None:
+            d.update(self.usage.to_dict())
+        else:
+            d["estimated_cost_usd"] = None
+            d["cost_status"] = "n/a"
         if self.geometry is not None:
             d["geometry"] = self.geometry.model_dump()
         if self.error is not None:
@@ -81,6 +86,7 @@ def analyze_image(
     start = time.perf_counter()
     result = provider.analyze(image)
     latency_ms = (time.perf_counter() - start) * 1000.0
+    usage = getattr(provider, "last_usage", None)
 
     if not isinstance(result, FloorPlanGeometry):
         return PipelineResult(
@@ -90,6 +96,7 @@ def analyze_image(
             validation_errors=[f"provider returned {type(result).__name__}, not FloorPlanGeometry"],
             latency_ms=latency_ms,
             error="provider returned a non-schema object",
+            usage=usage,
         )
 
     issues = validate_geometry(result)
@@ -101,6 +108,7 @@ def analyze_image(
             latency_ms=latency_ms,
             validation_errors=issues,
             geometry=result,
+            usage=usage,
         )
 
     return PipelineResult(
@@ -109,6 +117,7 @@ def analyze_image(
         success=True,
         latency_ms=latency_ms,
         geometry=result,
+        usage=usage,
     )
 
 

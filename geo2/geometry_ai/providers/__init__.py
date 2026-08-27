@@ -10,8 +10,13 @@ from __future__ import annotations
 
 from typing import Dict, Type
 
-from .base import FloorPlanProvider, Licensing
+from .base import FloorPlanProvider, Licensing, UsageInfo
 from .baseline import BaselineProvider
+from .openai_vlm import (
+    GPT41MiniVLMProvider,
+    GPT4oReconstructVLMProvider,
+    GPT4oVLMProvider,
+)
 
 _PROVIDERS: Dict[str, Type[FloorPlanProvider]] = {}
 
@@ -45,3 +50,6 @@ def provider_licensing(provider_id: str) -> Licensing:
 
 
 register_provider(BaselineProvider)
+register_provider(GPT4oVLMProvider)
+register_provider(GPT4oReconstructVLMProvider)
+register_provider(GPT41MiniVLMProvider)

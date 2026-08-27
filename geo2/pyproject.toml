@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "geo2"
-version = "0.1.0"
+version = "0.2.0"
 description = "Clean-room Floor Plan Image → validated 2D architectural geometry JSON engine"
 readme = "README.md"
 requires-python = ">=3.10"
