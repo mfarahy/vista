@@ -77,7 +77,9 @@ to external clients (e.g. a ChatGPT-based supervisor for this project) without
 touching the OpenCode CLI directly. It talks to the official OpenCode HTTP API
 via the official `@opencode-ai/sdk` (version-matched to the installed CLI) and
 only supports the MVP flow: create/reuse a session, send a prompt, wait for the
-agent response, and report session status. No auth, database, or queues.
+agent response, report session status, and — for visual verification — capture
+a screenshot of the running Vista frontend with Playwright. No auth, database,
+or queues.
 
 ### 1. Start OpenCode in server mode
 
@@ -106,6 +108,15 @@ Configuration (see `agent-bridge/.env.example`):
 - `OPENCODE_URL`: OpenCode server URL, default `http://127.0.0.1:4096`
 - `OPENCODE_TIMEOUT_MS`: max time to wait for an agent response, default `600000`
 - `PORT` / `HOST`: bridge HTTP server, default `4200` / `0.0.0.0`
+- `VISTA_APP_URL`: base URL of the running Vista frontend, default
+  `http://localhost:3000` (used by `POST /screenshot` as default target and as
+  prefix for relative page paths)
+- `SCREENSHOT_TIMEOUT_MS`: max time to wait for a page to load before
+  screenshotting, default `60000`
+- `SCREENSHOT_DIR`: directory where captured screenshots are stored, default
+  `./data/screenshots` (relative to `agent-bridge/`)
+- `SCREENSHOT_HEADLESS`: launch the screenshot browser headless,
+  default `true`
 
 ### 3. Create a session
 
@@ -138,11 +149,65 @@ curl http://localhost:4200/session/<sessionId>
 Returns basic session information and the OpenCode status
 (`idle` | `busy` | `retry`).
 
+### 6. Capture a screenshot (visual verification)
+
+The bridge can capture a screenshot of the running Vista frontend with
+Playwright (headless Chromium) so an external supervisor can verify that
+agent-made changes actually render. It assumes the Vista app is already
+running and never starts it itself.
+
+Start the Vista frontend (if not running):
+
+```bash
+cd frontend
+npm install
+cp .env.example .env   # optional; defaults work for the demo
+npm run dev            # serves http://localhost:3000
+```
+
+Request a screenshot:
+
+```bash
+curl -X POST http://localhost:4200/screenshot \
+  -H "content-type: application/json" \
+  -d '{"url":"/demo"}'
+```
+
+The request body is optional and supports:
+
+- `url`: absolute URL or page path to capture (default: the `VISTA_APP_URL`
+  root)
+- `selector`: CSS selector of an element to capture instead of the whole page
+- `fullPage`: `true` to capture the full scrollable page instead of the
+  viewport (ignored when `selector` is set)
+
+Returns `200` with a file reference (the PNG is written to disk, not
+base64-encoded into the response):
+
+```json
+{
+  "status": "ok",
+  "format": "png",
+  "path": "D:\\repo\\vista\\agent-bridge\\data\\screenshots\\vista-2026-08-27T09-15-00Z-1a2b3c.png",
+  "url": "http://localhost:3000/demo",
+  "width": 1440,
+  "height": 900,
+  "bytes": 182347
+}
+```
+
+Screenshots are stored under `SCREENSHOT_DIR` (default
+`agent-bridge/data/screenshots/`, git-ignored). Full flow with an OpenCode
+edit: `POST /prompt` to change the app, then `POST /screenshot` against the
+changed page, and read the returned `path` to inspect the result.
+
 ### Error handling
 
 The bridge maps failures to clear HTTP status codes: `400` malformed requests,
-`404` unknown session, `503` OpenCode server unreachable, `504` prompt timeout,
-`502` OpenCode API/agent errors. `GET /health` reports bridge liveness.
+`404` unknown session or missing screenshot selector, `503` OpenCode server
+unreachable, `504` prompt timeout or screenshot page timeout, `502`
+OpenCode API/agent errors or an unreachable screenshot target. `GET /health`
+reports bridge liveness.
 
 ## Tests
 
@@ -159,6 +224,16 @@ RUN_LOCATION_INTEGRATION=1 GEOCODING_PROVIDER=nominatim PLACES_PROVIDER=overpass
 ```
 
 Without these variables, integration tests are skipped. No API keys are logged or committed.
+
+The bridge's real-browser screenshot test (`agent-bridge/src/screenshot.e2e.ts`)
+is isolated from the fast unit suite because it launches Chromium. It serves a
+local page, captures it through `POST /screenshot`, and verifies a valid PNG:
+
+```bash
+cd agent-bridge
+npm test            # fast unit tests (fake screenshot service)
+npm run test:e2e    # real headless Chromium (requires `npx playwright install chromium`)
+```
 
 Job integration tests (NATS publishing, job status persistence, consumer execution/failure) need a running NATS and PostgreSQL and are skipped unless enabled:
 

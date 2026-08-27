@@ -1,13 +1,16 @@
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import type { OpenCodeClient } from './lib/opencode.js';
+import type { ScreenshotService } from './lib/screenshot.js';
 import { errorHandler } from './lib/http.js';
 import { getLogger } from './lib/logger.js';
 import { sessionsRouter } from './routes/sessions.js';
 import { promptsRouter } from './routes/prompts.js';
+import { screenshotsRouter } from './routes/screenshots.js';
 
 export interface CreateAppOptions {
   opencode: OpenCodeClient;
+  screenshot?: ScreenshotService;
 }
 
 /**
@@ -50,6 +53,9 @@ export function createApp(options: CreateAppOptions): express.Express {
 
   app.use(sessionsRouter(options.opencode));
   app.use(promptsRouter(options.opencode));
+  if (options.screenshot) {
+    app.use(screenshotsRouter(options.screenshot));
+  }
 
   app.use((_req, res) => {
     res.status(404).json({ error: 'Not found' });

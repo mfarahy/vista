@@ -1,0 +1,5 @@
+node_modules
+dist
+*.log
+# Captured screenshots (generated output, not source)
+data/screenshots/

@@ -3,6 +3,7 @@ import { loadConfig } from './config.js';
 import { createApp } from './app.js';
 import { getLogger } from './lib/logger.js';
 import { createSdkOpenCodeClient, OpenCodeError } from './lib/opencode.js';
+import { createScreenshotService } from './lib/screenshot.js';
 
 dotenv.config();
 
@@ -11,16 +12,31 @@ async function main(): Promise<void> {
   const log = getLogger();
 
   log.info(
-    { opencodeUrl: config.opencodeUrl, timeoutMs: config.opencodeTimeoutMs, port: config.port },
-    'Starting agent bridge: opencode=%s timeoutMs=%s port=%s',
+    {
+      opencodeUrl: config.opencodeUrl,
+      timeoutMs: config.opencodeTimeoutMs,
+      appUrl: config.appUrl,
+      screenshotDir: config.screenshotDir,
+      port: config.port,
+    },
+    'Starting agent bridge: opencode=%s timeoutMs=%s app=%s screenshots=%s port=%s',
     config.opencodeUrl,
     config.opencodeTimeoutMs,
+    config.appUrl,
+    config.screenshotDir,
     config.port,
   );
 
   const opencode = createSdkOpenCodeClient({
     url: config.opencodeUrl,
     timeoutMs: config.opencodeTimeoutMs,
+  });
+
+  const screenshot = createScreenshotService({
+    appUrl: config.appUrl,
+    screenshotDir: config.screenshotDir,
+    timeoutMs: config.screenshotTimeoutMs,
+    headless: config.screenshotHeadless,
   });
 
   // Probe the OpenCode server once at startup. A missing server is not fatal
@@ -40,7 +56,7 @@ async function main(): Promise<void> {
     );
   }
 
-  const app = createApp({ opencode });
+  const app = createApp({ opencode, screenshot });
   const server = app.listen(config.port, config.host, () => {
     log.info(
       { host: config.host, port: config.port },

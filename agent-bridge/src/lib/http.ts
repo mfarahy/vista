@@ -8,6 +8,11 @@ import {
   OpenCodeTimeoutError,
   OpenCodeUnavailableError,
 } from './opencode.js';
+import {
+  ScreenshotNavigationError,
+  ScreenshotSelectorError,
+  ScreenshotTimeoutError,
+} from './screenshot.js';
 import { getLogger } from './logger.js';
 
 export function sendError(res: Response, status: number, message: string): Response {
@@ -77,6 +82,18 @@ export function errorHandler(
   }
   if (error instanceof OpenCodeError) {
     sendError(res, 502, errorMessage(error, 'OpenCode error'));
+    return;
+  }
+  if (error instanceof ScreenshotNavigationError) {
+    sendError(res, 502, errorMessage(error, 'Screenshot target is unreachable'));
+    return;
+  }
+  if (error instanceof ScreenshotTimeoutError) {
+    sendError(res, 504, errorMessage(error, 'Screenshot timed out'));
+    return;
+  }
+  if (error instanceof ScreenshotSelectorError) {
+    sendError(res, 404, errorMessage(error, 'Screenshot selector not found'));
     return;
   }
   getLogger().error({ err: error }, 'Unhandled error while processing request');
