@@ -7,6 +7,7 @@ import { getLogger } from './lib/logger.js';
 import { sessionsRouter } from './routes/sessions.js';
 import { promptsRouter } from './routes/prompts.js';
 import { screenshotsRouter } from './routes/screenshots.js';
+import { tasksRouter } from './routes/tasks.js';
 
 export interface CreateAppOptions {
   opencode: OpenCodeClient;
@@ -53,6 +54,7 @@ export function createApp(options: CreateAppOptions): express.Express {
 
   app.use(sessionsRouter(options.opencode));
   app.use(promptsRouter(options.opencode));
+  app.use(tasksRouter(options.opencode, options.screenshot));
   if (options.screenshot) {
     app.use(screenshotsRouter(options.screenshot));
   }
