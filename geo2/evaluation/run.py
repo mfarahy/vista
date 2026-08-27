@@ -50,6 +50,31 @@ def _write_json(obj, path: Path) -> None:
     path.write_text(json.dumps(obj, indent=2, default=str), encoding="utf-8")
 
 
+def _write_native_artifacts(result, out_dir: Path) -> None:
+    """Persist a provider's *native* model output (Phase 3 requirement).
+
+    Specialized providers record what the model itself produced in
+    `usage.raw["native_output"]` (e.g. class masks + contours). We write it to
+    `native_output/native.json` and decode any embedded mask PNG to
+    `native_output/native_mask.png` so the model output is never hidden behind
+    the canonical adapter. Nothing is dropped or repaired here.
+    """
+    raw = (result.usage.raw or {}) if result.usage else {}
+    native = raw.get("native_output")
+    if not native:
+        return
+    ndir = out_dir / "native_output"
+    ndir.mkdir(parents=True, exist_ok=True)
+    (ndir / "native.json").write_text(
+        json.dumps(native, indent=2, default=str), encoding="utf-8"
+    )
+    mask_b64 = native.get("mask_png_b64_source_space")
+    if mask_b64:
+        import base64
+
+        (ndir / "native_mask.png").write_bytes(base64.b64decode(mask_b64))
+
+
 def _percentile(values: list[float], p: float) -> float | None:
     if not values:
         return None
@@ -105,6 +130,7 @@ def run_fixture(provider_id: str, fx_name: str, output_dir: Path) -> dict:
         else:
             entry["metrics"] = {"geometry_valid": "n/a - no geometry returned"}
 
+    _write_native_artifacts(result, out_dir)
     _write_json(entry, out_dir / "metrics.json")
     return entry
 

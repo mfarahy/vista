@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "geo2"
-version = "0.2.0"
+version = "0.3.0"
 description = "Clean-room Floor Plan Image → validated 2D architectural geometry JSON engine"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -21,7 +21,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["geometry_ai", "geometry_ai.providers"]
+packages = ["geometry_ai", "geometry_ai.providers", "geometry_ai.providers.specialized"]
 # geo2 is a self-contained experiment; evaluation/ and tests/ are not installed.
 
 [tool.pytest.ini_options]

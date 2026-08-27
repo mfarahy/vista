@@ -23,3 +23,6 @@ geo2/output/
 geo2/.pytest_cache/
 geo2/*.egg-info/
 __pycache__/
+
+# geo2 Phase 3 model weights (downloaded, never committed)
+geo2/weights/

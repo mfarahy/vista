@@ -47,7 +47,7 @@ def test_benchmark_outputs_per_fixture(tmp_path):
     summary = json.loads((tmp_path / "baseline-mock" / "summary.json").read_text())
     assert summary["success_count"] == 1
     assert summary["provider"] == "baseline-mock"
-    assert summary["geo2_version"].startswith("0.2")
+    assert summary["geo2_version"].startswith(("0.2", "0.3"))
 
 
 def test_benchmark_with_ground_truth_metrics(tmp_path):

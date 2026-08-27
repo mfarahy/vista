@@ -17,6 +17,8 @@ from .openai_vlm import (
     GPT4oReconstructVLMProvider,
     GPT4oVLMProvider,
 )
+from .specialized.cubicasa_unet import CubiCasaUNetProvider
+from .specialized.openbim_unet import OpenBIMUNetProvider
 
 _PROVIDERS: Dict[str, Type[FloorPlanProvider]] = {}
 
@@ -53,3 +55,5 @@ register_provider(BaselineProvider)
 register_provider(GPT4oVLMProvider)
 register_provider(GPT4oReconstructVLMProvider)
 register_provider(GPT41MiniVLMProvider)
+register_provider(CubiCasaUNetProvider)
+register_provider(OpenBIMUNetProvider)
