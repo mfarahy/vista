@@ -4,6 +4,7 @@ import {
   fusedResultToVistaGeometry,
   normalizedResultToVistaGeometry,
   rawResultToVistaGeometry,
+  recoveredResultToVistaGeometry,
 } from '@/lib/geometry/ai/geometry-adapter';
 
 export const runtime = 'nodejs';
@@ -17,9 +18,9 @@ const MAX_BYTES = 15 * 1024 * 1024;
  * deterministic Phase 3 normalization, and returns *two* `VistaGeometry`
  * variants (raw and normalized) plus display metadata. When the service also
  * ran the Phase 6 semantic fusion (a validated VLM semantic document was
- * available), a third *fused* `VistaGeometry` variant and the semantic/fusion
- * debug surfaces are included. The frontend never sees model-specific
- * structures.
+ * available), a third *fused* `VistaGeometry` variant, a Phase 7 *recovered*
+ * variant and the semantic/fusion/recovery debug surfaces are included. The
+ * frontend never sees model-specific structures.
  */
 export async function POST(req: NextRequest) {
   let form: FormData;
@@ -44,10 +45,12 @@ export async function POST(req: NextRequest) {
     const rawGeometry = rawResultToVistaGeometry(raw);
     const geometry = normalizedResultToVistaGeometry(raw);
     const fusedGeometry = fusedResultToVistaGeometry(raw);
+    const recoveredGeometry = recoveredResultToVistaGeometry(raw);
     return NextResponse.json({
-      geometry,
+      geometry: recoveredGeometry ?? geometry,
       rawGeometry,
       fusedGeometry,
+      recoveredGeometry,
       meta: {
         modelId: raw.model.id,
         epoch: raw.model.epoch,
@@ -59,6 +62,7 @@ export async function POST(req: NextRequest) {
         refinementProvider: raw.normalized.refinement?.provider ?? null,
         semantic: raw.semantic ?? null,
         fused: raw.fused ?? null,
+        recovered: raw.recovered ?? null,
       },
     });
   } catch (err) {

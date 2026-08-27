@@ -1,6 +1,7 @@
 'use client';
 
 import { type PointerEvent as ReactPointerEvent, useCallback } from 'react';
+import { useI18n } from '@/lib/i18n';
 import type {
   Point2D,
   Room,
@@ -11,6 +12,7 @@ import type {
 import type { GeometryDebug } from '@/lib/geometry/geometry-debug';
 import type {
   FusedExtraction,
+  RecoveryExtraction,
   RoomCandidate,
   SemanticDocument,
   SemanticSpace,
@@ -29,7 +31,8 @@ import { DoorMark, WindowMark } from './GeometryOverlay';
  *
  * Renders the original image layers on the same SVG coordinate space as the
  * base output — raw AI geometry, normalized geometry, fused geometry (Phase 6:
- * room names/types, semantic opening matches, stairs), the validated VLM
+ * room names/types, semantic opening matches, stairs), recovered geometry
+ * (Phase 7: wall-opening re-derivations drawn distinctly), the validated VLM
  * semantic reading itself (space anchors, unresolved rooms, furniture), and
  * the candidate layers can be toggled independently and overlap. Clicking an
  * entity produces a fully described `InspectedEntity` the side inspector
@@ -48,6 +51,9 @@ const SEMANTIC_MARK = 'var(--violet-600)';
 const UNRESOLVED_MARK = 'var(--destructive)';
 const FURNITURE_MARK = 'var(--muted-foreground)';
 const STAIR_COLOR = 'var(--fuchsia-600)';
+const RECOVERED_WINDOW = 'var(--amber-500)';
+const RECOVERED_DOOR = 'var(--rose-600)';
+const RECOVERED_STAIR = 'var(--orange-500)';
 
 type OpeningCandidateLike = {
   id: string;
@@ -82,6 +88,17 @@ function polygonCentroid(polygon: Point2D[]): Point2D {
     y += p.y;
   }
   return { x: x / polygon.length, y: y / polygon.length };
+}
+
+function wallLength(wall: Wall): number {
+  return Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
+}
+
+function pointAlong(wall: Wall, fraction: number): Point2D {
+  return {
+    x: wall.start.x + (wall.end.x - wall.start.x) * fraction,
+    y: wall.start.y + (wall.end.y - wall.start.y) * fraction,
+  };
 }
 
 function planBounds(geometry: VistaGeometry): { x: number; y: number; w: number; h: number } {
@@ -126,6 +143,7 @@ export function GeometryDebugOverlay({
   geometry,
   raw,
   fused,
+  recovered,
   debug,
   layers,
   selectedKey,
@@ -134,11 +152,13 @@ export function GeometryDebugOverlay({
   geometry: VistaGeometry;
   raw: VistaGeometry | null;
   fused: VistaGeometry | null;
+  recovered: VistaGeometry | null;
   debug: GeometryDebug | null;
   layers: GeometryDebugLayers;
   selectedKey: string | null;
   onSelect: (entity: InspectedEntity | null) => void;
 }) {
+  const { t } = useI18n();
   const { width, height } = geometry.source;
 
   const rawById = useCallback(
@@ -159,6 +179,7 @@ export function GeometryDebugOverlay({
   const windowCandidates = candidates?.openings.window ?? [];
   const fusedDoc: FusedExtraction | null = debug?.fused ?? null;
   const semantic: SemanticDocument | null = debug?.semantic ?? null;
+  const recoveryDoc: RecoveryExtraction | null = debug?.recovered?.recovery ?? null;
 
   // Emitted normalized openings map back to their (valid) candidate so the
   // inspector can show wall distance / status without the model structures.
@@ -367,6 +388,44 @@ export function GeometryDebugOverlay({
       sourceKey: 'geometry.debug.source.semantic',
       rows,
       status: { statusKey: 'geometry.debug.status.semantic', tone: 'valid' },
+    };
+  }
+
+  function recoveredOpeningDescriptor(
+    kind: 'door' | 'window',
+    opening: { id: string; wallId: string; position: number; width: number; confidence?: number },
+  ): InspectedEntity {
+    const recovered = (kind === 'window' ? recoveryDoc?.windows : recoveryDoc?.doors) ?? [];
+    const reason = recovered.find((r) => r.wall_id === opening.wallId && r.position === opening.position)?.recovered_reason;
+    return {
+      key: `recovered:${kind}:${opening.id}`,
+      typeKey: kind === 'door' ? 'geometry.entity.door' : 'geometry.entity.window',
+      id: opening.id,
+      sourceKey: 'geometry.debug.source.recovered',
+      confidence: opening.confidence,
+      rows: [
+        row('geometry.inspector.nearestWall', opening.wallId),
+        row('geometry.inspector.width', `${Math.round(opening.width)}px`),
+        row('geometry.inspector.position', opening.position.toFixed(3)),
+        row('geometry.debug.recovery.rows.evidence', reason ?? 'wall opening pattern'),
+      ],
+      status: { statusKey: 'geometry.debug.status.recovered', tone: 'valid' },
+    };
+  }
+
+  function recoveredStairDescriptor(stair: Stair): InspectedEntity {
+    const reason = recoveryDoc?.stairs.find((s) => s.anchor[0] === stair.position.x && s.anchor[1] === stair.position.y)?.recovered_reason;
+    return {
+      key: `recovered:stair:${stair.id}`,
+      typeKey: 'geometry.entity.stair',
+      id: stair.id,
+      sourceKey: 'geometry.debug.source.recovered',
+      rows: [
+        row('geometry.debug.fusion.rows.direction', stair.direction ?? undefined),
+        row('geometry.inspector.position', `${Math.round(stair.position.x)}, ${Math.round(stair.position.y)}`),
+        row('geometry.debug.recovery.rows.evidence', reason ?? 'repeated parallel tread pattern'),
+      ],
+      status: { statusKey: 'geometry.debug.status.recovered', tone: 'valid' },
     };
   }
 
@@ -607,6 +666,106 @@ export function GeometryDebugOverlay({
               </g>
             );
           })}
+        </g>
+      )}
+
+{layers.recovered && recovered && (
+        <g data-debug-layer="recovered">
+          {recovered.windows
+            .filter((w) => w.recovery)
+            .map((window, i) => {
+              const host = recovered.walls.find((wall) => wall.id === window.wallId);
+              if (!host) return null;
+              const a = pointAlong(host, window.position - (window.width / 2) / Math.max(1, wallLength(host)));
+              const b = pointAlong(host, window.position + (window.width / 2) / Math.max(1, wallLength(host)));
+              return (
+                <g
+                  key={`rec-win-${i}`}
+                  onClick={emit(() => select(recoveredOpeningDescriptor('window', window)))}
+                  style={{ cursor: 'pointer' }}
+                  aria-label={`recovered-window-${i}`}
+                >
+                  <line
+                    x1={a.x}
+                    y1={a.y}
+                    x2={b.x}
+                    y2={b.y}
+                    stroke={RECOVERED_WINDOW}
+                    strokeWidth={Math.max(6, host.thickness * 0.55)}
+                  />
+                  <line
+                    x1={host.start.x}
+                    y1={host.start.y}
+                    x2={host.end.x}
+                    y2={host.end.y}
+                    stroke="transparent"
+                    strokeWidth={Math.max(14, host.thickness * 2.5)}
+                  />
+                </g>
+              );
+            })}
+          {recovered.doors
+            .filter((d) => d.recovery)
+            .map((door, i) => {
+              const host = recovered.walls.find((wall) => wall.id === door.wallId);
+              if (!host) return null;
+              const a = pointAlong(host, door.position - (door.width / 2) / Math.max(1, wallLength(host)));
+              const b = pointAlong(host, door.position + (door.width / 2) / Math.max(1, wallLength(host)));
+              return (
+                <g
+                  key={`rec-door-${i}`}
+                  onClick={emit(() => select(recoveredOpeningDescriptor('door', door)))}
+                  style={{ cursor: 'pointer' }}
+                  aria-label={`recovered-door-${i}`}
+                >
+                  <line
+                    x1={a.x}
+                    y1={a.y}
+                    x2={b.x}
+                    y2={b.y}
+                    stroke={RECOVERED_DOOR}
+                    strokeWidth={Math.max(6, host.thickness * 0.5)}
+                  />
+                  <line
+                    x1={host.start.x}
+                    y1={host.start.y}
+                    x2={host.end.x}
+                    y2={host.end.y}
+                    stroke="transparent"
+                    strokeWidth={Math.max(14, host.thickness * 2.5)}
+                  />
+                </g>
+              );
+            })}
+          {recovered.stairs
+            .filter((s) => s.source === 'image_recovery')
+            .map((stair, i) => (
+              <g
+                key={`rec-stair-${i}`}
+                onClick={emit(() => select(recoveredStairDescriptor(stair)))}
+                style={{ cursor: 'pointer' }}
+                aria-label={`recovered-stair-${i}`}
+              >
+                <circle
+                  cx={stair.position.x}
+                  cy={stair.position.y}
+                  r={Math.max(9, width * 0.009)}
+                  fill="transparent"
+                  stroke={RECOVERED_STAIR}
+                  strokeWidth={3}
+                />
+                <text
+                  x={stair.position.x + 12}
+                  y={stair.position.y + 4}
+                  fontSize={Math.max(10, width * 0.01)}
+                  fill={RECOVERED_STAIR}
+                  fontWeight={600}
+                  pointerEvents="none"
+                >
+                  {stair.direction ?? t('geometry.entity.stair')} {t('geometry.debug.recovery.rows.recoveredTag')}
+                </text>
+              </g>
+            ))}
         </g>
       )}
 

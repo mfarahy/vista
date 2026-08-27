@@ -30,13 +30,16 @@ export type InspectedRow = {
  * Layers the developer debug view can toggle independently. `fused` renders
  * the Phase 6 fused geometry (room names/types, semantic opening matches,
  * stairs); `vlmSemantic` renders the validated VLM semantic reading itself
- * (space anchors/labels, unresolved spaces, furniture).
+ * (space anchors/labels, unresolved spaces, furniture); `recovered` renders
+ * the Phase 7 recovery layer — openings/stairs re-derived deterministically
+ * from image evidence, drawn distinctly from ordinary UNet geometry.
  */
 export type GeometryDebugLayers = {
   original: boolean;
   raw: boolean;
   normalized: boolean;
   fused: boolean;
+  recovered: boolean;
   vlmSemantic: boolean;
   roomCandidates: boolean;
   openingCandidates: boolean;
@@ -47,6 +50,7 @@ export const DEFAULT_DEBUG_LAYERS: GeometryDebugLayers = {
   raw: false,
   normalized: true,
   fused: true,
+  recovered: true,
   vlmSemantic: false,
   roomCandidates: false,
   openingCandidates: false,
@@ -57,6 +61,7 @@ export const DEBUG_LAYER_ORDER: (keyof GeometryDebugLayers)[] = [
   'raw',
   'normalized',
   'fused',
+  'recovered',
   'vlmSemantic',
   'roomCandidates',
   'openingCandidates',

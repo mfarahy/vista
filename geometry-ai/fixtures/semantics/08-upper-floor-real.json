@@ -1,0 +1,29 @@
+{
+  "schema": "vista-geometry-semantic-v1",
+  "spaces": [
+    {"label": "Kind II / Arbeiten", "type": "bedroom", "enclosed": true, "usable": true, "relative_location": "upper-left"},
+    {"label": "Schlafen", "type": "bedroom", "enclosed": true, "usable": true, "relative_location": "upper-right"},
+    {"label": "Bad", "type": "bathroom", "enclosed": true, "usable": true, "relative_location": "middle-left"},
+    {"label": "Flur", "type": "hallway", "enclosed": true, "usable": true, "relative_location": "middle"},
+    {"label": "Kind I", "type": "bedroom", "enclosed": true, "usable": true, "relative_location": "bottom"}
+  ],
+  "doors": [
+    {"count": 1, "type": "interior", "connects": "Kind II and Flur", "relative_location": "east wall of Kind II"},
+    {"count": 1, "type": "interior", "connects": "Schlafen and Flur", "relative_location": "south side of Schlafen"},
+    {"count": 1, "type": "interior", "connects": "Bad and Flur", "relative_location": "east side of Bad"},
+    {"count": 1, "type": "interior", "connects": "Kind I and Flur", "relative_location": "north side of Kind I"}
+  ],
+  "windows": [
+    {"count": 1, "space": "Kind II", "wall": "north wall", "relative_location": "upper-left"},
+    {"count": 1, "space": "Schlafen", "wall": "north wall", "relative_location": "upper-right"},
+    {"count": 1, "space": "Kind I", "wall": "south wall", "relative_location": "bottom"},
+    {"count": 1, "space": "Bad", "wall": "west wall", "relative_location": "middle-left"}
+  ],
+  "stairs": {"present": true, "relative_location": "centre of Flur", "direction": "unknown"},
+  "dimensions": [{"value": "ca. 8,40 m²", "unit": "unknown"}],
+  "annotations": [],
+  "furniture": [
+    {"item": "beds", "space": "Kind I"}
+  ],
+  "notes": {"overall_confidence": "high", "issues": []}
+}

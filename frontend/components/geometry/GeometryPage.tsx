@@ -40,6 +40,7 @@ export function GeometryPage() {
   const [geometry, setGeometry] = useState<VistaGeometry | null>(null);
   const [rawGeometry, setRawGeometry] = useState<VistaGeometry | null>(null);
   const [fusedGeometry, setFusedGeometry] = useState<VistaGeometry | null>(null);
+  const [recoveredGeometry, setRecoveredGeometry] = useState<VistaGeometry | null>(null);
   const [debug, setDebug] = useState<GeometryDebug | null>(null);
   const [layers, setLayers] = useState<GeometryDebugLayers>(DEFAULT_DEBUG_LAYERS);
   const [selectedEntity, setSelectedEntity] = useState<InspectedEntity | null>(null);
@@ -53,6 +54,7 @@ export function GeometryPage() {
     setGeometry(null);
     setRawGeometry(null);
     setFusedGeometry(null);
+    setRecoveredGeometry(null);
     setDebug(null);
     setLayers(DEFAULT_DEBUG_LAYERS);
     setSelectedEntity(null);
@@ -76,12 +78,14 @@ export function GeometryPage() {
         setGeometry(extracted.geometry);
         setRawGeometry(extracted.rawGeometry ?? null);
         setFusedGeometry(extracted.fusedGeometry ?? null);
+        setRecoveredGeometry(extracted.recoveredGeometry ?? null);
         setDebug(extracted.debug ?? null);
       } catch (err) {
         setUpload(null);
         setGeometry(null);
         setRawGeometry(null);
         setFusedGeometry(null);
+        setRecoveredGeometry(null);
         setDebug(null);
         setError(describeError(err));
       } finally {
@@ -106,6 +110,7 @@ export function GeometryPage() {
     setGeometry(null);
     setRawGeometry(null);
     setFusedGeometry(null);
+    setRecoveredGeometry(null);
     setDebug(null);
     setLayers(DEFAULT_DEBUG_LAYERS);
     setSelectedEntity(null);
@@ -146,12 +151,14 @@ export function GeometryPage() {
     raw: t('geometry.debug.layers.raw'),
     normalized: t('geometry.debug.layers.normalized'),
     fused: t('geometry.debug.layers.fused'),
+    recovered: t('geometry.debug.layers.recovered'),
     vlmSemantic: t('geometry.debug.layers.vlmSemantic'),
     roomCandidates: t('geometry.debug.layers.roomCandidates'),
     openingCandidates: t('geometry.debug.layers.openingCandidates'),
   };
 
   const hasFusion = hasDebug && debug?.fused != null && fusedGeometry !== null;
+  const hasRecovery = hasDebug && debug?.recovered != null && recoveredGeometry !== null;
 
   return (
     <main className="min-h-screen bg-background pb-20">
@@ -196,6 +203,7 @@ export function GeometryPage() {
                           geometry={geometry}
                           rawGeometry={rawGeometry}
                           fusedGeometry={fusedGeometry}
+                          recoveredGeometry={recoveredGeometry}
                           debug={debug}
                           layers={layers}
                           selectedKey={selectedEntity?.key ?? null}
@@ -309,6 +317,42 @@ export function GeometryPage() {
                               </code>
                             </li>
                           )}
+                      </ul>
+                    </div>
+                  )}
+                  {hasRecovery && (
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs text-foreground">
+                      <p className="font-semibold text-amber-700">
+                        {t('geometry.debug.recovery.title')}
+                      </p>
+                      <ul className="mt-1.5 space-y-1 text-muted-foreground">
+                        {debug?.recovered?.recovery?.counts && (
+                          <li>
+                            {t('geometry.debug.recovery.recoveredSum')}{' '}
+                            <code className="rounded bg-muted px-1 py-0.5">
+                              {t('geometry.debug.recovery.entitiesSummary', {
+                                windows: debug.recovered.recovery.counts.recovered_windows,
+                                doors: debug.recovered.recovery.counts.recovered_doors,
+                                rooms: debug.recovered.recovery.counts.recovered_rooms,
+                                stairs: debug.recovered.recovery.counts.recovered_stairs,
+                              })}
+                            </code>
+                          </li>
+                        )}
+                        {(debug?.recovered?.unresolved.windows.length ??
+                          0) +
+                          (debug?.recovered?.unresolved.doors.length ?? 0) +
+                          (debug?.recovered?.unresolved.spaces.length ?? 0) >
+                          0 && (
+                          <li>
+                            {t('geometry.debug.recovery.unresolved')}{' '}
+                            <code className="rounded bg-muted px-1 py-0.5">
+                              {debug?.recovered?.unresolved.spaces.length ?? 0} /{' '}
+                              {debug?.recovered?.unresolved.doors.length ?? 0} /{' '}
+                              {debug?.recovered?.unresolved.windows.length ?? 0}
+                            </code>
+                          </li>
+                        )}
                       </ul>
                     </div>
                   )}

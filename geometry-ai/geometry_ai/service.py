@@ -12,7 +12,12 @@ document (`"semantic": {...}` — the Phase 5 normalized payload). When
 present, the deterministic Phase 6 fusion layer runs and the response gains
 `"semantic"` and `"fused"` fields; without it the response is the Phase 2–4
 document only. Fusion never runs without semantics — the VLM stays a
-per-plan advisory input, never a geometry source.
+per-plan advisory input, never a geometry source. When fusion runs, the
+Phase 7 deterministic recovery layer also runs and the response additionally
+gains `"recovered"` — the same fused document with unresolved semantic
+observations that could be backed by wall-opening/parallel-line image
+evidence recovered and explicitly marked (provenance
+`{geometric: image_recovery, semantic: vlm, recovery: true}`).
 
 This is intentionally a minimal service — there is no queueing, auth or
 database wiring. It runs both locally and in a container (Dockerfile +
@@ -36,6 +41,7 @@ from urllib.parse import urlparse
 
 from .extract import GeometryInference
 from .fusion import fuse
+from .recovery import recover
 
 MAX_BODY_BYTES = 20 * 1024 * 1024
 
@@ -90,9 +96,17 @@ def build_app(weights_dir: str | Path, device: str | None = None, ckpt: str = "b
                 semantic = req.get("semantic")
                 if isinstance(semantic, dict):
                     result["semantic"] = semantic
-                    result["fused"] = fuse(
+                    fused = fuse(
                         result["normalized"],
                         semantic,
+                        src_w=result["input"]["width"],
+                        src_h=result["input"]["height"],
+                    )
+                    result["fused"] = fused
+                    result["recovered"] = recover(
+                        result["normalized"],
+                        fused,
+                        image_bytes,
                         src_w=result["input"]["width"],
                         src_h=result["input"]["height"],
                     )

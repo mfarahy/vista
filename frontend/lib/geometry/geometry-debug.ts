@@ -19,4 +19,11 @@ export type GeometryDebug = {
   semantic?: SemanticDocument | null;
   /** Phase 6: the fused document with match explanations (optional). */
   fused?: FusedExtraction | null;
+  /**
+   * Phase 7: the fused + recovered document (optional). Present only when the
+   * deterministic recovery layer ran; its `recovery` section lists the
+   * recovered entities with their evidence and the still-unresolved
+   * observations with their reasons.
+   */
+  recovered?: FusedExtraction | null;
 };

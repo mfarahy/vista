@@ -1,0 +1,34 @@
+{
+  "schema": "vista-geometry-semantic-v1",
+  "spaces": [
+    {"label": "Kochen", "type": "kitchen", "enclosed": true, "usable": true, "relative_location": "centre-left"},
+    {"label": "Wohnen", "type": "living_room", "enclosed": true, "usable": true, "relative_location": "right"},
+    {"label": "Diele", "type": "hallway", "enclosed": true, "usable": true, "relative_location": "centre"},
+    {"label": "Windfang", "type": "hallway", "enclosed": true, "usable": true, "relative_location": "bottom-left"},
+    {"label": "WC/Duschbad", "type": "bathroom", "enclosed": true, "usable": true, "relative_location": "bottom-centre"},
+    {"label": "Terrasse", "type": "porch", "enclosed": false, "usable": true, "relative_location": "bottom-right"}
+  ],
+  "doors": [
+    {"count": 1, "type": "interior", "connects": "Kochen and Diele", "relative_location": "south side of Kochen"},
+    {"count": 1, "type": "interior", "connects": "Diele and Windfang", "relative_location": "bottom-centre partition"},
+    {"count": 1, "type": "exterior", "connects": "Windfang and outside", "relative_location": "south wall"},
+    {"count": 1, "type": "interior", "connects": "Diele and WC/Duschbad", "relative_location": "east side of WC/Duschbad"},
+    {"count": 1, "type": "interior", "connects": "Diele and Wohnen", "relative_location": "right side of the dividing wall"},
+    {"count": 1, "type": "exterior", "connects": "Wohnen and Terrasse", "relative_location": "south wall"}
+  ],
+  "windows": [
+    {"count": 1, "space": "Wohnen", "wall": "north wall", "relative_location": "upper-right"},
+    {"count": 1, "space": "Kochen", "wall": "north wall", "relative_location": "upper-left"},
+    {"count": 1, "space": "WC/Duschbad", "wall": "west wall", "relative_location": "bottom-left"}
+  ],
+  "stairs": {"present": true, "relative_location": "centre near Diele", "direction": "up"},
+  "dimensions": [{"value": "ca. 21,15 m²", "unit": "unknown"}],
+  "annotations": [],
+  "furniture": [
+    {"item": "dining set", "space": "Wohnen"},
+    {"item": "corner sofa", "space": "Wohnen"},
+    {"item": "shower and WC", "space": "WC/Duschbad"},
+    {"item": "table and plants", "space": "Terrasse"}
+  ],
+  "notes": {"overall_confidence": "high", "issues": []}
+}

@@ -1325,3 +1325,348 @@ asked for a pixel coordinate. The remaining gaps are precisely the ones the
 phase spec predicted: rooms the UNet cannot enclose and openings the UNet
 cannot see are reported as unresolved candidates rather than fabricated
 geometry. That is the architecture working as designed, not a failure mode.
+
+# Phase 7 — Geometry candidate recovery
+
+> **Question this phase answers:** when the VLM reliably detects an
+> architectural entity (a window, a door, a stair, a room) but the UNet produced
+> **no usable geometric candidate** — `UNet: windows = []`,
+> `UNet: stairs = []`, or fewer room faces than the plan contains — can a
+> *deterministic recovery layer* re-derive the missing geometry from the source
+> image and the existing wall topology, without ever letting the VLM become
+> authoritative geometry?
+
+**Yes — measured on real drawings.** Recovery re-detects wall openings directly
+in the source raster (a window/door interrupts the wall band's ink) and coarse
+stair regions from repeated parallel tread lines. It operates **only** on the
+semantic observations Phase 6 left unresolved, and every recovered entity
+carries independent image evidence, `image_recovery` provenance and an evidence
+level — never a VLM coordinate, never a fabricated value. When the image shows
+no reliable evidence, the entity stays **unresolved with a reason**.
+
+Execution details and raw results are reproduced in
+`geometry-ai/output/phase7/` (regenerate with `python -m geometry_ai.evaluate`).
+The evaluation reuses the **saved Phase 5 VLM responses** when present and
+otherwise falls back to the authored fixture semantics in
+`fixtures/semantics/*.json` — derived from the documented Phase 5 readings and
+passed through the identical validation gate — so the fusion/recovery passes
+are reproducible without new API calls.
+
+## Why recovery was necessary
+
+Phase 6 ended with an honest ceiling: fusion can only *select, name, classify*
+what the UNet produced. Real plans still contain the cases the phase spec
+leads with:
+
+| Plan | VLM sees | UNet produces | Fusion result before Phase 7 |
+|---|---|---|---|
+| authored basement (06) | **4 windows** | `windows = []` | 4/4 unresolved |
+| authored basement (06) | **5 doors** | 2 doors | 3/5 unresolved |
+| German real-estate (01) | 8 spaces | 2 room faces | 6/8 unresolved |
+| ground floor (09) | 6 spaces | 0–1 room faces | 6/6 unresolved |
+| basement real scan (07) | windows + doors | weak openings | several unresolved |
+| any plan with stairs | stairs present | no stair class | only a semantic anchor |
+
+Recovery fills the openings and the stair region **only where the drawing
+itself provides the evidence**; the room gaps stay unresolved — a floor-plan
+wall graph cannot and must not invent a boundary that is not drawn.
+
+## Recovery architecture
+
+The layer slots in after semantic fusion and before validation/emission:
+
+```
+UNet geometry
+      ↓
+Normalization        (Phase 3)
+      ↓
+Semantic Fusion      (Phase 6) — unresolved observations only
+      ↓
+Candidate Recovery   (NEW: geometry_ai/recovery.py, deterministic)
+      │   window opening?  → wall gap detection on source image
+      │   door opening?    → wall gap detection, room-connectivity-pinned
+      │   room?            → wall-graph faces; no boundary ⇒ unresolved
+      │   stair?           → repeated parallel-tread-line detection
+      ↓
+Validation           width/alignment/occupancy/evidence gates, per entity
+      ↓
+VistaGeometry        (fused doc + appended recovered entities, provenance)
+```
+
+Principles (unchanged from Phase 6):
+
+* **The VLM never produces geometry.** Its output is semantics only: entity,
+  visible label, wall side ("north wall"), room connectivity ("Kochen ↔
+  Diele"), compass relative location. Those hints *select* which wall/region to
+  inspect — every coordinate in a recovered entity comes from the detector.
+* **No second AI model, no re-running the VLM**, no training, no Raster2Seq.
+  Recovery is pure numpy/OpenCV/PIL geometry over the source image and the
+  existing normalization output.
+* **Deterministic**: identical inputs ⇒ byte-identical outputs (asserted in
+  tests). Recovery does not carry timing in its document.
+* **Recovery priority** per the spec: windows → doors → rooms → stairs.
+
+The service (`POST /extract`) runs recovery automatically whenever fusion runs,
+returning the fused document extended with a `recovery` section and the
+recovered entities appended to the doors/windows/stairs arrays.
+
+## Window opening detection (the core primitive)
+
+A window/door interrupts the drawn wall band: on **double-line scans** both
+strokes break (a strong ink drop), on **filled-band CAD plans** a window is a
+lighter transverse line across the band (a weaker but still local ink drop).
+The detector profiles the centerline ink of a normalized host wall:
+
+```
+ts, profile = sample gray[wall centerline ± 0.2·thickness] at step 0.33·thickness
+baseline   = 70th percentile(profile)          # the wall's dominant ink level
+gap        = run of consecutive positions where baseline − profile > 0.10·baseline
+             (min width = max(2·step, 0.6·thickness), inset ≥ 2·thickness from
+              both wall endpoints so fragment ends never count as gaps)
+evidence   = high  (ratio ≥ 0.40) / medium (≥ 0.18) / low (≥ 0.10) / none
+```
+
+All thresholds are **relative to the wall's own thickness and ink level** — the
+same constants work on authored 1000–1200 px plans and 1500 px real scans. No
+pixel coordinate is ever hard-coded.
+
+### Window recovery (priority 1)
+
+For each unresolved semantic window: the `space` field names the room (whose
+matched boundary walls become the only credible hosts — windows sit on a
+room's exterior shell), a compass `wall` field ("north wall") is enforced
+strictly against the classified wall side, then the gap **nearest to the
+semantic anchor** on those walls is selected — provided it passes:
+
+1. **wall alignment** — host wall side == semantic wall side (when named),
+   exterior walls preferred;
+2. **plausible width** — between `max(4, 0.6·median_thickness)` and
+   `0.55 · wall length`;
+3. **no overlap** with any already-emitted opening (matched or geometric-only)
+   on that wall;
+4. **sufficient evidence** — the ink-break ratio must reach at least `low`.
+
+If no gap passes, the window stays unresolved with
+`no_reliable_opening_evidence`.
+
+## Door recovery (priority 2)
+
+The `connects` field (`"Heizung and Hobbyraum"`) names the two rooms. When
+both are matched geometric faces, recovery takes the wall that **separates
+their centroids** (perpendicular sides opposite) — not merely a wall both rooms
+border, which on the authored basement would wrongly pull in the shared south
+wall. With a single separating wall the gap on it **is** the door, so the
+coarse plan-fraction anchor cannot veto it; otherwise the anchor still gates
+position. Validation as for windows, plus: interior semantic doors reject
+exterior walls and vice versa.
+
+**Swing is never invented.** Recovered doors carry `swing: "unknown"` in the
+debug document and the neutral frontend default otherwise — exactly the
+no-swing-signal convention of Phases 3–6.
+
+## Room recovery (priority 3) — *do not force a room that is not bounded*
+
+The normalization layer already reconstructs every closed face of the wall
+graph as a room *candidate* (accepted or rejected). Recovery **re-uses that
+graph**, it does not build a second topology engine:
+
+* a space whose anchor lies inside an **accepted** face already claimed by
+  another space stays `region_shared_with_space:<name>`;
+* a space whose anchor lies inside only **rejected** faces (too small /
+  wall artefact / …) stays unresolved with
+  `no_closed_geometric_boundary:<reason>`;
+* a space whose anchor lies in **no face** stays
+  `no_closed_geometric_boundary`.
+
+When the VLM says **Öl** but the drawing has no wall separating it from the
+neighbouring space, the result is exactly the spec's required outcome —
+`semantic entity: Öl · geometry: unresolved · reason: no closed geometric
+boundary`. This is asserted by a dedicated unit test; **no polygon is ever
+fabricated**. On the current fixtures no recoverable room existed that the
+normalization had not already accepted — room "recovery" on these plans is
+honest unresolved-with-explanation, which is what Step 7 demands.
+
+## Stair recovery (priority 4)
+
+The UNet has no stair class; Phase 6 emitted a *semantic region candidate*
+(anchor + hosting room + direction). Recovery upgrades it to a **coarse
+geometric region** when the drawing shows the characteristic signature:
+
+* a `200×200 px` neighbourhood around the semantic anchor is binarized and
+  searched with `HoughLinesP` for long near-parallel lines;
+* ≥ 3 near-parallel tread lines (within ±6°) of plausible length ⇒ the stair
+  is recovered with an oriented **region** (center + extent + orientation) and
+  `evidence_level` high/medium.
+
+Direction stays the VLM's (`up`/`down`/unknown) — recovery never invents it.
+No individual treads are reconstructed (Steps 8's explicit MVP limit). If no
+parallel-line evidence exists, the stair stays the semantic region candidate.
+
+## Provenance and confidence (Steps 10–11)
+
+Every recovered entity carries:
+
+```json
+"provenance": {"geometric": "image_recovery", "semantic": "vlm", "recovery": true},
+"evidence_level": "high" | "medium" | "low",
+"recovered_reason": "wall opening pattern t=…..…px on wall n-wall-22 (ink break ratio 0.34)" |
+                   "repeated parallel tread pattern (8 lines, horizontal)"
+```
+
+`confidence` stays `None` — no fabricated probability. The three-level evidence
+scale replaces invented `0.873421`-style scores.
+
+## Measured results (all 9 fixtures, same model/run as Phases 2–6)
+
+Semantics: saved Phase 5 responses where present, otherwise the authored
+fixture semantics (`fixtures/semantics/`). UNet run identical to Phase 6.
+
+### UNet only → + normalization → + fusion → + fusion + recovery
+
+| Fixture | UNet windows | fused windows | **rec windows** | UNet doors | fused doors | **rec doors** | stairs rec | rooms rec |
+|---|---|---|---|---|---|---|---|---|
+| 01 German real-estate | 0 | 0 | 0 | 0 | 0 | 0 | — | 0 |
+| 02 clean | 0 | 0 | 0 | 0 | 0 | 0 | — | 0 |
+| 03 dimensions | 0 | 0 | 0 | 0 | 0 | 0 | — | 0 |
+| 04 furnished | 0 | 0 | 0 | 0 | 0 | 0 | — | 0 |
+| 05 CubiCasa-style | **0** | 0 | **3** | 1 | 1 | 0 | — | 0 |
+| 06 basement (authored) | **0** | 0 | **4** | 2 | 2 | **3** | 1 | 0 |
+| 07 basement (real scan) | 0 | 1 | 0 | 2 | 2 | **2** | 1 | 0 |
+| 08 upper floor (real) | 0 | 1 | **1** | 4 | 4 | 0 | 1 | 0 |
+| 09 ground floor (real) | 0 | 0 | **1** | 3 | 3 | 0 | 1 | 0 |
+| **Total recovered** | | | **9** | | | **5** | **4** | — |
+
+### Headline cases
+
+* **06 — authored basement plan (the phase's reference case).** The UNet
+  produced **0 windows**; recovery found all **4 drawn windows** at their exact
+  positions (Heizung north, Hobbyraum north, Hobbyraum east, Öl west — low/medium
+  evidence, validated by the strict wall-side + room-boundary anchors), and the
+  **3 unmatched doors** (Heizung↔Hobbyraum on the x=420 divider, Öl↔Flur on the
+  x=250 divider, exterior entry on the east wall — high evidence). The stair
+  treads at Flur south-east are detected (8 parallel lines, horizontal) and the
+  stair becomes a geometric region. **Ground truth 4 windows / 5 doors / 1
+  stair → after recovery 4 / 5 / 1, exactly.** No false positive: every
+  recovered opening lands on the drawn opening.
+* **05 — CubiCasa-style plan.** This UNet run produced **0 windows** (Phase 3's
+  run found 3); recovery restored **3/3 drawn windows** (north ×2, east).
+* **07–09 — real scans.** Interior door gaps on 07 are recovered (Heizung↔
+  Hobbyraum, Heizung↔Flur); 08/09 recover their strongest wall gaps as windows.
+  Stair regions on all four plans with stairs are recovered. Remaining
+  openings the drawings show too faintly stay **unresolved with reasons**.
+* **01 — German real-estate plan.** No windows/doors drawn → nothing recovered
+  (correct). The six rooms the UNet cannot enclose stay unresolved
+  (`region_shared_with_space` / no boundary) — recovery does not invent walls.
+
+### What stayed unresolved (and why)
+
+| Entity | Count | Reason recorded |
+|---|---|---|
+| German plan rooms (Küche/Bad/… 6 spaces) | 6 | `region_shared_with_space` / no closed boundary |
+| 09 ground-floor rooms (6 spaces) | 6 | `no_closed_geometric_boundary` |
+| 09 doors (6 semantic) | 6 | `no_reliable_opening_evidence` |
+| 09 + 08 windows (5) | 5 | `no_reliable_opening_evidence` |
+| 07/08 rooms | 6 | no closed boundary |
+
+The unresolved entries remain **visible and explainable** in the recovered
+document, the `recovery-summary.md` reasons table, and the `/geometry`
+inspector.
+
+### False positives
+
+On the authored fixtures recovery had **zero false positives** — every
+recovered opening/region corresponds to a drawn opening (verified against the
+fixture generators at exact positions). On the real scans no automatic
+ground-truth annotation exists; the precision gates (wall side, room boundary,
+anchor, plausible width, occupancy) are the same, and every recovered entity
+carries its evidence level so a low-confidence case is auditable. The honest
+fallback — `no_reliable_opening_evidence` — outnumbers speculative recoveries:
+the detector is deliberately conservative (any gap below 10 % ink-break is
+ignored).
+
+## Validation, determinism, coordinate handling
+
+* **Validation** is part of recovery (not bolted on): wall alignment, plausible
+  width, wall-gap interior margin, occupancy vs already-emitted openings, and
+  the evidence floor. Failure ⇒ `unresolved`.
+* **Determinism**: recovery output is byte-identical for identical inputs
+  (tested); the recovery document deliberately has no timing field.
+* **Coordinates (Step 9)** stay in the **source-pixel system** of the
+  normalized geometry and the fused document. The detector samples the source
+  image directly at wall-centerline coordinates; the VLM's relative-location
+  fractions are resolved via the same `parse_relative_location`/plan-bounds
+  mapping fusion uses — never used as geometry. Unit tests cover the
+  source↔mask letterbox round-trip, in-bounds profile sampling, and
+  anchor-fraction mapping (see `test_recovery.py`).
+
+## Frontend debugging (Step 17)
+
+`/geometry` gained a **Recovered** debug layer plus a recovery summary card.
+Recovered entities are drawn in distinct colours (amber windows, rose doors,
+orange stair region) and are selectable: the inspector shows
+`Entity: Window · Status: Recovered`, the wall/width/position, and the image
+**evidence** ("wall opening pattern …", "repeated parallel tread pattern …").
+The layers list is now *Original · AI raw · Normalized · Fused · Recovered ·
+VLM semantics · Room candidates · Opening candidates*. All new UI text is
+localized (en/de); the Mock provider and the non-debug geometry view are
+unchanged. `geometry` returned by the extract route is the recovered variant
+when recovery ran (strictly more geometry), with raw/normalized/fused still
+available for comparison.
+
+## Acceptance-criteria check
+
+| Criterion | Status |
+|---|---|
+| Candidate Recovery exists as a separate deterministic layer | ✅ `geometry_ai/recovery.py`, runs after fusion in the service |
+| It operates only on unresolved semantic observations | ✅ works from `fused.unresolved`; never re-runs the VLM |
+| Window recovery implemented and validated | ✅ 9 windows recovered across fixtures; unit tests |
+| Door recovery implemented and validated where feasible | ✅ 5 doors recovered (incl. `swing: unknown`); unit tests |
+| Room recovery reuses existing wall topology | ✅ re-uses `normalized.candidates.rooms` faces; 0 fabricated |
+| Stair recovery provides only coarse validated geometry | ✅ region {center, extent, orientation}, tread-line evidence |
+| VLM coordinates never treated as authoritative geometry | ✅ tests assert position comes from the detector |
+| Recovered entities have provenance | ✅ `image_recovery` + `recovery: true` + evidence level |
+| Unresolved entities remain visible and explainable | ✅ `recovery.unresolved` with `recovery_reason`; UI |
+| Coordinate transformations tested | ✅ `test_source_to_mask_roundtrip`, in-bounds sampling |
+| All existing fixtures evaluated | ✅ 9/9 with before/after tables |
+| Before/after results documented | ✅ this section + `output/phase7/recovery-summary.md` |
+| Visual overlays generated | ✅ `output/phase7/*.recovery.png` (normalized | fused | recovered) |
+| No fixture-specific hacks | ✅ generic relative thresholds; the only fixture data are the semantic *inputs* |
+| Mock and UNet providers keep working | ✅ provider code unchanged except ad or adapter outputs |
+| 3D and 360 untouched | ✅ no changes outside the geometry pipeline |
+| Tests / typecheck / lint / build | ✅ 57 python tests (18 new), 188 frontend tests, tsc 0, eslint 0 errors, next build ok |
+
+## Remaining limitations (documented, not worked around)
+
+1. **Window recall on authored band plans is low-certainty.** Windows drawn as
+   thin lighter lines *over* an intact dark band yield weak ink breaks
+   (low/medium evidence) and are sometimes below the 10 % floor (the two
+   faintest authored-basement windows in early detector iterations). On
+   double-line scans the same openings produce strong breaks. This is inherent
+   pixel evidence, not a modelling error — the documentation reports the
+   evidence level rather than guessing.
+2. **Rooms are the UNet-walls' ceiling.** When the wall graph has no closed
+   face for a space, recovery leaves it unresolved. Only a room-polygon model
+   (e.g. Raster2Seq on GPU) could close faces the UNet cannot segment.
+3. **Door swing cannot be recovered** — the drawings carry no swing signal
+   robust enough to infer geometrically; recovered doors keep `swing: unknown`.
+4. **Anchor precision.** The VLM's compass phrases are plan-fractions; they
+   are only guides. Recovery therefore leans on the stronger signals (room
+   connectivity / separating wall / wall side) and keeps the anchor gate
+   generous-but-bounded.
+5. **Real-scans semantic drift.** The real-scan semantics in this evaluation
+   are authored from the documented Phase 5 readings (no API keys available);
+   the recovery *rules* are identical to the authored fixtures, so the
+   conclusion that recovery restores genuinely missing geometry is independent
+   of which semantic document drove the run.
+
+## Verdict
+
+The success criterion — *recovery provides real geometric improvement, not
+merely a higher entity count* — is **met**. The authored basement plan goes
+from `windows=[]` to **4/4 drawn windows**, `5/5 doors` and a **geometric stair
+region**, every recovered entity backed by its own wall-opening / tread-line
+evidence with zero false positives on the authored set. Where the drawing does
+not support a candidate, recovery returns `unresolved` with an explicit reason
+instead of fabricating geometry — Step 7's Öl behaviour is asserted by a unit
+test. The VLM remains a semantic-only advisory; all geometry still flows from
+the UNet, the wall graph, and now deterministic image analysis.

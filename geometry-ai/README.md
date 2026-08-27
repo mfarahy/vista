@@ -1,4 +1,4 @@
-# Vista Geometry — AI feasibility harness (Phases 2–6)
+# Vista Geometry — AI feasibility harness (Phases 2–7)
 
 Local, CPU-capable harness that runs **real inference** with the
 CubiCasa5K-trained ResNet34-UNet floor-plan segmentation model
@@ -21,12 +21,17 @@ evidence (room labels/types, door/window matches by wall + room connectivity,
 stairs as semantic region candidates, furniture as an exclusion signal,
 wall-type evidence, per-entity provenance) — the VLM never produces geometry,
 and unmatched semantic observations stay unresolved candidates instead of
-being fabricated. This is the minimal inference service — it can run locally
-on CPU or as a container in the deployment (Dockerfile +
-`deploy/helm/vista-geometry-ai`).
+being fabricated. Phase 7 adds the **deterministic candidate recovery layer**
+(`recovery.py`) that re-derives the missing geometry for unresolved semantic
+observations from the source image (wall-opening gaps, repeated parallel stair
+treads) and the existing wall graph — windows → doors → rooms → stairs by
+priority, always evidence-gated, `image_recovery` provenance, unresolved stays
+unresolved when no reliable evidence exists. This is the minimal inference
+service — it can run locally on CPU or as a container in the deployment
+(Dockerfile + `deploy/helm/vista-geometry-ai`).
 
 ```
-python -m geometry_ai.evaluate      # run skim fixtures, write output/ (incl. Phase 6 fusion)
+python -m geometry_ai.evaluate      # run skim fixtures, write output/ (incl. Phase 6+7)
 python -m geometry_ai.service       # start the local HTTP service (port 8787)
 python -m geometry_ai.vlm_benchmark --models gpt-4o-mini,gpt-5.6-luna
                                     # Phase 5 VLM semantic benchmark → output/phase5
@@ -34,6 +39,7 @@ python -m geometry_ai.tests.test_normalize    # weight-free normalization tests
 python -m geometry_ai.tests.test_refinement   # weight-free refinement tests
 python -m geometry_ai.tests.test_vlm_benchmark  # weight-free VLM harness tests
 python -m geometry_ai.tests.test_fusion       # weight-free Phase 6 fusion tests
+python -m geometry_ai.tests.test_recovery     # weight-free Phase 7 recovery tests
 ```
 
 ## Setup
@@ -80,6 +86,16 @@ equivalent machine (see `docs/geometry-ai-evaluation.md` for tables).
   candidates, furniture → weak-opening suppression, wall-type verification +
   exterior-door evidence, provenance on every entity, and a debug surface
   with the "selected because" reasons. Deterministic and model-free.
+- `geometry_ai/recovery.py` — **Phase 7 deterministic candidate recovery**:
+  unresolved semantic observations → image/wall-topology evidence. Window and
+  door recovery via wall-opening gap detection on the source raster (host wall
+  from room connectivity / compass hint, anchor-gated, occupied-span and
+  validity checks); room recovery re-uses the wall-graph faces and never
+  invents a polygon when no closed boundary exists; stair recovery detects
+  repeated parallel tread lines into a coarse region. Recovered entities carry
+  `provenance {geometric: image_recovery, semantic: vlm, recovery: true}` and
+  an evidence level — never a VLM coordinate and never a fabricated value.
+  Deterministic and model-free.
 - `geometry_ai/vlm_benchmark.py` — **Phase 5 benchmark only**: prompts a
   vision-language model (OpenAI-compatible chat completions, strict JSON
   schema) for the *semantic* reading of each fixture (rooms with labels and
@@ -91,25 +107,32 @@ equivalent machine (see `docs/geometry-ai-evaluation.md` for tables).
   floor plans worth adopting as fixtures); writes
   `output/phase5/real-fixture-identification.md`.
 - `geometry_ai/tests/` — weight-free unit tests (`test_normalize.py`,
-  `test_refinement.py`, `test_vlm_benchmark.py`, `test_fusion.py`; synthetic
-  plans only, no model needed).
+  `test_refinement.py`, `test_vlm_benchmark.py`, `test_fusion.py`,
+  `test_recovery.py`; synthetic plans only, no model needed).
 - `geometry_ai/generate_fixtures.py` — regenerates the synthetic `fixtures/`
   (authored here, no third-party images).
 - `fixtures/` — representative floor-plan images (incl. the repo's German
   real-estate demo plan, the authored basement plan, and the real scanned
   basement/upper-floor/ground-floor plans).
+- `fixtures/semantics/` — authored semantic documents (one per fixture)
+  derived from the documented Phase 5 VLM readings; used by the evaluation
+  harness to reproduce the fusion/recovery passes without re-running the VLM
+  (`python -m geometry_ai.evaluate` falls back to these when no saved
+  `output/phase5/responses/` file exists).
 - `output/` — inference results (gitignored).
 
 The frontend AI adapter lives in `frontend/lib/geometry/ai/` and is invoked
 through `frontend/app/api/geometry/extract/route.ts`; the UI continues to
 consume only `VistaGeometry`. The `/geometry` developer debug mode renders the
-raw/normalized/fused geometry, the VLM semantic reading, room candidates and
-opening candidates as independently toggled layers, with an entity inspector
-that shows confidence, nearest wall, distance, width, status, rejection
-reasons and — for fused entities — the "selected because" match explanation.
-The service's `/extract` runs the Phase 6 fusion when the request carries a
-validated `semantic` document (`{"semantic": {...}}`), returning `fused` and
-`semantic` fields alongside the existing document.
+raw/normalized/fused/recovered geometry, the VLM semantic reading, room
+candidates and opening candidates as independently toggled layers, with an
+entity inspector that shows confidence, nearest wall, distance, width, status,
+rejection reasons, the "selected because" match explanation for fused entities
+and the image-evidence reason for recovered entities.
+The service's `/extract` runs the Phase 6 fusion and the Phase 7 recovery when
+the request carries a validated `semantic` document (`{"semantic": {...}}`),
+returning `semantic`, `fused` and `recovered` fields alongside the existing
+document.
 
 ## Environment
 

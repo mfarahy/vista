@@ -309,3 +309,78 @@ export function fusedResultToVistaGeometry(raw: RawModelResult): VistaGeometry |
     confidence: aggregateConfidence([...walls, ...rooms, ...doors, ...windows]),
   };
 }
+
+/**
+ * Phase 7 recovered view: the fused geometry plus deterministically recovered
+ * openings and the coarse stair region.
+ *
+ * Recovery only ever resolves *unresolved semantic observations* using image
+ * evidence (wall-opening gaps, parallel tread lines); a recovered entity is a
+ * separate VistaGeometry entity flagged `recovery: true` — it never replaces
+ * or fabricates over existing geometry, and the VLM never provides a
+ * coordinate. Doors/stairs keep the neutral swing/direction conventions; the
+ * debug surface carries the evidence level and reason.
+ */
+export function recoveredResultToVistaGeometry(raw: RawModelResult): VistaGeometry | null {
+  const recovered = raw.recovered;
+  if (!recovered) return null;
+  const source = { width: raw.input.width, height: raw.input.height };
+
+  const walls: Wall[] = recovered.walls.map((wall) => ({
+    id: wall.id,
+    start: { x: wall.start[0], y: wall.start[1] },
+    end: { x: wall.end[0], y: wall.end[1] },
+    thickness: Math.max(1, Math.round(wall.thickness)),
+    type: wall.type,
+    confidence: wall.confidence,
+  }));
+
+  const rooms: Room[] = recovered.rooms.map((room) => ({
+    id: room.id,
+    name: room.name,
+    polygon: rawPointsToPoints(room.polygon),
+    wallIds: room.wall_ids ?? [],
+    confidence: room.confidence ?? undefined,
+    type: room.type ?? null,
+  }));
+
+  const doors: Door[] = recovered.doors.map((opening, i) => ({
+    id: `f-door-${i}`,
+    wallId: opening.wall_id,
+    position: opening.position,
+    width: opening.width,
+    swing: DEFAULT_SWING,
+    confidence: opening.confidence ?? undefined,
+    recovery: opening.recovery ?? false,
+  }));
+
+  const windows: Window[] = recovered.windows.map((opening, i) => ({
+    id: `f-window-${i}`,
+    wallId: opening.wall_id,
+    position: opening.position,
+    width: opening.width,
+    confidence: opening.confidence ?? undefined,
+    recovery: opening.recovery ?? false,
+  }));
+
+  const stairs: VistaGeometry['stairs'] = recovered.stairs.map((stair, i) => ({
+    id: `f-stair-${i}`,
+    position: { x: stair.anchor[0], y: stair.anchor[1] },
+    direction: stair.direction ?? null,
+    regionId: stair.region_id ?? null,
+    source: stair.recovery ? 'image_recovery' : 'semantic',
+  }));
+
+  return {
+    version: GEOMETRY_VERSION,
+    units: 'px',
+    source,
+    walls,
+    rooms,
+    doors,
+    windows,
+    stairs,
+    scale: null,
+    confidence: aggregateConfidence([...walls, ...rooms, ...doors, ...windows]),
+  };
+}

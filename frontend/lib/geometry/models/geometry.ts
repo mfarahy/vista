@@ -55,6 +55,12 @@ export type Door = {
   width: number;
   swing: DoorSwing;
   confidence?: number;
+  /**
+   * Phase 7: true when this door was re-derived deterministically from
+   * wall-opening image evidence (provenance `image_recovery`). Swing is never
+   * detected by recovery and stays the neutral default.
+   */
+  recovery?: boolean;
 };
 
 export type Window = {
@@ -64,6 +70,13 @@ export type Window = {
   position: number;
   width: number;
   confidence?: number;
+  /**
+   * Phase 7: true when this window was re-derived deterministically from
+   * wall-opening image evidence (provenance `image_recovery`) because the UNet
+   * produced no candidate for the VLM-confirmed opening. Optional + never
+   * authoritative: absent for ordinary UNet/normalized windows.
+   */
+  recovery?: boolean;
 };
 
 export type StairDirection = 'up' | 'down';
@@ -83,7 +96,7 @@ export type Stair = {
   /** Hosting room id when the anchor landed inside a matched room. */
   regionId?: string | null;
   /** `semantic` = VLM-derived region candidate (no UNet geometry). */
-  source?: 'semantic' | 'unet';
+  source?: 'semantic' | 'unet' | 'image_recovery';
   confidence?: number;
 };
 
