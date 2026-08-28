@@ -41,6 +41,14 @@ export interface FloorPlan3DRecord {
   sourceImageId: string;
   /** Generated 3D model; only set when status is `completed`. */
   model: FloorPlan3DModel | null;
+  /** GLB model URL returned by MeltFlex (when provider is meltflex). */
+  modelUrl?: string | null;
+  /** Fallback base64 GLB when hosted storage is unavailable (meltflex). */
+  modelBase64?: string | null;
+  /** GLB format, always `glb` for MeltFlex. */
+  format?: string | null;
+  /** Credits consumed for the conversion (meltflex). */
+  creditsUsed?: number | null;
   /** Generation error message; only set when status is `failed`. */
   error: string | null;
   createdAt: string;
@@ -66,8 +74,9 @@ export function floorPlan3DPendingRecord(
 export function floorPlan3DCompletedRecord(
   pending: FloorPlan3DRecord,
   model: FloorPlan3DModel,
+  extras?: Partial<Pick<FloorPlan3DRecord, 'modelUrl' | 'modelBase64' | 'format' | 'creditsUsed'>>,
 ): FloorPlan3DRecord {
-  return { ...pending, status: 'completed', model, updatedAt: new Date().toISOString() };
+  return { ...pending, status: 'completed', model, ...extras, updatedAt: new Date().toISOString() };
 }
 
 export function floorPlan3DFailedRecord(

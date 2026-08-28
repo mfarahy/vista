@@ -1,5 +1,6 @@
 import type { FloorPlan3DProvider } from './types.js';
 import { OpenAIFloorPlan3DProvider } from './openai-provider.js';
+import { MeltFlexFloorPlan3DProvider } from './meltflex-provider.js';
 
 export * from './types.js';
 export * from './schema.js';
@@ -20,8 +21,7 @@ export function floorPlan3DProviderName(): string {
  */
 export function createFloorPlan3DProvider(): FloorPlan3DProvider {
   const provider = floorPlan3DProviderName();
-  if (provider !== 'openai') {
-    throw new Error(`Unknown floor plan 3D provider: ${provider}`);
-  }
-  return new OpenAIFloorPlan3DProvider();
+  if (provider === 'openai') return new OpenAIFloorPlan3DProvider();
+  if (provider === 'meltflex') return new MeltFlexFloorPlan3DProvider();
+  throw new Error(`Unknown floor plan 3D provider: ${provider}`);
 }

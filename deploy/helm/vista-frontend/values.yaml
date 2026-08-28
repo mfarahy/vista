@@ -36,6 +36,9 @@ config:
   NEXT_PUBLIC_ENABLE_DEMO: "true"
   GEOMETRY_AI_SERVICE_URL: "http://vista-geometry-ai:80"
 
+secrets:
+  MELTFLEX_API_KEY: ""
+
 resources:
   requests:
     cpu: 100m
