@@ -1,13 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Building2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Building2, Upload, X } from 'lucide-react';
 import { BuildingViewer } from './BuildingViewer';
 import { demoBuilding } from './floorPlan';
 import { generateBuildingModel } from './geometryGenerator';
 import { useI18n } from '@/lib/i18n';
 import { PreviewNav } from '@/components/preview/preview-nav';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { GlbViewer } from '@/components/glb-viewer';
+import { toast } from 'sonner';
 import './styles.css';
 
 type SelectedElement = {
@@ -23,10 +25,118 @@ function floorNameId(floorId: string): string {
   return `viewers.threeD.floorNames.${floorId}`;
 }
 
+type MeltflexState = {
+  file: File | null;
+  previewUrl: string | null;
+  status: 'idle' | 'generating' | 'done' | 'error';
+  stage: 'analyzing' | 'building';
+  modelUrl: string | null;
+  modelBase64: string | null;
+  errorKey: string | null;
+};
+
 export function ThreeDPreview() {
   const { t } = useI18n();
   const [selectedFloorId, setSelectedFloorId] = useState('all');
   const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
+  const [meltflex, setMeltflex] = useState<MeltflexState>({
+    file: null,
+    previewUrl: null,
+    status: 'idle',
+    stage: 'analyzing',
+    modelUrl: null,
+    modelBase64: null,
+    errorKey: null,
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const stageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleFile = useCallback(
+    (file: File | null) => {
+      if (!file) return;
+      const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+      if (!allowed.includes(file.type) && file.type !== '') {
+        setMeltflex((s) => ({ ...s, errorKey: 'floorplan3d.meltflex.unsupportedType', status: 'error' }));
+        toast.error(t('floorplan3d.meltflex.unsupportedType'));
+        return;
+      }
+      if (file.size > 15 * 1024 * 1024) {
+        setMeltflex((s) => ({ ...s, errorKey: 'floorplan3d.meltflex.tooLarge', status: 'error' }));
+        toast.error(t('floorplan3d.meltflex.tooLarge'));
+        return;
+      }
+      const url = URL.createObjectURL(file);
+      setMeltflex((prev) => {
+        if (prev.previewUrl) URL.revokeObjectURL(prev.previewUrl);
+        return {
+          file,
+          previewUrl: url,
+          status: 'idle',
+          stage: 'analyzing',
+          modelUrl: null,
+          modelBase64: null,
+          errorKey: null,
+        };
+      });
+    },
+    [t],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (meltflex.previewUrl) URL.revokeObjectURL(meltflex.previewUrl);
+      if (stageTimerRef.current) clearTimeout(stageTimerRef.current);
+    };
+  }, [meltflex.previewUrl]);
+
+  const handleGenerate = useCallback(async () => {
+    if (!meltflex.file) {
+      setMeltflex((s) => ({ ...s, errorKey: 'floorplan3d.meltflex.missingFile', status: 'error' }));
+      toast.error(t('floorplan3d.meltflex.missingFile'));
+      return;
+    }
+    setMeltflex((s) => ({ ...s, status: 'generating', stage: 'analyzing', errorKey: null }));
+    stageTimerRef.current = setTimeout(() => {
+      setMeltflex((s) => (s.status === 'generating' ? { ...s, stage: 'building' } : s));
+    }, 7000);
+
+    try {
+      const form = new FormData();
+      form.append('file', meltflex.file);
+      const res = await fetch('/api/floorplan-to-3d', { method: 'POST', body: form });
+      if (stageTimerRef.current) clearTimeout(stageTimerRef.current);
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        const key = typeof body.error === 'string' ? body.error : 'floorplan3d.meltflex.conversionFailed';
+        setMeltflex((s) => ({ ...s, status: 'error', errorKey: key }));
+        toast.error(t(key));
+        return;
+      }
+      const data = (await res.json()) as { modelUrl?: string | null; modelBase64?: string | null };
+      if (!data.modelUrl && !data.modelBase64) {
+        setMeltflex((s) => ({ ...s, status: 'error', errorKey: 'floorplan3d.meltflex.malformedResponse' }));
+        toast.error(t('floorplan3d.meltflex.malformedResponse'));
+        return;
+      }
+      setMeltflex((s) => ({
+        ...s,
+        status: 'done',
+        modelUrl: data.modelUrl ?? null,
+        modelBase64: data.modelBase64 ?? null,
+      }));
+    } catch {
+      if (stageTimerRef.current) clearTimeout(stageTimerRef.current);
+      setMeltflex((s) => ({ ...s, status: 'error', errorKey: 'floorplan3d.meltflex.serverError' }));
+      toast.error(t('floorplan3d.meltflex.serverError'));
+    }
+  }, [meltflex.file, t]);
+
+  const clearMeltflex = useCallback(() => {
+    if (meltflex.previewUrl) URL.revokeObjectURL(meltflex.previewUrl);
+    if (stageTimerRef.current) clearTimeout(stageTimerRef.current);
+    setMeltflex({ file: null, previewUrl: null, status: 'idle', stage: 'analyzing', modelUrl: null, modelBase64: null, errorKey: null });
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, [meltflex.previewUrl]);
 
   const selectedInfo = useMemo(() => {
     if (!selectedElement) return null;
@@ -109,6 +219,10 @@ export function ThreeDPreview() {
     };
   }, [selectedElement, t]);
 
+  const isGenerating = meltflex.status === 'generating';
+  const isDone = meltflex.status === 'done' && (meltflex.modelUrl || meltflex.modelBase64);
+  const hasError = meltflex.status === 'error' && meltflex.errorKey;
+
   return (
     <div className="vista-3d-preview">
       <aside className="vista-3d-preview__intro">
@@ -119,6 +233,79 @@ export function ThreeDPreview() {
           <PreviewNav current="3d" />
           <LanguageSwitcher />
         </div>
+
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+          <h2 className="text-sm font-semibold">{t('floorplan3d.meltflex.title')}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{t('floorplan3d.meltflex.intro')}</p>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+          />
+
+          {!meltflex.previewUrl ? (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                handleFile(e.dataTransfer.files?.[0] ?? null);
+              }}
+              className="mt-3 flex w-full flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center hover:bg-accent"
+            >
+              <Upload className="size-6 text-muted-foreground" aria-hidden />
+              <span className="mt-2 text-sm font-medium">{t('floorplan3d.meltflex.dropzone')}</span>
+              <span className="text-xs text-muted-foreground">{t('floorplan3d.meltflex.dropzoneHint')}</span>
+            </button>
+          ) : (
+            <div className="mt-3 space-y-3">
+              <div className="relative overflow-hidden rounded-lg border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={meltflex.previewUrl} alt={t('floorplan3d.meltflex.previewAlt')} className="max-h-48 w-full object-contain bg-muted" />
+                <button
+                  type="button"
+                  onClick={clearMeltflex}
+                  aria-label={t('floorplan3d.meltflex.replaceImage')}
+                  className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex-1 rounded-md border px-3 py-2 text-sm hover:bg-accent"
+                >
+                  {t('floorplan3d.meltflex.replaceImage')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={isGenerating}
+                  className="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {isGenerating ? t('floorplan3d.meltflex.generating') : t('floorplan3d.meltflex.generate')}
+                </button>
+              </div>
+              {isGenerating && (
+                <p className="text-center text-sm font-medium text-primary" aria-live="polite">
+                  {meltflex.stage === 'analyzing' ? t('floorplan3d.meltflex.analyzing') : t('floorplan3d.meltflex.building')}
+                </p>
+              )}
+              {hasError && (
+                <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+                  {t(meltflex.errorKey!)}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
 
         <label className="vista-3d-preview__floor-selector" htmlFor="vista-3d-floor-select">
           {t('viewers.threeD.inspectFloor')}
@@ -224,13 +411,26 @@ export function ThreeDPreview() {
         </div>
       </aside>
 
-      <BuildingViewer
-        model={buildingModel}
-        selectedFloorId={selectedFloorId}
-        selectedElement={selectedElement}
-        onSelectElement={setSelectedElement}
-        ariaLabel={t('viewers.threeD.viewerAriaLabel')}
-      />
+      <div className="vista-3d-preview__viewer-wrap flex-1 relative">
+        {isGenerating ? (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-muted/30">
+            <span className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" aria-hidden="true" />
+            <p className="text-sm font-medium" aria-live="polite">
+              {meltflex.stage === 'analyzing' ? t('floorplan3d.meltflex.analyzing') : t('floorplan3d.meltflex.building')}
+            </p>
+          </div>
+        ) : isDone ? (
+          <GlbViewer modelUrl={meltflex.modelUrl} modelBase64={meltflex.modelBase64} ariaLabel={t('floorplan3d.ariaLabel')} />
+        ) : (
+          <BuildingViewer
+            model={buildingModel}
+            selectedFloorId={selectedFloorId}
+            selectedElement={selectedElement}
+            onSelectElement={setSelectedElement}
+            ariaLabel={t('viewers.threeD.viewerAriaLabel')}
+          />
+        )}
+      </div>
     </div>
   );
 }

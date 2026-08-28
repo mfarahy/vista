@@ -107,6 +107,11 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-secrets
                   key: FAL_KEY
+            - name: MELTFLEX_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: MELTFLEX_API_KEY
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:

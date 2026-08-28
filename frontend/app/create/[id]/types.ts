@@ -183,6 +183,10 @@ export type FloorPlan3DRecord = {
   provider: string;
   sourceImageId: string;
   model: FloorPlan3DModel | null;
+  modelUrl?: string | null;
+  modelBase64?: string | null;
+  format?: string | null;
+  creditsUsed?: number | null;
   error: string | null;
   createdAt: string;
   updatedAt: string;

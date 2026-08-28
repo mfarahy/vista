@@ -89,7 +89,27 @@ async function runGeneration(
       imageBuffer: buffer,
       mimeType: image.mimeType,
     });
-    await safePersist(log, persist, propertyId, floorPlan3DCompletedRecord(pending, model), 'completed');
+    // For MeltFlex the GLB artefacts are stored in the module-level cache
+    let extras: Record<string, unknown> | undefined;
+    if (provider.name === 'meltflex') {
+      const { consumeMeltFlexResult } = await import('./meltflex-provider.js');
+      const result = consumeMeltFlexResult();
+      if (result) {
+        extras = {
+          modelUrl: result.modelUrl ?? null,
+          modelBase64: result.model ?? null,
+          format: result.format ?? 'glb',
+          creditsUsed: result.creditsUsed ?? null,
+        };
+      }
+    }
+    await safePersist(
+      log,
+      persist,
+      propertyId,
+      floorPlan3DCompletedRecord(pending, model, extras as Parameters<typeof floorPlan3DCompletedRecord>[2]),
+      'completed',
+    );
     log.info(
       { propertyId, floorPlanId: image.id, provider: providerName },
       'Floor plan 3D generation completed for property {propertyId}',
