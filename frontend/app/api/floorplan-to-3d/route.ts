@@ -76,7 +76,8 @@ export async function POST(req: NextRequest) {
   }
 
   if (!meltflexRes.ok) {
-    const body = await meltflexRes.text().catch(() => '');
+    const _body = await meltflexRes.text().catch(() => '');
+    void _body;
     const mapped = mapMeltFlexStatus(meltflexRes.status);
     // Avoid leaking raw body details to user; log server-side instead
     // Do not expose API keys or internal details

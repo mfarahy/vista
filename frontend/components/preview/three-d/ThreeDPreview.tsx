@@ -264,7 +264,6 @@ export function ThreeDPreview() {
           ) : (
             <div className="mt-3 space-y-3">
               <div className="relative overflow-hidden rounded-lg border">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={meltflex.previewUrl} alt={t('floorplan3d.meltflex.previewAlt')} className="max-h-48 w-full object-contain bg-muted" />
                 <button
                   type="button"
