@@ -10,6 +10,8 @@ import { PreviewNav } from '@/components/preview/preview-nav';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { GlbViewer } from '@/components/glb-viewer';
 import { toast } from 'sonner';
+import { apiAssetUrl, apiFetch } from '@/lib/api';
+import { useJobProgress } from '@/lib/use-job-progress';
 import './styles.css';
 
 type SelectedElement = {
@@ -25,126 +27,143 @@ function floorNameId(floorId: string): string {
   return `viewers.threeD.floorNames.${floorId}`;
 }
 
-type MeltflexState = {
-  file: File | null;
-  previewUrl: string | null;
-  status: 'idle' | 'generating' | 'done' | 'error';
-  stage: 'analyzing' | 'building';
-  modelUrl: string | null;
-  modelBase64: string | null;
-  errorKey: string | null;
-};
-
 export function ThreeDPreview() {
   const { t } = useI18n();
   const [selectedFloorId, setSelectedFloorId] = useState('all');
   const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
-  const [meltflex, setMeltflex] = useState<MeltflexState>({
-    file: null,
-    previewUrl: null,
-    status: 'idle',
-    stage: 'analyzing',
-    modelUrl: null,
-    modelBase64: null,
-    errorKey: null,
-  });
+
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [modelUrl, setModelUrl] = useState<string | null>(null);
+  const [modelBase64, setModelBase64] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [localErrorKey, setLocalErrorKey] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const stageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { state: jobState } = useJobProgress(jobId);
 
   const handleFile = useCallback(
-    (file: File | null) => {
-      if (!file) return;
+    (nextFile: File | null) => {
+      if (!nextFile) return;
       const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
-      if (!allowed.includes(file.type) && file.type !== '') {
-        setMeltflex((s) => ({ ...s, errorKey: 'floorplan3d.meltflex.unsupportedType', status: 'error' }));
+      if (!allowed.includes(nextFile.type) && nextFile.type !== '') {
+        setLocalErrorKey('floorplan3d.meltflex.unsupportedType');
         toast.error(t('floorplan3d.meltflex.unsupportedType'));
         return;
       }
-      if (file.size > 15 * 1024 * 1024) {
-        setMeltflex((s) => ({ ...s, errorKey: 'floorplan3d.meltflex.tooLarge', status: 'error' }));
+      if (nextFile.size > 15 * 1024 * 1024) {
+        setLocalErrorKey('floorplan3d.meltflex.tooLarge');
         toast.error(t('floorplan3d.meltflex.tooLarge'));
         return;
       }
-      const url = URL.createObjectURL(file);
-      setMeltflex((prev) => {
-        if (prev.previewUrl) URL.revokeObjectURL(prev.previewUrl);
-        return {
-          file,
-          previewUrl: url,
-          status: 'idle',
-          stage: 'analyzing',
-          modelUrl: null,
-          modelBase64: null,
-          errorKey: null,
-        };
+      const url = URL.createObjectURL(nextFile);
+      setPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
       });
+      setFile(nextFile);
+      setJobId(null);
+      setModelUrl(null);
+      setModelBase64(null);
+      setLocalErrorKey(null);
     },
     [t],
   );
 
   useEffect(() => {
     return () => {
-      if (meltflex.previewUrl) URL.revokeObjectURL(meltflex.previewUrl);
-      if (stageTimerRef.current) clearTimeout(stageTimerRef.current);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
-  }, [meltflex.previewUrl]);
+  }, [previewUrl]);
+
+  // When job completes, fetch the result payload to resolve GLB URL/base64
+  useEffect(() => {
+    if (!jobState) return;
+    if (jobState.status === 'failed') {
+      const msg = jobState.error ?? '';
+      // Map known MeltFlex error substrings to i18n keys
+      let key = 'floorplan3d.meltflex.conversionFailed';
+      if (/unauthorized|401/i.test(msg)) key = 'floorplan3d.meltflex.authFailed';
+      else if (/insufficient|402|credits/i.test(msg)) key = 'floorplan3d.meltflex.insufficientCredits';
+      else if (/rate.?limited|429/i.test(msg)) key = 'floorplan3d.meltflex.rateLimited';
+      else if (/timeout|504/i.test(msg)) key = 'floorplan3d.meltflex.timeout';
+      else if (/malformed/i.test(msg)) key = 'floorplan3d.meltflex.malformedResponse';
+      else if (/invalid.?image|400/i.test(msg)) key = 'floorplan3d.meltflex.invalidImage';
+      setLocalErrorKey(key);
+      toast.error(t(key));
+      return;
+    }
+    if (jobState.status === 'completed') {
+      void (async () => {
+        try {
+          const res = await apiFetch(`/api/jobs/${encodeURIComponent(jobId!)}`);
+          if (!res.ok) return;
+          const job = (await res.json()) as {
+            message?: string;
+            payload?: { result?: { modelUrl?: string | null; modelBase64?: string | null } };
+          };
+          const result = job.payload?.result;
+          const url = result?.modelUrl ?? job.message ?? null;
+          const b64 = result?.modelBase64 ?? null;
+          if (url) setModelUrl(url.startsWith('/') || url.startsWith('http') || url.startsWith('data:') ? url : apiAssetUrl(url));
+          else if (b64) setModelBase64(b64);
+          else if (job.message && job.message.startsWith('http')) setModelUrl(job.message);
+        } catch {
+          // ignore fetch error
+        }
+      })();
+    }
+  }, [jobState, jobId, t]);
 
   const handleGenerate = useCallback(async () => {
-    if (!meltflex.file) {
-      setMeltflex((s) => ({ ...s, errorKey: 'floorplan3d.meltflex.missingFile', status: 'error' }));
+    if (!file) {
+      setLocalErrorKey('floorplan3d.meltflex.missingFile');
       toast.error(t('floorplan3d.meltflex.missingFile'));
       return;
     }
-    setMeltflex((s) => ({ ...s, status: 'generating', stage: 'analyzing', errorKey: null }));
-    stageTimerRef.current = setTimeout(() => {
-      setMeltflex((s) => (s.status === 'generating' ? { ...s, stage: 'building' } : s));
-    }, 7000);
-
+    setUploading(true);
+    setLocalErrorKey(null);
+    setModelUrl(null);
+    setModelBase64(null);
+    setJobId(null);
     try {
       const form = new FormData();
-      form.append('file', meltflex.file);
-      const res = await fetch('/api/floorplan-to-3d', { method: 'POST', body: form });
-      if (stageTimerRef.current) clearTimeout(stageTimerRef.current);
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        const key = typeof body.error === 'string' ? body.error : 'floorplan3d.meltflex.conversionFailed';
-        setMeltflex((s) => ({ ...s, status: 'error', errorKey: key }));
-        toast.error(t(key));
+      form.append('image', file);
+      const res = await apiFetch('/api/floorplan3d/jobs', { method: 'POST', body: form });
+      const body = (await res.json().catch(() => ({}))) as { jobId?: string; error?: string };
+      if (!res.ok || !body.jobId) {
+        const key = typeof body.error === 'string' && body.error ? body.error : 'floorplan3d.meltflex.conversionFailed';
+        // Map backend German messages to keys if needed
+        setLocalErrorKey(key.startsWith('floorplan3d.') ? key : 'floorplan3d.meltflex.conversionFailed');
+        toast.error(t(key.startsWith('floorplan3d.') ? key : 'floorplan3d.meltflex.conversionFailed'));
         return;
       }
-      const data = (await res.json()) as { modelUrl?: string | null; modelBase64?: string | null };
-      if (!data.modelUrl && !data.modelBase64) {
-        setMeltflex((s) => ({ ...s, status: 'error', errorKey: 'floorplan3d.meltflex.malformedResponse' }));
-        toast.error(t('floorplan3d.meltflex.malformedResponse'));
-        return;
-      }
-      setMeltflex((s) => ({
-        ...s,
-        status: 'done',
-        modelUrl: data.modelUrl ?? null,
-        modelBase64: data.modelBase64 ?? null,
-      }));
+      setJobId(body.jobId);
     } catch {
-      if (stageTimerRef.current) clearTimeout(stageTimerRef.current);
-      setMeltflex((s) => ({ ...s, status: 'error', errorKey: 'floorplan3d.meltflex.serverError' }));
+      setLocalErrorKey('floorplan3d.meltflex.serverError');
       toast.error(t('floorplan3d.meltflex.serverError'));
+    } finally {
+      setUploading(false);
     }
-  }, [meltflex.file, t]);
+  }, [file, t]);
 
-  const clearMeltflex = useCallback(() => {
-    if (meltflex.previewUrl) URL.revokeObjectURL(meltflex.previewUrl);
-    if (stageTimerRef.current) clearTimeout(stageTimerRef.current);
-    setMeltflex({ file: null, previewUrl: null, status: 'idle', stage: 'analyzing', modelUrl: null, modelBase64: null, errorKey: null });
+  const clearAll = useCallback(() => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setFile(null);
+    setJobId(null);
+    setModelUrl(null);
+    setModelBase64(null);
+    setLocalErrorKey(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [meltflex.previewUrl]);
+  }, [previewUrl]);
 
   const selectedInfo = useMemo(() => {
     if (!selectedElement) return null;
 
     if (selectedElement.type === 'floor') {
-      const floor = buildingModel.spatialElements.floors.find(
-        (entry) => entry.id === selectedElement.id,
-      );
+      const floor = buildingModel.spatialElements.floors.find((entry) => entry.id === selectedElement.id);
       if (!floor) return null;
       return {
         title: t('viewers.threeD.element.floor'),
@@ -157,9 +176,7 @@ export function ThreeDPreview() {
     }
 
     if (selectedElement.type === 'room') {
-      const room = buildingModel.spatialElements.rooms.find(
-        (entry) => entry.id === selectedElement.id,
-      );
+      const room = buildingModel.spatialElements.rooms.find((entry) => entry.id === selectedElement.id);
       if (!room) return null;
       return {
         title: t('viewers.threeD.element.room'),
@@ -173,9 +190,7 @@ export function ThreeDPreview() {
     }
 
     if (selectedElement.type === 'wall') {
-      const wall = buildingModel.spatialElements.walls.find(
-        (entry) => entry.id === selectedElement.id,
-      );
+      const wall = buildingModel.spatialElements.walls.find((entry) => entry.id === selectedElement.id);
       if (!wall) return null;
       return {
         title: t('viewers.threeD.element.wall'),
@@ -189,9 +204,7 @@ export function ThreeDPreview() {
     }
 
     if (selectedElement.type === 'door') {
-      const door = buildingModel.spatialElements.doors.find(
-        (entry) => entry.id === selectedElement.id,
-      );
+      const door = buildingModel.spatialElements.doors.find((entry) => entry.id === selectedElement.id);
       if (!door) return null;
       return {
         title: t('viewers.threeD.element.door'),
@@ -204,9 +217,7 @@ export function ThreeDPreview() {
       };
     }
 
-    const window = buildingModel.spatialElements.windows.find(
-      (entry) => entry.id === selectedElement.id,
-    );
+    const window = buildingModel.spatialElements.windows.find((entry) => entry.id === selectedElement.id);
     if (!window) return null;
     return {
       title: t('viewers.threeD.element.window'),
@@ -219,9 +230,15 @@ export function ThreeDPreview() {
     };
   }, [selectedElement, t]);
 
-  const isGenerating = meltflex.status === 'generating';
-  const isDone = meltflex.status === 'done' && (meltflex.modelUrl || meltflex.modelBase64);
-  const hasError = meltflex.status === 'error' && meltflex.errorKey;
+  const jobStatus = jobState?.status ?? null;
+  const isProcessing = jobStatus === 'queued' || jobStatus === 'processing' || uploading;
+  const isDone = !isProcessing && (modelUrl || modelBase64);
+  const hasError = localErrorKey || jobStatus === 'failed';
+  const processingMessage =
+    jobState?.message ??
+    (jobState?.currentStep === 'calling_meltflex' ? t('floorplan3d.meltflex.building') : t('floorplan3d.meltflex.analyzing'));
+
+  const resolvedModelUrl = modelUrl ? apiAssetUrl(modelUrl) : null;
 
   return (
     <div className="vista-3d-preview">
@@ -246,7 +263,7 @@ export function ThreeDPreview() {
             onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
           />
 
-          {!meltflex.previewUrl ? (
+          {!previewUrl ? (
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -264,10 +281,10 @@ export function ThreeDPreview() {
           ) : (
             <div className="mt-3 space-y-3">
               <div className="relative overflow-hidden rounded-lg border">
-                <img src={meltflex.previewUrl} alt={t('floorplan3d.meltflex.previewAlt')} className="max-h-48 w-full object-contain bg-muted" />
+                <img src={previewUrl} alt={t('floorplan3d.meltflex.previewAlt')} className="max-h-48 w-full object-contain bg-muted" />
                 <button
                   type="button"
-                  onClick={clearMeltflex}
+                  onClick={clearAll}
                   aria-label={t('floorplan3d.meltflex.replaceImage')}
                   className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80"
                 >
@@ -285,26 +302,31 @@ export function ThreeDPreview() {
                 <button
                   type="button"
                   onClick={handleGenerate}
-                  disabled={isGenerating}
+                  disabled={isProcessing}
                   className="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
-                  {isGenerating ? t('floorplan3d.meltflex.generating') : t('floorplan3d.meltflex.generate')}
+                  {isProcessing ? t('floorplan3d.meltflex.generating') : t('floorplan3d.meltflex.generate')}
                 </button>
               </div>
-              {isGenerating && (
+              {isProcessing && (
                 <p className="text-center text-sm font-medium text-primary" aria-live="polite">
-                  {meltflex.stage === 'analyzing' ? t('floorplan3d.meltflex.analyzing') : t('floorplan3d.meltflex.building')}
+                  {processingMessage}
                 </p>
               )}
-              {hasError && (
+              {hasError && localErrorKey && (
                 <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
-                  {t(meltflex.errorKey!)}
+                  {t(localErrorKey)}
+                </p>
+              )}
+              {jobState && (
+                <p className="text-center text-xs text-muted-foreground">
+                  {jobStatus === 'queued' ? t('documentsStep.processingRunning') : jobState.currentStep ?? jobStatus}
+                  {typeof jobState.progress === 'number' ? ` · ${jobState.progress}%` : ''}
                 </p>
               )}
             </div>
           )}
         </div>
-
 
         <label className="vista-3d-preview__floor-selector" htmlFor="vista-3d-floor-select">
           {t('viewers.threeD.inspectFloor')}
@@ -341,15 +363,11 @@ export function ThreeDPreview() {
           </div>
           <div>
             <dt>{t('viewers.threeD.metrics.doors')}</dt>
-            <dd>
-              {buildingModel.openings.filter((opening) => opening.type === 'door').length}
-            </dd>
+            <dd>{buildingModel.openings.filter((opening) => opening.type === 'door').length}</dd>
           </div>
           <div>
             <dt>{t('viewers.threeD.metrics.windows')}</dt>
-            <dd>
-              {buildingModel.openings.filter((opening) => opening.type === 'window').length}
-            </dd>
+            <dd>{buildingModel.openings.filter((opening) => opening.type === 'window').length}</dd>
           </div>
           <div>
             <dt>{t('viewers.threeD.metrics.openings')}</dt>
@@ -411,15 +429,15 @@ export function ThreeDPreview() {
       </aside>
 
       <div className="vista-3d-preview__viewer-wrap flex-1 relative">
-        {isGenerating ? (
+        {isProcessing ? (
           <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-muted/30">
             <span className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" aria-hidden="true" />
             <p className="text-sm font-medium" aria-live="polite">
-              {meltflex.stage === 'analyzing' ? t('floorplan3d.meltflex.analyzing') : t('floorplan3d.meltflex.building')}
+              {processingMessage}
             </p>
           </div>
         ) : isDone ? (
-          <GlbViewer modelUrl={meltflex.modelUrl} modelBase64={meltflex.modelBase64} ariaLabel={t('floorplan3d.ariaLabel')} />
+          <GlbViewer modelUrl={resolvedModelUrl} modelBase64={modelBase64} ariaLabel={t('floorplan3d.ariaLabel')} />
         ) : (
           <BuildingViewer
             model={buildingModel}

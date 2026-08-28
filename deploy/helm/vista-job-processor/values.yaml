@@ -14,6 +14,7 @@ config:
   HOST: "0.0.0.0"
   PORT: "4100"
   LOG_LEVEL: "info"
+  PUBLIC_API_BASE_URL: "https://api.vista.example.com"
   NATS_URL: "nats://nats:4222"
   NATS_SUBJECT_PREFIX: "vista.jobs"
   DOCUMENT_STORAGE_PROVIDER: "r2"
@@ -33,6 +34,7 @@ secrets:
   CLOUDFLARE_R2_BUCKET: ""
   GOOGLE_DOCUMENT_AI_CREDENTIALS: ""
   OPENAI_API_KEY: ""
+  MELTFLEX_API_KEY: ""
 
 resources:
   requests:
