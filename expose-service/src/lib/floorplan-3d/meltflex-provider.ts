@@ -42,7 +42,7 @@ function mapMeltFlexError(status: number, bodyText: string): MeltFlexError {
 export async function callMeltFlex(
   imageBuffer: Buffer,
   mimeType: string,
-  opts: { apiKey: string; timeoutMs?: number; fetchImpl?: typeof fetch } = {
+  opts: { apiKey: string; timeoutMs?: number; fetchImpl?: typeof fetch; imageUrl?: string } = {
     apiKey: process.env.MELTFLEX_API_KEY ?? '',
   },
 ): Promise<MeltFlexSuccessResponse> {
@@ -50,6 +50,7 @@ export async function callMeltFlex(
   const apiKey = opts.apiKey;
   const timeoutMs = opts.timeoutMs ?? MELTFLEX_TIMEOUT_MS;
   const fetchImpl = opts.fetchImpl ?? fetch;
+  const imageUrl = opts.imageUrl;
 
   log.info(
     {
@@ -60,8 +61,9 @@ export async function callMeltFlex(
       timeoutMs,
       hasApiKey: Boolean(apiKey),
       apiKeyConfigured: Boolean(apiKey),
+      hasImageUrl: Boolean(imageUrl),
     },
-    'MeltFlex callMeltFlex started — image {imageBytes} bytes, mime {mimeType}, timeout {timeoutMs} ms',
+    'MeltFlex callMeltFlex started — image {imageBytes} bytes, mime {mimeType}, timeout {timeoutMs} ms, imageUrl={hasImageUrl}',
   );
 
   if (!apiKey) {
@@ -69,19 +71,29 @@ export async function callMeltFlex(
     throw new MeltFlexError(401, 'unauthorized', 'MELTFLEX_API_KEY is not configured');
   }
 
-  const base64 = imageBuffer.toString('base64');
-  const dataUrl = `data:${mimeType || 'image/png'};base64,${base64}`;
-  log.debug(
-    {
-      service: 'meltflex',
-      operation: 'floorplan-to-3d',
-      imageBytes: imageBuffer.length,
-      base64Length: base64.length,
-      dataUrlLength: dataUrl.length,
-      mimeType: mimeType || 'image/png',
-    },
-    'MeltFlex request payload prepared — base64 {base64Length} chars',
-  );
+  let payload: Record<string, unknown>;
+  if (imageUrl) {
+    payload = { imageUrl };
+    log.debug(
+      { service: 'meltflex', operation: 'floorplan-to-3d', imageUrlLength: imageUrl.length },
+      'MeltFlex request payload prepared — imageUrl {imageUrlLength} chars',
+    );
+  } else {
+    const base64 = imageBuffer.toString('base64');
+    const dataUrl = `data:${mimeType || 'image/png'};base64,${base64}`;
+    payload = { image: dataUrl };
+    log.debug(
+      {
+        service: 'meltflex',
+        operation: 'floorplan-to-3d',
+        imageBytes: imageBuffer.length,
+        base64Length: base64.length,
+        dataUrlLength: dataUrl.length,
+        mimeType: mimeType || 'image/png',
+      },
+      'MeltFlex request payload prepared — base64 {base64Length} chars',
+    );
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -104,7 +116,7 @@ export async function callMeltFlex(
             Authorization: `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ image: dataUrl }),
+          body: JSON.stringify(payload),
           signal: controller.signal,
         }),
     );
@@ -283,4 +295,17 @@ export function consumeMeltFlexResult(): MeltFlexSuccessResponse | null {
   const r = lastMeltFlexResult;
   lastMeltFlexResult = null;
   return r;
+}
+
+export async function callMeltFlexViaUrl(
+  imageUrl: string,
+  opts: { apiKey?: string; timeoutMs?: number; fetchImpl?: typeof fetch } = {},
+): Promise<MeltFlexSuccessResponse> {
+  const apiKey = opts.apiKey ?? process.env.MELTFLEX_API_KEY ?? '';
+  return callMeltFlex(Buffer.alloc(0), 'image/png', {
+    apiKey,
+    timeoutMs: opts.timeoutMs,
+    fetchImpl: opts.fetchImpl,
+    imageUrl,
+  });
 }

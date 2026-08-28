@@ -96,6 +96,13 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-secrets
                   key: OPENAI_API_KEY
+            - name: MELTFLEX_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: MELTFLEX_API_KEY
+            - name: PUBLIC_API_BASE_URL
+              value: {{ .Values.config.PUBLIC_API_BASE_URL | default "" | quote }}
           readinessProbe:
             httpGet:
               path: /ready

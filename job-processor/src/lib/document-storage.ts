@@ -22,6 +22,7 @@ export interface DocumentStorage {
   put(documentId: string, content: Buffer, mimeType: string): Promise<void>;
   get(documentId: string): Promise<ReadableFile | null>;
   delete(documentId: string): Promise<void>;
+  getSignedUrl?(documentId: string, expiresInSeconds?: number): Promise<string | null>;
 }
 
 /** Filesystem-backed storage (dev / tests). Mirrors the previous upload behaviour. */
@@ -44,6 +45,10 @@ export class LocalDocumentStorage implements DocumentStorage {
 
   async delete(documentId: string): Promise<void> {
     await fs.rm(this.filePathFor(documentId), { force: true });
+  }
+
+  async getSignedUrl(): Promise<string | null> {
+    return null;
   }
 
   private filePathFor(documentId: string): string {
@@ -107,6 +112,19 @@ export class R2DocumentStorage implements DocumentStorage {
     await client.send(
       new DeleteObjectCommand({ Bucket: this.options.bucket, Key: this.keyFor(documentId) }) as never,
     );
+  }
+
+  async getSignedUrl(documentId: string, expiresInSeconds = 900): Promise<string | null> {
+    try {
+      const { S3Client, GetObjectCommand } = await import('@aws-sdk/client-s3');
+      const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
+      const client = new S3Client(this.s3Config()) as unknown as Parameters<typeof getSignedUrl>[0];
+      const command = new GetObjectCommand({ Bucket: this.options.bucket, Key: this.keyFor(documentId) });
+      return await getSignedUrl(client as never, command as never, { expiresIn: expiresInSeconds });
+    } catch (error) {
+      getLogger().warn({ err: error, documentId }, 'Failed to create signed URL for {documentId}');
+      return null;
+    }
   }
 
   private s3Config(): Record<string, unknown> {
