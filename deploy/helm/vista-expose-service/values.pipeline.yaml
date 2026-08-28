@@ -1,0 +1,66 @@
+global:
+  imagePullSecrets:
+    - name: gitlab-registry
+
+replicaCount: ${VISTA_EXPOSE_REPLICAS}
+
+image:
+  repository: "${CI_REGISTRY_IMAGE}/expose-service"
+  tag: "${RELEASE_VERSION}"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 4000
+
+ingress:
+  enabled: true
+  className: "${INGRESS_CLASS}"
+  annotations:
+    cert-manager.io/cluster-issuer: "${CLUSTER_ISSUER}"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  hosts:
+    - host: "api.${ROOT_DOMAIN}"
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    enabled: true
+    secretName: "${API_TLS_SECRET}"
+
+config:
+  HOST: "0.0.0.0"
+  PORT: "4000"
+  CORS_ORIGIN: "https://${ROOT_DOMAIN},https://www.${ROOT_DOMAIN}"
+  FRONTEND_URL: "https://${ROOT_DOMAIN}"
+  API_BASE_URL: "https://api.${ROOT_DOMAIN}"
+  OPENAI_BASE_URL: "${OPENAI_BASE_URL}"
+  OPENAI_MODEL: "${OPENAI_MODEL}"
+  GOOGLE_DOCUMENT_AI_PROJECT_ID: "${GOOGLE_DOCUMENT_AI_PROJECT_ID}"
+  GOOGLE_DOCUMENT_AI_LOCATION: "${GOOGLE_DOCUMENT_AI_LOCATION}"
+  GOOGLE_DOCUMENT_AI_PROCESSOR_ID: "${GOOGLE_DOCUMENT_AI_PROCESSOR_ID}"
+  LOG_LEVEL: "${LOG_LEVEL}"
+  DATA_DIR: "/data"
+  UPLOAD_DIR: "/data/uploads"
+  DOCUMENT_STORAGE_PROVIDER: "${DOCUMENT_STORAGE_PROVIDER}"
+  NATS_URL: "${NATS_URL}"
+  NATS_SUBJECT_PREFIX: "${NATS_SUBJECT_PREFIX}"
+
+secrets:
+  OPENAI_API_KEY: "${OPENAI_API_KEY}"
+  FAL_KEY: "${FAL_KEY}"
+  MELTFLEX_API_KEY: "${MELTFLEX_API_KEY}"
+  DATABASE_URL: "${DATABASE_URL}"
+  CLOUDFLARE_S3_API_ENDPOINT: "${CLOUDFLARE_S3_API_ENDPOINT}"
+  CLOUDFLARE_ACCESS_KEY_ID: "${CLOUDFLARE_ACCESS_KEY_ID}"
+  CLOUDFLARE_SECRET_ACCESS_KEY: "${CLOUDFLARE_SECRET_ACCESS_KEY}"
+  CLOUDFLARE_R2_BUCKET: "${CLOUDFLARE_R2_BUCKET}"
+  GOOGLE_DOCUMENT_AI_CREDENTIALS: "${GOOGLE_DOCUMENT_AI_CREDENTIALS_B64}"
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 5Gi
