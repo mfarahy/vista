@@ -22,7 +22,6 @@ Then open `http://localhost:3000` and select **New Exposé**.
 - `mcp-server/`: minimal stateless MCP server exposing the Agent Bridge as `vista_task`, `vista_screenshot`, and `vista_session` tools for an external supervisor. See [Vista MCP Supervisor Server](#vista-mcp-supervisor-server)
 - `deploy/frontend/`, `deploy/expose-service/`, and `deploy/job-processor/`: Kubernetes manifests
 - `deploy/helm/vista-expose-service/` and `deploy/helm/vista-job-processor/`: Helm charts
-- `geometry-ai/`: Phase 2 feasibility harness for AI floor-plan geometry extraction (local Python inference service + evaluation). See `docs/geometry-ai-evaluation.md`.
 
 ## Environment Variables
 
@@ -50,7 +49,6 @@ Then open `http://localhost:3000` and select **New Exposé**.
 - `MAP_ATTRIBUTION`: attribution for the local map fallback
 - `FRONTEND_URL`: base URL of the Next.js app that hosts the PDF print route, default `http://localhost:3000`
 - `BORIS_BASE_URL`: optional Brandenburg BORIS OGC API endpoint for Bodenrichtwert enrichment (default `https://ogc-api.geobasis-bb.de/boris`)
-- `GEOMETRY_AI_SERVICE_URL`: base URL of the local geometry-ai inference service used by the `/geometry` playground's AI provider (default `http://127.0.0.1:8787`)
 
 The OpenStreetMap adapters use Nominatim for geocoding and Overpass for supermarkets, kindergartens, schools, public transit, pharmacies, parks, and restaurants/cafés. They are active only when the providers are explicitly configured. Verified distances and travel times for the Exposé's Nearby Amenities section come from the OSRM routing endpoints (`ROUTING_PROVIDER=osrm`, walking/cycling/driving); without a routing provider, facilities are collected but never presented with distances or travel times. There is currently no external static map provider: the local, coordinate-aware SVG fallback is exposed for development and testing and must not be considered a real map-service integration.
 

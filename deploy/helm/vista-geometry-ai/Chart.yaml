@@ -1,6 +1,0 @@
-apiVersion: v2
-name: vista-geometry-ai
-description: Floor-plan geometry inference service (CubiCasa5K UNet) exposed to the frontend
-version: 0.1.0
-appVersion: "1.0.0"
-type: application

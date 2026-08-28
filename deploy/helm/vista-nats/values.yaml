@@ -1,7 +1,3 @@
-global:
-  imagePullSecrets:
-    - name: gitlab-registry
-
 replicaCount: 1
 
 nameOverride: "nats"

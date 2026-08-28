@@ -1,7 +1,3 @@
-global:
-  imagePullSecrets:
-    - name: gitlab-registry
-
 replicaCount: 1
 
 image:
@@ -34,7 +30,6 @@ config:
   NEXT_PUBLIC_APP_URL: "https://vista.example.com"
   NEXT_PUBLIC_API_BASE_URL: "https://api.vista.example.com"
   NEXT_PUBLIC_ENABLE_DEMO: "true"
-  GEOMETRY_AI_SERVICE_URL: "http://vista-geometry-ai:80"
 
 secrets:
   MELTFLEX_API_KEY: ""

@@ -1,6 +1,0 @@
-replicaCount: 1
-image:
-  repository: ghcr.io/example/vista-geometry-ai
-  tag: "1.0.0"
-config:
-  LOG_LEVEL: "info"

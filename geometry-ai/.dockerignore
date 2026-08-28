@@ -1,9 +1,0 @@
-.venv/
-venv/
-__pycache__/
-*.pyc
-weights/
-output/
-fixtures/
-*.egg-info/
-pip-wheel-metadata/

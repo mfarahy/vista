@@ -39,8 +39,6 @@ spec:
               value: {{ .Values.config.NEXT_PUBLIC_APP_URL | quote }}
             - name: NEXT_PUBLIC_ENABLE_DEMO
               value: {{ .Values.config.NEXT_PUBLIC_ENABLE_DEMO | quote }}
-            - name: GEOMETRY_AI_SERVICE_URL
-              value: {{ .Values.config.GEOMETRY_AI_SERVICE_URL | quote }}
             - name: MELTFLEX_API_KEY
               valueFrom:
                 secretKeyRef:
