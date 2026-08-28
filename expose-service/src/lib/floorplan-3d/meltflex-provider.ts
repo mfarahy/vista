@@ -46,23 +46,57 @@ export async function callMeltFlex(
     apiKey: process.env.MELTFLEX_API_KEY ?? '',
   },
 ): Promise<MeltFlexSuccessResponse> {
+  const log = getLogger();
   const apiKey = opts.apiKey;
-  if (!apiKey) {
-    throw new MeltFlexError(401, 'unauthorized', 'MELTFLEX_API_KEY is not configured');
-  }
-
   const timeoutMs = opts.timeoutMs ?? MELTFLEX_TIMEOUT_MS;
   const fetchImpl = opts.fetchImpl ?? fetch;
 
-  const dataUrl = `data:${mimeType || 'image/png'};base64,${imageBuffer.toString('base64')}`;
+  log.info(
+    {
+      service: 'meltflex',
+      operation: 'floorplan-to-3d',
+      imageBytes: imageBuffer.length,
+      mimeType: mimeType || 'image/png',
+      timeoutMs,
+      hasApiKey: Boolean(apiKey),
+      apiKeyConfigured: Boolean(apiKey),
+    },
+    'MeltFlex callMeltFlex started — image {imageBytes} bytes, mime {mimeType}, timeout {timeoutMs} ms',
+  );
+
+  if (!apiKey) {
+    log.error({ service: 'meltflex', operation: 'floorplan-to-3d' }, 'MeltFlex API key missing — MELTFLEX_API_KEY is not configured');
+    throw new MeltFlexError(401, 'unauthorized', 'MELTFLEX_API_KEY is not configured');
+  }
+
+  const base64 = imageBuffer.toString('base64');
+  const dataUrl = `data:${mimeType || 'image/png'};base64,${base64}`;
+  log.debug(
+    {
+      service: 'meltflex',
+      operation: 'floorplan-to-3d',
+      imageBytes: imageBuffer.length,
+      base64Length: base64.length,
+      dataUrlLength: dataUrl.length,
+      mimeType: mimeType || 'image/png',
+    },
+    'MeltFlex request payload prepared — base64 {base64Length} chars',
+  );
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const startedAt = performance.now();
 
   let response: Response;
   try {
     response = await trackExternalCall(
-      { service: 'meltflex', operation: 'floorplan-to-3d', method: 'POST', path: '/api/v1/floorplan-to-3d' },
+      {
+        service: 'meltflex',
+        operation: 'floorplan-to-3d',
+        method: 'POST',
+        path: '/api/v1/floorplan-to-3d',
+        props: { imageBytes: imageBuffer.length, mimeType: mimeType || 'image/png' },
+      },
       () =>
         fetchImpl(MELTFLEX_API_URL, {
           method: 'POST',
@@ -76,32 +110,90 @@ export async function callMeltFlex(
     );
   } catch (cause) {
     clearTimeout(timer);
+    const durationMs = Math.round(performance.now() - startedAt);
     if (cause instanceof Error && cause.name === 'AbortError') {
+      log.error(
+        { service: 'meltflex', operation: 'floorplan-to-3d', timeoutMs, durationMs, err: cause },
+        'MeltFlex request timed out after {durationMs} ms (timeout {timeoutMs} ms)',
+      );
       throw new MeltFlexError(504, 'timeout', 'MeltFlex request timed out');
     }
+    log.error(
+      { service: 'meltflex', operation: 'floorplan-to-3d', durationMs, err: cause },
+      'MeltFlex service unreachable after {durationMs} ms',
+    );
     // Include original cause for unreachable
     throw new MeltFlexError(502, 'unreachable', `MeltFlex service unreachable: ${cause instanceof Error ? cause.message : String(cause)}`);
   } finally {
     clearTimeout(timer);
   }
 
+  const durationMs = Math.round(performance.now() - startedAt);
+  log.info(
+    {
+      service: 'meltflex',
+      operation: 'floorplan-to-3d',
+      statusCode: response.status,
+      ok: response.ok,
+      durationMs,
+      contentType: response.headers?.get?.('content-type') ?? undefined,
+    },
+    'MeltFlex response received — status {statusCode} ok={ok} in {durationMs} ms',
+  );
+
   if (!response.ok) {
     const text = await response.text().catch(() => '');
+    log.warn(
+      {
+        service: 'meltflex',
+        operation: 'floorplan-to-3d',
+        statusCode: response.status,
+        responseBody: text.slice(0, 1000),
+        responseBodyLength: text.length,
+        durationMs,
+      },
+      'MeltFlex returned non-OK status {statusCode}: {responseBody}',
+    );
     throw mapMeltFlexError(response.status, text);
   }
 
   let json: unknown;
   try {
     json = await response.json();
-  } catch {
+  } catch (cause) {
+    log.error(
+      { service: 'meltflex', operation: 'floorplan-to-3d', statusCode: response.status, durationMs, err: cause },
+      'MeltFlex returned non-JSON response',
+    );
     throw new MeltFlexError(502, 'malformed-response', 'MeltFlex returned non-JSON response');
   }
 
   const body = json as Record<string, unknown>;
+  log.debug(
+    {
+      service: 'meltflex',
+      operation: 'floorplan-to-3d',
+      statusCode: response.status,
+      durationMs,
+      responseKeys: Object.keys(body),
+      success: body.success,
+      hasModelUrl: typeof body.modelUrl === 'string',
+      hasModel: typeof body.model === 'string',
+      modelBase64Length: typeof body.model === 'string' ? (body.model as string).length : 0,
+      format: body.format,
+      creditsUsed: body.creditsUsed,
+    },
+    'MeltFlex JSON body parsed — keys {responseKeys}',
+  );
+
   // MeltFlex returns success, modelUrl or model fallback
   if (body.success !== true && body.success !== undefined) {
     // If success is explicitly false, treat as failure
     const msg = typeof body.error === 'string' ? body.error : JSON.stringify(body).slice(0, 500);
+    log.warn(
+      { service: 'meltflex', operation: 'floorplan-to-3d', success: body.success, error: body.error, responseBody: JSON.stringify(body).slice(0, 1000) },
+      'MeltFlex conversion failed — success is false: {error}',
+    );
     throw new MeltFlexError(422, 'conversion-failed', `MeltFlex conversion failed: ${msg}`);
   }
 
@@ -110,12 +202,30 @@ export async function callMeltFlex(
   const format = typeof body.format === 'string' ? body.format : 'glb';
 
   if (!modelUrl && !modelBase64) {
+    log.error(
+      { service: 'meltflex', operation: 'floorplan-to-3d', responseKeys: Object.keys(body), responseBody: JSON.stringify(body).slice(0, 1000) },
+      'MeltFlex response missing modelUrl and fallback model — malformed response',
+    );
     throw new MeltFlexError(502, 'malformed-response', 'MeltFlex response missing modelUrl and fallback model');
   }
 
   if (format !== 'glb') {
-    getLogger().warn({ format }, 'MeltFlex returned unexpected format, expected glb');
+    log.warn({ service: 'meltflex', operation: 'floorplan-to-3d', format }, 'MeltFlex returned unexpected format, expected glb');
   }
+
+  log.info(
+    {
+      service: 'meltflex',
+      operation: 'floorplan-to-3d',
+      format,
+      hasModelUrl: Boolean(modelUrl),
+      hasModelBase64: Boolean(modelBase64),
+      modelBase64Length: modelBase64?.length ?? 0,
+      creditsUsed: typeof body.creditsUsed === 'number' ? body.creditsUsed : undefined,
+      durationMs,
+    },
+    'MeltFlex call succeeded — format {format}, url present={hasModelUrl}, creditsUsed={creditsUsed}',
+  );
 
   return {
     success: true,

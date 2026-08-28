@@ -76,6 +76,11 @@ async function runGeneration(
   const providerName = deps.provider?.name ?? floorPlan3DProviderName();
   const pending = floorPlan3DPendingRecord(providerName, image.id);
 
+  log.info(
+    { propertyId, floorPlanId: image.id, provider: providerName, imageUrl: image.url, mimeType: image.mimeType, size: image.size },
+    'Floor plan 3D generation requested for property {propertyId} — image {imageUrl} ({mimeType}, {size} bytes) via {provider}',
+  );
+
   await safePersist(log, persist, propertyId, pending, 'pending');
   log.info(
     { propertyId, floorPlanId: image.id, provider: providerName },
@@ -84,16 +89,49 @@ async function runGeneration(
 
   try {
     const provider = deps.provider ?? createFloorPlan3DProvider();
+    log.debug(
+      { propertyId, floorPlanId: image.id, provider: provider.name, mimeType: image.mimeType },
+      'Reading floor plan image for 3D generation — provider {provider}, mime {mimeType}',
+    );
     const buffer = await readImage(image);
+    log.info(
+      { propertyId, floorPlanId: image.id, provider: provider.name, imageBytes: buffer.length, mimeType: image.mimeType },
+      'Floor plan image read for 3D generation — {imageBytes} bytes',
+    );
     const model = await provider.generate({
       imageBuffer: buffer,
       mimeType: image.mimeType,
     });
+    log.debug(
+      {
+        propertyId,
+        floorPlanId: image.id,
+        provider: provider.name,
+        modelRooms: model.rooms?.length,
+        modelWalls: model.walls?.length,
+        modelDoors: model.doors?.length,
+        modelWindows: model.windows?.length,
+      },
+      'Provider {provider} returned model — rooms {modelRooms}, walls {modelWalls}',
+    );
     // For MeltFlex the GLB artefacts are stored in the module-level cache
     let extras: Record<string, unknown> | undefined;
     if (provider.name === 'meltflex') {
       const { consumeMeltFlexResult } = await import('./meltflex-provider.js');
       const result = consumeMeltFlexResult();
+      log.info(
+        {
+          propertyId,
+          floorPlanId: image.id,
+          provider: provider.name,
+          hasModelUrl: Boolean(result?.modelUrl),
+          hasModelBase64: Boolean(result?.model),
+          modelBase64Length: result?.model?.length ?? 0,
+          format: result?.format,
+          creditsUsed: result?.creditsUsed,
+        },
+        'MeltFlex extras after generate — hasModelUrl={hasModelUrl}, format={format}',
+      );
       if (result) {
         extras = {
           modelUrl: result.modelUrl ?? null,
@@ -101,6 +139,11 @@ async function runGeneration(
           format: result.format ?? 'glb',
           creditsUsed: result.creditsUsed ?? null,
         };
+      } else {
+        log.warn(
+          { propertyId, floorPlanId: image.id, provider: provider.name },
+          'MeltFlex generate succeeded but no cached result was found — returning empty extras',
+        );
       }
     }
     await safePersist(
@@ -111,11 +154,24 @@ async function runGeneration(
       'completed',
     );
     log.info(
-      { propertyId, floorPlanId: image.id, provider: providerName },
+      { propertyId, floorPlanId: image.id, provider: providerName, hasExtras: Boolean(extras) },
       'Floor plan 3D generation completed for property {propertyId}',
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const isMeltFlexError = error !== null && typeof error === 'object' && 'code' in error && 'status' in error;
+    log.debug(
+      {
+        propertyId,
+        floorPlanId: image.id,
+        provider: providerName,
+        errorMessage: message,
+        errorCode: (error as { code?: string })?.code,
+        errorStatus: (error as { status?: number })?.status,
+        isMeltFlexError,
+      },
+      'Floor plan 3D generation error details — code={errorCode} status={errorStatus}',
+    );
     await safePersist(log, persist, propertyId, floorPlan3DFailedRecord(pending, message), 'failed');
     log.error(
       {
@@ -123,6 +179,7 @@ async function runGeneration(
         propertyId,
         floorPlanId: image.id,
         provider: providerName,
+        errorMessage: message,
       },
       'Floor plan 3D generation failed for property {propertyId}',
     );
