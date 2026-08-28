@@ -78,7 +78,7 @@ describe('POST /api/floorplan3d/jobs', () => {
     const form = new FormData();
     form.append('image', blob, 'plan.png');
 
-    const res = await fetch(`${baseUrl}/api/floorplan3d/jobs`, { method: 'POST', body: form as unknown as BodyInit });
+    const res = await fetch(`${baseUrl}/api/floorplan3d/jobs`, { method: 'POST', body: form as unknown as any });
     assert.equal(res.status, 201);
     const body = (await res.json()) as { jobId: string; assetId: string; status: string };
     assert.ok(body.jobId);
@@ -107,7 +107,7 @@ describe('POST /api/floorplan3d/jobs', () => {
     const blob = new Blob([Buffer.from('hello')], { type: 'application/pdf' });
     const form = new FormData();
     form.append('image', blob, 'doc.pdf');
-    const res = await fetch(`${baseUrl}/api/floorplan3d/jobs`, { method: 'POST', body: form as unknown as BodyInit });
+    const res = await fetch(`${baseUrl}/api/floorplan3d/jobs`, { method: 'POST', body: form as unknown as any });
     assert.equal(res.status, 400);
   });
 
@@ -115,7 +115,7 @@ describe('POST /api/floorplan3d/jobs', () => {
     const blob = new Blob([], { type: 'image/png' });
     const form = new FormData();
     form.append('image', blob, 'empty.png');
-    const res = await fetch(`${baseUrl}/api/floorplan3d/jobs`, { method: 'POST', body: form as unknown as BodyInit });
+    const res = await fetch(`${baseUrl}/api/floorplan3d/jobs`, { method: 'POST', body: form as unknown as any });
     assert.equal(res.status, 400);
   });
 });
