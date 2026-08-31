@@ -333,6 +333,125 @@ function runToWall(run: RawRun, index: number): WallRun {
   };
 }
 
+/**
+ * Snap orthogonal wall endpoints that meet at corners.
+ * Recognition polygons produce wall centerlines whose t-intervals are
+ * truncated to the overlap of paired sides, leaving 10-20px corner
+ * gaps (e.g. top horizontal ends at x=985 while right vertical starts
+ * at x=995). Without corner closure the exterior shell is fragmented
+ * into ~20 isolated components, the flood-fill leaks interior into the
+ * terrace, and the 3D view shows detached walls.
+ *
+ * For each wall endpoint we look for an orthogonal wall whose infinite
+ * line intersects within SNAP_GAP of both endpoints and, when found,
+ * extend the shorter side to the intersection.
+ */
+const SNAP_GAP = 28;
+const SNAP_ANGLE_EPS = 12;
+
+function snapWallCorners(walls: WallRun[]): void {
+  // Pre-compute line direction and whether wall is axis-aligned.
+  // Only snap walls that are roughly horizontal or vertical; diagonal
+  // walls (rare noise) are left untouched.
+  function wallOrientation(w: WallRun): 'h' | 'v' | null {
+    const dx = w.to.x - w.from.x;
+    const dy = w.to.y - w.from.y;
+    if (Math.abs(dy) < 3 && Math.abs(dx) > 5) return 'h';
+    if (Math.abs(dx) < 3 && Math.abs(dy) > 5) return 'v';
+    // Fallback: check angle
+    const ang = Math.atan2(dy, dx);
+    const deg = (ang * 180) / Math.PI;
+    const mod = Math.abs(deg) % 90;
+    const dist = Math.min(mod, 90 - mod);
+    if (dist > SNAP_ANGLE_EPS) return null;
+    return Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
+  }
+
+  function lineIntersection(a: WallRun, b: WallRun): Point | null {
+    // Solve a.from + t*da = b.from + s*db
+    const da = { x: a.to.x - a.from.x, y: a.to.y - a.from.y };
+    const db = { x: b.to.x - b.from.x, y: b.to.y - b.from.y };
+    const denom = da.x * db.y - da.y * db.x;
+    if (Math.abs(denom) < 1e-6) return null; // parallel
+    const dx = b.from.x - a.from.x;
+    const dy = b.from.y - a.from.y;
+    const t = (dx * db.y - dy * db.x) / denom;
+    return { x: a.from.x + t * da.x, y: a.from.y + t * da.y };
+  }
+
+  // Iteratively snap; one pass catches most corners, second pass handles chains.
+  // Handles both corner (endpoint-endpoint) and T-junction (endpoint-interior) gaps
+  // that arise because t-intervals are truncated to paired-side overlap.
+  for (let iter = 0; iter < 3; iter++) {
+    let snapped = 0;
+    for (let i = 0; i < walls.length; i++) {
+      const wi = walls[i];
+      const oi = wallOrientation(wi);
+      if (!oi) continue;
+      for (const key of ['from', 'to'] as const) {
+        const p = wi[key];
+        // Find the closest orthogonal wall whose line passes near p
+        let bestJ: WallRun | null = null;
+        let bestInter: Point | null = null;
+        let bestDist = Infinity;
+        for (let j = 0; j < walls.length; j++) {
+          if (i === j) continue;
+          const wj = walls[j];
+          const oj = wallOrientation(wj);
+          if (!oj) continue;
+          if (oi === oj) continue; // need orthogonal
+          const inter = lineIntersection(wi, wj);
+          if (!inter) continue;
+          const di = Math.hypot(p.x - inter.x, p.y - inter.y);
+          if (di > SNAP_GAP || di >= bestDist) continue;
+          // Check that inter projects onto wj within its segment extended by SNAP_GAP
+          const dbLen = Math.hypot(wj.to.x - wj.from.x, wj.to.y - wj.from.y) || 1;
+          const tJ = ((inter.x - wj.from.x) * (wj.to.x - wj.from.x) + (inter.y - wj.from.y) * (wj.to.y - wj.from.y)) / (dbLen * dbLen);
+          // Allow interior (0..1) or just beyond (gap) up to SNAP_GAP/dbLen
+          const ext = SNAP_GAP / dbLen;
+          if (tJ < -ext || tJ > 1 + ext) continue;
+          // Also require inter projects near the endpoint side of wi (not deep interior)
+          const daLen = Math.hypot(wi.to.x - wi.from.x, wi.to.y - wi.from.y) || 1;
+          const tI = ((inter.x - wi.from.x) * (wi.to.x - wi.from.x) + (inter.y - wi.from.y) * (wi.to.y - wi.from.y)) / (daLen * daLen);
+          const atFrom = key === 'from';
+          // Endpoint should be near the side where inter lies; allow snapping
+          // if inter is beyond the endpoint (tI <0 or >1) or within SNAP_GAP of it
+          if (atFrom && tI > 0.15 && di > 4) continue;
+          if (!atFrom && tI < 0.85 && di > 4) continue;
+          bestDist = di;
+          bestJ = wj;
+          bestInter = inter;
+        }
+        if (bestJ && bestInter && bestDist < SNAP_GAP && bestDist > 0.5) {
+          // Snap this endpoint to the intersection; extend the other wall
+          // only if its endpoint is also near the intersection (corner case).
+          wi[key] = { x: bestInter.x, y: bestInter.y };
+          wi.length = Math.hypot(wi.to.x - wi.from.x, wi.to.y - wi.from.y);
+          snapped++;
+          // For corner gaps also snap the orthogonal wall's endpoint if near
+          const dbLen = Math.hypot(bestJ.to.x - bestJ.from.x, bestJ.to.y - bestJ.from.y) || 1;
+          const tJ = ((bestInter.x - bestJ.from.x) * (bestJ.to.x - bestJ.from.x) + (bestInter.y - bestJ.from.y) * (bestJ.to.y - bestJ.from.y)) / (dbLen * dbLen);
+          let closest: 'from' | 'to' = 'from';
+          let dMin = Infinity;
+          for (const k of ['from', 'to'] as const) {
+            const d = Math.hypot(bestJ[k].x - bestInter.x, bestJ[k].y - bestInter.y);
+            if (d < dMin) { dMin = d; closest = k; }
+          }
+          if (dMin < SNAP_GAP && dMin > 0.5) {
+            // Only snap if tJ is near that endpoint
+            if ((closest === 'from' && tJ < 0.15) || (closest === 'to' && tJ > 0.85) || dMin < 4) {
+              bestJ[closest] = { x: bestInter.x, y: bestInter.y };
+              bestJ.length = Math.hypot(bestJ.to.x - bestJ.from.x, bestJ.to.y - bestJ.from.y);
+              snapped++;
+            }
+          }
+        }
+      }
+    }
+    if (snapped === 0) break;
+  }
+}
+
 function polygonToPoints(raw: number[][]): Point[] {
   return raw.map(([x, y]) => ({ x, y }));
 }
@@ -408,6 +527,7 @@ export function normalizeGeometry(geometry: RecognitionGeometry, pixelsPerMeter 
     .filter((r) => r.tMax - r.tMin >= r.thickness * 0.5);
 
   const walls: WallRun[] = merged.map((run, i) => runToWall(run, i));
+  snapWallCorners(walls);
 
   const openings: Opening[] = [];
   const centerLines: Array<{ kind: OpeningKind; lines: number[][][] }> = [

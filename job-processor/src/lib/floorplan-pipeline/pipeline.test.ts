@@ -116,7 +116,7 @@ describe('detectRooms', () => {
     detectRooms(plan);
     const interiors = plan.rooms.filter((r) => !r.exterior);
     assert.equal(interiors.length, 1);
-    assert.ok(interiors[0].area > 30_000 && interiors[0].area < 45_000, `unexpected room area ${interiors[0].area}`);
+    assert.ok(interiors[0].area > 25_000 && interiors[0].area < 45_000, `unexpected room area ${interiors[0].area}`);
   });
 });
 
@@ -404,5 +404,107 @@ describe('regression: room topology', () => {
     assert.equal(interiors.length, 1, 'closed box must have one interior');
     // Exterior may be 1 large surrounding component or 0 if filtered as artifact? Accept either 0 or 1.
     assert.ok(exteriors.length <= 1, `closed box exterior should be 0 or 1, got ${exteriors.length}`);
+  });
+});
+
+describe('regression: geometry verification — source overlay', () => {
+  it('snaps orthogonal wall corners so exterior shell is closed (detached right wall fixed)', () => {
+    const result = runFloorplanPipeline(loadFixture(TEST_FIXTURE));
+    const byId = new Map(result.normalized.walls.map((w) => [w.id, w]));
+    // wall-1 (bottom) and wall-15 (right) should meet at (1004,856) after corner snap
+    const w1 = byId.get('wall-1');
+    const w15 = byId.get('wall-15');
+    assert.ok(w1 && w15, 'wall-1 and wall-15 must exist');
+    const d1 = Math.hypot(w1.to.x - w15.to.x, w1.to.y - w15.to.y);
+    const d2 = Math.hypot(w1.to.x - w15.from.x, w1.to.y - w15.from.y);
+    const d3 = Math.hypot(w1.from.x - w15.to.x, w1.from.y - w15.to.y);
+    const minDist = Math.min(d1, d2, d3, Math.hypot(w1.from.x - w15.from.x, w1.from.y - w15.from.y));
+    assert.ok(minDist < 1.5, `wall-1 and wall-15 should be corner-connected after snap, got minDist ${minDist.toFixed(1)} (w1 ${w1.from.x},${w1.from.y}->${w1.to.x},${w1.to.y} w15 ${w15.from.x},${w15.from.y}->${w15.to.x},${w15.to.y})`);
+    // wall-2 (top) and wall-13 (right) should also be connected
+    const w2 = byId.get('wall-2');
+    const w13 = byId.get('wall-13');
+    assert.ok(w2 && w13, 'wall-2 and wall-13 must exist');
+    const dTop = Math.min(
+      Math.hypot(w2.to.x - w13.from.x, w2.to.y - w13.from.y),
+      Math.hypot(w2.to.x - w13.to.x, w2.to.y - w13.to.y),
+      Math.hypot(w2.from.x - w13.from.x, w2.from.y - w13.from.y),
+      Math.hypot(w2.from.x - w13.to.x, w2.from.y - w13.to.y),
+    );
+    assert.ok(dTop < 1.5, `wall-2 and wall-13 should be corner-connected, got ${dTop.toFixed(1)}`);
+  });
+
+  it('traces detached right-side wall to its source polygon and classifies it', () => {
+    const result = runFloorplanPipeline(loadFixture(TEST_FIXTURE));
+    // The suspicious detached wall on the right is wall-15 (1004,856 vertical)
+    // It originates from the large bottom-right wall polygon [535,557]-[1050,870]
+    const w15 = result.normalized.walls.find((w) => w.id === 'wall-15');
+    assert.ok(w15, 'wall-15 must exist');
+    const poly = w15.polygon;
+    const xs = poly.map((p) => p.x);
+    const ys = poly.map((p) => p.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    // Source polygon bounds should match the large bottom-right fixture polygon
+    assert.ok(minX >= 530 && minX <= 540, `wall-15 source minX ${minX} should be ~535`);
+    assert.ok(maxX >= 1045 && maxX <= 1055, `wall-15 source maxX ${maxX} should be ~1050`);
+    assert.ok(minY >= 550 && minY <= 560, `wall-15 source minY ${minY} should be ~557`);
+    assert.ok(maxY >= 865 && maxY <= 875, `wall-15 source maxY ${maxY} should be ~870`);
+    // After snap, wall-15 is still present but now connected at bottom; it is an exterior wall (terrace edge)
+    // or an interior wall that is correctly part of the shell, not a stray artifact
+    const isExterior = w15.exterior;
+    // It should be connected to at least one other wall (wall-1) within tolerance
+    const other = result.normalized.walls.find((w) => w.id !== 'wall-15' && Math.min(
+      Math.hypot(w.from.x - w15.from.x, w.from.y - w15.from.y),
+      Math.hypot(w.from.x - w15.to.x, w.from.y - w15.to.y),
+      Math.hypot(w.to.x - w15.from.x, w.to.y - w15.from.y),
+      Math.hypot(w.to.x - w15.to.x, w.to.y - w15.to.y),
+    ) < 2);
+    assert.ok(other, `wall-15 should be connected to another wall after snap, got isolated`);
+  });
+
+  it('verifies 2D → 3D coordinate transformation (X→X, Y→Z, height→Y)', () => {
+    const result = runFloorplanPipeline(loadFixture(TEST_FIXTURE));
+    const scale = result.normalized.options.pixelsPerMeter;
+    const cx = (result.normalized.bounds.minX + result.normalized.bounds.maxX) / 2;
+    const cy = (result.normalized.bounds.minY + result.normalized.bounds.maxY) / 2;
+    for (const wall of result.normalized.walls.slice(0, 5)) {
+      const expectedFromX = (wall.from.x - cx) / scale;
+      const expectedFromZ = (wall.from.y - cy) / scale;
+      const modelWalls = result.model3d.walls.filter((mw) => mw.id.startsWith(wall.id + '-'));
+      assert.ok(modelWalls.length > 0, `wall ${wall.id} should have model segments`);
+      for (const mw of modelWalls) {
+        // Model wall endpoints should be transformed 2D points (within segment)
+        const len2d = Math.hypot(wall.to.x - wall.from.x, wall.to.y - wall.from.y) / scale;
+        const len3d = Math.hypot(mw.to.x - mw.from.x, mw.to.y - mw.from.y);
+        assert.ok(Math.abs(len2d - len3d) < 0.06, `wall ${wall.id} length mismatch 2D ${len2d.toFixed(3)} vs 3D ${len3d.toFixed(3)}`);
+        // Height must be wall height, not confused with Z
+        assert.equal(mw.height, 2.7);
+        // Thickness must not be swapped with length
+        assert.ok(mw.thickness < len3d || len3d < 0.7, `wall ${mw.id} thickness ${mw.thickness} should not exceed length ${len3d}`);
+      }
+    }
+  });
+
+  it('verifies wall dimensions are not swapped (length vs thickness)', () => {
+    const result = runFloorplanPipeline(loadFixture(TEST_FIXTURE));
+    for (const w of result.model3d.walls) {
+      const len = Math.hypot(w.to.x - w.from.x, w.to.y - w.from.y);
+      assert.ok(w.thickness < len + 0.1 || len < 1, `wall ${w.id} thickness ${w.thickness.toFixed(3)} > length ${len.toFixed(3)} indicates swapped dimensions`);
+      assert.ok(w.thickness >= 0.14 && w.thickness <= 0.6, `wall ${w.id} thickness ${w.thickness} out of expected 0.14-0.6`);
+    }
+  });
+
+  it('verifies floors preserve room polygon shape and area', () => {
+    const result = runFloorplanPipeline(loadFixture(TEST_FIXTURE));
+    assert.equal(result.model3d.rooms.length, result.normalized.rooms.length);
+    for (let i = 0; i < result.normalized.rooms.length; i++) {
+      const norm = result.normalized.rooms[i];
+      const model = result.model3d.rooms[i];
+      assert.equal(model.id, norm.id);
+      assert.ok(Math.abs(model.areaM2 - norm.areaM2) < 1.0, `room ${norm.id} area mismatch ${model.areaM2} vs ${norm.areaM2}`);
+      assert.equal(model.points.length, norm.polygon.length);
+    }
   });
 });

@@ -158,6 +158,26 @@ function samplePolygon(polygon: Point[], step: number): Point[] {
  */
 export function detectRooms(plan: NormalizedFloorPlan): DetectedRoom[] {
   const grid = buildGrid(plan, blockedPolygons(plan));
+  // Also burn normalized wall centerlines (thick) into the blocked mask.
+  // Raw polygons have corner gaps; the normalized walls after snapping close
+  // the shell. Rasterizing them ensures the free-space flood fill respects
+  // the corrected topology (terrace separation, interior partitions).
+  for (const wall of plan.walls) {
+    const dx = wall.to.x - wall.from.x;
+    const dy = wall.to.y - wall.from.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const hw = wall.thickness / 2;
+    const poly: Point[] = [
+      { x: wall.from.x + nx * hw, y: wall.from.y + ny * hw },
+      { x: wall.from.x - nx * hw, y: wall.from.y - ny * hw },
+      { x: wall.to.x - nx * hw, y: wall.to.y - ny * hw },
+      { x: wall.to.x + nx * hw, y: wall.to.y + ny * hw },
+    ];
+    const mask = rasterizePolygon(poly, grid.width, grid.height, grid.originX, grid.originY);
+    for (let i = 0; i < mask.length; i++) if (mask[i]) grid.blocked[i] = 1;
+  }
 
   // Close hairline gaps between wall polygons (recognition noise).
   const closed = dilateGrid(grid.blocked, grid.width, grid.height, DILATE_RADIUS);
