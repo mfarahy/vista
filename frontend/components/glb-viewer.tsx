@@ -97,7 +97,7 @@ export function GlbViewer({ modelUrl, modelBase64, ariaLabel }: GlbViewerProps) 
       undefined,
       () => {
         if (cancelled) return;
-        setError(t('floorplan3d.meltflex.invalidGlb'));
+        setError(t('floorplan3d.invalidGlb'));
         setLoading(false);
       },
     );
@@ -141,7 +141,7 @@ export function GlbViewer({ modelUrl, modelBase64, ariaLabel }: GlbViewerProps) 
   if (!resolvedUrl) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        {t('floorplan3d.meltflex.empty')}
+        {t('floorplan3d.empty')}
       </div>
     );
   }
@@ -152,7 +152,7 @@ export function GlbViewer({ modelUrl, modelBase64, ariaLabel }: GlbViewerProps) 
       {loading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/60 backdrop-blur-sm">
           <span className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" aria-hidden="true" />
-          <span className="mt-3 text-sm text-muted-foreground">{t('floorplan3d.meltflex.loadingModel')}</span>
+          <span className="mt-3 text-sm text-muted-foreground">{t('floorplan3d.loadingModel')}</span>
         </div>
       )}
       {error && (

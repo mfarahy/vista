@@ -48,13 +48,13 @@ export function ThreeDPreview() {
       if (!nextFile) return;
       const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
       if (!allowed.includes(nextFile.type) && nextFile.type !== '') {
-        setLocalErrorKey('floorplan3d.meltflex.unsupportedType');
-        toast.error(t('floorplan3d.meltflex.unsupportedType'));
+        setLocalErrorKey('floorplan3d.errors.unsupportedType');
+        toast.error(t('floorplan3d.errors.unsupportedType'));
         return;
       }
       if (nextFile.size > 15 * 1024 * 1024) {
-        setLocalErrorKey('floorplan3d.meltflex.tooLarge');
-        toast.error(t('floorplan3d.meltflex.tooLarge'));
+        setLocalErrorKey('floorplan3d.errors.tooLarge');
+        toast.error(t('floorplan3d.errors.tooLarge'));
         return;
       }
       const url = URL.createObjectURL(nextFile);
@@ -82,14 +82,14 @@ export function ThreeDPreview() {
     if (!jobState) return;
     if (jobState.status === 'failed') {
       const msg = jobState.error ?? '';
-      // Map known MeltFlex error substrings to i18n keys
-      let key = 'floorplan3d.meltflex.conversionFailed';
-      if (/unauthorized|401/i.test(msg)) key = 'floorplan3d.meltflex.authFailed';
-      else if (/insufficient|402|credits/i.test(msg)) key = 'floorplan3d.meltflex.insufficientCredits';
-      else if (/rate.?limited|429/i.test(msg)) key = 'floorplan3d.meltflex.rateLimited';
-      else if (/timeout|504/i.test(msg)) key = 'floorplan3d.meltflex.timeout';
-      else if (/malformed/i.test(msg)) key = 'floorplan3d.meltflex.malformedResponse';
-      else if (/invalid.?image|400/i.test(msg)) key = 'floorplan3d.meltflex.invalidImage';
+      // Map known error substrings to i18n keys (provider-agnostic)
+      let key = 'floorplan3d.errors.conversionFailed';
+      if (/unauthorized|401/i.test(msg)) key = 'floorplan3d.errors.authFailed';
+      else if (/insufficient|402|credits/i.test(msg)) key = 'floorplan3d.errors.insufficientCredits';
+      else if (/rate.?limited|429/i.test(msg)) key = 'floorplan3d.errors.rateLimited';
+      else if (/timeout|504/i.test(msg)) key = 'floorplan3d.errors.timeout';
+      else if (/malformed/i.test(msg)) key = 'floorplan3d.errors.malformedResponse';
+      else if (/invalid.?image|400/i.test(msg)) key = 'floorplan3d.errors.invalidImage';
       setLocalErrorKey(key);
       toast.error(t(key));
       return;
@@ -101,7 +101,7 @@ export function ThreeDPreview() {
           if (!res.ok) return;
           const job = (await res.json()) as {
             message?: string;
-            payload?: { result?: { modelUrl?: string | null; modelBase64?: string | null } };
+            payload?: { result?: { modelUrl?: string | null; modelBase64?: string | null; provider?: string } };
           };
           const result = job.payload?.result;
           const url = result?.modelUrl ?? job.message ?? null;
@@ -118,8 +118,8 @@ export function ThreeDPreview() {
 
   const handleGenerate = useCallback(async () => {
     if (!file) {
-      setLocalErrorKey('floorplan3d.meltflex.missingFile');
-      toast.error(t('floorplan3d.meltflex.missingFile'));
+      setLocalErrorKey('floorplan3d.errors.missingFile');
+      toast.error(t('floorplan3d.errors.missingFile'));
       return;
     }
     setUploading(true);
@@ -133,16 +133,15 @@ export function ThreeDPreview() {
       const res = await apiFetch('/api/floorplan3d/jobs', { method: 'POST', body: form });
       const body = (await res.json().catch(() => ({}))) as { jobId?: string; error?: string };
       if (!res.ok || !body.jobId) {
-        const key = typeof body.error === 'string' && body.error ? body.error : 'floorplan3d.meltflex.conversionFailed';
-        // Map backend German messages to keys if needed
-        setLocalErrorKey(key.startsWith('floorplan3d.') ? key : 'floorplan3d.meltflex.conversionFailed');
-        toast.error(t(key.startsWith('floorplan3d.') ? key : 'floorplan3d.meltflex.conversionFailed'));
+        const key = typeof body.error === 'string' && body.error ? body.error : 'floorplan3d.errors.conversionFailed';
+        setLocalErrorKey(key.startsWith('floorplan3d.') ? key : 'floorplan3d.errors.conversionFailed');
+        toast.error(t(key.startsWith('floorplan3d.') ? key : 'floorplan3d.errors.conversionFailed'));
         return;
       }
       setJobId(body.jobId);
     } catch {
-      setLocalErrorKey('floorplan3d.meltflex.serverError');
-      toast.error(t('floorplan3d.meltflex.serverError'));
+      setLocalErrorKey('floorplan3d.errors.serverError');
+      toast.error(t('floorplan3d.errors.serverError'));
     } finally {
       setUploading(false);
     }
@@ -236,7 +235,7 @@ export function ThreeDPreview() {
   const hasError = localErrorKey || jobStatus === 'failed';
   const processingMessage =
     jobState?.message ??
-    (jobState?.currentStep === 'calling_meltflex' ? t('floorplan3d.meltflex.building') : t('floorplan3d.meltflex.analyzing'));
+    (jobState?.currentStep === 'calling_provider' ? t('floorplan3d.building') : t('floorplan3d.analyzing'));
 
   const resolvedModelUrl = modelUrl ? apiAssetUrl(modelUrl) : null;
 
@@ -252,8 +251,8 @@ export function ThreeDPreview() {
         </div>
 
         <div className="rounded-xl border bg-card p-4 shadow-sm">
-          <h2 className="text-sm font-semibold">{t('floorplan3d.meltflex.title')}</h2>
-          <p className="mt-1 text-xs text-muted-foreground">{t('floorplan3d.meltflex.intro')}</p>
+          <h2 className="text-sm font-semibold">{t('floorplan3d.title')}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{t('floorplan3d.intro')}</p>
 
           <input
             ref={fileInputRef}
@@ -275,17 +274,17 @@ export function ThreeDPreview() {
               className="mt-3 flex w-full flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center hover:bg-accent"
             >
               <Upload className="size-6 text-muted-foreground" aria-hidden />
-              <span className="mt-2 text-sm font-medium">{t('floorplan3d.meltflex.dropzone')}</span>
-              <span className="text-xs text-muted-foreground">{t('floorplan3d.meltflex.dropzoneHint')}</span>
+              <span className="mt-2 text-sm font-medium">{t('floorplan3d.dropzone')}</span>
+              <span className="text-xs text-muted-foreground">{t('floorplan3d.dropzoneHint')}</span>
             </button>
           ) : (
             <div className="mt-3 space-y-3">
               <div className="relative overflow-hidden rounded-lg border">
-                <img src={previewUrl} alt={t('floorplan3d.meltflex.previewAlt')} className="max-h-48 w-full object-contain bg-muted" />
+                <img src={previewUrl} alt={t('floorplan3d.previewAlt')} className="max-h-48 w-full object-contain bg-muted" />
                 <button
                   type="button"
                   onClick={clearAll}
-                  aria-label={t('floorplan3d.meltflex.replaceImage')}
+                  aria-label={t('floorplan3d.replaceImage')}
                   className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80"
                 >
                   <X className="size-4" />
@@ -297,7 +296,7 @@ export function ThreeDPreview() {
                   onClick={() => fileInputRef.current?.click()}
                   className="flex-1 rounded-md border px-3 py-2 text-sm hover:bg-accent"
                 >
-                  {t('floorplan3d.meltflex.replaceImage')}
+                  {t('floorplan3d.replaceImage')}
                 </button>
                 <button
                   type="button"
@@ -305,7 +304,7 @@ export function ThreeDPreview() {
                   disabled={isProcessing}
                   className="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
-                  {isProcessing ? t('floorplan3d.meltflex.generating') : t('floorplan3d.meltflex.generate')}
+                  {isProcessing ? t('floorplan3d.generating') : t('floorplan3d.generate')}
                 </button>
               </div>
               {isProcessing && (
