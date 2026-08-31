@@ -13,6 +13,8 @@ import {
   distance,
   polygonArea,
   polygonBounds,
+  removeCollinear,
+  simplifyPolygon,
 } from './geometry.js';
 import type { Bounds, NormalizedFloorPlan, Opening, OpeningKind, Point, RecognitionGeometry, WallRun } from './types.js';
 
@@ -21,24 +23,32 @@ const MIN_POLYGON_AREA = 150;
 /** Shortest wall run (pixels) that is kept. */
 const MIN_WALL_LENGTH = 14;
 /** Angle tolerance (degrees) when clustering polygon edges into sides. */
-const SIDE_ANGLE_EPS = 5;
+const SIDE_ANGLE_EPS = 7;
 /** Perpendicular distance tolerance (pixels) when clustering edges into a side. */
-const SIDE_OFFSET_EPS = 4;
+const SIDE_OFFSET_EPS = 5;
 /** Angle tolerance (degrees) when pairing parallel sides into a run. */
-const PAIR_ANGLE_EPS = 3;
+const PAIR_ANGLE_EPS = 5;
 /** Thickness range (pixels) accepted for a paired wall run. */
-const MIN_THICKNESS = 1.5;
-const MAX_THICKNESS = 60;
+const MIN_THICKNESS = 4;
+const MAX_THICKNESS = 30;
 /** Minimum t-overlap (pixels) for two sides to form a run. */
-const MIN_OVERLAP = 6;
+const MIN_OVERLAP = 12;
 /** Offset tolerance (pixels) when merging collinear runs. */
-const MERGE_OFFSET_EPS = 2.5;
+const MERGE_OFFSET_EPS = 6;
 /** Maximum gap (pixels) between collinear runs that are merged. */
-const MERGE_GAP = 8;
+const MERGE_GAP = 32;
 /** Shortest opening center line (pixels) that is kept. */
 const MIN_OPENING_WIDTH = 6;
 /** Angle tolerance (degrees) when matching an opening to a wall run. */
 const OPENING_ANGLE_EPS = 10;
+/** Tolerance for axis-aligned detection (degrees). */
+const ORTHO_TOLERANCE_DEG = 7;
+/** Default wall thickness (pixels) when inference is unreliable. ~0.16m at 50ppm. */
+const DEFAULT_THICKNESS_PX = 8;
+/** Minimum edge length (pixels) to consider; shorter edges are noise. */
+const MIN_EDGE_LEN = 2.5;
+/** Diagonal edges shorter than this are ignored as recognition noise. */
+const DIAG_IGNORE_LEN = 18;
 
 interface Edge {
   a: Point;
@@ -104,15 +114,30 @@ function pointOnLine(t: number, u: Point, offset: number): Point {
   return { x: t * u.x + offset * -u.y, y: t * u.y + offset * u.x };
 }
 
+function isAxisAligned(angle: number): boolean {
+  const deg = (angle * 180) / Math.PI;
+  const mod = deg % 90;
+  const dist = Math.min(mod, 90 - mod);
+  return dist <= ORTHO_TOLERANCE_DEG;
+}
+
+function edgeIsUsable(edge: Edge): boolean {
+  const len = Math.hypot(edge.b.x - edge.a.x, edge.b.y - edge.a.y);
+  if (len < MIN_EDGE_LEN) return false;
+  if (!isAxisAligned(edge.angle) && len < DIAG_IGNORE_LEN) return false;
+  return true;
+}
+
 /** Clusters the edges of one wall polygon into collinear "sides". */
 function clusterSides(polygon: Point[]): Side[] {
   const edges: Edge[] = [];
   for (let i = 0; i < polygon.length; i++) {
     const edge = edgeOf(polygon[i], polygon[(i + 1) % polygon.length]);
-    if (edge) edges.push(edge);
+    if (edge && edgeIsUsable(edge)) edges.push(edge);
   }
   const sides: Side[] = [];
   for (const edge of edges) {
+    if (!isAxisAligned(edge.angle)) continue;
     let target: Side | null = null;
     for (const side of sides) {
       if (angleDiff(side.angle, edge.angle) > (SIDE_ANGLE_EPS * Math.PI) / 180) continue;
@@ -138,7 +163,8 @@ function clusterSides(polygon: Point[]): Side[] {
       if (tAxis > target.tMax) target.tMax = tAxis;
     }
   }
-  return sides;
+  // Keep only axis-aligned sides with meaningful length.
+  return sides.filter((s) => s.tMax - s.tMin >= MIN_WALL_LENGTH && isAxisAligned(s.angle));
 }
 
 /** Canonical direction: u.y >= 0, and u.x >= 0 when horizontal. */
@@ -150,14 +176,19 @@ function canonicalDir(u: Point): Point {
 /**
  * Extracts wall runs (centerline + thickness) from one wall polygon by
  * pairing the parallel outline sides of the thick ribbon.
+ * Thick polygons contribute ONE centerline per paired side pair; unpaired
+ * long sides are kept with a fallback thickness but are de-duplicated later
+ * via mergeRuns.
  */
 function runsFromPolygon(polygon: Point[]): RawRun[] {
   const sides = clusterSides(polygon);
   const runs: RawRun[] = [];
   const n = sides.length;
+  if (n === 0) return runs;
 
-  // For every side, remember its best pairing partner: the parallel side
-  // with the smallest offset difference and a meaningful t-overlap.
+  // For every side, remember its best pairing partner: prefer smallest
+  // thickness (correct wall width) but require meaningful overlap; overlap
+  // breaks ties. This avoids pairing distant parallel walls as one thick wall.
   const best: Array<number | null> = new Array(n).fill(null);
   const bestScore = new Array<number>(n).fill(Infinity);
   for (let i = 0; i < n; i++) {
@@ -169,7 +200,11 @@ function runsFromPolygon(polygon: Point[]): RawRun[] {
       if (thickness < MIN_THICKNESS || thickness > MAX_THICKNESS) continue;
       const overlap = Math.min(a.tMax, b.tMax) - Math.max(a.tMin, b.tMin);
       if (overlap < MIN_OVERLAP) continue;
-      const score = thickness - overlap / 1000; // smallest thickness wins, overlap breaks ties
+      const aLen = a.tMax - a.tMin;
+      const bLen = b.tMax - b.tMin;
+      const overlapRatio = overlap / Math.min(aLen, bLen);
+      if (overlapRatio < 0.4) continue;
+      const score = thickness - overlap / 1000;
       for (const [x, y] of [[i, j], [j, i]] as const) {
         if (score < bestScore[x]) {
           bestScore[x] = score;
@@ -178,7 +213,6 @@ function runsFromPolygon(polygon: Point[]): RawRun[] {
       }
     }
   }
-
   const used = new Uint8Array(n);
   const pair = (i: number, j: number) => {
     const a = sides[i];
@@ -200,8 +234,7 @@ function runsFromPolygon(polygon: Point[]): RawRun[] {
     used[j] = 1;
   };
 
-  // Mutual-nearest pairs first (robust against stubs pairing with the
-  // wrong side of a wall), then remaining sides with a valid partner.
+  // Mutual-best pairs first (robust against wrong side pairing), then remaining.
   for (let i = 0; i < n; i++) {
     const j = best[i];
     if (j === null || used[i] || used[j]) continue;
@@ -214,13 +247,33 @@ function runsFromPolygon(polygon: Point[]): RawRun[] {
     pair(i, j);
   }
 
-  // Unpaired sides: keep them as thin runs so no wall outline is lost.
+  // Unpaired sides: do NOT automatically become independent walls.
+  // Only keep a long unpaired side if the opposite side was likely missed
+  // due to recognition noise. Require significant length and no near-parallel
+  // paired run covering the same interval, to avoid slats.
   const paired = runs.map((r) => r.thickness).sort((a, b) => a - b);
-  const defaultThickness = paired.length > 0 ? paired[Math.floor(paired.length / 2)] : 3;
+  let defaultThickness = DEFAULT_THICKNESS_PX;
+  if (paired.length > 0) {
+    const median = paired[Math.floor(paired.length / 2)];
+    defaultThickness = Math.max(DEFAULT_THICKNESS_PX, Math.min(median, 18));
+  }
+  const UNPAIRED_MIN_LEN = 60;
   for (let i = 0; i < n; i++) {
     if (used[i]) continue;
     const side = sides[i];
-    if (side.tMax - side.tMin < MIN_WALL_LENGTH) continue;
+    if (side.tMax - side.tMin < UNPAIRED_MIN_LEN) continue;
+    let covered = false;
+    for (const r of runs) {
+      if (angleDiff(r.angle, side.angle) > (PAIR_ANGLE_EPS * Math.PI) / 180) continue;
+      if (Math.abs(r.offset - side.offset) < Math.max(r.thickness, DEFAULT_THICKNESS_PX) * 1.2) {
+        const overlap = Math.min(r.tMax, side.tMax) - Math.max(r.tMin, side.tMin);
+        if (overlap > MIN_OVERLAP) {
+          covered = true;
+          break;
+        }
+      }
+    }
+    if (covered) continue;
     const u = canonicalDir({ ...side.u });
     runs.push({
       angle: normalizeAngle(Math.atan2(u.y, u.x)),
@@ -245,6 +298,7 @@ function mergeRuns(runs: RawRun[]): RawRun[] {
       if (angleDiff(candidate.angle, run.angle) > (PAIR_ANGLE_EPS * Math.PI) / 180) continue;
       if (Math.abs(candidate.offset - run.offset) > MERGE_OFFSET_EPS) continue;
       const gap = Math.max(candidate.tMin, run.tMin) - Math.min(candidate.tMax, run.tMax);
+      // gap <=0 means overlap; gap >0 is separation. Allow merging up to MERGE_GAP.
       if (gap > MERGE_GAP) continue;
       target = candidate;
       break;
@@ -255,10 +309,14 @@ function mergeRuns(runs: RawRun[]): RawRun[] {
     }
     const tMin = Math.min(target.tMin, run.tMin);
     const tMax = Math.max(target.tMax, run.tMax);
-    target.offset = (target.offset * (target.tMax - target.tMin) + run.offset * (run.tMax - run.tMin)) / (target.tMax - target.tMin + run.tMax - run.tMin);
+    const targetLen = target.tMax - target.tMin;
+    const runLen = run.tMax - run.tMin;
+    target.offset = (target.offset * targetLen + run.offset * runLen) / (targetLen + runLen);
     target.tMin = tMin;
     target.tMax = tMax;
-    target.thickness = Math.max(target.thickness, run.thickness);
+    // Thickness: weighted average, but keep at least 70% of max to preserve real wall width.
+    const weightedThick = (target.thickness * targetLen + run.thickness * runLen) / (targetLen + runLen);
+    target.thickness = Math.max(weightedThick, Math.max(target.thickness, run.thickness) * 0.85);
   }
   return merged;
 }
@@ -336,7 +394,11 @@ export function normalizeGeometry(geometry: RecognitionGeometry, pixelsPerMeter 
 
   const rawRuns: RawRun[] = [];
   wallPolygons.forEach((polygon) => {
-    const cleaned = cleanPolygon(polygon);
+    let cleaned = cleanPolygon(polygon);
+    // Simplify to remove recognition jitter and tiny notches before side extraction.
+    cleaned = simplifyPolygon(cleaned, 2.2);
+    cleaned = removeCollinear(cleaned, 2.5);
+    cleaned = cleanPolygon(cleaned, 0.8);
     if (cleaned.length < 3) return;
     rawRuns.push(...runsFromPolygon(cleaned));
   });
