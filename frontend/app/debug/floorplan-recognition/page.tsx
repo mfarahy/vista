@@ -1,23 +1,27 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Copy, Check, LoaderCircle, Upload, Image as ImageIcon, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Copy, Check, LoaderCircle, Upload, Image as ImageIcon, AlertTriangle, Brain, Download, Sparkles } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { VistaLogoLink } from '@/components/vista-logo';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { apiFetch } from '@/lib/api';
 import {
-  RawFloorplanOverlay,
   computeMaxCoord,
   detectUnknownFields,
   type RawGeometry,
   type LayerVisibility,
   RAW_COLORS,
 } from '@/components/raw-floorplan-overlay';
+import {
+  VlmFloorplanOverlay,
+  type VlmAnalysis,
+  type VlmVisibility,
+  VLM_COLORS,
+} from '@/components/vlm-floorplan-overlay';
 
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
@@ -50,6 +54,37 @@ export default function DebugFloorplanRecognitionPage() {
   const [showImage, setShowImage] = useState(true);
   const [sideBySide, setSideBySide] = useState(false);
 
+  // VLM state
+  const [vlmAnalysis, setVlmAnalysis] = useState<VlmAnalysis | null>(null);
+  const [vlmModel, setVlmModel] = useState<string | null>(null);
+  const [vlmDurationMs, setVlmDurationMs] = useState<number | null>(null);
+  const [vlmWarnings, setVlmWarnings] = useState<string[]>([]);
+  const [vlmLoading, setVlmLoading] = useState(false);
+  const [vlmError, setVlmError] = useState<string | null>(null);
+  const [vlmRawResponse, setVlmRawResponse] = useState<unknown>(null);
+  const [vlmJsonCollapsed, setVlmJsonCollapsed] = useState(false);
+  const [vlmFindingsCollapsed, setVlmFindingsCollapsed] = useState(false);
+  const [vlmCopied, setVlmCopied] = useState(false);
+  const [vlmVisibility, setVlmVisibility] = useState<VlmVisibility>({
+    wallRelationships: true,
+    openingAssociations: true,
+    wallConnections: true,
+    rooms: true,
+    artifacts: true,
+  });
+  const [showVlmIds, setShowVlmIds] = useState(true);
+  const [showConfidence, setShowConfidence] = useState(true);
+  const [vlmMode, setVlmMode] = useState<'raw+vlm' | 'vlm-only'>('raw+vlm');
+
+  const resetVlm = useCallback(() => {
+    setVlmAnalysis(null);
+    setVlmModel(null);
+    setVlmDurationMs(null);
+    setVlmWarnings([]);
+    setVlmError(null);
+    setVlmRawResponse(null);
+  }, []);
+
   const handleFile = useCallback(
     (f: File | null | undefined) => {
       if (!f) return;
@@ -66,9 +101,9 @@ export default function DebugFloorplanRecognitionPage() {
       setRaw(null);
       setExtraFields([]);
       setDurationMs(null);
+      resetVlm();
       const url = URL.createObjectURL(f);
       setPreviewUrl(url);
-      // dimensions will be resolved via Image onload
       const img = new window.Image();
       img.onload = () => {
         setImageWidth(img.naturalWidth);
@@ -79,10 +114,9 @@ export default function DebugFloorplanRecognitionPage() {
       };
       img.src = url;
     },
-    [t],
+    [t, resetVlm],
   );
 
-  // cleanup object URL
   useEffect(() => {
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -96,6 +130,7 @@ export default function DebugFloorplanRecognitionPage() {
     }
     setLoading(true);
     setError(null);
+    resetVlm();
     try {
       const form = new FormData();
       form.append('image', file);
@@ -118,19 +153,17 @@ export default function DebugFloorplanRecognitionPage() {
   const loadFixture = async () => {
     setError(null);
     setLoading(true);
+    resetVlm();
     try {
-      // Load JSON
       const jsonRes = await fetch('/recognition-c658e915-9247-4904-8032-717dd11ecfdd.json');
       if (!jsonRes.ok) throw new Error('Fixture JSON not found');
       const fixtureJson = (await jsonRes.json()) as RawGeometry;
       setRaw(fixtureJson);
       setExtraFields(detectUnknownFields(fixtureJson as unknown as Record<string, unknown>));
-      // Load image as blob to get file semantics + dimensions
       const imgRes = await fetch('/c658e915-9247-4904-8032-717dd11ecfdd.jpg');
       if (!imgRes.ok) throw new Error('Fixture image not found');
       const blob = await imgRes.blob();
       const url = URL.createObjectURL(blob);
-      // revoke previous
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
       setFile(new File([blob], 'c658e915-9247-4904-8032-717dd11ecfdd.jpg', { type: blob.type || 'image/jpeg' }));
@@ -146,6 +179,68 @@ export default function DebugFloorplanRecognitionPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const runVlmAnalysis = async () => {
+    if (!file || !raw) {
+      setVlmError(t('debugFloorplanRecognition.vlmNeedRaw'));
+      return;
+    }
+    setVlmLoading(true);
+    setVlmError(null);
+    setVlmRawResponse(null);
+    try {
+      const form = new FormData();
+      form.append('image', file);
+      form.append('raw', JSON.stringify(raw));
+      const res = await apiFetch('/api/debug/floorplan-recognition/vlm-analysis', { method: 'POST', body: form });
+      const body = (await res.json()) as {
+        analysis?: VlmAnalysis;
+        model?: string;
+        durationMs?: number;
+        warnings?: string[];
+        error?: string;
+        rawResponse?: unknown;
+        rawContent?: string;
+      };
+      if (!res.ok) {
+        // Check for rawContent debug case
+        if (body.rawContent) {
+          setVlmRawResponse(body.rawContent);
+        } else if (body.rawResponse) {
+          setVlmRawResponse(body.rawResponse);
+        }
+        throw new Error(body.error || t('debugFloorplanRecognition.vlmError'));
+      }
+      if (!body.analysis) throw new Error(t('debugFloorplanRecognition.vlmParseError'));
+      setVlmAnalysis(body.analysis);
+      setVlmModel(body.model ?? null);
+      setVlmDurationMs(body.durationMs ?? null);
+      setVlmWarnings(body.warnings ?? []);
+      setVlmRawResponse(body.rawResponse ?? null);
+      // enable all VLM layers by default after analysis
+      setVlmVisibility({ wallRelationships: true, openingAssociations: true, wallConnections: true, rooms: true, artifacts: true });
+      setShowVlmIds(true);
+      setShowConfidence(true);
+      setVlmMode('raw+vlm');
+    } catch (e) {
+      setVlmError(e instanceof Error ? e.message : t('debugFloorplanRecognition.vlmError'));
+    } finally {
+      setVlmLoading(false);
+    }
+  };
+
+  const exportVlm = () => {
+    if (!vlmAnalysis) return;
+    const blob = new Blob([JSON.stringify(vlmAnalysis, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vlm-analysis-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   };
 
   const maxCoord = raw ? computeMaxCoord(raw) : null;
@@ -174,6 +269,16 @@ export default function DebugFloorplanRecognitionPage() {
     { key: 'entry_door_center_line', label: t('debugFloorplanRecognition.layerEntryDoorCenterLine'), color: RAW_COLORS.entry_door_center_line },
     { key: 'window_center_line', label: t('debugFloorplanRecognition.layerWindowCenterLines'), color: RAW_COLORS.window_center_line },
   ];
+
+  const vlmLayerDefs: Array<{ key: keyof VlmVisibility; label: string; color: string }> = [
+    { key: 'wallRelationships', label: t('debugFloorplanRecognition.vlmLayerWallRelationships'), color: VLM_COLORS.same_continuous_wall },
+    { key: 'openingAssociations', label: t('debugFloorplanRecognition.vlmLayerOpeningAssociations'), color: VLM_COLORS.opening },
+    { key: 'wallConnections', label: t('debugFloorplanRecognition.vlmLayerWallConnections'), color: VLM_COLORS.corner },
+    { key: 'rooms', label: t('debugFloorplanRecognition.vlmLayerRooms'), color: VLM_COLORS.room },
+    { key: 'artifacts', label: t('debugFloorplanRecognition.vlmLayerArtifacts'), color: VLM_COLORS.artifact },
+  ];
+
+  const vlmStatus = vlmLoading ? t('debugFloorplanRecognition.vlmStatusAnalyzing') : vlmAnalysis ? t('debugFloorplanRecognition.vlmStatusComplete') : vlmError ? t('debugFloorplanRecognition.vlmStatusError') : t('debugFloorplanRecognition.vlmNotAnalyzed');
 
   return (
     <main className="min-h-screen bg-background pb-16">
@@ -317,10 +422,14 @@ export default function DebugFloorplanRecognitionPage() {
           </div>
         ) : null}
 
-        {/* Controls */}
+        {/* RAW Layer Controls */}
         {raw && (
           <div className="mt-6 rounded-xl border bg-card p-4">
-            <div className="flex flex-wrap gap-4">
+            <div className="flex items-center gap-2">
+              <span className="rounded bg-red-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-red-600">{t('debugFloorplanRecognition.vlmRawModelOutput')}</span>
+              <span className="text-xs text-muted-foreground">— RAW recognition layers</span>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-4">
               {layerDefs.map(({ key, label, color }) => (
                 <label key={key} className="flex items-center gap-2 text-sm">
                   <Checkbox
@@ -349,7 +458,7 @@ export default function DebugFloorplanRecognitionPage() {
           </div>
         )}
 
-        {/* Visualization */}
+        {/* Visualization — RAW + VLM combined */}
         {raw && previewUrl && imageWidth ? (
           sideBySide ? (
             <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -361,8 +470,11 @@ export default function DebugFloorplanRecognitionPage() {
                 <p className="mt-2 text-xs text-muted-foreground">{t('debugFloorplanRecognition.imageDimensions', { width: String(imageWidth), height: String(imageHeight) })}</p>
               </div>
               <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('debugFloorplanRecognition.rawOverlay')}</h3>
-                <RawFloorplanOverlay
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('debugFloorplanRecognition.rawOverlay')}</h3>
+                  {vlmAnalysis && <span className="rounded bg-violet-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700">{t('debugFloorplanRecognition.vlmArchitecturalInterpretation')}</span>}
+                </div>
+                <VlmFloorplanOverlay
                   imageUrl={previewUrl}
                   imageWidth={imageWidth}
                   imageHeight={imageHeight}
@@ -370,12 +482,24 @@ export default function DebugFloorplanRecognitionPage() {
                   visibility={visibility}
                   showIds={showIds}
                   showImage={showImage}
+                  vlmAnalysis={vlmAnalysis}
+                  vlmVisibility={vlmVisibility}
+                  showVlmIds={showVlmIds}
+                  showConfidence={showConfidence}
+                  hideRaw={vlmMode === 'vlm-only'}
                 />
+                {vlmAnalysis && vlmMode === 'vlm-only' && <p className="mt-1 text-xs text-violet-600">VLM only — RAW layers hidden. Switch to Raw + VLM to compare.</p>}
               </div>
             </div>
           ) : (
             <div className="mt-6">
-              <RawFloorplanOverlay
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className="rounded bg-red-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-red-600">{t('debugFloorplanRecognition.vlmRawModelOutput')}</span>
+                <span className="text-xs text-muted-foreground">+</span>
+                <span className="rounded bg-violet-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-violet-700">{t('debugFloorplanRecognition.vlmArchitecturalInterpretation')}</span>
+                <span className="text-xs text-muted-foreground">· {t('debugFloorplanRecognition.vlmOverlayTitle')}</span>
+              </div>
+              <VlmFloorplanOverlay
                 imageUrl={previewUrl}
                 imageWidth={imageWidth}
                 imageHeight={imageHeight}
@@ -383,12 +507,233 @@ export default function DebugFloorplanRecognitionPage() {
                 visibility={visibility}
                 showIds={showIds}
                 showImage={showImage}
+                vlmAnalysis={vlmAnalysis}
+                vlmVisibility={vlmVisibility}
+                showVlmIds={showVlmIds}
+                showConfidence={showConfidence}
+                hideRaw={vlmMode === 'vlm-only'}
               />
             </div>
           )
         ) : (
           !loading && <p className="mt-6 text-sm text-muted-foreground">{t('debugFloorplanRecognition.noResult')}</p>
         )}
+
+        {/* VLM Architectural Analysis Section */}
+        <div className="mt-8 rounded-xl border bg-card p-5">
+          <div className="flex items-center gap-2">
+            <Brain className="size-5 text-violet-600" aria-hidden />
+            <h2 className="text-lg font-semibold">{t('debugFloorplanRecognition.vlmTitle')}</h2>
+            <span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700">POC</span>
+          </div>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{t('debugFloorplanRecognition.vlmIntro')}</p>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Button type="button" onClick={runVlmAnalysis} disabled={!raw || !file || vlmLoading || loading}>
+              {vlmLoading ? (
+                <>
+                  <LoaderCircle className="size-4 animate-spin" /> {t('debugFloorplanRecognition.analyzing')}
+                </>
+              ) : (
+                <>
+                  <Sparkles className="size-4" /> {t('debugFloorplanRecognition.analyzeWithVlm')}
+                </>
+              )}
+            </Button>
+            {!raw && <span className="text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmNeedRaw')}</span>}
+            {vlmAnalysis && (
+              <Button type="button" variant="outline" size="sm" onClick={exportVlm}>
+                <Download className="size-3.5" /> {t('debugFloorplanRecognition.vlmExport')}
+              </Button>
+            )}
+          </div>
+
+          {/* Status */}
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-xs">
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium ${vlmAnalysis ? 'bg-green-50 text-green-700' : vlmLoading ? 'bg-amber-50 text-amber-700' : vlmError ? 'bg-red-50 text-red-700' : 'bg-muted text-muted-foreground'}`}>
+              <span className={`h-2 w-2 rounded-full ${vlmAnalysis ? 'bg-green-500' : vlmLoading ? 'bg-amber-500 animate-pulse' : vlmError ? 'bg-red-500' : 'bg-gray-400'}`} aria-hidden />
+              {vlmStatus}
+            </span>
+            {vlmModel && <span className="text-muted-foreground">{t('debugFloorplanRecognition.vlmModel', { model: vlmModel })}</span>}
+            {vlmDurationMs !== null && <span className="text-muted-foreground">{t('debugFloorplanRecognition.vlmDuration', { ms: String(vlmDurationMs) })}</span>}
+            {vlmWarnings.length > 0 && <span className="text-amber-600">{t('debugFloorplanRecognition.vlmWarnings', { warnings: vlmWarnings.join(', ') })}</span>}
+          </div>
+
+          {vlmError && (
+            <p role="alert" className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              {vlmError}
+            </p>
+          )}
+
+          {vlmRawResponse != null && vlmError ? (
+            <div className="mt-3 rounded-lg border bg-muted/20 p-3">
+              <h4 className="text-xs font-semibold">{t('debugFloorplanRecognition.vlmRawResponse')}</h4>
+              <pre className="mt-2 max-h-64 overflow-auto text-xs">{typeof vlmRawResponse === 'string' ? vlmRawResponse : JSON.stringify(vlmRawResponse, null, 2)}</pre>
+            </div>
+          ) : null}
+
+          {/* VLM layer toggles */}
+          {vlmAnalysis && (
+            <div className="mt-5 rounded-xl border bg-muted/20 p-4">
+              <div className="flex flex-wrap gap-4">
+                {vlmLayerDefs.map(({ key, label, color }) => (
+                  <label key={key} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={vlmVisibility[key]}
+                      onCheckedChange={(v) => setVlmVisibility((prev) => ({ ...prev, [key]: Boolean(v) }))}
+                    />
+                    <span className="inline-block h-3 w-3 rounded-sm" style={{ background: color }} aria-hidden />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-4 border-t pt-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={showVlmIds} onCheckedChange={(v) => setShowVlmIds(Boolean(v))} />
+                  {t('debugFloorplanRecognition.vlmShowIds')}
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={showConfidence} onCheckedChange={(v) => setShowConfidence(Boolean(v))} />
+                  {t('debugFloorplanRecognition.vlmShowConfidence')}
+                </label>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-xs text-muted-foreground">Mode:</span>
+                  <Button type="button" variant={vlmMode === 'raw+vlm' ? 'default' : 'outline'} size="sm" onClick={() => setVlmMode('raw+vlm')}>
+                    {t('debugFloorplanRecognition.vlmModeRawVlm')}
+                  </Button>
+                  <Button type="button" variant={vlmMode === 'vlm-only' ? 'default' : 'outline'} size="sm" onClick={() => setVlmMode('vlm-only')}>
+                    {t('debugFloorplanRecognition.vlmModeVlmOnly')}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!vlmAnalysis && !vlmLoading && !vlmError ? (
+            <p className="mt-4 text-sm text-muted-foreground">{t('debugFloorplanRecognition.vlmNoAnalysis')}</p>
+          ) : null}
+
+          {/* Reasoning panel */}
+          {vlmAnalysis && (
+            <div className="mt-5 rounded-xl border bg-violet-50/40">
+              <div className="flex items-center justify-between border-b px-4 py-3">
+                <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+                  <Sparkles className="size-4 text-violet-600" /> {t('debugFloorplanRecognition.vlmFindings')}
+                </h3>
+                <Button variant="ghost" size="sm" onClick={() => setVlmFindingsCollapsed((v) => !v)}>
+                  {vlmFindingsCollapsed ? t('debugFloorplanRecognition.expand') : t('debugFloorplanRecognition.collapse')}
+                </Button>
+              </div>
+              {!vlmFindingsCollapsed && (
+                <div className="grid gap-4 p-4 text-sm md:grid-cols-2">
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-violet-700">{t('debugFloorplanRecognition.vlmFindingsWallContinuity')}</h4>
+                    {vlmAnalysis.wallRelationships.length === 0 ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmNoFindings')}</p>
+                    ) : (
+                      <ul className="mt-1 space-y-1">
+                        {vlmAnalysis.wallRelationships.map((r, i) => (
+                          <li key={i} className="text-xs leading-5">
+                            <span className="font-medium">{r.wallIds.join(' + ')}</span> → {r.relationship.replace(/_/g, ' ')} ({Math.round(r.confidence * 100)}%)
+                            {r.reason && <span className="text-muted-foreground"> · {r.reason}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-violet-700">{t('debugFloorplanRecognition.vlmFindingsOpenings')}</h4>
+                    {vlmAnalysis.openings.length === 0 ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmNoFindings')}</p>
+                    ) : (
+                      <ul className="mt-1 space-y-1">
+                        {vlmAnalysis.openings.map((o, i) => (
+                          <li key={i} className="text-xs leading-5">
+                            <span className="font-medium">{o.objectId}</span> → {o.hostWallIds.join('/')} ({Math.round(o.confidence * 100)}%)
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-violet-700">{t('debugFloorplanRecognition.vlmFindingsConnections')}</h4>
+                    {vlmAnalysis.wallConnections.length === 0 ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmNoFindings')}</p>
+                    ) : (
+                      <ul className="mt-1 space-y-1">
+                        {vlmAnalysis.wallConnections.map((c, i) => (
+                          <li key={i} className="text-xs leading-5">
+                            <span className="font-medium">{c.wallIds.join(' + ')}</span> → {c.relationship} ({Math.round(c.confidence * 100)}%)
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-violet-700">{t('debugFloorplanRecognition.vlmFindingsArtifacts')}</h4>
+                    {vlmAnalysis.artifacts.length === 0 ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmNoFindings')}</p>
+                    ) : (
+                      <ul className="mt-1 space-y-1">
+                        {vlmAnalysis.artifacts.map((a, i) => (
+                          <li key={i} className="text-xs leading-5">
+                            <span className="font-medium">{a.objectId}</span> → {a.classification.replace(/_/g, ' ')} ({Math.round(a.confidence * 100)}%)
+                            {a.reason && <span className="text-muted-foreground"> · {a.reason}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div className="md:col-span-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-violet-700">{t('debugFloorplanRecognition.vlmFindingsRooms')}</h4>
+                    {vlmAnalysis.rooms.length === 0 ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmNoFindings')}</p>
+                    ) : (
+                      <ul className="mt-1 space-y-1">
+                        {vlmAnalysis.rooms.map((r, i) => (
+                          <li key={i} className="text-xs leading-5">
+                            <span className="font-medium">{r.id} · {r.type}</span> ({Math.round(r.confidence * 100)}%) — [{r.boundaryObjects.join(', ')}]
+                            {r.reason && <span className="text-muted-foreground"> · {r.reason}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* VLM JSON */}
+          {vlmAnalysis && (
+            <div className="mt-6 rounded-xl border bg-card">
+              <div className="flex items-center justify-between border-b px-4 py-3">
+                <h3 className="text-sm font-semibold">{t('debugFloorplanRecognition.vlmJson')}</h3>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(JSON.stringify(vlmAnalysis, null, 2));
+                      setVlmCopied(true);
+                      setTimeout(() => setVlmCopied(false), 1500);
+                    }}
+                  >
+                    {vlmCopied ? <Check className="size-3" /> : <Copy className="size-3" />} {vlmCopied ? t('debugFloorplanRecognition.copied') : t('debugFloorplanRecognition.copyJson')}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setVlmJsonCollapsed((v) => !v)}>
+                    {vlmJsonCollapsed ? t('debugFloorplanRecognition.expand') : t('debugFloorplanRecognition.collapse')}
+                  </Button>
+                </div>
+              </div>
+              {!vlmJsonCollapsed && (
+                <pre className="max-h-[600px] overflow-auto bg-muted/20 p-4 text-xs">
+                  <code>{JSON.stringify(vlmAnalysis, null, 2)}</code>
+                </pre>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Raw JSON */}
         {raw && (
