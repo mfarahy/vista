@@ -2,7 +2,12 @@ import { z } from 'zod';
 import type { JobRunContext } from '../dispatcher.js';
 import { createDocumentStorage } from '../../lib/document-storage.js';
 import { getPrisma } from '../../lib/db.js';
-import { resolveProvider, buildGlbFromGeometry, type FloorPlanProvider } from '../../lib/floorplan-providers/index.js';
+import { resolveProvider, buildGlbFromModel, type FloorPlanProvider } from '../../lib/floorplan-providers/index.js';
+import {
+  runFloorplanPipeline,
+  pipelineDebugPayload,
+  type PipelineDebugResult,
+} from '../../lib/floorplan-pipeline/index.js';
 
 const PayloadSchema = z.object({
   assetId: z.string().min(1),
@@ -36,6 +41,9 @@ export function makeFloorplan3DHandler(deps: Floorplan3DHandlerDeps = {}) {
       { jobId, assetId: payload.assetId, provider: payload.provider ?? '(default)' },
       'Floorplan 3D job {jobId} started for asset {assetId}',
     );
+
+    // Processed-geometry payload for the 2D/3D debug view.
+    let geometryDebugResult: PipelineDebugResult | null = null;
 
     await ctx.update({ currentStep: 'loading_image', message: 'Loading floor plan image', progress: 10 });
 
@@ -111,12 +119,17 @@ export function makeFloorplan3DHandler(deps: Floorplan3DHandlerDeps = {}) {
     if (result.type === 'geometry') {
       // Convert geometry to GLB using the internal builder
       log.info({ jobId, assetId: payload.assetId }, 'Converting geometry to GLB via Vista 3D builder');
-      const glbBuffer = buildGlbFromGeometry(result.geometry);
+      const pipeline = runFloorplanPipeline(result.geometry);
+      const glbBuffer = buildGlbFromModel(pipeline.model3d);
 
       const resultAssetId = `floorplan-result-${jobId}`;
       await storage.put(resultAssetId, glbBuffer, 'model/gltf-binary');
       storedModelUrl = `/api/floorplan3d/result/${jobId}/file`;
       format = 'glb';
+
+      // Keep the processed geometry on the job so the 2D/3D debug view can
+      // render the normalized walls, detected rooms and the 3D model.
+      geometryDebugResult = pipelineDebugPayload(pipeline);
 
       log.info(
         { jobId, resultAssetId, bytes: glbBuffer.length },
@@ -168,6 +181,10 @@ export function makeFloorplan3DHandler(deps: Floorplan3DHandlerDeps = {}) {
           format,
           provider: provider.name,
           assetId: payload.assetId,
+          geometry: result.type === 'geometry' ? result.geometry : undefined,
+          normalized: geometryDebugResult?.normalized,
+          rooms: geometryDebugResult?.rooms,
+          model3d: geometryDebugResult?.model3d,
         },
       };
       await prisma.job.update({
