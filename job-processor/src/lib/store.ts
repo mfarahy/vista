@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Prisma } from '@prisma/client';
 import path from 'node:path';
 import { getPrisma } from './db.js';

@@ -53,7 +53,14 @@ export class FloorplanRecognitionProvider implements FloorPlanProvider {
     const startedAt = performance.now();
 
     try {
-      const body = JSON.stringify({ input: { image: input.imageUrl } });
+      // Always prefer an inline data-URL when the image buffer is available.
+      // This avoids the need for the Docker model to HTTP-fetch the image,
+      // which fails when the expose-service is not reachable (dev, local storage).
+      const imagePayload = input.imageBuffer.length > 0
+        ? `data:${input.mimeType};base64,${input.imageBuffer.toString('base64')}`
+        : input.imageUrl;
+
+      const body = JSON.stringify({ input: { image: imagePayload } });
 
       const response = await trackExternalCall(
         {
@@ -99,6 +106,7 @@ export class FloorplanRecognitionProvider implements FloorPlanProvider {
           assetId: input.assetId,
           status: json.status,
           hasOutput: Boolean(json.output),
+          output: json.output,
           durationMs,
         },
         'Floorplan recognition response received — status={status}, duration={durationMs}ms',

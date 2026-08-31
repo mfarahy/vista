@@ -513,6 +513,22 @@ export const EXPOSE_CSS = `
     color: var(--expose-muted, #8a8478);
     pointer-events: none;
   }
+  .floorplan-3d-reset {
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--expose-line, #e8e4dc);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--expose-text, #26302a);
+    cursor: pointer;
+  }
+  .floorplan-3d-reset:hover {
+    background: #fff;
+  }
   .floorplan-3d-label {
     padding: 2px 6px;
     border-radius: 3px;

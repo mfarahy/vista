@@ -137,6 +137,10 @@ export type FloorPlan3DPoint = { x: number; y: number };
 export type FloorPlan3DRoom = {
   id: string;
   name: string;
+  /** Display hint for localized labels (generic room, kitchen, outside). */
+  labelHint?: 'room' | 'kitchen' | 'outside';
+  /** 1-based index for generic room labels. */
+  labelIndex?: number;
   level: number;
   x: number;
   y: number;
@@ -144,6 +148,8 @@ export type FloorPlan3DRoom = {
   depth: number;
   height: number;
   areaM2: number | null;
+  /** Floor polygon in meters (x, z plane); falls back to the AABB box. */
+  points?: FloorPlan3DPoint[];
 };
 
 export type FloorPlan3DWall = {

@@ -14,6 +14,26 @@ import { apiAssetUrl, apiFetch } from '@/lib/api';
 import { useJobProgress } from '@/lib/use-job-progress';
 import './styles.css';
 
+type GlbDebugInfo = {
+  provider?: string;
+  assetId?: string;
+  format?: string;
+  modelUrl?: string | null;
+  sourceImageUrl?: string | null;
+  sourceType: 'url' | 'base64' | 'data-url';
+  byteLength: number;
+  glbMagic?: string;
+  glbVersion?: number;
+  glbTotalLength?: number;
+  geometry?: {
+    walls?: number[][][];
+    doors?: number[][][];
+    entryDoors?: number[][][];
+    windows?: number[][][];
+    kitchens?: number[][][];
+  };
+};
+
 type SelectedElement = {
   type: 'floor' | 'room' | 'wall' | 'door' | 'window';
   id: string;
@@ -22,6 +42,71 @@ type SelectedElement = {
 
 const buildingModel = generateBuildingModel(demoBuilding);
 const totalFloorArea = buildingModel.floors.reduce((total, floor) => total + floor.area, 0);
+
+type PanelMetrics = {
+  floors: number | null;
+  wallBoxes: number | null;
+  rooms: number | null;
+  stairTreads: number | null;
+  doors: number | null;
+  windows: number | null;
+  openings: number | null;
+  roof: number | null;
+  floorArea: number | null;
+};
+
+const demoMetrics: PanelMetrics = {
+  floors: demoBuilding.floors.length,
+  wallBoxes: buildingModel.wallBoxes.length,
+  rooms: buildingModel.floors.length,
+  stairTreads: buildingModel.stairs.length,
+  doors: buildingModel.openings.filter((opening) => opening.type === 'door').length,
+  windows: buildingModel.openings.filter((opening) => opening.type === 'window').length,
+  openings: buildingModel.openings.length,
+  roof: buildingModel.roof.height,
+  floorArea: totalFloorArea,
+};
+
+/** Footprint area (m²) of the recognized geometry, from the union bounding box. */
+function floorAreaFromGeometry(geometry: NonNullable<GlbDebugInfo['geometry']>): number | null {
+  const groups = [geometry.walls, geometry.doors, geometry.entryDoors, geometry.windows, geometry.kitchens];
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  let hasPoint = false;
+  for (const group of groups) {
+    for (const polygon of group ?? []) {
+      for (const [x, y] of polygon) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        hasPoint = true;
+      }
+    }
+  }
+  if (!hasPoint) return null;
+  return (maxX - minX) * (maxY - minY);
+}
+
+/** Derives panel metrics from a completed geometry result. */
+function metricsFromGeometry(geometry: NonNullable<GlbDebugInfo['geometry']>): PanelMetrics {
+  const walls = geometry.walls?.length ?? 0;
+  const doors = (geometry.doors?.length ?? 0) + (geometry.entryDoors?.length ?? 0);
+  const windows = geometry.windows?.length ?? 0;
+  return {
+    floors: 1,
+    wallBoxes: walls,
+    rooms: null,
+    stairTreads: null,
+    doors,
+    windows,
+    openings: doors + windows,
+    roof: null,
+    floorArea: floorAreaFromGeometry(geometry),
+  };
+}
 
 function floorNameId(floorId: string): string {
   return `viewers.threeD.floorNames.${floorId}`;
@@ -37,6 +122,7 @@ export function ThreeDPreview() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [modelUrl, setModelUrl] = useState<string | null>(null);
   const [modelBase64, setModelBase64] = useState<string | null>(null);
+  const [glbDebugInfo, setGlbDebugInfo] = useState<GlbDebugInfo | null>(null);
   const [uploading, setUploading] = useState(false);
   const [localErrorKey, setLocalErrorKey] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -66,6 +152,7 @@ export function ThreeDPreview() {
       setJobId(null);
       setModelUrl(null);
       setModelBase64(null);
+      setGlbDebugInfo(null);
       setLocalErrorKey(null);
     },
     [t],
@@ -101,7 +188,7 @@ export function ThreeDPreview() {
           if (!res.ok) return;
           const job = (await res.json()) as {
             message?: string;
-            payload?: { result?: { modelUrl?: string | null; modelBase64?: string | null; provider?: string } };
+            payload?: { result?: { modelUrl?: string | null; modelBase64?: string | null; provider?: string; assetId?: string; format?: string; geometry?: Record<string, unknown> } };
           };
           const result = job.payload?.result;
           const url = result?.modelUrl ?? job.message ?? null;
@@ -109,6 +196,66 @@ export function ThreeDPreview() {
           if (url) setModelUrl(url.startsWith('/') || url.startsWith('http') || url.startsWith('data:') ? url : apiAssetUrl(url));
           else if (b64) setModelBase64(b64);
           else if (job.message && job.message.startsWith('http')) setModelUrl(job.message);
+
+          // Build debug info from the job result
+          const sourceAssetId = result?.assetId;
+          const geom = result?.geometry;
+          const debug: GlbDebugInfo = {
+            provider: result?.provider,
+            assetId: sourceAssetId,
+            format: result?.format ?? 'glb',
+            modelUrl: url,
+            sourceImageUrl: sourceAssetId ? `/api/floorplan3d/image/${sourceAssetId}` : null,
+            sourceType: b64 ? (b64.startsWith('data:') ? 'data-url' : 'base64') : 'url',
+            byteLength: 0,
+            geometry: geom ? {
+              walls: geom.wall as number[][][] | undefined,
+              doors: geom.door as number[][][] | undefined,
+              entryDoors: geom.entry_door as number[][][] | undefined,
+              windows: geom.window as number[][][] | undefined,
+              kitchens: geom.kitchen as number[][][] | undefined,
+            } : undefined,
+          };
+
+          // Try to parse GLB header from base64
+          if (b64) {
+            try {
+              const raw = b64.startsWith('data:') ? b64.split(',')[1] : b64;
+              const bin = atob(raw);
+              debug.byteLength = bin.length;
+              if (bin.length >= 12) {
+                debug.glbMagic = bin.slice(0, 4);
+                const bytes = Array.from(bin, (c) => c.charCodeAt(0) & 0xff);
+                debug.glbVersion = new DataView(new Uint8Array(bytes.slice(4, 8)).buffer).getUint32(0, true);
+                debug.glbTotalLength = new DataView(new Uint8Array(bytes.slice(8, 12)).buffer).getUint32(0, true);
+              }
+            } catch { /* ignore parse errors */ }
+          } else if (url && !url.startsWith('data:')) {
+            // Fetch first 12 bytes to read GLB header
+            try {
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), 5000);
+              const res = await fetch(url, { signal: controller.signal });
+              clearTimeout(timer);
+              if (res.ok) {
+                const contentType = res.headers.get('content-type') ?? '';
+                const contentLength = res.headers.get('content-length');
+                if (contentLength) debug.byteLength = Number(contentLength);
+                const reader = res.body?.getReader();
+                if (reader) {
+                  const { value, done } = await reader.read();
+                  if (!done && value && value.length >= 12) {
+                    debug.glbMagic = new TextDecoder().decode(value.slice(0, 4));
+                    debug.glbVersion = new DataView(value.buffer, value.byteOffset + 4, 4).getUint32(0, true);
+                    debug.glbTotalLength = new DataView(value.buffer, value.byteOffset + 8, 4).getUint32(0, true);
+                    if (!debug.byteLength) debug.byteLength = value.length;
+                  }
+                  reader.cancel();
+                }
+              }
+            } catch { /* ignore fetch errors */ }
+          }
+          setGlbDebugInfo(debug);
         } catch {
           // ignore fetch error
         }
@@ -154,6 +301,7 @@ export function ThreeDPreview() {
     setJobId(null);
     setModelUrl(null);
     setModelBase64(null);
+    setGlbDebugInfo(null);
     setLocalErrorKey(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [previewUrl]);
@@ -236,6 +384,11 @@ export function ThreeDPreview() {
   const processingMessage =
     jobState?.message ??
     (jobState?.currentStep === 'calling_provider' ? t('floorplan3d.building') : t('floorplan3d.analyzing'));
+
+  const metrics = useMemo<PanelMetrics>(
+    () => (glbDebugInfo?.geometry ? metricsFromGeometry(glbDebugInfo.geometry) : demoMetrics),
+    [glbDebugInfo],
+  );
 
   const resolvedModelUrl = modelUrl ? apiAssetUrl(modelUrl) : null;
 
@@ -346,39 +499,47 @@ export function ThreeDPreview() {
         <dl className="vista-3d-preview__metrics">
           <div>
             <dt>{t('viewers.threeD.metrics.floors')}</dt>
-            <dd>{demoBuilding.floors.length}</dd>
+            <dd>{metrics.floors ?? t('viewers.threeD.metrics.notAvailable')}</dd>
           </div>
           <div>
             <dt>{t('viewers.threeD.metrics.wallBoxes')}</dt>
-            <dd>{buildingModel.wallBoxes.length}</dd>
+            <dd>{metrics.wallBoxes ?? t('viewers.threeD.metrics.notAvailable')}</dd>
           </div>
           <div>
             <dt>{t('viewers.threeD.metrics.rooms')}</dt>
-            <dd>{buildingModel.floors.length}</dd>
+            <dd>{metrics.rooms ?? t('viewers.threeD.metrics.notAvailable')}</dd>
           </div>
           <div>
             <dt>{t('viewers.threeD.metrics.stairTreads')}</dt>
-            <dd>{buildingModel.stairs.length}</dd>
+            <dd>{metrics.stairTreads ?? t('viewers.threeD.metrics.notAvailable')}</dd>
           </div>
           <div>
             <dt>{t('viewers.threeD.metrics.doors')}</dt>
-            <dd>{buildingModel.openings.filter((opening) => opening.type === 'door').length}</dd>
+            <dd>{metrics.doors ?? t('viewers.threeD.metrics.notAvailable')}</dd>
           </div>
           <div>
             <dt>{t('viewers.threeD.metrics.windows')}</dt>
-            <dd>{buildingModel.openings.filter((opening) => opening.type === 'window').length}</dd>
+            <dd>{metrics.windows ?? t('viewers.threeD.metrics.notAvailable')}</dd>
           </div>
           <div>
             <dt>{t('viewers.threeD.metrics.openings')}</dt>
-            <dd>{buildingModel.openings.length}</dd>
+            <dd>{metrics.openings ?? t('viewers.threeD.metrics.notAvailable')}</dd>
           </div>
           <div>
             <dt>{t('viewers.threeD.metrics.roof')}</dt>
-            <dd>{t('viewers.threeD.valueMeter', { value: buildingModel.roof.height.toFixed(2) })}</dd>
+            <dd>
+              {metrics.roof === null
+                ? t('viewers.threeD.metrics.notAvailable')
+                : t('viewers.threeD.valueMeter', { value: metrics.roof.toFixed(2) })}
+            </dd>
           </div>
           <div>
             <dt>{t('viewers.threeD.metrics.floorArea')}</dt>
-            <dd>{t('viewers.threeD.valueSqm', { value: totalFloorArea.toFixed(2) })}</dd>
+            <dd>
+              {metrics.floorArea === null
+                ? t('viewers.threeD.metrics.notAvailable')
+                : t('viewers.threeD.valueSqm', { value: metrics.floorArea.toFixed(2) })}
+            </dd>
           </div>
         </dl>
 
@@ -416,7 +577,40 @@ export function ThreeDPreview() {
                     <dd>{value}</dd>
                   </div>
                 ))}
+          </dl>
+          {glbDebugInfo?.geometry && (
+            <div className="mt-3 border-t pt-3">
+              <h3 className="text-xs font-semibold mb-1">Geometry</h3>
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:grid-cols-3 lg:grid-cols-5">
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Walls</dt>
+                  <dd className="font-mono">{glbDebugInfo.geometry.walls?.length ?? 0}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Doors</dt>
+                  <dd className="font-mono">{glbDebugInfo.geometry.doors?.length ?? 0}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Entry Doors</dt>
+                  <dd className="font-mono">{glbDebugInfo.geometry.entryDoors?.length ?? 0}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Windows</dt>
+                  <dd className="font-mono">{glbDebugInfo.geometry.windows?.length ?? 0}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Kitchens</dt>
+                  <dd className="font-mono">{glbDebugInfo.geometry.kitchens?.length ?? 0}</dd>
+                </div>
               </dl>
+              <details className="mt-2">
+                <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">Show raw geometry JSON</summary>
+                <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-[10px] leading-tight">
+                  {JSON.stringify(glbDebugInfo.geometry, null, 2)}
+                </pre>
+              </details>
+            </div>
+          )}
             </>
           ) : (
             <div className="vista-3d-preview__selection--empty">
@@ -427,25 +621,101 @@ export function ThreeDPreview() {
         </div>
       </aside>
 
-      <div className="vista-3d-preview__viewer-wrap flex-1 relative">
-        {isProcessing ? (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-muted/30">
-            <span className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" aria-hidden="true" />
-            <p className="text-sm font-medium" aria-live="polite">
-              {processingMessage}
-            </p>
-          </div>
-        ) : isDone ? (
-          <GlbViewer modelUrl={resolvedModelUrl} modelBase64={modelBase64} ariaLabel={t('floorplan3d.ariaLabel')} />
-        ) : (
-          <BuildingViewer
-            model={buildingModel}
-            selectedFloorId={selectedFloorId}
-            selectedElement={selectedElement}
-            onSelectElement={setSelectedElement}
-            ariaLabel={t('viewers.threeD.viewerAriaLabel')}
-          />
-        )}
+      <div className="vista-3d-preview__viewer-wrap flex-1 relative flex flex-col">
+        <div className="flex-1 relative min-h-0">
+          {isProcessing ? (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-muted/30">
+              <span className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" aria-hidden="true" />
+              <p className="text-sm font-medium" aria-live="polite">
+                {processingMessage}
+              </p>
+            </div>
+          ) : isDone ? (
+            <GlbViewer modelUrl={resolvedModelUrl} modelBase64={modelBase64} ariaLabel={t('floorplan3d.ariaLabel')} />
+          ) : (
+            <BuildingViewer
+              model={buildingModel}
+              selectedFloorId={selectedFloorId}
+              selectedElement={selectedElement}
+              onSelectElement={setSelectedElement}
+              ariaLabel={t('viewers.threeD.viewerAriaLabel')}
+            />
+          )}
+        </div>
+        <div className="border-t bg-card p-4">
+          <h2 className="text-sm font-semibold mb-2">GLB Debug Info</h2>
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:grid-cols-3 lg:grid-cols-4">
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Provider</dt>
+              <dd className="font-mono">{glbDebugInfo?.provider ?? '—'}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Asset ID</dt>
+              <dd className="font-mono break-all" title={glbDebugInfo?.assetId ?? ''}>{glbDebugInfo?.assetId ?? '—'}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Source Image</dt>
+              <dd className="font-mono break-all" title={glbDebugInfo?.sourceImageUrl ?? ''}>{glbDebugInfo?.sourceImageUrl ?? '—'}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Format</dt>
+              <dd className="font-mono">{glbDebugInfo?.format ?? '—'}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Source</dt>
+              <dd className="font-mono">{glbDebugInfo?.sourceType ?? '—'}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Size</dt>
+              <dd className="font-mono">{glbDebugInfo && glbDebugInfo.byteLength > 0 ? `${(glbDebugInfo.byteLength / 1024).toFixed(1)} KB` : '—'}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">GLB Magic</dt>
+              <dd className="font-mono">{glbDebugInfo?.glbMagic ?? '—'}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">GLB Version</dt>
+              <dd className="font-mono">{glbDebugInfo?.glbVersion ?? '—'}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">GLB Length</dt>
+              <dd className="font-mono">{glbDebugInfo?.glbTotalLength ? `${(glbDebugInfo.glbTotalLength / 1024).toFixed(1)} KB` : '—'}</dd>
+            </div>
+          </dl>
+          {glbDebugInfo?.geometry && (
+            <div className="mt-3 border-t pt-3">
+              <h3 className="text-xs font-semibold mb-1">Geometry</h3>
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:grid-cols-3 lg:grid-cols-5">
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Walls</dt>
+                  <dd className="font-mono">{glbDebugInfo.geometry.walls?.length ?? 0}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Doors</dt>
+                  <dd className="font-mono">{glbDebugInfo.geometry.doors?.length ?? 0}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Entry Doors</dt>
+                  <dd className="font-mono">{glbDebugInfo.geometry.entryDoors?.length ?? 0}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Windows</dt>
+                  <dd className="font-mono">{glbDebugInfo.geometry.windows?.length ?? 0}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Kitchens</dt>
+                  <dd className="font-mono">{glbDebugInfo.geometry.kitchens?.length ?? 0}</dd>
+                </div>
+              </dl>
+              <details className="mt-2">
+                <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">Show raw geometry JSON</summary>
+                <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-[10px] leading-tight">
+                  {JSON.stringify(glbDebugInfo.geometry, null, 2)}
+                </pre>
+              </details>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
