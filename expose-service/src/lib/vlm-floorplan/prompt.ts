@@ -29,6 +29,8 @@ export const VLM_SYSTEM_PROMPT = [
   '- Do NOT invent objects not in JSON.',
   '- Only reference IDs that exist in the provided JSON.',
   '- Focus on interesting cases: east exterior wall with window-2, kitchen boundary, hallway/entrance/bathroom separation, terrace vs interior, suspicious diagonal/false walls.',
+  '- For reason fields: return a short string when you have a reason, or null when no reason is needed. All fields are required.',
+  '- Every array (wallRelationships, openings, wallConnections, rooms, artifacts) must be present — use empty array [] if no findings.',
   '',
   'Return ONLY the structured JSON. No prose outside the schema.',
 ].join('\n');

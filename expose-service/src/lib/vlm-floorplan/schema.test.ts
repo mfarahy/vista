@@ -28,10 +28,10 @@ describe('vlm-floorplan schema validation', () => {
         { objectId: 'window-0', type: 'window', hostWallIds: ['wall-1'], relationship: 'interrupts_wall', confidence: 0.98 },
       ],
       wallConnections: [
-        { wallIds: ['wall-0', 'wall-1'], relationship: 'corner', confidence: 0.91 },
+        { wallIds: ['wall-0', 'wall-1'], relationship: 'corner', confidence: 0.91, reason: null },
       ],
       rooms: [
-        { id: 'room-1', type: 'living', boundaryObjects: ['wall-0', 'wall-1'], confidence: 0.89 },
+        { id: 'room-1', type: 'living', boundaryObjects: ['wall-0', 'wall-1'], confidence: 0.89, reason: null },
       ],
       artifacts: [
         { objectId: 'wall-2', classification: 'likely_false_positive', confidence: 0.87, reason: 'no visible wall' },
@@ -47,13 +47,13 @@ describe('vlm-floorplan schema validation', () => {
   it('rejects invalid object IDs via validateVlmAnalysis', () => {
     const analysis = vlmFloorplanAnalysisSchema.parse({
       wallRelationships: [
-        { wallIds: ['wall-0', 'wall-99'], relationship: 'corner', confidence: 0.9 },
-        { wallIds: ['wall-10', 'wall-11'], relationship: 'uncertain', confidence: 0.5 },
+        { wallIds: ['wall-0', 'wall-99'], relationship: 'corner', confidence: 0.9, reason: null },
+        { wallIds: ['wall-10', 'wall-11'], relationship: 'uncertain', confidence: 0.5, reason: null },
       ],
       openings: [{ objectId: 'window-5', type: 'window', hostWallIds: ['wall-0'], relationship: 'interrupts_wall', confidence: 0.9 }],
-      wallConnections: [{ wallIds: ['wall-0', 'wall-999'], relationship: 'corner', confidence: 0.8 }],
-      rooms: [{ id: 'room-1', type: 'kitchen', boundaryObjects: ['wall-0', 'wall-999'], confidence: 0.9 }],
-      artifacts: [{ objectId: 'wall-999', classification: 'likely_false_positive', confidence: 0.9 }],
+      wallConnections: [{ wallIds: ['wall-0', 'wall-999'], relationship: 'corner', confidence: 0.8, reason: null }],
+      rooms: [{ id: 'room-1', type: 'kitchen', boundaryObjects: ['wall-0', 'wall-999'], confidence: 0.9, reason: null }],
+      artifacts: [{ objectId: 'wall-999', classification: 'likely_false_positive', confidence: 0.9, reason: null }],
     });
     const { analysis: filtered, warnings } = validateVlmAnalysis(analysis, rawFixture);
     // wall-99 and wall-999 invalid, window-5 has index out of bounds (window length 2 => max index 1)
@@ -71,7 +71,7 @@ describe('vlm-floorplan schema validation', () => {
   it('preserves raw coordinates (no mutation of raw)', () => {
     const rawClone = JSON.parse(JSON.stringify(rawFixture));
     const analysis = vlmFloorplanAnalysisSchema.parse({
-      wallRelationships: [{ wallIds: ['wall-0', 'wall-1'], relationship: 'same_continuous_wall', confidence: 1 }],
+      wallRelationships: [{ wallIds: ['wall-0', 'wall-1'], relationship: 'same_continuous_wall', confidence: 1, reason: null }],
       openings: [],
       wallConnections: [],
       rooms: [],
@@ -83,11 +83,11 @@ describe('vlm-floorplan schema validation', () => {
 
   it('parses confidence clamped 0..1', () => {
     assert.throws(() => vlmFloorplanAnalysisSchema.parse({
-      wallRelationships: [{ wallIds: ['wall-0', 'wall-1'], relationship: 'corner', confidence: 1.5 }],
+      wallRelationships: [{ wallIds: ['wall-0', 'wall-1'], relationship: 'corner', confidence: 1.5, reason: null }],
       openings: [], wallConnections: [], rooms: [], artifacts: [],
     }));
     assert.throws(() => vlmFloorplanAnalysisSchema.parse({
-      wallRelationships: [{ wallIds: ['wall-0', 'wall-1'], relationship: 'corner', confidence: -0.1 }],
+      wallRelationships: [{ wallIds: ['wall-0', 'wall-1'], relationship: 'corner', confidence: -0.1, reason: null }],
       openings: [], wallConnections: [], rooms: [], artifacts: [],
     }));
   });
@@ -112,10 +112,20 @@ describe('vlm-floorplan schema validation', () => {
     assert.equal(parseObjectId('wall-'), null);
   });
 
-  it('accepts empty arrays as defaults', () => {
-    const parsed = vlmFloorplanAnalysisSchema.parse({});
+  it('accepts empty arrays when explicitly provided', () => {
+    const parsed = vlmFloorplanAnalysisSchema.parse({
+      wallRelationships: [],
+      openings: [],
+      wallConnections: [],
+      rooms: [],
+      artifacts: [],
+    });
     assert.deepEqual(parsed.wallRelationships, []);
     assert.deepEqual(parsed.openings, []);
     assert.deepEqual(parsed.rooms, []);
+  });
+
+  it('rejects missing required arrays (strict mode)', () => {
+    assert.throws(() => vlmFloorplanAnalysisSchema.parse({} as never));
   });
 });

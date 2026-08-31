@@ -8,7 +8,7 @@ export type WallRelationship = {
   wallIds: string[];
   relationship: 'same_continuous_wall' | 'separate_walls' | 'corner' | 'T_junction' | 'uncertain';
   confidence: number;
-  reason?: string;
+  reason: string | null;
 };
 
 export type OpeningAssociation = {
@@ -23,7 +23,7 @@ export type WallConnection = {
   wallIds: [string, string];
   relationship: 'corner' | 'T_junction' | 'intersection' | 'collinear' | 'uncertain';
   confidence: number;
-  reason?: string;
+  reason: string | null;
 };
 
 export type RoomHypothesis = {
@@ -31,14 +31,14 @@ export type RoomHypothesis = {
   type: 'living' | 'kitchen' | 'hallway' | 'bathroom' | 'entrance' | 'utility' | 'bedroom' | 'terrace' | 'outside' | 'unknown';
   boundaryObjects: string[];
   confidence: number;
-  reason?: string;
+  reason: string | null;
 };
 
 export type Artifact = {
   objectId: string;
   classification: 'likely_false_positive' | 'suspicious' | 'likely_missing_wall';
   confidence: number;
-  reason?: string;
+  reason: string | null;
 };
 
 export type VlmAnalysis = {

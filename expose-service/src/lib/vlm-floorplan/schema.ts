@@ -10,14 +10,14 @@ export const wallRelationshipSchema = z.object({
     'uncertain',
   ]),
   confidence: z.number().min(0).max(1),
-  reason: z.string().max(500).optional(),
+  reason: z.string().max(500).nullable(),
 });
 
 export const openingAssociationSchema = z.object({
   objectId: z.string().min(1),
   type: z.enum(['door', 'entry_door', 'window']),
   hostWallIds: z.array(z.string().min(1)).min(1).max(10),
-  relationship: z.enum(['interrupts_wall', 'adjacent', 'uncertain']).default('interrupts_wall'),
+  relationship: z.enum(['interrupts_wall', 'adjacent', 'uncertain']),
   confidence: z.number().min(0).max(1),
 });
 
@@ -25,7 +25,7 @@ export const wallConnectionSchema = z.object({
   wallIds: z.array(z.string().min(1)).length(2),
   relationship: z.enum(['corner', 'T_junction', 'intersection', 'collinear', 'uncertain']),
   confidence: z.number().min(0).max(1),
-  reason: z.string().max(500).optional(),
+  reason: z.string().max(500).nullable(),
 });
 
 export const roomHypothesisSchema = z.object({
@@ -33,22 +33,22 @@ export const roomHypothesisSchema = z.object({
   type: z.enum(['living', 'kitchen', 'hallway', 'bathroom', 'entrance', 'utility', 'bedroom', 'terrace', 'outside', 'unknown']),
   boundaryObjects: z.array(z.string().min(1)).min(1).max(30),
   confidence: z.number().min(0).max(1),
-  reason: z.string().max(500).optional(),
+  reason: z.string().max(500).nullable(),
 });
 
 export const artifactSchema = z.object({
   objectId: z.string().min(1),
   classification: z.enum(['likely_false_positive', 'suspicious', 'likely_missing_wall']),
   confidence: z.number().min(0).max(1),
-  reason: z.string().max(500).optional(),
+  reason: z.string().max(500).nullable(),
 });
 
 export const vlmFloorplanAnalysisSchema = z.object({
-  wallRelationships: z.array(wallRelationshipSchema).max(50).default([]),
-  openings: z.array(openingAssociationSchema).max(30).default([]),
-  wallConnections: z.array(wallConnectionSchema).max(50).default([]),
-  rooms: z.array(roomHypothesisSchema).max(20).default([]),
-  artifacts: z.array(artifactSchema).max(30).default([]),
+  wallRelationships: z.array(wallRelationshipSchema).max(50),
+  openings: z.array(openingAssociationSchema).max(30),
+  wallConnections: z.array(wallConnectionSchema).max(50),
+  rooms: z.array(roomHypothesisSchema).max(20),
+  artifacts: z.array(artifactSchema).max(30),
 });
 
 export type WallRelationship = z.infer<typeof wallRelationshipSchema>;
