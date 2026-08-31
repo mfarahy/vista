@@ -160,10 +160,15 @@ export function renderDebugSvg(plan: NormalizedFloorPlan, labels: Partial<DebugS
     }
   }
 
+  // Coordinates are drawn as (x, -y); shift by bounds so the plan lands
+  // inside the viewBox instead of the raw (possibly large) pixel offsets.
+  const offsetX = pad - b.minX;
+  const offsetY = pad + b.maxY;
+
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" font-family="system-ui, sans-serif">` +
     `<rect x="0" y="0" width="${width}" height="${height}" fill="#fafaf8"/>` +
-    `<g transform="translate(${pad},${pad})">${parts.join('')}</g>` +
+    `<g transform="translate(${offsetX},${offsetY})">${parts.join('')}</g>` +
     `<g class="legend">${legend(l)}</g>` +
     '</svg>'
   );

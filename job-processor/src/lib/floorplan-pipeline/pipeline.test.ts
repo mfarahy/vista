@@ -239,4 +239,25 @@ describe('regression: wall slats fix', () => {
     for (const d of result.model3d.doors) assert.ok(Math.abs(d.height - 2.1) < 0.01);
     for (const w of result.model3d.windows) assert.ok(Math.abs(w.height - 1.4) < 0.01);
   });
+
+  it('aligns door/window rotation with their host wall instead of raw (noisy) opening endpoints', () => {
+    const result = runFloorplanPipeline(loadFixture(TEST_FIXTURE));
+    const wallById = new Map(result.normalized.walls.map((w) => [w.id, w]));
+    const openingById = new Map(result.normalized.openings.map((o) => [o.id, o]));
+    const normalizeAngle = (deg: number): number => ((deg % 180) + 180) % 180;
+    for (const opening of [...result.model3d.doors, ...result.model3d.windows]) {
+      const source = openingById.get(opening.id);
+      const wall = source?.wallId ? wallById.get(source.wallId) : undefined;
+      if (!wall) continue;
+      const wallAngleDeg = (Math.atan2(wall.to.y - wall.from.y, wall.to.x - wall.from.x) * 180) / Math.PI;
+      const openingAngleDeg = (opening.rotation * 180) / Math.PI;
+      // A door/window leaf is a symmetric box, so only the 0-180deg line matters.
+      const diff = Math.abs(normalizeAngle(wallAngleDeg) - normalizeAngle(openingAngleDeg));
+      const wrapped = Math.min(diff, 180 - diff);
+      assert.ok(
+        wrapped < 5,
+        `opening ${opening.id} rotation (${openingAngleDeg.toFixed(1)}deg) should match host wall ${source?.wallId} (${wallAngleDeg.toFixed(1)}deg), diff ${wrapped.toFixed(1)}deg`,
+      );
+    }
+  });
 });
