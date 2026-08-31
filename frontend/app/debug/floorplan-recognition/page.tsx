@@ -22,6 +22,7 @@ import {
   type VlmVisibility,
   VLM_COLORS,
 } from '@/components/vlm-floorplan-overlay';
+import { generateAnnotatedImageDataUrl, dataUrlToBlob } from '@/lib/annotated-recognition-image';
 
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
@@ -76,6 +77,12 @@ export default function DebugFloorplanRecognitionPage() {
   const [showConfidence, setShowConfidence] = useState(true);
   const [vlmMode, setVlmMode] = useState<'raw+vlm' | 'vlm-only'>('raw+vlm');
 
+  // Annotated recognition image state
+  const [annotatedDataUrl, setAnnotatedDataUrl] = useState<string | null>(null);
+  const [annotatedGenerating, setAnnotatedGenerating] = useState(false);
+  const [annotatedError, setAnnotatedError] = useState<string | null>(null);
+  const [annotatedCollapsed, setAnnotatedCollapsed] = useState(false);
+
   const resetVlm = useCallback(() => {
     setVlmAnalysis(null);
     setVlmModel(null);
@@ -84,6 +91,36 @@ export default function DebugFloorplanRecognitionPage() {
     setVlmError(null);
     setVlmRawResponse(null);
   }, []);
+
+  // Generate annotated image whenever raw or original image changes
+  useEffect(() => {
+    if (!raw || !previewUrl || !imageWidth || !imageHeight) {
+      setAnnotatedDataUrl(null);
+      setAnnotatedError(null);
+      return;
+    }
+    let cancelled = false;
+    setAnnotatedGenerating(true);
+    setAnnotatedError(null);
+    generateAnnotatedImageDataUrl({
+      imageUrl: previewUrl,
+      raw,
+      imageWidth,
+      imageHeight,
+    })
+      .then((url) => {
+        if (!cancelled) setAnnotatedDataUrl(url);
+      })
+      .catch((e) => {
+        if (!cancelled) setAnnotatedError(e instanceof Error ? e.message : 'Failed to generate annotated image');
+      })
+      .finally(() => {
+        if (!cancelled) setAnnotatedGenerating(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [raw, previewUrl, imageWidth, imageHeight]);
 
   const handleFile = useCallback(
     (f: File | null | undefined) => {
@@ -186,6 +223,10 @@ export default function DebugFloorplanRecognitionPage() {
       setVlmError(t('debugFloorplanRecognition.vlmNeedRaw'));
       return;
     }
+    if (!annotatedDataUrl && raw) {
+      setVlmError(t('debugFloorplanRecognition.vlmNeedAnnotated'));
+      return;
+    }
     setVlmLoading(true);
     setVlmError(null);
     setVlmRawResponse(null);
@@ -193,6 +234,16 @@ export default function DebugFloorplanRecognitionPage() {
       const form = new FormData();
       form.append('image', file);
       form.append('raw', JSON.stringify(raw));
+      // Attach annotated image as second image if available
+      if (annotatedDataUrl) {
+        try {
+          const blob = await dataUrlToBlob(annotatedDataUrl);
+          form.append('annotatedImage', blob, 'annotated.png');
+        } catch {
+          // fallback: send dataUrl as field
+          form.append('annotatedImageDataUrl', annotatedDataUrl);
+        }
+      }
       const res = await apiFetch('/api/debug/floorplan-recognition/vlm-analysis', { method: 'POST', body: form });
       const body = (await res.json()) as {
         analysis?: VlmAnalysis;
@@ -519,6 +570,66 @@ export default function DebugFloorplanRecognitionPage() {
           !loading && <p className="mt-6 text-sm text-muted-foreground">{t('debugFloorplanRecognition.noResult')}</p>
         )}
 
+        {/* Annotated Recognition Debug Preview */}
+        {raw && previewUrl && imageWidth ? (
+          <div className="mt-8 rounded-xl border bg-card p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold">{t('debugFloorplanRecognition.annotatedTitle')}</h2>
+              <Button variant="ghost" size="sm" onClick={() => setAnnotatedCollapsed((v) => !v)}>
+                {annotatedCollapsed ? t('debugFloorplanRecognition.expand') : t('debugFloorplanRecognition.collapse')}
+              </Button>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">{t('debugFloorplanRecognition.annotatedIntro')}</p>
+            {!annotatedCollapsed && (
+              <div className="mt-4">
+                {annotatedGenerating ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <LoaderCircle className="size-4 animate-spin" /> {t('debugFloorplanRecognition.annotatedGenerating')}
+                  </div>
+                ) : annotatedError ? (
+                  <p role="alert" className="rounded border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{annotatedError}</p>
+                ) : annotatedDataUrl ? (
+                  <>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('debugFloorplanRecognition.originalImage')}</h3>
+                        <div className="overflow-hidden rounded-xl border">
+                          <img src={previewUrl} alt={t('debugFloorplanRecognition.previewAlt')} className="h-auto w-full object-contain" />
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('debugFloorplanRecognition.annotatedImage')}</h3>
+                        <div className="overflow-hidden rounded-xl border">
+                          <img src={annotatedDataUrl} alt={t('debugFloorplanRecognition.annotatedAlt')} className="h-auto w-full object-contain" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const a = document.createElement('a');
+                          a.href = annotatedDataUrl;
+                          a.download = `annotated-${Date.now()}.png`;
+                          a.click();
+                        }}
+                      >
+                        <Download className="size-3.5" /> {t('debugFloorplanRecognition.downloadAnnotated')}
+                      </Button>
+                      <span className="text-xs text-muted-foreground">{t('debugFloorplanRecognition.annotatedHint')}</span>
+                    </div>
+                    {annotatedDataUrl && <p className="mt-2 text-xs text-amber-600">{t('debugFloorplanRecognition.annotatedVerify')}</p>}
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground">{t('debugFloorplanRecognition.annotatedEmpty')}</p>
+                )}
+              </div>
+            )}
+          </div>
+        ) : null}
+
         {/* VLM Architectural Analysis Section */}
         <div className="mt-8 rounded-xl border bg-card p-5">
           <div className="flex items-center gap-2">
@@ -529,7 +640,7 @@ export default function DebugFloorplanRecognitionPage() {
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{t('debugFloorplanRecognition.vlmIntro')}</p>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Button type="button" onClick={runVlmAnalysis} disabled={!raw || !file || vlmLoading || loading}>
+            <Button type="button" onClick={runVlmAnalysis} disabled={!raw || !file || vlmLoading || loading || annotatedGenerating || !annotatedDataUrl}>
               {vlmLoading ? (
                 <>
                   <LoaderCircle className="size-4 animate-spin" /> {t('debugFloorplanRecognition.analyzing')}
@@ -541,12 +652,38 @@ export default function DebugFloorplanRecognitionPage() {
               )}
             </Button>
             {!raw && <span className="text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmNeedRaw')}</span>}
+            {raw && !annotatedDataUrl && !annotatedGenerating && <span className="text-xs text-amber-600">{t('debugFloorplanRecognition.vlmNeedAnnotated')}</span>}
+            {annotatedGenerating && <span className="text-xs text-muted-foreground">{t('debugFloorplanRecognition.annotatedGenerating')}</span>}
             {vlmAnalysis && (
               <Button type="button" variant="outline" size="sm" onClick={exportVlm}>
                 <Download className="size-3.5" /> {t('debugFloorplanRecognition.vlmExport')}
               </Button>
             )}
           </div>
+
+          {/* VLM Inputs */}
+          {raw && (
+            <div className="mt-5 rounded-xl border bg-muted/20 p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide">{t('debugFloorplanRecognition.vlmInputTitle')}</h3>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                <div className="rounded-lg border bg-card p-2">
+                  <span className="block text-xs font-medium">{t('debugFloorplanRecognition.vlmInputOriginal')}</span>
+                  {previewUrl ? <img src={previewUrl} alt={t('debugFloorplanRecognition.previewAlt')} className="mt-2 max-h-32 w-full rounded object-contain" /> : <span className="text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmNoImage')}</span>}
+                  <span className="mt-1 block text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmInputOriginalHint')}</span>
+                </div>
+                <div className="rounded-lg border bg-card p-2">
+                  <span className="block text-xs font-medium">{t('debugFloorplanRecognition.vlmInputAnnotated')}</span>
+                  {annotatedDataUrl ? <img src={annotatedDataUrl} alt={t('debugFloorplanRecognition.annotatedAlt')} className="mt-2 max-h-32 w-full rounded object-contain" /> : <span className="text-xs text-muted-foreground">{annotatedGenerating ? t('debugFloorplanRecognition.annotatedGenerating') : t('debugFloorplanRecognition.vlmNoImage')}</span>}
+                  <span className="mt-1 block text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmInputAnnotatedHint')}</span>
+                </div>
+                <div className="rounded-lg border bg-card p-2">
+                  <span className="block text-xs font-medium">{t('debugFloorplanRecognition.vlmInputJson')}</span>
+                  <span className="mt-2 block text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmInputJsonHint', { walls: String(raw.wall.length), windows: String(raw.window.length), doors: String(raw.door.length) })}</span>
+                  <pre className="mt-2 max-h-28 overflow-auto rounded bg-muted p-2 text-xs">{JSON.stringify({ wall: raw.wall.length, door: raw.door.length, window: raw.window.length, kitchen: raw.kitchen.length }, null, 2)}</pre>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Status */}
           <div className="mt-4 flex flex-wrap items-center gap-3 text-xs">
@@ -690,17 +827,71 @@ export default function DebugFloorplanRecognitionPage() {
                       <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmNoFindings')}</p>
                     ) : (
                       <ul className="mt-1 space-y-1">
-                        {vlmAnalysis.rooms.map((r, i) => (
-                          <li key={i} className="text-xs leading-5">
-                            <span className="font-medium">{r.id} · {r.type}</span> ({Math.round(r.confidence * 100)}%) — [{r.boundaryObjects.join(', ')}]
-                            {r.reason && <span className="text-muted-foreground"> · {r.reason}</span>}
-                          </li>
-                        ))}
+                        {vlmAnalysis.rooms.map((r, i) => {
+                          const walls = (r as unknown as { boundaryWalls?: string[]; boundaryObjects?: string[] }).boundaryWalls ?? (r as unknown as { boundaryObjects?: string[] }).boundaryObjects ?? [];
+                          const openings = (r as unknown as { openings?: string[] }).openings ?? [];
+                          return (
+                            <li key={i} className="text-xs leading-5">
+                              <span className="font-medium">{r.id} · {r.type}</span> ({Math.round(r.confidence * 100)}%) — {t('debugFloorplanRecognition.vlmRoomWalls', { walls: walls.join(', ') })}
+                              {openings.length > 0 && <span className="text-muted-foreground"> · {t('debugFloorplanRecognition.vlmRoomOpenings', { openings: openings.join(', ') })}</span>}
+                              {r.reason && <span className="text-muted-foreground"> · {r.reason}</span>}
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* VLM Grounding */}
+          {vlmAnalysis && (
+            <div className="mt-5 rounded-xl border bg-white p-4">
+              <h3 className="text-sm font-semibold">{t('debugFloorplanRecognition.vlmGroundingTitle')}</h3>
+              <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmGroundingIntro')}</p>
+              <div className="mt-3 grid gap-4 md:grid-cols-2">
+                <div>
+                  <h4 className="text-xs font-semibold text-violet-700">{t('debugFloorplanRecognition.vlmGroundingWalls')}</h4>
+                  {vlmAnalysis.wallRelationships.length === 0 ? <p className="text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmNoFindings')}</p> : (
+                    <ul className="mt-1 space-y-1">
+                      {vlmAnalysis.wallRelationships.map((r, i) => (
+                        <li key={i} className="text-xs leading-5">
+                          <span className="font-medium">{r.wallIds.join(' → ')}</span>
+                          <span className="ml-1 rounded bg-green-50 px-1 py-0.5 text-xs">{r.relationship.replace(/_/g, ' ')}</span>
+                          <span className="ml-1 text-muted-foreground">{t('debugFloorplanRecognition.vlmGroundingConfidence', { value: String(Math.round(r.confidence * 100)) })}</span>
+                          {r.relationship === 'uncertain' && <span className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-amber-700">{t('debugFloorplanRecognition.vlmUncertain')}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div>
+                  <h4 className="text-xs font-semibold text-violet-700">{t('debugFloorplanRecognition.vlmGroundingOpenings')}</h4>
+                  {vlmAnalysis.openings.length === 0 ? <p className="text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmNoFindings')}</p> : (
+                    <ul className="mt-1 space-y-1">
+                      {vlmAnalysis.openings.map((o, i) => (
+                        <li key={i} className="text-xs leading-5">
+                          <span className="font-medium">{o.objectId} → {o.hostWallIds.join(' + ')}</span>
+                          <span className="ml-1 text-muted-foreground">{o.relationship.replace(/_/g, ' ')} · {t('debugFloorplanRecognition.vlmGroundingConfidence', { value: String(Math.round(o.confidence * 100)) })}</span>
+                          {o.relationship === 'uncertain' && <span className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-amber-700">{t('debugFloorplanRecognition.vlmUncertain')}</span>}
+                          {o.reason && <span className="ml-1 text-muted-foreground">· {o.reason}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                {vlmWarnings.length > 0 && (
+                  <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 p-2">
+                    <span className="text-xs font-semibold text-amber-700">{t('debugFloorplanRecognition.vlmWarnings', { warnings: '' }).replace(': ', '')}:</span>
+                    <ul className="mt-1 list-disc pl-5 text-xs text-amber-700">
+                      {vlmWarnings.map((w, i) => <li key={i}>{w}</li>)}
+                    </ul>
+                    <p className="mt-1 text-xs text-amber-600">{t('debugFloorplanRecognition.vlmInvalidIdHint')}</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

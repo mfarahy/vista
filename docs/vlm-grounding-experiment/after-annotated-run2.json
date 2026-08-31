@@ -1,0 +1,402 @@
+{
+  "status": 200,
+  "model": "gpt-5.6-luna",
+  "durationMs": 25204,
+  "warnings": [],
+  "analysis": {
+    "wallRelationships": [
+      {
+        "wallIds": [
+          "wall-3",
+          "wall-1"
+        ],
+        "relationship": "same_continuous_wall",
+        "confidence": 0.94,
+        "reason": "These objects form the east exterior facade, with the long window opening window-2 separating facade segments."
+      },
+      {
+        "wallIds": [
+          "wall-3",
+          "wall-2"
+        ],
+        "relationship": "same_continuous_wall",
+        "confidence": 0.86,
+        "reason": "They appear to be collinear portions of the internal kitchen/living partition separated by door-5."
+      },
+      {
+        "wallIds": [
+          "wall-0",
+          "wall-1"
+        ],
+        "relationship": "separate_walls",
+        "confidence": 0.82,
+        "reason": "The lower facade is divided by the main entry opening, with bathroom-side and living-side wall segments detected separately."
+      },
+      {
+        "wallIds": [
+          "wall-0",
+          "wall-4"
+        ],
+        "relationship": "corner",
+        "confidence": 0.88,
+        "reason": "The bathroom enclosure and stair/left-side enclosure meet at a clear lower-left interior corner."
+      },
+      {
+        "wallIds": [
+          "wall-2",
+          "wall-4"
+        ],
+        "relationship": "corner",
+        "confidence": 0.84,
+        "reason": "The kitchen/hall partition meets the stair and hall-side wall system at the northwest hall junction."
+      }
+    ],
+    "openings": [
+      {
+        "objectId": "window-0",
+        "type": "window",
+        "hostWallIds": [
+          "wall-0"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.95,
+        "reason": "This horizontal window is clearly embedded in the south exterior wall of the bathroom."
+      },
+      {
+        "objectId": "window-1",
+        "type": "window",
+        "hostWallIds": [
+          "wall-1"
+        ],
+        "relationship": "uncertain",
+        "confidence": 0.18,
+        "reason": "The diagonal detection lies over furniture in the living room and does not correspond to a visible wall opening."
+      },
+      {
+        "objectId": "window-2",
+        "type": "window",
+        "hostWallIds": [
+          "wall-3",
+          "wall-1"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.96,
+        "reason": "The large vertical opening is the east facade window/sliding element and spans the transition between the upper and lower detected facade segments."
+      },
+      {
+        "objectId": "window-3",
+        "type": "window",
+        "hostWallIds": [
+          "wall-4"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.76,
+        "reason": "The horizontal kitchen window is located in the north exterior wall, whose left-side segment is identified as wall-4."
+      },
+      {
+        "objectId": "window-4",
+        "type": "window",
+        "hostWallIds": [
+          "wall-3"
+        ],
+        "relationship": "adjacent",
+        "confidence": 0.67,
+        "reason": "This detection is at the terrace access area on the east side; it appears associated with the upper east facade but may represent a door or sidelighting rather than a conventional window."
+      },
+      {
+        "objectId": "door-0",
+        "type": "door",
+        "hostWallIds": [
+          "wall-0",
+          "wall-4"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.83,
+        "reason": "This door connects the bathroom to the entrance/windfang area through the lower-left internal wall."
+      },
+      {
+        "objectId": "door-1",
+        "type": "door",
+        "hostWallIds": [
+          "wall-0",
+          "wall-1"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.73,
+        "reason": "The opening is on the wall between the bathroom and the windfang, near the lower internal partition."
+      },
+      {
+        "objectId": "door-2",
+        "type": "door",
+        "hostWallIds": [
+          "wall-2",
+          "wall-1"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.78,
+        "reason": "This opening connects the Diele to the living room at the hall's east side."
+      },
+      {
+        "objectId": "door-3",
+        "type": "door",
+        "hostWallIds": [
+          "wall-4"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.68,
+        "reason": "The detected opening is along the stair/hall-side enclosure."
+      },
+      {
+        "objectId": "door-4",
+        "type": "door",
+        "hostWallIds": [
+          "wall-2",
+          "wall-4"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.78,
+        "reason": "This is the kitchen access from the Diele and interrupts the kitchen-side partition."
+      },
+      {
+        "objectId": "door-5",
+        "type": "door",
+        "hostWallIds": [
+          "wall-3",
+          "wall-2"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.87,
+        "reason": "The vertical opening directly connects the kitchen and living room and separates the upper and lower detected portions of their partition."
+      },
+      {
+        "objectId": "door-0",
+        "type": "door",
+        "hostWallIds": [
+          "wall-0",
+          "wall-4"
+        ],
+        "relationship": "uncertain",
+        "confidence": 0.3,
+        "reason": "The ID is machine-grounded, but the overlapping lower-left wall geometry makes the exact host segment ambiguous."
+      },
+      {
+        "objectId": "entry_door-0",
+        "type": "entry_door",
+        "hostWallIds": [
+          "wall-0",
+          "wall-1"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.91,
+        "reason": "This is the principal south entrance between the windfang and the exterior stair/landing."
+      }
+    ],
+    "wallConnections": [
+      {
+        "wallIds": [
+          "wall-3",
+          "wall-2"
+        ],
+        "relationship": "collinear",
+        "confidence": 0.86,
+        "reason": "The kitchen/living separating wall continues along the same principal alignment across door-5."
+      },
+      {
+        "wallIds": [
+          "wall-3",
+          "wall-1"
+        ],
+        "relationship": "collinear",
+        "confidence": 0.91,
+        "reason": "The upper and lower east facade detections align as one exterior wall interrupted by openings."
+      },
+      {
+        "wallIds": [
+          "wall-0",
+          "wall-1"
+        ],
+        "relationship": "intersection",
+        "confidence": 0.73,
+        "reason": "They meet at the lower entrance zone but are separated by entry_door-0."
+      },
+      {
+        "wallIds": [
+          "wall-0",
+          "wall-4"
+        ],
+        "relationship": "corner",
+        "confidence": 0.87,
+        "reason": "These wall systems meet at the lower-left bathroom/stair enclosure."
+      },
+      {
+        "wallIds": [
+          "wall-2",
+          "wall-4"
+        ],
+        "relationship": "T_junction",
+        "confidence": 0.72,
+        "reason": "The kitchen/hall partition terminates into the stair-side wall system around the Diele."
+      }
+    ],
+    "rooms": [
+      {
+        "id": "kitchen-0",
+        "type": "kitchen",
+        "boundaryWalls": [
+          "wall-4",
+          "wall-2"
+        ],
+        "openings": [
+          "window-3",
+          "door-4",
+          "door-5"
+        ],
+        "confidence": 0.82,
+        "reason": "The kitchen region is clearly identified; the machine kitchen polygon is coherent with the upper-left enclosed room, although the detected boundary is incomplete.",
+        "boundaryObjects": [
+          "wall-4",
+          "wall-2"
+        ]
+      },
+      {
+        "id": "living-0",
+        "type": "living",
+        "boundaryWalls": [
+          "wall-3",
+          "wall-1",
+          "wall-2"
+        ],
+        "openings": [
+          "door-2",
+          "door-5",
+          "window-2",
+          "window-4"
+        ],
+        "confidence": 0.91,
+        "reason": "The large central-right enclosed room is the living area, bounded by the kitchen partition, east facade, and south wall.",
+        "boundaryObjects": [
+          "wall-3",
+          "wall-1",
+          "wall-2"
+        ]
+      },
+      {
+        "id": "terrace-0",
+        "type": "terrace",
+        "boundaryWalls": [
+          "wall-3",
+          "wall-1"
+        ],
+        "openings": [
+          "window-4",
+          "window-2"
+        ],
+        "confidence": 0.88,
+        "reason": "The labeled terrace is outside the main envelope and is accessed through the east facade openings.",
+        "boundaryObjects": [
+          "wall-3",
+          "wall-1"
+        ]
+      },
+      {
+        "id": "hallway-0",
+        "type": "hallway",
+        "boundaryWalls": [
+          "wall-2",
+          "wall-4",
+          "wall-0",
+          "wall-1"
+        ],
+        "openings": [
+          "door-2",
+          "door-3",
+          "door-4",
+          "door-1"
+        ],
+        "confidence": 0.78,
+        "reason": "Diele and the stair-adjacent circulation zone form the principal internal hallway connecting kitchen, living, bathroom, and entrance.",
+        "boundaryObjects": [
+          "wall-2",
+          "wall-4",
+          "wall-0",
+          "wall-1"
+        ]
+      },
+      {
+        "id": "entrance-0",
+        "type": "entrance",
+        "boundaryWalls": [
+          "wall-0",
+          "wall-1",
+          "wall-4"
+        ],
+        "openings": [
+          "entry_door-0",
+          "door-0",
+          "door-1"
+        ],
+        "confidence": 0.84,
+        "reason": "Windfang is the enclosed entry vestibule at the south side of the plan.",
+        "boundaryObjects": [
+          "wall-0",
+          "wall-1",
+          "wall-4"
+        ]
+      },
+      {
+        "id": "bathroom-0",
+        "type": "bathroom",
+        "boundaryWalls": [
+          "wall-0",
+          "wall-4"
+        ],
+        "openings": [
+          "window-0",
+          "door-0",
+          "door-1"
+        ],
+        "confidence": 0.9,
+        "reason": "The WC/Duschbad is clearly enclosed in the southwest corner.",
+        "boundaryObjects": [
+          "wall-0",
+          "wall-4"
+        ]
+      },
+      {
+        "id": "unknown-0",
+        "type": "unknown",
+        "boundaryWalls": [
+          "wall-4"
+        ],
+        "openings": [
+          "door-3"
+        ],
+        "confidence": 0.64,
+        "reason": "The stair enclosure is architecturally visible but is not one of the requested primary room categories.",
+        "boundaryObjects": [
+          "wall-4"
+        ]
+      }
+    ],
+    "artifacts": [
+      {
+        "objectId": "window-1",
+        "classification": "likely_false_positive",
+        "confidence": 0.98,
+        "reason": "The diagonal cyan detection overlays living-room furniture and has no corresponding opening in the original plan."
+      },
+      {
+        "objectId": "wall-4",
+        "classification": "suspicious",
+        "confidence": 0.58,
+        "reason": "The object combines several complex stair-side and west-side boundary segments, so its machine geometry is broader than a single simple wall even though most of the corresponding architecture is visible."
+      },
+      {
+        "objectId": "window-4",
+        "classification": "suspicious",
+        "confidence": 0.62,
+        "reason": "The opening is drawn at the terrace access and may actually represent a door or door-side element rather than a window."
+      }
+    ]
+  }
+}

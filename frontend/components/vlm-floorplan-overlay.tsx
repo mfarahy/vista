@@ -17,6 +17,7 @@ export type OpeningAssociation = {
   hostWallIds: string[];
   relationship: 'interrupts_wall' | 'adjacent' | 'uncertain';
   confidence: number;
+  reason: string | null;
 };
 
 export type WallConnection = {
@@ -29,7 +30,10 @@ export type WallConnection = {
 export type RoomHypothesis = {
   id: string;
   type: 'living' | 'kitchen' | 'hallway' | 'bathroom' | 'entrance' | 'utility' | 'bedroom' | 'terrace' | 'outside' | 'unknown';
-  boundaryObjects: string[];
+  boundaryWalls: string[];
+  openings: string[];
+  // deprecated fallback
+  boundaryObjects?: string[];
   confidence: number;
   reason: string | null;
 };
@@ -268,10 +272,12 @@ export function VlmFloorplanOverlay({
                   );
                 })}
 
-              {/* Rooms — dashed boundary connecting centroids */}
+              {/* Rooms — dashed boundary connecting centroids; also highlight actual wall polygons */}
               {vlmVisibility.rooms &&
                 vlmAnalysis.rooms.map((room, idx) => {
-                  const centroids = room.boundaryObjects.map((id) => getCentroidForId(id, raw)).filter(Boolean) as { x: number; y: number }[];
+                  const wallIds = (room.boundaryWalls ?? room.boundaryObjects ?? []) as string[];
+                  const openingIds = (room.openings ?? []) as string[];
+                  const centroids = wallIds.map((id) => getCentroidForId(id, raw)).filter(Boolean) as { x: number; y: number }[];
                   if (centroids.length === 0) return null;
                   const color = roomColor(room.type);
                   // For single or two points, draw lines; for >=3 draw closed polygon
@@ -281,6 +287,18 @@ export function VlmFloorplanOverlay({
                   labelPos.y /= centroids.length;
                   return (
                     <g key={`room-${idx}`}>
+                      {/* highlight actual wall polygons */}
+                      {wallIds.map((id) => {
+                        const poly = getPolygonForId(id, raw);
+                        if (!poly) return null;
+                        return <polygon key={`room-wall-${idx}-${id}`} points={polygonPoints(poly)} fill={color} fillOpacity={0.10} stroke={color} strokeWidth={2} strokeOpacity={0.7} />;
+                      })}
+                      {/* highlight openings */}
+                      {openingIds.map((id) => {
+                        const poly = getPolygonForId(id, raw);
+                        if (!poly) return null;
+                        return <polygon key={`room-op-${idx}-${id}`} points={polygonPoints(poly)} fill={color} fillOpacity={0.06} stroke={color} strokeWidth={1.5} strokeDasharray="4 3" strokeOpacity={0.6} />;
+                      })}
                       {centroids.length >= 3 ? (
                         <polygon points={points} fill={color} fillOpacity={0.14} stroke={color} strokeWidth={2.5} strokeDasharray="8 4" strokeOpacity={0.85} />
                       ) : centroids.length === 2 ? (
@@ -308,14 +326,21 @@ export function VlmFloorplanOverlay({
                   );
                 })}
 
-              {/* Wall relationships — lines between wall centroids */}
+              {/* Wall relationships — highlight actual wall polygons + connector between centroids */}
               {vlmVisibility.wallRelationships &&
                 vlmAnalysis.wallRelationships.map((rel, idx) => {
                   const cents = rel.wallIds.map((id) => getCentroidForId(id, raw)).filter(Boolean) as { x: number; y: number }[];
                   if (cents.length < 2) return null;
                   const col = VLM_COLORS[rel.relationship] ?? VLM_COLORS.uncertain;
+                  const isUncertain = rel.relationship === 'uncertain';
                   return (
                     <g key={`wr-${idx}`}>
+                      {/* Highlight involved wall polygons */}
+                      {rel.wallIds.map((id) => {
+                        const poly = getPolygonForId(id, raw);
+                        if (!poly) return null;
+                        return <polygon key={`wr-poly-${idx}-${id}`} points={polygonPoints(poly)} fill={col} fillOpacity={isUncertain ? 0.08 : 0.14} stroke={col} strokeWidth={3} strokeOpacity={isUncertain ? 0.5 : 0.95} strokeDasharray={isUncertain ? '4 3' : undefined} />;
+                      })}
                       {cents.slice(1).map((c, j) => {
                         const prev = cents[j];
                         const mid = midpoint(prev, c);
@@ -359,20 +384,30 @@ export function VlmFloorplanOverlay({
                   );
                 })}
 
-              {/* Opening associations — connector from opening to host walls */}
+              {/* Opening associations — highlight opening + host wall polygons + connector */}
               {vlmVisibility.openingAssociations &&
                 vlmAnalysis.openings.map((op, idx) => {
+                  const opPoly = getPolygonForId(op.objectId, raw);
                   const opCent = getCentroidForId(op.objectId, raw);
                   if (!opCent) return null;
+                  const isUncertain = op.relationship === 'uncertain';
                   return (
                     <g key={`op-${idx}`}>
+                      {/* highlight opening polygon */}
+                      {opPoly && <polygon points={polygonPoints(opPoly)} fill={VLM_COLORS.opening} fillOpacity={0.14} stroke={VLM_COLORS.opening} strokeWidth={2.5} strokeOpacity={0.95} strokeDasharray={isUncertain ? '4 3' : undefined} />}
+                      {/* highlight host wall polygons */}
+                      {op.hostWallIds.map((wid) => {
+                        const wPoly = getPolygonForId(wid, raw);
+                        if (!wPoly) return null;
+                        return <polygon key={`op-host-${idx}-${wid}`} points={polygonPoints(wPoly)} fill={VLM_COLORS.opening} fillOpacity={0.07} stroke={VLM_COLORS.opening} strokeWidth={2} strokeOpacity={0.6} strokeDasharray="6 4" />;
+                      })}
                       {op.hostWallIds.map((wid, j) => {
                         const wCent = getCentroidForId(wid, raw);
                         if (!wCent) return null;
                         const mid = midpoint(opCent, wCent);
                         return (
                           <g key={`op-seg-${idx}-${j}`}>
-                            <line x1={opCent.x} y1={opCent.y} x2={wCent.x} y2={wCent.y} stroke={VLM_COLORS.opening} strokeWidth={2} strokeDasharray="6 3" strokeOpacity={0.85} markerEnd="url(#vlm-arrow)" />
+                            <line x1={opCent.x} y1={opCent.y} x2={wCent.x} y2={wCent.y} stroke={VLM_COLORS.opening} strokeWidth={2} strokeDasharray={isUncertain ? '4 3' : '6 3'} strokeOpacity={0.85} markerEnd="url(#vlm-arrow)" />
                             <circle cx={opCent.x} cy={opCent.y} r={4} fill={VLM_COLORS.opening} stroke="#fff" strokeWidth={1.5} />
                             {(showVlmIds || showConfidence) && j === 0 && (
                               <text x={mid.x} y={mid.y - 6} fontSize={7} fill={VLM_COLORS.opening} textAnchor="middle" paintOrder="stroke" stroke="#fff" strokeWidth={3} fontWeight={600}>

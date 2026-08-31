@@ -46,9 +46,14 @@ export function debugFloorplanRecognitionRouter(): Router {
   // VLM architectural reasoning endpoint — must be registered before the generic recognition route
   router.post(
     '/api/debug/floorplan-recognition/vlm-analysis',
-    upload.single('image'),
+    upload.fields([
+      { name: 'image', maxCount: 1 },
+      { name: 'annotatedImage', maxCount: 1 },
+    ]),
     asyncHandler(async (req, res) => {
-      const file = (req as unknown as { file?: Express.Multer.File }).file;
+      const files = (req as unknown as { files?: Record<string, Express.Multer.File[]> }).files;
+      const file = files?.image?.[0] ?? (req as unknown as { file?: Express.Multer.File }).file;
+      const annotatedFile = files?.annotatedImage?.[0];
       const body = (req as unknown as { body?: Record<string, unknown> }).body ?? {};
       const rawField = body.raw as unknown;
 
@@ -56,6 +61,10 @@ export function debugFloorplanRecognitionRouter(): Router {
       if (!isAllowedImageMime(file.mimetype)) return sendError(res, 400, 'Nur JPG, PNG und WEBP werden unterstützt');
       if (file.size > MAX_IMAGE_BYTES) return sendError(res, 400, 'Bilder dürfen maximal 15 MB groß sein');
       if (file.size === 0) return sendError(res, 400, 'Die Bilddatei ist leer');
+      if (annotatedFile) {
+        if (!isAllowedImageMime(annotatedFile.mimetype) && annotatedFile.mimetype !== 'image/png') return sendError(res, 400, 'Annotated image must be JPG/PNG/WEBP');
+        if (annotatedFile.size > MAX_IMAGE_BYTES) return sendError(res, 400, 'Annotated image too large');
+      }
       if (!rawField || typeof rawField !== 'string') return sendError(res, 400, 'RAW recognition JSON (field "raw") is required');
 
       let raw: RawFloorplanRecognitionResponse;
@@ -88,6 +97,8 @@ export function debugFloorplanRecognitionRouter(): Router {
           imageBuffer: file.buffer,
           mimeType: file.mimetype,
           raw,
+          annotatedImageBuffer: annotatedFile?.buffer,
+          annotatedMimeType: annotatedFile?.mimetype,
         });
 
         // Validate/filter IDs against raw geometry

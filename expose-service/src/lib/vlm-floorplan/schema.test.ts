@@ -25,13 +25,13 @@ describe('vlm-floorplan schema validation', () => {
         { wallIds: ['wall-1', 'wall-2'], relationship: 'same_continuous_wall', confidence: 0.94, reason: 'same exterior wall' },
       ],
       openings: [
-        { objectId: 'window-0', type: 'window', hostWallIds: ['wall-1'], relationship: 'interrupts_wall', confidence: 0.98 },
+        { objectId: 'window-0', type: 'window', hostWallIds: ['wall-1'], relationship: 'interrupts_wall', confidence: 0.98, reason: null },
       ],
       wallConnections: [
         { wallIds: ['wall-0', 'wall-1'], relationship: 'corner', confidence: 0.91, reason: null },
       ],
       rooms: [
-        { id: 'room-1', type: 'living', boundaryObjects: ['wall-0', 'wall-1'], confidence: 0.89, reason: null },
+        { id: 'room-1', type: 'living', boundaryWalls: ['wall-0', 'wall-1'], openings: ['window-0'], confidence: 0.89, reason: null },
       ],
       artifacts: [
         { objectId: 'wall-2', classification: 'likely_false_positive', confidence: 0.87, reason: 'no visible wall' },
@@ -50,9 +50,9 @@ describe('vlm-floorplan schema validation', () => {
         { wallIds: ['wall-0', 'wall-99'], relationship: 'corner', confidence: 0.9, reason: null },
         { wallIds: ['wall-10', 'wall-11'], relationship: 'uncertain', confidence: 0.5, reason: null },
       ],
-      openings: [{ objectId: 'window-5', type: 'window', hostWallIds: ['wall-0'], relationship: 'interrupts_wall', confidence: 0.9 }],
+      openings: [{ objectId: 'window-5', type: 'window', hostWallIds: ['wall-0'], relationship: 'interrupts_wall', confidence: 0.9, reason: null }],
       wallConnections: [{ wallIds: ['wall-0', 'wall-999'], relationship: 'corner', confidence: 0.8, reason: null }],
-      rooms: [{ id: 'room-1', type: 'kitchen', boundaryObjects: ['wall-0', 'wall-999'], confidence: 0.9, reason: null }],
+      rooms: [{ id: 'room-1', type: 'kitchen', boundaryWalls: ['wall-0', 'wall-999'], openings: [], confidence: 0.9, reason: null }],
       artifacts: [{ objectId: 'wall-999', classification: 'likely_false_positive', confidence: 0.9, reason: null }],
     });
     const { analysis: filtered, warnings } = validateVlmAnalysis(analysis, rawFixture);
@@ -64,7 +64,7 @@ describe('vlm-floorplan schema validation', () => {
     assert.equal(filtered.wallConnections.length, 0);
     // room should have 1 valid boundary object retained, not dropped entirely
     assert.equal(filtered.rooms.length, 1);
-    assert.equal(filtered.rooms[0].boundaryObjects.length, 1);
+    assert.equal((filtered.rooms[0] as unknown as { boundaryWalls: string[] }).boundaryWalls.length, 1);
     assert.equal(filtered.artifacts.length, 0);
   });
 

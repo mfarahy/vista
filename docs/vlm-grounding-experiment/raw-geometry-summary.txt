@@ -1,0 +1,37 @@
+## wall (5)
+wall-0: n=20 bbox=(350,823)-(443,871) 93x48
+wall-1: n=81 bbox=(535,557)-(1050,870) 515x313
+wall-2: n=35 bbox=(435,322)-(577,477) 142x155
+wall-3: n=42 bbox=(433,130)-(1050,298) 617x168
+wall-4: n=71 bbox=(195,130)-(449,870) 254x740
+## door (6)
+door-0: n=12 bbox=(402,760)-(417,819) 15x59
+door-1: n=15 bbox=(453,657)-(535,670) 82x13
+door-2: n=16 bbox=(560,481)-(577,552) 17x71
+door-3: n=20 bbox=(438,457)-(449,549) 11x92
+door-4: n=11 bbox=(376,432)-(432,453) 56x21
+door-5: n=8 bbox=(500,240)-(515,317) 15x77
+## entry_door (1)
+entry_door-0: n=17 bbox=(447,855)-(530,873) 83x18
+## window (5)
+window-0: n=13 bbox=(288,849)-(384,871) 96x22
+window-1: n=53 bbox=(878,743)-(937,804) 59x61
+window-2: n=18 bbox=(984,397)-(1007,692) 23x295
+window-3: n=8 bbox=(309,129)-(429,155) 120x26
+window-4: n=10 bbox=(984,301)-(1007,379) 23x78
+## kitchen (1)
+kitchen-0: n=7 bbox=(219,156)-(403,376) 184x220
+## door_center_line (6)
+door_center_line-0: n=2 bbox=(409,755)-(409,823) 0x68
+door_center_line-1: n=2 bbox=(449,664)-(539,664) 90x0
+door_center_line-2: n=2 bbox=(568,481)-(568,557) 0x76
+door_center_line-3: n=2 bbox=(443,453)-(443,657) 0x204
+door_center_line-4: n=2 bbox=(376,442)-(432,442) 56x0
+door_center_line-5: n=2 bbox=(508,240)-(508,322) 0x82
+## entry_door_center_line (1)
+entry_door_center_line-0: n=2 bbox=(447,864)-(530,864) 83x0
+## window_center_line (4)
+window_center_line-0: n=2 bbox=(288,859)-(384,859) 96x0
+window_center_line-1: n=2 bbox=(880,748)-(937,804) 57x56
+window_center_line-2: n=2 bbox=(994,301)-(994,692) 0x391
+window_center_line-3: n=2 bbox=(309,141)-(429,141) 120x0

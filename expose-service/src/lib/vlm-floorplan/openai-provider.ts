@@ -9,6 +9,8 @@ export interface VlmInput {
   imageBuffer: Buffer;
   mimeType: string;
   raw: RawFloorplanRecognitionResponse;
+  annotatedImageBuffer?: Buffer;
+  annotatedMimeType?: string;
 }
 
 export interface VlmResult {

@@ -19,6 +19,7 @@ export const openingAssociationSchema = z.object({
   hostWallIds: z.array(z.string().min(1)).min(1).max(10),
   relationship: z.enum(['interrupts_wall', 'adjacent', 'uncertain']),
   confidence: z.number().min(0).max(1),
+  reason: z.string().max(500).nullable(),
 });
 
 export const wallConnectionSchema = z.object({
@@ -31,7 +32,8 @@ export const wallConnectionSchema = z.object({
 export const roomHypothesisSchema = z.object({
   id: z.string().min(1).max(60),
   type: z.enum(['living', 'kitchen', 'hallway', 'bathroom', 'entrance', 'utility', 'bedroom', 'terrace', 'outside', 'unknown']),
-  boundaryObjects: z.array(z.string().min(1)).min(1).max(30),
+  boundaryWalls: z.array(z.string().min(1)).min(1).max(30),
+  openings: z.array(z.string().min(1)).max(30),
   confidence: z.number().min(0).max(1),
   reason: z.string().max(500).nullable(),
 });
@@ -144,10 +146,23 @@ export function validateVlmAnalysis(
   });
 
   const filteredRooms = analysis.rooms.filter((r) => {
-    const { valid, invalid } = filterValidIds(r.boundaryObjects, raw);
-    if (invalid.length) warnings.push(`rooms ${r.id} invalid boundaryObjects: ${invalid.join(',')}`);
-    if (valid.length === 0) return false;
-    r.boundaryObjects = valid;
+    // Support both new schema (boundaryWalls/openings) and legacy boundaryObjects fallback
+    const rawRoom = r as unknown as Record<string, unknown>;
+    const wallsRaw = (rawRoom.boundaryWalls as string[] | undefined) ?? (rawRoom.boundaryObjects as string[] | undefined) ?? [];
+    const openingsRaw = (rawRoom.openings as string[] | undefined) ?? [];
+    const { valid: validWalls, invalid: invalidWalls } = filterValidIds(wallsRaw, raw);
+    const { valid: validOpenings, invalid: invalidOpenings } = filterValidIds(openingsRaw, raw);
+    if (invalidWalls.length) warnings.push(`rooms ${r.id} invalid boundaryWalls: ${invalidWalls.join(',')}`);
+    if (invalidOpenings.length) warnings.push(`rooms ${r.id} invalid openings: ${invalidOpenings.join(',')}`);
+    if (rawRoom.boundaryObjects && !rawRoom.boundaryWalls) {
+      warnings.push(`rooms ${r.id} uses deprecated boundaryObjects — please use boundaryWalls/openings`);
+    }
+    if (validWalls.length === 0) return false;
+    // Normalize to new schema
+    (r as unknown as Record<string, unknown>).boundaryWalls = validWalls;
+    (r as unknown as Record<string, unknown>).openings = validOpenings;
+    // Keep legacy field in sync for frontend that still reads boundaryObjects
+    (r as unknown as Record<string, unknown>).boundaryObjects = validWalls;
     return true;
   });
 
