@@ -175,3 +175,68 @@ describe('runFloorplanPipeline', () => {
     assert.ok(result.normalized.bounds.minX >= 0 && result.normalized.bounds.minY >= 0);
   });
 });
+
+describe('regression: wall slats fix', () => {
+  it('does not produce dozens of disconnected vertical slats', () => {
+    const result = runFloorplanPipeline(loadFixture(TEST_FIXTURE));
+    // A continuous apartment wall should be a single run, not many tiny slats.
+    // The fixture has 5 wall polygons but the architectural wall count is small.
+    assert.ok(
+      result.normalized.walls.length < 30,
+      `expected <30 wall runs (continuous walls), got ${result.normalized.walls.length}`,
+    );
+    assert.ok(
+      result.model3d.walls.length < 30,
+      `expected <30 3D wall segments, got ${result.model3d.walls.length}`,
+    );
+    // No wall should be an extremely thin slat (thickness fallback must be >= 0.15m).
+    for (const wall of result.model3d.walls) {
+      assert.ok(wall.thickness >= 0.14, `wall ${wall.id} too thin: ${wall.thickness}`);
+    }
+    // Total wall length should be substantial for an apartment (not fragmented noise).
+    const totalPx = result.normalized.walls.reduce((s, w) => s + w.length, 0);
+    assert.ok(totalPx > 1500, `total wall length too small: ${totalPx}`);
+    assert.ok(totalPx < 20000, `total wall length suspiciously large: ${totalPx}`);
+    // Walls should be axis-aligned (library prioritizes horizontal/vertical).
+    for (const wall of result.normalized.walls) {
+      const dx = Math.abs(wall.to.x - wall.from.x);
+      const dy = Math.abs(wall.to.y - wall.from.y);
+      const isHorizontal = dy < 4;
+      const isVertical = dx < 4;
+      const isAxisAligned = isHorizontal || isVertical;
+      // Allow a small number of diagonal walls from recognition noise, but majority must be orthogonal.
+      if (!isAxisAligned) {
+        const angle = Math.abs(Math.atan2(wall.to.y - wall.from.y, wall.to.x - wall.from.x)) * 180 / Math.PI % 90;
+        const deviation = Math.min(angle, 90 - angle);
+        assert.ok(deviation < 10, `wall ${wall.id} not axis-aligned: angle deviation ${deviation}`);
+      }
+    }
+    // 2D Y must map to 3D Z, not Y (height). Verify via model bounds: X/Z spread should be similar to pixel bounds aspect.
+    const pixelWidth = result.normalized.bounds.maxX - result.normalized.bounds.minX;
+    const pixelDepth = result.normalized.bounds.maxY - result.normalized.bounds.minY;
+    const modelXs = result.model3d.walls.flatMap((w) => [w.from.x, w.to.x]);
+    const modelZs = result.model3d.walls.flatMap((w) => [w.from.y, w.to.y]);
+    const modelWidth = Math.max(...modelXs) - Math.min(...modelXs);
+    const modelDepth = Math.max(...modelZs) - Math.min(...modelZs);
+    const pixelAspect = pixelWidth / pixelDepth;
+    const modelAspect = modelWidth / modelDepth;
+    assert.ok(
+      Math.abs(pixelAspect - modelAspect) < 0.25,
+      `aspect ratio mismatch: pixel ${pixelAspect.toFixed(2)} vs model ${modelAspect.toFixed(2)}`,
+    );
+  });
+
+  it('preserves wall thickness and handles openings after wall reconstruction', () => {
+    const result = runFloorplanPipeline(loadFixture(TEST_FIXTURE));
+    // Doors/windows should be associated with a wall (split after reconstruction).
+    for (const opening of result.normalized.openings) {
+      assert.ok(opening.wallId !== null, `opening ${opening.id} should have wallId`);
+      assert.ok(opening.width >= 6, `opening ${opening.id} width too small`);
+    }
+    // Model should have doors/windows with correct heights.
+    assert.ok(result.model3d.doors.length >= 3);
+    assert.ok(result.model3d.windows.length >= 3);
+    for (const d of result.model3d.doors) assert.ok(Math.abs(d.height - 2.1) < 0.01);
+    for (const w of result.model3d.windows) assert.ok(Math.abs(w.height - 1.4) < 0.01);
+  });
+});
