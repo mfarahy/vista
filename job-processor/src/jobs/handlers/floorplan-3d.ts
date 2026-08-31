@@ -40,10 +40,25 @@ export function makeFloorplan3DHandler(deps: Floorplan3DHandlerDeps = {}) {
     const storage = storageFactory();
   const file = await storage.get(payload.assetId);
   if (!file) {
+    log.error(
+      { jobId, assetId: payload.assetId, r2Key: payload.r2Key },
+      'Floor plan asset {assetId} NOT FOUND in storage — check R2 key {r2Key}',
+    );
     throw new Error(`Floor plan asset ${payload.assetId} not found in storage`);
   }
   const mimeType = payload.mimeType || file.mimeType || 'image/png';
-  log.info({ jobId, assetId: payload.assetId, bytes: file.content.length, mimeType }, 'Resolved floor plan image {assetId} from R2: {bytes} bytes');
+  log.info(
+    {
+      jobId,
+      assetId: payload.assetId,
+      r2Key: payload.r2Key,
+      bytes: file.content.length,
+      mimeType,
+      mimeFromStorage: file.mimeType,
+      mimeFromPayload: payload.mimeType,
+    },
+    'Resolved floor plan image {assetId} from storage — {bytes} bytes, mimeType={mimeType}',
+  );
 
   await ctx.update({ currentStep: 'calling_meltflex', message: 'Converting floor plan to 3D', progress: 40 });
 
@@ -52,14 +67,83 @@ export function makeFloorplan3DHandler(deps: Floorplan3DHandlerDeps = {}) {
   const signedUrl = storage.getSignedUrl ? await storage.getSignedUrl(payload.assetId, 900).catch(() => null) : null;
   const useSignedUrl = typeof signedUrl === 'string' && signedUrl.length > 0;
 
+  log.info(
+    {
+      jobId,
+      hasGetSignedUrl: typeof storage.getSignedUrl === 'function',
+      signedUrlResult: useSignedUrl ? 'present' : signedUrl === null ? 'null' : 'empty',
+      signedUrlLength: signedUrl?.length ?? 0,
+      publicApiBaseUrl: process.env.PUBLIC_API_BASE_URL || '(not set)',
+      apiBaseUrl: process.env.API_BASE_URL || '(not set)',
+      exposeServiceUrl: process.env.EXPOSE_SERVICE_URL || '(not set)',
+    },
+    'Image delivery path decision — signedUrl={signedUrlResult}, publicBase={publicApiBaseUrl}',
+  );
+
+  // Helper to detect image-fetch failures that should fallback to base64
+  const isImageFetchFailure = (error: unknown): boolean => {
+    if (!(error instanceof MeltFlexError)) return false;
+    if (error.status === 400) return true;
+    if ([429, 502, 503].includes(error.status) && /fetch failed/i.test(error.message)) return true;
+    return false;
+  };
+
   if (useSignedUrl) {
-    log.info({ jobId, assetId: payload.assetId, signedUrlLength: signedUrl!.length }, 'Using signed URL for MeltFlex imageUrl (expires in 15m)');
+    const signedHost = (() => {
+      try {
+        return new URL(signedUrl!).host;
+      } catch {
+        return 'invalid-url';
+      }
+    })();
+    log.info(
+      { jobId, assetId: payload.assetId, signedUrlLength: signedUrl!.length, signedHost, signedUrlPreview: signedUrl!.slice(0, 120) },
+      'Using SIGNED URL for MeltFlex imageUrl — host={signedHost}, expires in 15m',
+    );
     try {
       result = await meltFlexUrl(signedUrl!);
     } catch (error) {
-      if (error instanceof MeltFlexError && error.status === 400) {
-        log.warn({ jobId, err: error }, 'MeltFlex rejected imageUrl, retrying with base64 fallback');
-        result = await meltFlex(file.content, mimeType);
+      const fetchFailed = error instanceof MeltFlexError && /fetch failed/i.test(error.message);
+      const is502 = error instanceof MeltFlexError && error.status === 502;
+      log.warn(
+        {
+          jobId,
+          err: error,
+          signedHost,
+          fetchFailed,
+          is502,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        },
+        'Signed URL MeltFlex call failed — fetchFailed={fetchFailed}, is502={is502}, host={signedHost}',
+      );
+      if (isImageFetchFailure(error)) {
+        log.warn(
+          { jobId, err: error, signedHost },
+          'MeltFlex failed to fetch signed imageUrl (host={signedHost}), trying public URL then base64 fallback',
+        );
+        const baseUrl = process.env.PUBLIC_API_BASE_URL || process.env.API_BASE_URL || process.env.EXPOSE_SERVICE_URL || '';
+        if (baseUrl) {
+          const publicUrl = `${baseUrl.replace(/\/$/, '')}/api/floorplan3d/image/${encodeURIComponent(payload.assetId)}`;
+          log.info(
+            { jobId, publicUrl, publicUrlLength: publicUrl.length, publicUrlHost: (() => { try { return new URL(publicUrl).host; } catch { return 'invalid'; } })() },
+            'Retrying MeltFlex with PUBLIC image URL — {publicUrl}',
+          );
+          try {
+            result = await meltFlexUrl(publicUrl);
+          } catch (publicError) {
+            log.warn(
+              { jobId, err: publicError, publicUrl },
+              'Public imageUrl also failed, falling back to base64 — {publicUrl}',
+            );
+            result = await meltFlex(file.content, mimeType);
+          }
+        } else {
+          log.warn(
+            { jobId },
+            'No PUBLIC_API_BASE_URL set — cannot retry with public URL, falling back to base64 directly',
+          );
+          result = await meltFlex(file.content, mimeType);
+        }
       } else {
         throw error;
       }
@@ -69,22 +153,39 @@ export function makeFloorplan3DHandler(deps: Floorplan3DHandlerDeps = {}) {
     let imageUrl: string | null = null;
     if (baseUrl) {
       imageUrl = `${baseUrl.replace(/\/$/, '')}/api/floorplan3d/image/${encodeURIComponent(payload.assetId)}`;
-      log.info({ jobId, imageUrl }, 'Trying public image URL for MeltFlex: {imageUrl}');
+      log.info(
+        { jobId, imageUrl, imageUrlLength: imageUrl.length, publicApiBaseUrl: baseUrl },
+        'No signed URL — trying PUBLIC image URL for MeltFlex: {imageUrl}',
+      );
       try {
         result = await meltFlexUrl(imageUrl);
       } catch (error) {
-        log.warn({ jobId, err: error }, 'Public imageUrl failed, falling back to base64');
+        log.warn(
+          { jobId, err: error, imageUrl },
+          'Public imageUrl failed, falling back to base64 — error: {err.message}',
+        );
         result = await meltFlex(file.content, mimeType);
       }
     } else {
-      log.info({ jobId }, 'No signed URL / public URL available — using base64 image payload');
+      log.info(
+        { jobId },
+        'No signed URL and no PUBLIC_API_BASE_URL — using base64 image payload directly',
+      );
       result = await meltFlex(file.content, mimeType);
     }
   }
 
   log.info(
-    { jobId, hasModelUrl: Boolean(result.modelUrl), hasModelBase64: Boolean(result.model), format: result.format, creditsUsed: result.creditsUsed },
-    'MeltFlex request completed for {jobId}: url={hasModelUrl} format={format}',
+    {
+      jobId,
+      hasModelUrl: Boolean(result.modelUrl),
+      modelUrlPreview: result.modelUrl?.slice(0, 120),
+      hasModelBase64: Boolean(result.model),
+      modelBase64Length: result.model?.length ?? 0,
+      format: result.format,
+      creditsUsed: result.creditsUsed,
+    },
+    'MeltFlex conversion completed — modelUrl={hasModelUrl}, modelBase64={hasModelBase64}, format={format}, credits={creditsUsed}',
   );
 
   await ctx.update({ currentStep: 'storing_result', message: 'Saving 3D model', progress: 80 });
@@ -94,22 +195,37 @@ export function makeFloorplan3DHandler(deps: Floorplan3DHandlerDeps = {}) {
 
   // If only base64 was returned, persist GLB to R2 so frontend can load via URL instead of inline base64
   if (!storedModelUrl && storedBase64) {
+    log.info(
+      { jobId, modelBase64Length: storedBase64.length },
+      'No modelUrl in MeltFlex response — converting base64 to GLB and storing to R2',
+    );
     try {
       const glbBytes = Buffer.from(storedBase64, 'base64');
-      // Basic GLB validation: magic header "glTF"
-      if (glbBytes.length < 12 || glbBytes.subarray(0, 4).toString() !== 'glTF') {
-        log.warn({ jobId, glbBytes: glbBytes.length }, 'GLB base64 does not start with glTF magic — storing anyway');
+      const glbMagic = glbBytes.length >= 4 ? glbBytes.subarray(0, 4).toString() : 'too short';
+      if (glbBytes.length < 12 || glbMagic !== 'glTF') {
+        log.warn(
+          { jobId, glbBytes: glbBytes.length, glbMagic, glbFirstBytes: glbBytes.subarray(0, 16).toString('hex') },
+          'GLB base64 does not start with glTF magic header — got {glbMagic} ({glbBytes} bytes)',
+        );
       }
       const resultAssetId = `floorplan-result-${jobId}`;
       await storage.put(resultAssetId, glbBytes, 'model/gltf-binary');
       storedModelUrl = `/api/floorplan3d/result/${jobId}/file`;
-      log.info({ jobId, resultAssetId, bytes: glbBytes.length }, 'Stored base64 GLB to R2 as {resultAssetId} ({bytes} bytes)');
+      log.info(
+        { jobId, resultAssetId, bytes: glbBytes.length, glbMagic },
+        'Stored base64 GLB to R2 as {resultAssetId} ({bytes} bytes, magic={glbMagic})',
+      );
       // Clear base64 to avoid storing large payload twice in DB
       storedBase64 = null;
     } catch (error) {
-      log.error({ jobId, err: error }, 'Failed to persist base64 GLB to storage');
+      log.error({ jobId, err: error }, 'Failed to persist base64 GLB to storage — job will fail');
       throw new Error(`Failed to store GLB result: ${errorMessage(error)}`);
     }
+  } else if (storedModelUrl) {
+    log.info(
+      { jobId, modelUrl: storedModelUrl, modelUrlPreview: storedModelUrl.slice(0, 120) },
+      'Using modelUrl from MeltFlex — no GLB storage needed',
+    );
   }
 
   // Persist result on job row so frontend can load it via GET /api/jobs/:id

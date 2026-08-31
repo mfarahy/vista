@@ -47,19 +47,39 @@ export async function callMeltFlex(
   const imageUrl = opts.imageUrl;
 
   if (!apiKey) {
-    log.error({ service: 'meltflex', operation: 'floorplan-to-3d' }, 'MELTFLEX_API_KEY missing');
+    log.error({ service: 'meltflex', operation: 'floorplan-to-3d', env: process.env.NODE_ENV ?? 'unknown' }, 'MELTFLEX_API_KEY missing — is the secret mounted?');
     throw new MeltFlexError(401, 'unauthorized', 'MELTFLEX_API_KEY is not configured');
   }
+
+  log.info(
+    {
+      service: 'meltflex',
+      operation: 'floorplan-to-3d',
+      hasApiKey: true,
+      apiKeyPrefix: apiKey.slice(0, 4),
+      apiKeyLength: apiKey.length,
+      mode: imageUrl ? 'imageUrl' : 'base64',
+      imageUrlLength: imageUrl?.length,
+      imageUrlHost: (() => { try { return imageUrl ? new URL(imageUrl).host : null; } catch { return 'invalid'; } })(),
+      imageBytes: imageBuffer.length,
+      mimeType,
+      timeoutMs,
+    },
+    'MeltFlex request configured — mode={mode}, keyPrefix={apiKeyPrefix}..., timeout={timeoutMs}ms',
+  );
 
   let payload: Record<string, unknown>;
   if (imageUrl) {
     payload = { imageUrl };
-    log.info({ service: 'meltflex', hasImageUrl: true }, 'MeltFlex request via imageUrl');
+    log.info({ service: 'meltflex', imageUrlLength: imageUrl.length }, 'MeltFlex request via imageUrl ({imageUrlLength} chars)');
   } else {
     const base64 = imageBuffer.toString('base64');
     const dataUrl = `data:${mimeType || 'image/png'};base64,${base64}`;
     payload = { image: dataUrl };
-    log.info({ imageBytes: imageBuffer.length, base64Length: base64.length }, 'MeltFlex request via base64');
+    log.info(
+      { service: 'meltflex', imageBytes: imageBuffer.length, base64Length: base64.length, dataUrlLength: dataUrl.length, mimeType },
+      'MeltFlex request via base64 ({imageBytes} bytes → {base64Length} chars)',
+    );
   }
 
   const controller = new AbortController();
@@ -68,8 +88,13 @@ export async function callMeltFlex(
 
   let response: Response;
   try {
+    const fetchStartedAt = performance.now();
+    log.info(
+      { service: 'meltflex', operation: 'floorplan-to-3d', url: MELTFLEX_API_URL, timeoutMs },
+      'MeltFlex HTTP POST starting — {url}',
+    );
     response = await trackExternalCall(
-      { service: 'meltflex', operation: 'floorplan-to-3d', props: { imageBytes: imageBuffer.length } },
+      { service: 'meltflex', operation: 'floorplan-to-3d', props: { imageBytes: imageBuffer.length, mode: imageUrl ? 'imageUrl' : 'base64' } },
       () =>
         fetchImpl(MELTFLEX_API_URL, {
           method: 'POST',
@@ -78,37 +103,99 @@ export async function callMeltFlex(
           signal: controller.signal,
         }),
     );
+    log.info(
+      {
+        service: 'meltflex',
+        operation: 'floorplan-to-3d',
+        httpStatus: response.status,
+        ok: response.ok,
+        contentType: response.headers?.get?.('content-type') ?? undefined,
+        contentLength: response.headers?.get?.('content-length') ?? undefined,
+        fetchDurationMs: Math.round(performance.now() - fetchStartedAt),
+      },
+      'MeltFlex HTTP response received — status={httpStatus}, ok={ok}, fetch={fetchDurationMs}ms',
+    );
   } catch (cause) {
-    clearTimeout(timer);
     const durationMs = Math.round(performance.now() - startedAt);
+    clearTimeout(timer);
     if (cause instanceof Error && cause.name === 'AbortError') {
-      log.error({ timeoutMs, durationMs, err: cause }, 'MeltFlex timeout');
+      log.error(
+        { service: 'meltflex', timeoutMs, durationMs, err: cause },
+        'MeltFlex request timed out after {durationMs}ms (limit {timeoutMs}ms)',
+      );
       throw new MeltFlexError(504, 'timeout', 'MeltFlex request timed out');
     }
-    log.error({ durationMs, err: cause }, 'MeltFlex unreachable');
+    log.error(
+      {
+        service: 'meltflex',
+        durationMs,
+        err: cause,
+        errName: cause instanceof Error ? cause.name : typeof cause,
+        errMessage: cause instanceof Error ? cause.message : String(cause),
+      },
+      'MeltFlex service unreachable after {durationMs}ms — {errName}: {errMessage}',
+    );
     throw new MeltFlexError(502, 'unreachable', `MeltFlex service unreachable: ${cause instanceof Error ? cause.message : String(cause)}`);
   } finally {
     clearTimeout(timer);
   }
 
   const durationMs = Math.round(performance.now() - startedAt);
-  log.info({ statusCode: response.status, durationMs }, 'MeltFlex response {statusCode} in {durationMs}ms');
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');
+    log.warn(
+      {
+        service: 'meltflex',
+        operation: 'floorplan-to-3d',
+        httpStatus: response.status,
+        responseBody: text.slice(0, 2000),
+        responseBodyLength: text.length,
+        durationMs,
+      },
+      'MeltFlex non-OK response — status={httpStatus}, bodyLength={responseBodyLength}, duration={durationMs}ms',
+    );
     throw mapMeltFlexError(response.status, text);
   }
 
   let json: unknown;
   try {
     json = await response.json();
-  } catch {
+  } catch (cause) {
+    log.error(
+      { service: 'meltflex', httpStatus: response.status, durationMs, err: cause },
+      'MeltFlex returned non-JSON response after {durationMs}ms — status={httpStatus}',
+    );
     throw new MeltFlexError(502, 'malformed-response', 'MeltFlex returned non-JSON response');
   }
 
   const body = json as Record<string, unknown>;
+  const bodyKeys = Object.keys(body);
+  log.info(
+    {
+      service: 'meltflex',
+      operation: 'floorplan-to-3d',
+      httpStatus: response.status,
+      durationMs,
+      bodyKeys,
+      success: body.success,
+      hasModelUrl: typeof body.modelUrl === 'string',
+      hasModel: typeof body.model === 'string',
+      modelUrlPreview: typeof body.modelUrl === 'string' ? body.modelUrl.slice(0, 100) : undefined,
+      modelBase64Length: typeof body.model === 'string' ? (body.model as string).length : undefined,
+      format: body.format,
+      creditsUsed: body.creditsUsed,
+      error: body.error,
+    },
+    'MeltFlex JSON response parsed — keys={bodyKeys}, success={success}, format={format}, duration={durationMs}ms',
+  );
+
   if (body.success !== true && body.success !== undefined) {
     const msg = typeof body.error === 'string' ? body.error : JSON.stringify(body).slice(0, 500);
+    log.warn(
+      { service: 'meltflex', success: body.success, error: body.error, durationMs },
+      'MeltFlex conversion failed — success={success}, error={error}',
+    );
     throw new MeltFlexError(422, 'conversion-failed', `MeltFlex conversion failed: ${msg}`);
   }
 
@@ -117,8 +204,26 @@ export async function callMeltFlex(
   const format = typeof body.format === 'string' ? body.format : 'glb';
 
   if (!modelUrl && !modelBase64) {
+    log.error(
+      { service: 'meltflex', bodyKeys, durationMs },
+      'MeltFlex response missing both modelUrl and model — no GLB output available',
+    );
     throw new MeltFlexError(502, 'malformed-response', 'MeltFlex response missing modelUrl and fallback model');
   }
+
+  log.info(
+    {
+      service: 'meltflex',
+      format,
+      hasModelUrl: Boolean(modelUrl),
+      hasModel: Boolean(modelBase64),
+      modelBase64Length: modelBase64?.length ?? 0,
+      modelUrlPreview: modelUrl?.slice(0, 120),
+      creditsUsed: typeof body.creditsUsed === 'number' ? body.creditsUsed : undefined,
+      durationMs,
+    },
+    'MeltFlex call succeeded — format={format}, modelUrl={hasModelUrl}, modelBase64={hasModel}, credits={creditsUsed}, duration={durationMs}ms',
+  );
 
   return {
     success: true,

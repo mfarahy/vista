@@ -83,11 +83,23 @@ export function floorplan3DJobsRouter(options: Floorplan3DJobsRouterOptions = {}
     '/api/floorplan3d/image/:assetId',
     asyncHandler(async (req, res) => {
       const assetId = getParam(req, 'assetId');
-      if (!/^[0-9a-f-]{10,}$/i.test(assetId)) return sendError(res, 404, 'Nicht gefunden');
+      const log = getLogger();
+      const startAt = Date.now();
+      const ua = req.headers['user-agent'] ?? 'unknown';
+      const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
+      if (!/^[0-9a-f-]{10,}$/i.test(assetId)) {
+        log.warn({ assetId, ua, ip }, 'Floorplan image request rejected: invalid assetId format {assetId}');
+        return sendError(res, 404, 'Nicht gefunden');
+      }
       const file = await storage.get(assetId);
-      if (!file) return sendError(res, 404, 'Nicht gefunden');
-      // Use stored mime from payload? Storage may return empty mime for local; default png
+      const durationMs = Date.now() - startAt;
+      if (!file) {
+        log.warn({ assetId, ua, ip, durationMs }, 'Floorplan image not found {assetId} for UA {ua} after {durationMs}ms');
+        return sendError(res, 404, 'Nicht gefunden');
+      }
       const contentType = file.mimeType || 'image/png';
+      log.info({ assetId, ua, ip, bytes: file.content.length, contentType, durationMs }, 'Serving floorplan image {assetId} ({bytes} bytes, {contentType}) to {ua} in {durationMs}ms');
+      res.setHeader('Cache-Control', 'public, max-age=60');
       res.type(contentType).send(file.content);
     }),
   );
@@ -97,9 +109,17 @@ export function floorplan3DJobsRouter(options: Floorplan3DJobsRouterOptions = {}
     '/api/floorplan3d/result/:jobId/file',
     asyncHandler(async (req, res) => {
       const jobId = getParam(req, 'jobId');
+      const log = getLogger();
+      const startAt = Date.now();
       const resultAssetId = `floorplan-result-${jobId}`;
       const file = await storage.get(resultAssetId);
-      if (!file) return sendError(res, 404, 'Nicht gefunden');
+      const durationMs = Date.now() - startAt;
+      if (!file) {
+        log.warn({ jobId, resultAssetId, durationMs }, 'GLB result not found {resultAssetId} after {durationMs}ms');
+        return sendError(res, 404, 'Nicht gefunden');
+      }
+      log.info({ jobId, resultAssetId, bytes: file.content.length, durationMs }, 'Serving GLB result {resultAssetId} ({bytes} bytes) in {durationMs}ms');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
       res.type('model/gltf-binary').send(file.content);
     }),
   );
