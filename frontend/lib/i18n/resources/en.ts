@@ -1438,6 +1438,7 @@ const en = {
     roomOutside: 'Terrace / outside',
     roomLabel: '{name} · {area} m²',
     resetCamera: 'Reset camera',
+    topView: 'Top view',
     legendWalls: 'Walls',
     legendDoors: 'Doors',
     legendEntryDoors: 'Entry doors',

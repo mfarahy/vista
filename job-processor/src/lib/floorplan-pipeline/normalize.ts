@@ -447,6 +447,7 @@ export function normalizeGeometry(geometry: RecognitionGeometry, pixelsPerMeter 
     walls,
     openings,
     rooms: [],
+    roomAdjacency: [],
     regions: {
       wall: wallPolygons,
       door: (geometry.door ?? []).map(polygonToPoints),

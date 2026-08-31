@@ -38,11 +38,18 @@ export type DebugRoom = {
   hint: 'kitchen' | null;
 };
 
+export type DebugRoomAdjacency = {
+  roomA: string;
+  roomB: string;
+  openingId: string;
+};
+
 export type DebugNormalized = {
   bounds: { minX: number; minY: number; maxX: number; maxY: number };
   walls: DebugWall[];
   openings: DebugOpening[];
   rooms: DebugRoom[];
+  roomAdjacency?: DebugRoomAdjacency[];
   kitchenRegions: DebugPoint[][];
 };
 
@@ -98,6 +105,20 @@ export function FloorplanDebug2D({ normalized }: { normalized: DebugNormalized }
     [OUTSIDE_COLOR, t('floorplanDebug.legendOutside')],
   ];
 
+  const roomById = new Map(normalized.rooms.map((room) => [room.id, room]));
+  const polygonCentroid = (polygon: DebugPoint[]) => {
+    const centroid = { x: 0, y: 0 };
+    for (const p of polygon) {
+      centroid.x += p.x;
+      centroid.y += p.y;
+    }
+    centroid.x /= polygon.length;
+    centroid.y /= polygon.length;
+    return centroid;
+  };
+  const offsetX = pad - b.minX;
+  const offsetY = pad + b.maxY;
+
   return (
     <svg
       role="img"
@@ -107,7 +128,7 @@ export function FloorplanDebug2D({ normalized }: { normalized: DebugNormalized }
       fontFamily="system-ui, sans-serif"
     >
       <rect x="0" y="0" width={width} height={height} fill="#fafaf8" />
-      <g transform={`translate(${pad},${pad})`}>
+      <g transform={`translate(${offsetX},${offsetY})`}>
         {normalized.rooms
           .filter((room) => room.exterior)
           .map((room) => (
@@ -115,23 +136,19 @@ export function FloorplanDebug2D({ normalized }: { normalized: DebugNormalized }
               key={room.id}
               points={pointsAttr(room.polygon)}
               fill={OUTSIDE_COLOR}
+              fillOpacity={0.85}
               stroke="#b8b4ac"
               strokeWidth="1"
             />
           ))}
         {rooms.map(({ room, index }) => {
-          const centroid = { x: 0, y: 0 };
-          for (const p of room.polygon) {
-            centroid.x += p.x;
-            centroid.y += p.y;
-          }
-          centroid.x /= room.polygon.length;
-          centroid.y /= room.polygon.length;
+          const centroid = polygonCentroid(room.polygon);
           return (
             <g key={room.id}>
               <polygon
                 points={pointsAttr(room.polygon)}
                 fill={ROOM_COLORS[(index - 1) % ROOM_COLORS.length]}
+                fillOpacity={0.7}
                 stroke="#8a867e"
                 strokeWidth="1"
               />
@@ -145,7 +162,30 @@ export function FloorplanDebug2D({ normalized }: { normalized: DebugNormalized }
               >
                 {roomLabel(room, index)}
               </text>
+              <text x={centroid.x} y={-centroid.y + 14} fontSize="9" fill="#777" textAnchor="middle">
+                {room.id}
+              </text>
             </g>
+          );
+        })}
+        {(normalized.roomAdjacency ?? []).map((edge) => {
+          const roomA = roomById.get(edge.roomA);
+          const roomB = roomById.get(edge.roomB);
+          if (!roomA || !roomB) return null;
+          const ca = polygonCentroid(roomA.polygon);
+          const cb = polygonCentroid(roomB.polygon);
+          return (
+            <line
+              key={`${edge.roomA}-${edge.roomB}`}
+              x1={ca.x}
+              y1={-ca.y}
+              x2={cb.x}
+              y2={-cb.y}
+              stroke="#444"
+              strokeWidth="1"
+              strokeDasharray="3 3"
+              opacity={0.6}
+            />
           );
         })}
         {normalized.kitchenRegions.map((region, i) => (

@@ -65,6 +65,13 @@ export interface Bounds {
   maxY: number;
 }
 
+/** A connectivity edge between two rooms through a door/entry-door opening. */
+export interface RoomAdjacency {
+  roomA: string;
+  roomB: string;
+  openingId: string;
+}
+
 /**
  * The complete normalized floor plan, ready for room detection, the 2D
  * debug view and the 3D builder.
@@ -77,6 +84,8 @@ export interface NormalizedFloorPlan {
   walls: WallRun[];
   openings: Opening[];
   rooms: DetectedRoom[];
+  /** Room-to-room connectivity graph derived from door openings. */
+  roomAdjacency: RoomAdjacency[];
   /**
    * Raw recognized regions, kept for the occupancy mask (rooms are the
    * enclosed free space between them) and for debugging.

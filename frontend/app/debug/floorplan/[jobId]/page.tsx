@@ -34,6 +34,7 @@ export default function FloorplanDebugJobPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<'2d' | '3d'>('2d');
+  const [topView, setTopView] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -95,6 +96,11 @@ export default function FloorplanDebugJobPage() {
               <Button variant={view === '3d' ? 'default' : 'outline'} size="sm" onClick={() => setView('3d')}>
                 <Box className="size-4" aria-hidden /> {t('floorplanDebug.view3d')}
               </Button>
+              {view === '3d' && (
+                <Button variant={topView ? 'default' : 'outline'} size="sm" onClick={() => setTopView((v) => !v)}>
+                  {t('floorplanDebug.topView')}
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -171,7 +177,7 @@ export default function FloorplanDebugJobPage() {
               {view === '2d' && result?.normalized && <FloorplanDebug2D normalized={result.normalized} />}
               {view === '3d' && result?.model3d && (
                 <div className="floorplan-3d-scene h-[70vh] w-full">
-                  <FloorPlan3DScene model={result.model3d} />
+                  <FloorPlan3DScene model={result.model3d} topView={topView} />
                 </div>
               )}
             </div>

@@ -1447,6 +1447,7 @@ const de: TranslationSchema = {
     roomOutside: 'Terrasse / Außenbereich',
     roomLabel: '{name} · {area} m²',
     resetCamera: 'Kamera zurücksetzen',
+    topView: 'Draufsicht',
     legendWalls: 'Wände',
     legendDoors: 'Türen',
     legendEntryDoors: 'Eingangstüren',

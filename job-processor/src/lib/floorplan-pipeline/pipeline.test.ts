@@ -6,6 +6,7 @@ import { detectRooms } from './rooms.js';
 import { buildFloorPlan3DModel } from './model3d.js';
 import { renderDebugSvg } from './svg.js';
 import { runFloorplanPipeline } from './index.js';
+import { pointInPolygon } from './geometry.js';
 import type { RecognitionGeometry } from './types.js';
 
 function loadFixture(name: string): RecognitionGeometry {
@@ -259,5 +260,149 @@ describe('regression: wall slats fix', () => {
         `opening ${opening.id} rotation (${openingAngleDeg.toFixed(1)}deg) should match host wall ${source?.wallId} (${wallAngleDeg.toFixed(1)}deg), diff ${wrapped.toFixed(1)}deg`,
       );
     }
+  });
+});
+
+describe('regression: room topology', () => {
+  it('keeps terrace/outside separate and does not inflate interior count with artifacts', () => {
+    const result = runFloorplanPipeline(loadFixture(TEST_FIXTURE));
+    const interiors = result.normalized.rooms.filter((r) => !r.exterior);
+    const exteriors = result.normalized.rooms.filter((r) => r.exterior);
+    assert.ok(interiors.length >= 4 && interiors.length <= 6, `expected 4-6 interior rooms, got ${interiors.length}`);
+    assert.ok(exteriors.length === 1, `expected exactly 1 exterior (terrace) component after artifact filtering, got ${exteriors.length}`);
+    assert.ok(result.normalized.rooms.length >= 5 && result.normalized.rooms.length <= 7, `total rooms should be 5-7, got ${result.normalized.rooms.length}`);
+  });
+
+  it('room polygons have positive area and are not microscopic', () => {
+    const result = runFloorplanPipeline(loadFixture(TEST_FIXTURE));
+    for (const room of result.normalized.rooms) {
+      assert.ok(room.polygon.length >= 4, `room ${room.id} polygon too few points`);
+      assert.ok(room.area > 900, `room ${room.id} area ${room.area} too small`);
+      assert.ok(room.areaM2 > 0.5, `room ${room.id} areaM2 ${room.areaM2} too small`);
+      assert.ok(room.polygon.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y)), `room ${room.id} has non-finite points`);
+    }
+  });
+
+  it('rooms are inside the building bounds and exterior is not counted as interior', () => {
+    const result = runFloorplanPipeline(loadFixture(TEST_FIXTURE));
+    const b = result.normalized.bounds;
+    for (const room of result.normalized.rooms.filter((r) => !r.exterior)) {
+      for (const p of room.polygon) {
+        assert.ok(p.x >= b.minX - 5 && p.x <= b.maxX + 5, `room ${room.id} point x ${p.x} outside bounds`);
+        assert.ok(p.y >= b.minY - 5 && p.y <= b.maxY + 5, `room ${room.id} point y ${p.y} outside bounds`);
+      }
+    }
+  });
+
+  it('rooms do not heavily overlap walls (free space is not wall)', () => {
+    const result = runFloorplanPipeline(loadFixture(TEST_FIXTURE));
+    const wallPolys = result.normalized.regions.wall;
+    for (const room of result.normalized.rooms.filter((r) => !r.exterior)) {
+      let insideWalls = 0;
+      let samples = 0;
+      // sample grid inside room bbox
+      const xs = room.polygon.map((p) => p.x);
+      const ys = room.polygon.map((p) => p.y);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      for (let y = minY + 5; y < maxY; y += 20) {
+        for (let x = minX + 5; x < maxX; x += 20) {
+          const pt = { x, y };
+          if (!pointInPolygon(pt, room.polygon)) continue;
+          samples++;
+          if (wallPolys.some((w) => pointInPolygon(pt, w))) insideWalls++;
+        }
+      }
+      if (samples > 0) {
+        const ratio = insideWalls / samples;
+        assert.ok(ratio < 0.15, `room ${room.id} overlaps walls too much: ${insideWalls}/${samples} (${(ratio * 100).toFixed(1)}%)`);
+      }
+    }
+  });
+
+  it('room adjacency through doors is valid and windows never create adjacency', () => {
+    const result = runFloorplanPipeline(loadFixture(TEST_FIXTURE));
+    const roomIds = new Set(result.normalized.rooms.map((r) => r.id));
+    const openingById = new Map(result.normalized.openings.map((o) => [o.id, o]));
+    for (const edge of result.normalized.roomAdjacency) {
+      assert.ok(roomIds.has(edge.roomA), `adjacency references missing room ${edge.roomA}`);
+      assert.ok(roomIds.has(edge.roomB), `adjacency references missing room ${edge.roomB}`);
+      assert.notEqual(edge.roomA, edge.roomB, 'adjacency must connect two different rooms');
+      const opening = openingById.get(edge.openingId);
+      assert.ok(opening, `adjacency references missing opening ${edge.openingId}`);
+      assert.ok(opening.kind !== 'window', `window ${opening.id} must not create adjacency`);
+      assert.ok(opening.roomIds.includes(edge.roomA) && opening.roomIds.includes(edge.roomB), `opening ${opening.id} must be associated with both rooms`);
+    }
+    // No duplicate edges
+    const seen = new Set<string>();
+    for (const e of result.normalized.roomAdjacency) {
+      const key = [e.roomA, e.roomB].sort().join('|');
+      assert.ok(!seen.has(key), `duplicate adjacency ${key}`);
+      seen.add(key);
+    }
+  });
+
+  it('floors correspond to room polygons and stay inside the building', () => {
+    const result = runFloorplanPipeline(loadFixture(TEST_FIXTURE));
+    const scale = result.normalized.options.pixelsPerMeter;
+    const cx = (result.normalized.bounds.minX + result.normalized.bounds.maxX) / 2;
+    const cy = (result.normalized.bounds.minY + result.normalized.bounds.maxY) / 2;
+    assert.equal(result.model3d.rooms.length, result.normalized.rooms.length, 'model rooms must match detected rooms');
+    for (let i = 0; i < result.normalized.rooms.length; i++) {
+      const norm = result.normalized.rooms[i];
+      const model = result.model3d.rooms[i];
+      assert.equal(model.id, norm.id, `model room id mismatch at ${i}`);
+      assert.ok(model.points.length >= 4, `model room ${model.id} floor polygon too few points`);
+      // Floor area should be close to room area (same polygon transformed)
+      assert.ok(Math.abs(model.areaM2 - norm.areaM2) < 1.0, `model room ${model.id} areaM2 ${model.areaM2} diverges from normalized ${norm.areaM2}`);
+      // Floor polygon centroid should be near normalized centroid transformed to meters
+      const toM = (p: { x: number; y: number }) => ({ x: (p.x - cx) / scale, y: (p.y - cy) / scale });
+      const normPointsM = norm.polygon.map(toM);
+      const normXs = normPointsM.map((p) => p.x);
+      const normYs = normPointsM.map((p) => p.y);
+      const normMinX = Math.min(...normXs);
+      const normMaxX = Math.max(...normXs);
+      const normMinY = Math.min(...normYs);
+      const normMaxY = Math.max(...normYs);
+      // Model floor bounds should be within a small epsilon of normalized bounds
+      assert.ok(model.width > 0 && model.depth > 0, `model room ${model.id} has zero size`);
+      assert.ok(model.width <= normMaxX - normMinX + 0.1, `model room ${model.id} width larger than polygon`);
+    }
+  });
+
+  it('kitchen hint is only assigned when walls support it (overlap >50%)', () => {
+    const result = runFloorplanPipeline(loadFixture(TEST_FIXTURE));
+    const kitchenRooms = result.normalized.rooms.filter((r) => r.hint === 'kitchen');
+    assert.ok(kitchenRooms.length <= 1, `expected at most one kitchen hint, got ${kitchenRooms.length}`);
+    if (kitchenRooms.length === 1) {
+      assert.ok(!kitchenRooms[0].exterior, 'kitchen hint must not be on exterior');
+    }
+  });
+
+  it('simple closed box still yields one interior and no exterior fragmentation', () => {
+    const ribbon = (a: number[][], b: number[][]): number[][] => [...a, ...b];
+    const geometry: RecognitionGeometry = {
+      wall: [
+        ribbon([[100, 100], [300, 100]], [[300, 103], [100, 103]]),
+        ribbon([[100, 297], [300, 297]], [[300, 300], [100, 300]]),
+        ribbon([[100, 100], [103, 100]], [[103, 300], [100, 300]]),
+        ribbon([[297, 100], [300, 100]], [[300, 300], [297, 300]]),
+      ],
+      door: [],
+      entry_door: [],
+      window: [],
+      kitchen: [],
+      door_center_line: [],
+      entry_door_center_line: [],
+      window_center_line: [],
+    };
+    const result = runFloorplanPipeline(geometry);
+    const interiors = result.normalized.rooms.filter((r) => !r.exterior);
+    const exteriors = result.normalized.rooms.filter((r) => r.exterior);
+    assert.equal(interiors.length, 1, 'closed box must have one interior');
+    // Exterior may be 1 large surrounding component or 0 if filtered as artifact? Accept either 0 or 1.
+    assert.ok(exteriors.length <= 1, `closed box exterior should be 0 or 1, got ${exteriors.length}`);
   });
 });

@@ -102,7 +102,7 @@ function addRoom(
   labelLayer.add(object);
 }
 
-export function FloorPlan3DScene({ model }: { model: FloorPlan3DModel }) {
+export function FloorPlan3DScene({ model, topView = false }: { model: FloorPlan3DModel; topView?: boolean }) {
   const { locale, t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<(() => void) | null>(null);
@@ -114,7 +114,12 @@ export function FloorPlan3DScene({ model }: { model: FloorPlan3DModel }) {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf7f4ee);
 
-    const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 1000);
+    // Top-down diagnostic mode uses an orthographic camera looking straight
+    // down the Y axis, so wall/room footprints can be compared 1:1 against
+    // the source floor plan image without perspective distortion.
+    const camera: THREE.Camera = topView
+      ? new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000)
+      : new THREE.PerspectiveCamera(40, 1, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.domElement.style.position = 'absolute';
@@ -166,16 +171,33 @@ export function FloorPlan3DScene({ model }: { model: FloorPlan3DModel }) {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.maxPolarAngle = Math.PI / 2.05;
+    controls.maxPolarAngle = topView ? 0 : Math.PI / 2.05;
+    controls.minPolarAngle = topView ? 0 : 0;
+    controls.enableRotate = !topView;
 
     function frameCamera() {
       const bounds = new THREE.Box3().setFromObject(structure);
       if (bounds.isEmpty())
         bounds.setFromCenterAndSize(new THREE.Vector3(0, 1, 0), new THREE.Vector3(4, 2, 4));
       const center = bounds.getCenter(new THREE.Vector3());
-      const radius = bounds.getSize(new THREE.Vector3()).length() || 4;
-      camera.position.copy(center).add(new THREE.Vector3(radius * 0.9, radius * 0.8, radius * 1.1));
-      camera.lookAt(center);
+      const size = bounds.getSize(new THREE.Vector3());
+      const radius = size.length() || 4;
+      if (camera instanceof THREE.OrthographicCamera) {
+        const halfWidth = Math.max(size.x, size.z, 2) * 0.6;
+        camera.position.set(center.x, center.y + radius + 5, center.z);
+        camera.up.set(0, 0, -1);
+        camera.left = -halfWidth;
+        camera.right = halfWidth;
+        camera.top = halfWidth;
+        camera.bottom = -halfWidth;
+        camera.near = 0.1;
+        camera.far = radius * 4 + 20;
+        camera.lookAt(center);
+        camera.updateProjectionMatrix();
+      } else {
+        camera.position.copy(center).add(new THREE.Vector3(radius * 0.9, radius * 0.8, radius * 1.1));
+        camera.lookAt(center);
+      }
       controls.target.copy(center);
       controls.minDistance = radius * 0.3;
       controls.maxDistance = radius * 4;
@@ -189,8 +211,16 @@ export function FloorPlan3DScene({ model }: { model: FloorPlan3DModel }) {
       if (!target) return;
       const width = target.clientWidth || 1;
       const height = target.clientHeight || 1;
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
+      if (camera instanceof THREE.PerspectiveCamera) {
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+      } else if (camera instanceof THREE.OrthographicCamera) {
+        const halfWidth = (camera.right - camera.left) / 2;
+        const halfHeight = halfWidth * (height / width);
+        camera.top = halfHeight;
+        camera.bottom = -halfHeight;
+        camera.updateProjectionMatrix();
+      }
       renderer.setSize(width, height);
       labelRenderer.setSize(width, height);
     }
@@ -221,7 +251,7 @@ export function FloorPlan3DScene({ model }: { model: FloorPlan3DModel }) {
       labelRenderer.domElement.remove();
       frameRef.current = null;
     };
-  }, [model, locale, t]);
+  }, [model, locale, t, topView]);
 
   return (
     <div className="floorplan-3d-scene" aria-label={t('floorplan3d.ariaLabel')}>
