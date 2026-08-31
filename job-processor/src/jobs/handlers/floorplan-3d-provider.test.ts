@@ -195,7 +195,7 @@ describe('floorplan-3d handler (provider-based)', () => {
       providerOverride: {
         name: 'meltflex' as const,
         isAvailable: () => true,
-        process: async (input, _log) => {
+        process: async (_input, _log) => {
           receivedProviderName = 'meltflex';
           return { type: 'direct-3d', modelUrl: 'https://cdn.example.com/model.glb', format: 'glb' };
         },

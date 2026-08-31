@@ -1,4 +1,4 @@
-import type { FloorPlanGeometry, FloorPlanProviderResult } from './types.js';
+import type { FloorPlanGeometry } from './types.js';
 
 /**
  * Converts floorplan-recognition geometry to a GLB binary.
@@ -44,7 +44,6 @@ export function buildGlbFromGeometry(geometry: FloorPlanGeometry): Buffer {
     const box = polygonBounds(doorPolygon);
     if (!box) continue;
     const w = Math.max(box.maxX - box.minX, 0.01);
-    const d = Math.max(box.maxY - box.minY, 0.01);
     const cx = (box.minX + box.maxX) / 2;
     const cy = (box.minY + box.maxY) / 2;
     addBox(vertices, normals, indices, cx, DOOR_HEIGHT / 2, -cy, w, DOOR_HEIGHT, DOOR_THICKNESS, vertices.length / 3);
@@ -56,7 +55,6 @@ export function buildGlbFromGeometry(geometry: FloorPlanGeometry): Buffer {
     const box = polygonBounds(entryPolygon);
     if (!box) continue;
     const w = Math.max(box.maxX - box.minX, 0.01);
-    const d = Math.max(box.maxY - box.minY, 0.01);
     const cx = (box.minX + box.maxX) / 2;
     const cy = (box.minY + box.maxY) / 2;
     addBox(vertices, normals, indices, cx, DOOR_HEIGHT / 2, -cy, w, DOOR_HEIGHT, DOOR_THICKNESS, vertices.length / 3);
@@ -68,7 +66,6 @@ export function buildGlbFromGeometry(geometry: FloorPlanGeometry): Buffer {
     const box = polygonBounds(windowPolygon);
     if (!box) continue;
     const w = Math.max(box.maxX - box.minX, 0.01);
-    const d = Math.max(box.maxY - box.minY, 0.01);
     const cx = (box.minX + box.maxX) / 2;
     const cy = (box.minY + box.maxY) / 2;
     const cy3d = WINDOW_SILL + WINDOW_HEIGHT / 2;
@@ -211,10 +208,8 @@ function assembleGlb(
     if (y < minY) minY = y; if (y > maxY) maxY = y;
     if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
   }
-  const rangeX = maxX - minX || 1;
-  const rangeY = maxY - minY || 1;
-  const rangeZ = maxZ - minZ || 1;
-  const maxRange = Math.max(rangeX, rangeY, rangeZ);
+  // Bounding box computed for accessor min/max.
+  // Ranges not needed separately.
 
   const posBuffer = new Float32Array(vertices);
   const normBuffer = new Float32Array(normals);
@@ -242,30 +237,10 @@ function assembleGlb(
   const normByteLength = normBuffer.byteLength;
   const idxByteLength = idxBuffer.byteLength;
 
-  // Build node, mesh, accessor, bufferView, buffer JSON
-  const numMeshes = meshDefs.length;
-  const nodeIndices: number[] = [];
-  const meshIndices: number[] = [];
-  const meshPrimitives: Array<Record<string, unknown>> = [];
-
-  let accessorIdx = 0;
-  let bufferViewIdx = 0;
-
-  // We need 3 buffer views (pos, norm, idx) + 3 accessors (pos, norm, idx) per mesh
-  // But all meshes share the same buffer, so we create shared bufferViews and per-mesh accessors
-  // Actually, for simplicity, let's create one big mesh with all geometry combined
-
-  // Combine all mesh definitions into a single mesh with multiple primitives
-  const primitives: Array<Record<string, unknown>> = [];
-  let vertexOffset = 0;
-  let indexOffset = 0;
-
-  // Track per-mesh vertex/index ranges
-  const meshRanges: Array<{ vertexStart: number; vertexCount: number; indexStart: number; indexCount: number; materialIndex: number }> = [];
-
-  // We need to re-generate the geometry to track per-mesh ranges
-  // For now, use a simpler approach: one mesh per material group
-  // Actually, the simplest is to just have one mesh with all geometry
+  // Build node, mesh, accessor, bufferView, buffer JSON.
+  // Single combined mesh covers all geometry; per-material primitives
+  // could be added later without changing the buffer layout.
+  void meshDefs;
 
   // Build the glTF JSON structure
   const bufferViews: Array<Record<string, unknown>> = [];

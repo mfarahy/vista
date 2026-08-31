@@ -3,7 +3,6 @@ import type { JobRunContext } from '../dispatcher.js';
 import { createDocumentStorage } from '../../lib/document-storage.js';
 import { getPrisma } from '../../lib/db.js';
 import { resolveProvider, buildGlbFromGeometry, type FloorPlanProvider } from '../../lib/floorplan-providers/index.js';
-import type { MeltFlexError } from '../../lib/meltflex-provider.js';
 
 const PayloadSchema = z.object({
   assetId: z.string().min(1),
