@@ -101,6 +101,10 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-secrets
                   key: MELTFLEX_API_KEY
+            - name: FLOORPLAN_RECOGNITION_URL
+              value: {{ .Values.config.FLOORPLAN_RECOGNITION_URL | default "http://localhost:5000/predictions" | quote }}
+            - name: FLOORPLAN_3D_PROVIDER
+              value: {{ .Values.config.FLOORPLAN_3D_PROVIDER | default "floorplan-recognition" | quote }}
             - name: PUBLIC_API_BASE_URL
               value: {{ .Values.config.PUBLIC_API_BASE_URL | default "" | quote }}
           readinessProbe:
