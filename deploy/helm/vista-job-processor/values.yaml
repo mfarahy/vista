@@ -25,7 +25,7 @@ config:
   GOOGLE_DOCUMENT_AI_PROCESSOR_ID: ""
   OPENAI_BASE_URL: "https://api.openai.com/v1"
   OPENAI_MODEL: "gpt-4o-mini"
-  FLOORPLAN_RECOGNITION_URL: "http://localhost:5000/predictions"
+  FLOORPLAN_RECOGNITION_URL: "http://floorplan-recognition:5000/predictions"
   FLOORPLAN_3D_PROVIDER: "floorplan-recognition"
 
 secrets:

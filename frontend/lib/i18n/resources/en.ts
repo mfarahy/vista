@@ -1499,6 +1499,8 @@ const en = {
     errorRecognitionFailed: 'Recognition failed',
     errorProviderTimeout: 'Recognition timed out',
     errorMalformedResponse: 'Unexpected response from recognition provider',
+    errorServiceUnavailable: 'Recognition service is not available (503). The floorplan-recognition model may not be running.',
+    errorServiceUnavailableHint: 'For local testing start the model via: docker compose --profile floorplan up floorplan-recognition — or use "Load fixture" to test the pipeline without the model.',
     loading: 'Running floorplan recognition…',
     noResult: 'No recognition result yet. Upload an image and run recognition.',
     imageDimensions: 'Image: {width} × {height}',

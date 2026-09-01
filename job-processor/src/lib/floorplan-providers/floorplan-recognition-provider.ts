@@ -145,8 +145,25 @@ export class FloorplanRecognitionProvider implements FloorPlanProvider {
         );
         throw new Error(`Floorplan recognition timed out after ${durationMs}ms`);
       }
+      const cause = (error as { cause?: unknown })?.cause;
+      const causeMessage =
+        cause instanceof Error ? cause.message : typeof cause === 'string' ? cause : '';
+      const isConnectionRefused =
+        (error instanceof TypeError && String(error.message).includes('fetch failed')) ||
+        causeMessage.includes('ECONNREFUSED') ||
+        (error as { code?: string })?.code === 'ECONNREFUSED' ||
+        (cause as { code?: string } | undefined)?.code === 'ECONNREFUSED' ||
+        String(error).includes('ECONNREFUSED');
+      if (isConnectionRefused) {
+        log.error(
+          { provider: this.name, assetId: input.assetId, durationMs, apiUrl: this.apiUrl, err: error },
+          'Floorplan recognition service not available (ECONNREFUSED) — is the model running?',
+        );
+        const msg = `Floorplan recognition service is not available at ${this.apiUrl} (ECONNREFUSED). The model may not be running. For local dev run: docker compose --profile floorplan up floorplan-recognition`;
+        throw new Error(msg);
+      }
       log.error(
-        { provider: this.name, assetId: input.assetId, durationMs, err: error },
+        { provider: this.name, assetId: input.assetId, durationMs, apiUrl: this.apiUrl, err: error },
         'Floorplan recognition failed after {durationMs}ms',
       );
       throw error;

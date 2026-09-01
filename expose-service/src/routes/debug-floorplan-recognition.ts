@@ -232,8 +232,32 @@ export function debugFloorplanRecognitionRouter(): Router {
         if (error instanceof Error && error.name === 'AbortError') {
           return sendError(res, 504, `Floorplan recognition timed out after ${durationMs}ms`);
         }
-        log.error({ err: error, durationMs }, 'Debug floorplan recognition failed');
-        return sendError(res, 502, error instanceof Error ? error.message : 'Recognition failed');
+        const cause = (error as { cause?: unknown })?.cause;
+        const causeMessage =
+          cause instanceof Error ? cause.message : typeof cause === 'string' ? cause : '';
+        const isConnectionRefused =
+          (error instanceof TypeError && error.message.includes('fetch failed')) ||
+          causeMessage.includes('ECONNREFUSED') ||
+          (error as { code?: string })?.code === 'ECONNREFUSED' ||
+          (cause as { code?: string } | undefined)?.code === 'ECONNREFUSED' ||
+          String(error).includes('ECONNREFUSED');
+
+        if (isConnectionRefused) {
+          log.error(
+            { err: error, durationMs, apiUrl },
+            'Debug floorplan recognition failed — service not available (ECONNREFUSED)',
+          );
+          return sendError(
+            res,
+            503,
+            `Floorplan recognition service is not available at ${apiUrl} (ECONNREFUSED). The model may not be running. For local testing start it via: docker compose --profile floorplan up floorplan-recognition  —  or use "Load fixture" to test the pipeline without the model.`,
+          );
+        }
+        log.error({ err: error, durationMs, apiUrl }, 'Debug floorplan recognition failed');
+        const message = error instanceof Error && error.message && error.message !== 'fetch failed: ' && error.message.trim() !== 'fetch failed'
+          ? error.message
+          : `Floorplan recognition failed — service not reachable at ${apiUrl}`;
+        return sendError(res, 502, message);
       } finally {
         clearTimeout(timer);
       }

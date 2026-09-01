@@ -1508,6 +1508,8 @@ const de: TranslationSchema = {
     errorRecognitionFailed: 'Erkennung fehlgeschlagen',
     errorProviderTimeout: 'Erkennung hat zu lange gedauert',
     errorMalformedResponse: 'Unerwartete Antwort des Erkennungs-Providers',
+    errorServiceUnavailable: 'Erkennungsdienst nicht verfügbar (503). Das Floorplan-Recognition-Modell läuft möglicherweise nicht.',
+    errorServiceUnavailableHint: 'Für lokale Tests Modell starten mit: docker compose --profile floorplan up floorplan-recognition — oder "Fixture laden" nutzen, um die Pipeline ohne Modell zu testen.',
     loading: 'Grundriss-Erkennung läuft…',
     noResult: 'Noch kein Ergebnis. Bild hochladen und Erkennung starten.',
     imageDimensions: 'Bild: {width} × {height}',

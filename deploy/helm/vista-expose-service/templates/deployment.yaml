@@ -119,6 +119,8 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-secrets
                   key: DATABASE_URL
+            - name: FLOORPLAN_RECOGNITION_URL
+              value: {{ .Values.config.FLOORPLAN_RECOGNITION_URL | default "http://floorplan-recognition:5000/predictions" | quote }}
           volumeMounts:
             - name: data
               mountPath: /data

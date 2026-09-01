@@ -195,8 +195,15 @@ export default function DebugFloorplanRecognitionPage() {
       const form = new FormData();
       form.append('image', file);
       const res = await apiFetch('/api/debug/floorplan-recognition', { method: 'POST', body: form });
-      const body = (await res.json()) as { raw?: RawGeometry; durationMs?: number; error?: string };
+      const body = (await res.json().catch(() => ({}))) as { raw?: RawGeometry; durationMs?: number; error?: string };
       if (!res.ok) {
+        if (res.status === 503) {
+          const detail = body.error ? ` — ${body.error}` : '';
+          throw new Error(`${t('debugFloorplanRecognition.errorServiceUnavailable')}${detail} ${t('debugFloorplanRecognition.errorServiceUnavailableHint')}`);
+        }
+        if (res.status === 504) {
+          throw new Error(body.error || t('debugFloorplanRecognition.errorProviderTimeout'));
+        }
         throw new Error(body.error || t('debugFloorplanRecognition.errorRecognitionFailed'));
       }
       if (!body.raw) throw new Error(t('debugFloorplanRecognition.errorMalformedResponse'));
@@ -204,7 +211,13 @@ export default function DebugFloorplanRecognitionPage() {
       setExtraFields(detectUnknownFields(body.raw as unknown as Record<string, unknown>));
       setDurationMs(body.durationMs ?? null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('debugFloorplanRecognition.errorRecognitionFailed'));
+      const msg = e instanceof Error ? e.message : t('debugFloorplanRecognition.errorRecognitionFailed');
+      // Network-level fetch failure (expose-service not reachable) — show localized hint
+      if (/fetch failed|Failed to fetch|NetworkError|ECONNREFUSED/i.test(msg)) {
+        setError(`${t('debugFloorplanRecognition.errorServiceUnavailable')} — ${msg} ${t('debugFloorplanRecognition.errorServiceUnavailableHint')}`);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
