@@ -198,8 +198,11 @@ export default function DebugFloorplanRecognitionPage() {
       const body = (await res.json().catch(() => ({}))) as { raw?: RawGeometry; durationMs?: number; error?: string };
       if (!res.ok) {
         if (res.status === 503) {
-          const detail = body.error ? ` — ${body.error}` : '';
-          throw new Error(`${t('debugFloorplanRecognition.errorServiceUnavailable')}${detail} ${t('debugFloorplanRecognition.errorServiceUnavailableHint')}`);
+          // Backend already returns a detailed 503 message (includes hint).
+          // Prefer it verbatim to avoid translation duplication; fallback to i18n only if empty.
+          throw new Error(
+            body.error || `${t('debugFloorplanRecognition.errorServiceUnavailable')} ${t('debugFloorplanRecognition.errorServiceUnavailableHint')}`,
+          );
         }
         if (res.status === 504) {
           throw new Error(body.error || t('debugFloorplanRecognition.errorProviderTimeout'));
@@ -212,9 +215,15 @@ export default function DebugFloorplanRecognitionPage() {
       setDurationMs(body.durationMs ?? null);
     } catch (e) {
       const msg = e instanceof Error ? e.message : t('debugFloorplanRecognition.errorRecognitionFailed');
-      // Network-level fetch failure (expose-service not reachable) — show localized hint
+      // Network-level fetch failure (expose-service not reachable) — show localized hint once
       if (/fetch failed|Failed to fetch|NetworkError|ECONNREFUSED/i.test(msg)) {
-        setError(`${t('debugFloorplanRecognition.errorServiceUnavailable')} — ${msg} ${t('debugFloorplanRecognition.errorServiceUnavailableHint')}`);
+        const alreadyLocalized = msg.includes(t('debugFloorplanRecognition.errorServiceUnavailable'));
+        const alreadyHasHint = msg.includes('docker compose --profile floorplan');
+        if (alreadyLocalized || alreadyHasHint) {
+          setError(msg);
+        } else {
+          setError(`${t('debugFloorplanRecognition.errorServiceUnavailable')} — ${msg} ${t('debugFloorplanRecognition.errorServiceUnavailableHint')}`);
+        }
       } else {
         setError(msg);
       }
