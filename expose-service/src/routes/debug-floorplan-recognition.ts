@@ -118,7 +118,7 @@ export function debugFloorplanRecognitionRouter(): Router {
             wallRelationships: filtered.wallRelationships.length,
             openings: filtered.openings.length,
             rooms: filtered.rooms.length,
-            artifacts: filtered.artifacts.length,
+            objectClassifications: filtered.objectClassifications.length,
             warnings: warnings.length,
           },
           'VLM floorplan analysis completed',

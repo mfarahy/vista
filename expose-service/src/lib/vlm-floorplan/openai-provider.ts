@@ -81,8 +81,14 @@ export class VlmFloorplanProvider {
         outputTokens: completion.usage?.completion_tokens,
         wallRelationships: validated.wallRelationships.length,
         openings: validated.openings.length,
+        objectClassifications: validated.objectClassifications.length,
         rooms: validated.rooms.length,
-        artifacts: validated.artifacts.length,
+        topologySummary: validated.topologySummary
+          ? validated.topologySummary.continuousWalls.length +
+            validated.topologySummary.corners.length +
+            validated.topologySummary.tJunctions.length +
+            validated.topologySummary.falsePositives.length
+          : 0,
       },
       'VLM floorplan analysis completed',
     );

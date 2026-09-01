@@ -1,17 +1,34 @@
 import { z } from 'zod';
 
+/**
+ * VLM → topology contract.
+ *
+ * The VLM's ONLY responsibility is to describe relationships between RAW
+ * recognition objects and to flag incorrect detections. It never produces
+ * coordinates or geometry — the RAW recognition remains the only source of
+ * pixel coordinates. A deterministic geometry solver can later consume this
+ * contract.
+ */
+
+// ---- Wall relationships ----
+
 export const wallRelationshipSchema = z.object({
   wallIds: z.array(z.string().min(1)).min(2).max(10),
   relationship: z.enum([
     'same_continuous_wall',
     'separate_walls',
+    'collinear',
+    'perpendicular',
     'corner',
     'T_junction',
+    'extension_of',
     'uncertain',
   ]),
   confidence: z.number().min(0).max(1),
   reason: z.string().max(500).nullable(),
 });
+
+// ---- Opening relationships ----
 
 export const openingAssociationSchema = z.object({
   objectId: z.string().min(1),
@@ -22,12 +39,16 @@ export const openingAssociationSchema = z.object({
   reason: z.string().max(500).nullable(),
 });
 
-export const wallConnectionSchema = z.object({
-  wallIds: z.array(z.string().min(1)).length(2),
-  relationship: z.enum(['corner', 'T_junction', 'intersection', 'collinear', 'uncertain']),
+// ---- Object classification ----
+
+export const objectClassificationSchema = z.object({
+  objectId: z.string().min(1),
+  classification: z.enum(['valid', 'suspicious', 'likely_false_positive', 'uncertain']),
   confidence: z.number().min(0).max(1),
   reason: z.string().max(500).nullable(),
 });
+
+// ---- Room semantics (references to RAW objects only, never coordinates) ----
 
 export const roomHypothesisSchema = z.object({
   id: z.string().min(1).max(60),
@@ -38,26 +59,35 @@ export const roomHypothesisSchema = z.object({
   reason: z.string().max(500).nullable(),
 });
 
-export const artifactSchema = z.object({
-  objectId: z.string().min(1),
-  classification: z.enum(['likely_false_positive', 'suspicious', 'likely_missing_wall']),
-  confidence: z.number().min(0).max(1),
-  reason: z.string().max(500).nullable(),
+// ---- Compact topology summary (only RAW object IDs) ----
+
+export const topologySummarySchema = z.object({
+  continuousWalls: z.array(z.array(z.string().min(1)).min(2).max(10)).max(30),
+  corners: z.array(z.array(z.string().min(1)).length(2)).max(30),
+  tJunctions: z.array(z.array(z.string().min(1)).length(2)).max(30),
+  falsePositives: z.array(z.string().min(1)).max(30),
+});
+
+export const emptyTopologySummary = (): TopologySummary => ({
+  continuousWalls: [],
+  corners: [],
+  tJunctions: [],
+  falsePositives: [],
 });
 
 export const vlmFloorplanAnalysisSchema = z.object({
   wallRelationships: z.array(wallRelationshipSchema).max(50),
   openings: z.array(openingAssociationSchema).max(30),
-  wallConnections: z.array(wallConnectionSchema).max(50),
+  objectClassifications: z.array(objectClassificationSchema).max(30),
   rooms: z.array(roomHypothesisSchema).max(20),
-  artifacts: z.array(artifactSchema).max(30),
+  topologySummary: topologySummarySchema,
 });
 
 export type WallRelationship = z.infer<typeof wallRelationshipSchema>;
 export type OpeningAssociation = z.infer<typeof openingAssociationSchema>;
-export type WallConnection = z.infer<typeof wallConnectionSchema>;
+export type ObjectClassification = z.infer<typeof objectClassificationSchema>;
 export type RoomHypothesis = z.infer<typeof roomHypothesisSchema>;
-export type Artifact = z.infer<typeof artifactSchema>;
+export type TopologySummary = z.infer<typeof topologySummarySchema>;
 export type VlmFloorplanAnalysis = z.infer<typeof vlmFloorplanAnalysisSchema>;
 
 // Validation helpers for mapping VLM object IDs to raw recognition objects
@@ -110,6 +140,16 @@ export function filterValidIds(
   return { valid, invalid };
 }
 
+function filterIdGroup(
+  ids: string[],
+  raw: Record<string, unknown>,
+  minValid: number,
+): { valid: string[]; invalid: string[] } {
+  const { valid, invalid } = filterValidIds(ids, raw);
+  if (valid.length >= minValid) return { valid, invalid };
+  return { valid: [], invalid };
+}
+
 export function validateVlmAnalysis(
   analysis: VlmFloorplanAnalysis,
   raw: Record<string, unknown>,
@@ -117,9 +157,8 @@ export function validateVlmAnalysis(
   const warnings: string[] = [];
 
   const filteredWallRelationships = analysis.wallRelationships.filter((r) => {
-    const { valid, invalid } = filterValidIds(r.wallIds, raw);
+    const { valid, invalid } = filterIdGroup(r.wallIds, raw, 2);
     if (invalid.length) warnings.push(`wallRelationships invalid ids: ${invalid.join(',')}`);
-    // keep only if at least 2 valid remain
     if (valid.length < 2) return false;
     r.wallIds = valid;
     return true;
@@ -137,11 +176,11 @@ export function validateVlmAnalysis(
     return true;
   });
 
-  const filteredWallConnections = analysis.wallConnections.filter((c) => {
-    const { valid, invalid } = filterValidIds(c.wallIds, raw);
-    if (invalid.length) warnings.push(`wallConnections invalid ids: ${invalid.join(',')}`);
-    if (valid.length < 2) return false;
-    c.wallIds = valid as [string, string];
+  const filteredClassifications = analysis.objectClassifications.filter((c) => {
+    if (!isValidObjectId(c.objectId, raw)) {
+      warnings.push(`objectClassifications invalid objectId: ${c.objectId}`);
+      return false;
+    }
     return true;
   });
 
@@ -166,9 +205,26 @@ export function validateVlmAnalysis(
     return true;
   });
 
-  const filteredArtifacts = analysis.artifacts.filter((a) => {
-    if (!isValidObjectId(a.objectId, raw)) {
-      warnings.push(`artifacts invalid objectId: ${a.objectId}`);
+  // Topology summary — every ID must exist in RAW JSON; drop groups that no longer have enough valid IDs.
+  const summary = analysis.topologySummary;
+  const continuousWalls = summary.continuousWalls.filter((group) => {
+    const { valid, invalid } = filterIdGroup(group, raw, 2);
+    if (invalid.length) warnings.push(`topologySummary.continuousWalls invalid ids: ${invalid.join(',')}`);
+    return valid.length >= 2;
+  });
+  const corners = summary.corners.filter((pair) => {
+    const { valid, invalid } = filterIdGroup(pair, raw, 2);
+    if (invalid.length) warnings.push(`topologySummary.corners invalid ids: ${invalid.join(',')}`);
+    return valid.length >= 2;
+  });
+  const tJunctions = summary.tJunctions.filter((pair) => {
+    const { valid, invalid } = filterIdGroup(pair, raw, 2);
+    if (invalid.length) warnings.push(`topologySummary.tJunctions invalid ids: ${invalid.join(',')}`);
+    return valid.length >= 2;
+  });
+  const falsePositives = summary.falsePositives.filter((id) => {
+    if (!isValidObjectId(id, raw)) {
+      warnings.push(`topologySummary.falsePositives invalid id: ${id}`);
       return false;
     }
     return true;
@@ -178,9 +234,9 @@ export function validateVlmAnalysis(
     analysis: {
       wallRelationships: filteredWallRelationships,
       openings: filteredOpenings,
-      wallConnections: filteredWallConnections,
+      objectClassifications: filteredClassifications,
       rooms: filteredRooms,
-      artifacts: filteredArtifacts,
+      topologySummary: { continuousWalls, corners, tJunctions, falsePositives },
     },
     warnings,
   };
