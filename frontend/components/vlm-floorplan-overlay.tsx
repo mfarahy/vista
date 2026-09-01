@@ -6,7 +6,15 @@ import { RAW_COLORS, type RawGeometry, type LayerVisibility } from './raw-floorp
 
 export type WallRelationship = {
   wallIds: string[];
-  relationship: 'same_continuous_wall' | 'separate_walls' | 'corner' | 'T_junction' | 'uncertain';
+  relationship:
+    | 'same_continuous_wall'
+    | 'separate_walls'
+    | 'collinear'
+    | 'perpendicular'
+    | 'corner'
+    | 'T_junction'
+    | 'extension_of'
+    | 'uncertain';
   confidence: number;
   reason: string | null;
 };
@@ -20,9 +28,9 @@ export type OpeningAssociation = {
   reason: string | null;
 };
 
-export type WallConnection = {
-  wallIds: [string, string];
-  relationship: 'corner' | 'T_junction' | 'intersection' | 'collinear' | 'uncertain';
+export type ObjectClassification = {
+  objectId: string;
+  classification: 'valid' | 'suspicious' | 'likely_false_positive' | 'uncertain';
   confidence: number;
   reason: string | null;
 };
@@ -38,27 +46,26 @@ export type RoomHypothesis = {
   reason: string | null;
 };
 
-export type Artifact = {
-  objectId: string;
-  classification: 'likely_false_positive' | 'suspicious' | 'likely_missing_wall';
-  confidence: number;
-  reason: string | null;
+export type TopologySummary = {
+  continuousWalls: string[][];
+  corners: string[][];
+  tJunctions: string[][];
+  falsePositives: string[];
 };
 
 export type VlmAnalysis = {
   wallRelationships: WallRelationship[];
   openings: OpeningAssociation[];
-  wallConnections: WallConnection[];
+  objectClassifications: ObjectClassification[];
   rooms: RoomHypothesis[];
-  artifacts: Artifact[];
+  topologySummary: TopologySummary;
 };
 
 export type VlmVisibility = {
   wallRelationships: boolean;
   openingAssociations: boolean;
-  wallConnections: boolean;
+  objectClassifications: boolean;
   rooms: boolean;
-  artifacts: boolean;
 };
 
 export const VLM_COLORS = {
@@ -67,11 +74,16 @@ export const VLM_COLORS = {
   corner: '#fb8c00',
   T_junction: '#1e88e5',
   uncertain: '#757575',
-  intersection: '#8e24aa',
   collinear: '#2e7d32',
+  perpendicular: '#7b1fa2',
+  extension_of: '#00897b',
   opening: '#00acc1',
   room: '#7cb342',
-  artifact: '#d81b60',
+  classification_valid: '#2e7d32',
+  classification_suspicious: '#f9a825',
+  classification_likely_false_positive: '#d81b60',
+  classification_uncertain: '#757575',
+  highlight: '#ffeb3b',
 };
 
 // ---- helpers ----
@@ -148,6 +160,15 @@ function roomColor(type: RoomHypothesis['type']): string {
   }
 }
 
+function classificationColor(cls: ObjectClassification['classification']): string {
+  switch (cls) {
+    case 'valid': return VLM_COLORS.classification_valid;
+    case 'suspicious': return VLM_COLORS.classification_suspicious;
+    case 'likely_false_positive': return VLM_COLORS.classification_likely_false_positive;
+    default: return VLM_COLORS.classification_uncertain;
+  }
+}
+
 // ---- Combined overlay ----
 
 export function VlmFloorplanOverlay({
@@ -163,6 +184,8 @@ export function VlmFloorplanOverlay({
   showVlmIds,
   showConfidence,
   hideRaw,
+  topologyOnly,
+  highlightedIds,
 }: {
   imageUrl: string | null;
   imageWidth: number;
@@ -176,9 +199,12 @@ export function VlmFloorplanOverlay({
   showVlmIds: boolean;
   showConfidence: boolean;
   hideRaw: boolean;
+  topologyOnly?: boolean;
+  highlightedIds?: string[];
 }) {
   if (!imageWidth || !imageHeight) return null;
   const viewBox = `0 0 ${imageWidth} ${imageHeight}`;
+  const highlights = highlightedIds ?? [];
 
   return (
     <div className="relative w-full overflow-hidden rounded-xl border bg-white">
@@ -195,7 +221,7 @@ export function VlmFloorplanOverlay({
             </marker>
           </defs>
 
-          {/* RAW polygons — hidden when hideRaw (VLM only mode) */}
+          {/* RAW polygons — hidden when hideRaw (raw hidden) */}
           {!hideRaw && (
             <>
               {visibility.wall &&
@@ -251,28 +277,37 @@ export function VlmFloorplanOverlay({
           {/* VLM layers */}
           {vlmAnalysis && (
             <>
-              {/* Artifacts — highlight polygons */}
-              {vlmVisibility.artifacts &&
-                vlmAnalysis.artifacts.map((a, idx) => {
-                  const poly = getPolygonForId(a.objectId, raw);
-                  if (!poly) return null;
-                  const c = centroid(poly);
-                  const isFalsePositive = a.classification === 'likely_false_positive';
-                  return (
-                    <g key={`artifact-${idx}`}>
-                      <polygon points={polygonPoints(poly)} fill={VLM_COLORS.artifact} fillOpacity={0.18} stroke={VLM_COLORS.artifact} strokeWidth={3} strokeDasharray={isFalsePositive ? '6 3' : undefined} strokeOpacity={0.95} />
-                      <circle cx={c.x} cy={c.y} r={10} fill={VLM_COLORS.artifact} stroke="#fff" strokeWidth={2} />
-                      <text x={c.x} y={c.y} fontSize={10} fill="#fff" textAnchor="middle" dominantBaseline="central" fontWeight={700}>!</text>
-                      {(showVlmIds || showConfidence) && (
-                        <text x={c.x} y={c.y + 16} fontSize={8} fill={VLM_COLORS.artifact} textAnchor="middle" paintOrder="stroke" stroke="#fff" strokeWidth={3} fontWeight={600}>
-                          {showVlmIds ? a.objectId : ''}{showVlmIds && showConfidence ? ' ' : ''}{showConfidence ? `${Math.round(a.confidence * 100)}%` : ''}
-                        </text>
-                      )}
-                    </g>
-                  );
-                })}
+              {/* Object classifications — highlight object polygons */}
+              {vlmVisibility.objectClassifications &&
+                vlmAnalysis.objectClassifications
+                  .filter((c) => c.classification !== 'valid')
+                  .map((c, idx) => {
+                    const poly = getPolygonForId(c.objectId, raw);
+                    if (!poly) return null;
+                    const col = classificationColor(c.classification);
+                    const isFalsePositive = c.classification === 'likely_false_positive';
+                    const isUncertain = c.classification === 'uncertain';
+                    const cc = centroid(poly);
+                    return (
+                      <g key={`cls-${idx}`}>
+                        <polygon points={polygonPoints(poly)} fill={col} fillOpacity={0.14} stroke={col} strokeWidth={3} strokeDasharray={isFalsePositive || isUncertain ? '6 3' : undefined} strokeOpacity={0.95} />
+                        {isFalsePositive && (
+                          <>
+                            <circle cx={cc.x} cy={cc.y} r={10} fill={col} stroke="#fff" strokeWidth={2} />
+                            <text x={cc.x} y={cc.y} fontSize={10} fill="#fff" textAnchor="middle" dominantBaseline="central" fontWeight={700}>!</text>
+                          </>
+                        )}
+                        {(showVlmIds || showConfidence) && (
+                          <text x={cc.x} y={cc.y + 16} fontSize={8} fill={col} textAnchor="middle" paintOrder="stroke" stroke="#fff" strokeWidth={3} fontWeight={600}>
+                            {showVlmIds ? c.objectId : ''}{showVlmIds && showConfidence ? ' ' : ''}{showConfidence ? `${Math.round(c.confidence * 100)}%` : ''}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  })}
 
-              {/* Rooms — dashed boundary connecting centroids; also highlight actual wall polygons */}
+              {/* Rooms — boundaryWalls/openings are REFERENCES to RAW objects only. In topologyOnly mode the
+                  reconstructed centroid polygon outline is suppressed; room is shown as labels + wall refs. */}
               {vlmVisibility.rooms &&
                 vlmAnalysis.rooms.map((room, idx) => {
                   const wallIds = (room.boundaryWalls ?? room.boundaryObjects ?? []) as string[];
@@ -280,14 +315,13 @@ export function VlmFloorplanOverlay({
                   const centroids = wallIds.map((id) => getCentroidForId(id, raw)).filter(Boolean) as { x: number; y: number }[];
                   if (centroids.length === 0) return null;
                   const color = roomColor(room.type);
-                  // For single or two points, draw lines; for >=3 draw closed polygon
                   const points = centroids.map((c) => `${c.x},${c.y}`).join(' ');
                   const labelPos = centroids.reduce((acc, c) => ({ x: acc.x + c.x, y: acc.y + c.y }), { x: 0, y: 0 });
                   labelPos.x /= centroids.length;
                   labelPos.y /= centroids.length;
                   return (
                     <g key={`room-${idx}`}>
-                      {/* highlight actual wall polygons */}
+                      {/* highlight actual wall polygons (references only) */}
                       {wallIds.map((id) => {
                         const poly = getPolygonForId(id, raw);
                         if (!poly) return null;
@@ -299,13 +333,15 @@ export function VlmFloorplanOverlay({
                         if (!poly) return null;
                         return <polygon key={`room-op-${idx}-${id}`} points={polygonPoints(poly)} fill={color} fillOpacity={0.06} stroke={color} strokeWidth={1.5} strokeDasharray="4 3" strokeOpacity={0.6} />;
                       })}
-                      {centroids.length >= 3 ? (
-                        <polygon points={points} fill={color} fillOpacity={0.14} stroke={color} strokeWidth={2.5} strokeDasharray="8 4" strokeOpacity={0.85} />
-                      ) : centroids.length === 2 ? (
-                        <line x1={centroids[0].x} y1={centroids[0].y} x2={centroids[1].x} y2={centroids[1].y} stroke={color} strokeWidth={2.5} strokeDasharray="8 4" />
-                      ) : (
-                        <circle cx={centroids[0].x} cy={centroids[0].y} r={8} fill={color} fillOpacity={0.3} stroke={color} strokeWidth={2} />
-                      )}
+                      {/* reconstructed room outline — hidden in topology-only mode */}
+                      {!topologyOnly &&
+                        (centroids.length >= 3 ? (
+                          <polygon points={points} fill={color} fillOpacity={0.14} stroke={color} strokeWidth={2.5} strokeDasharray="8 4" strokeOpacity={0.85} />
+                        ) : centroids.length === 2 ? (
+                          <line x1={centroids[0].x} y1={centroids[0].y} x2={centroids[1].x} y2={centroids[1].y} stroke={color} strokeWidth={2.5} strokeDasharray="8 4" />
+                        ) : (
+                          <circle cx={centroids[0].x} cy={centroids[0].y} r={8} fill={color} fillOpacity={0.3} stroke={color} strokeWidth={2} />
+                        ))}
                       {/* room label */}
                       <g>
                         <rect x={labelPos.x - 38} y={labelPos.y - 10} width={76} height={16} rx={3} fill="#fff" stroke={color} strokeWidth={1.2} opacity={0.92} />
@@ -318,10 +354,10 @@ export function VlmFloorplanOverlay({
                           </text>
                         )}
                       </g>
-                      {/* dots at centroids */}
-                      {centroids.map((c, j) => (
-                        <circle key={`room-dot-${idx}-${j}`} cx={c.x} cy={c.y} r={3} fill={color} stroke="#fff" strokeWidth={1} />
-                      ))}
+                      {!topologyOnly &&
+                        centroids.map((c, j) => (
+                          <circle key={`room-dot-${idx}-${j}`} cx={c.x} cy={c.y} r={3} fill={color} stroke="#fff" strokeWidth={1} />
+                        ))}
                     </g>
                   );
                 })}
@@ -335,7 +371,6 @@ export function VlmFloorplanOverlay({
                   const isUncertain = rel.relationship === 'uncertain';
                   return (
                     <g key={`wr-${idx}`}>
-                      {/* Highlight involved wall polygons */}
                       {rel.wallIds.map((id) => {
                         const poly = getPolygonForId(id, raw);
                         if (!poly) return null;
@@ -361,29 +396,6 @@ export function VlmFloorplanOverlay({
                   );
                 })}
 
-              {/* Wall connections — corner/T etc */}
-              {vlmVisibility.wallConnections &&
-                vlmAnalysis.wallConnections.map((conn, idx) => {
-                  const a = getCentroidForId(conn.wallIds[0], raw);
-                  const b = getCentroidForId(conn.wallIds[1], raw);
-                  if (!a || !b) return null;
-                  const col = VLM_COLORS[conn.relationship as keyof typeof VLM_COLORS] ?? VLM_COLORS.uncertain;
-                  const mid = midpoint(a, b);
-                  return (
-                    <g key={`wc-${idx}`}>
-                      <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={col} strokeWidth={2.5} strokeDasharray={conn.relationship === 'corner' ? undefined : '6 3'} strokeOpacity={0.9} />
-                      <circle cx={a.x} cy={a.y} r={4} fill={col} stroke="#fff" strokeWidth={1.2} />
-                      <circle cx={b.x} cy={b.y} r={4} fill={col} stroke="#fff" strokeWidth={1.2} />
-                      <circle cx={mid.x} cy={mid.y} r={6} fill={col} stroke="#fff" strokeWidth={1.5} />
-                      {(showVlmIds || showConfidence) && (
-                        <text x={mid.x} y={mid.y - 10} fontSize={7} fill="#111" textAnchor="middle" paintOrder="stroke" stroke="#fff" strokeWidth={3} fontWeight={600}>
-                          {showVlmIds ? conn.relationship : ''}{showVlmIds && showConfidence ? ' · ' : ''}{showConfidence ? `${Math.round(conn.confidence * 100)}%` : ''}
-                        </text>
-                      )}
-                    </g>
-                  );
-                })}
-
               {/* Opening associations — highlight opening + host wall polygons + connector */}
               {vlmVisibility.openingAssociations &&
                 vlmAnalysis.openings.map((op, idx) => {
@@ -393,9 +405,7 @@ export function VlmFloorplanOverlay({
                   const isUncertain = op.relationship === 'uncertain';
                   return (
                     <g key={`op-${idx}`}>
-                      {/* highlight opening polygon */}
                       {opPoly && <polygon points={polygonPoints(opPoly)} fill={VLM_COLORS.opening} fillOpacity={0.14} stroke={VLM_COLORS.opening} strokeWidth={2.5} strokeOpacity={0.95} strokeDasharray={isUncertain ? '4 3' : undefined} />}
-                      {/* highlight host wall polygons */}
                       {op.hostWallIds.map((wid) => {
                         const wPoly = getPolygonForId(wid, raw);
                         if (!wPoly) return null;
@@ -417,16 +427,36 @@ export function VlmFloorplanOverlay({
                           </g>
                         );
                       })}
-                      {/* opening label */}
                       {showVlmIds && op.hostWallIds.length > 1 && (
                         <text x={opCent.x} y={opCent.y + 14} fontSize={7} fill={VLM_COLORS.opening} textAnchor="middle" paintOrder="stroke" stroke="#fff" strokeWidth={3} fontWeight={600}>
-                          {op.objectId} ({Math.round(op.confidence * 100)}% {showConfidence ? '' : ''})
+                          {op.objectId} ({Math.round(op.confidence * 100)}%)
                         </text>
                       )}
                     </g>
                   );
                 })}
             </>
+          )}
+
+          {/* Clickable topology highlights — raw polygons only, no new geometry */}
+          {highlights.length > 0 && (
+            <g>
+              {highlights.map((id) => {
+                const poly = getPolygonForId(id, raw);
+                if (!poly) return null;
+                return (
+                  <polygon
+                    key={`hl-${id}`}
+                    points={polygonPoints(poly)}
+                    fill={VLM_COLORS.highlight}
+                    fillOpacity={0.28}
+                    stroke={VLM_COLORS.highlight}
+                    strokeWidth={4}
+                    strokeOpacity={0.95}
+                  />
+                );
+              })}
+            </g>
           )}
         </svg>
       </div>

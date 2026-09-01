@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Copy, Check, LoaderCircle, Upload, Image as ImageIcon, AlertTriangle, Brain, Download, Sparkles } from 'lucide-react';
+import { ArrowLeft, Copy, Check, LoaderCircle, Upload, Image as ImageIcon, AlertTriangle, Brain, Download, Sparkles, Grid2x2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { VistaLogoLink } from '@/components/vista-logo';
 import { LanguageSwitcher } from '@/components/language-switcher';
@@ -20,6 +20,8 @@ import {
   VlmFloorplanOverlay,
   type VlmAnalysis,
   type VlmVisibility,
+  type TopologySummary,
+  type ObjectClassification,
   VLM_COLORS,
 } from '@/components/vlm-floorplan-overlay';
 import { generateAnnotatedImageDataUrl, dataUrlToBlob } from '@/lib/annotated-recognition-image';
@@ -69,13 +71,13 @@ export default function DebugFloorplanRecognitionPage() {
   const [vlmVisibility, setVlmVisibility] = useState<VlmVisibility>({
     wallRelationships: true,
     openingAssociations: true,
-    wallConnections: true,
+    objectClassifications: true,
     rooms: true,
-    artifacts: true,
   });
   const [showVlmIds, setShowVlmIds] = useState(true);
   const [showConfidence, setShowConfidence] = useState(true);
-  const [vlmMode, setVlmMode] = useState<'raw+vlm' | 'vlm-only'>('raw+vlm');
+  const [vlmMode, setVlmMode] = useState<'raw+vlm' | 'topology-only'>('raw+vlm');
+  const [topologyHighlightIds, setTopologyHighlightIds] = useState<string[]>([]);
 
   // Annotated recognition image state
   const [annotatedDataUrl, setAnnotatedDataUrl] = useState<string | null>(null);
@@ -90,6 +92,7 @@ export default function DebugFloorplanRecognitionPage() {
     setVlmWarnings([]);
     setVlmError(null);
     setVlmRawResponse(null);
+    setTopologyHighlightIds([]);
   }, []);
 
   // Generate annotated image whenever raw or original image changes
@@ -269,8 +272,9 @@ export default function DebugFloorplanRecognitionPage() {
       setVlmDurationMs(body.durationMs ?? null);
       setVlmWarnings(body.warnings ?? []);
       setVlmRawResponse(body.rawResponse ?? null);
+      setTopologyHighlightIds([]);
       // enable all VLM layers by default after analysis
-      setVlmVisibility({ wallRelationships: true, openingAssociations: true, wallConnections: true, rooms: true, artifacts: true });
+      setVlmVisibility({ wallRelationships: true, openingAssociations: true, objectClassifications: true, rooms: true });
       setShowVlmIds(true);
       setShowConfidence(true);
       setVlmMode('raw+vlm');
@@ -324,12 +328,62 @@ export default function DebugFloorplanRecognitionPage() {
   const vlmLayerDefs: Array<{ key: keyof VlmVisibility; label: string; color: string }> = [
     { key: 'wallRelationships', label: t('debugFloorplanRecognition.vlmLayerWallRelationships'), color: VLM_COLORS.same_continuous_wall },
     { key: 'openingAssociations', label: t('debugFloorplanRecognition.vlmLayerOpeningAssociations'), color: VLM_COLORS.opening },
-    { key: 'wallConnections', label: t('debugFloorplanRecognition.vlmLayerWallConnections'), color: VLM_COLORS.corner },
+    { key: 'objectClassifications', label: t('debugFloorplanRecognition.vlmLayerObjectClassifications'), color: VLM_COLORS.classification_suspicious },
     { key: 'rooms', label: t('debugFloorplanRecognition.vlmLayerRooms'), color: VLM_COLORS.room },
-    { key: 'artifacts', label: t('debugFloorplanRecognition.vlmLayerArtifacts'), color: VLM_COLORS.artifact },
   ];
 
   const vlmStatus = vlmLoading ? t('debugFloorplanRecognition.vlmStatusAnalyzing') : vlmAnalysis ? t('debugFloorplanRecognition.vlmStatusComplete') : vlmError ? t('debugFloorplanRecognition.vlmStatusError') : t('debugFloorplanRecognition.vlmNotAnalyzed');
+
+  // Derived architectural topology (from VLM topologySummary + objectClassifications)
+  const emptySummary: TopologySummary = { continuousWalls: [], corners: [], tJunctions: [], falsePositives: [] };
+  const topology = vlmAnalysis?.topologySummary ?? emptySummary;
+  const classifications = (vlmAnalysis?.objectClassifications ?? []) as ObjectClassification[];
+  const suspiciousObjects = classifications.filter((c) => c.classification === 'suspicious');
+  const falsePositiveObjects = classifications.filter((c) => c.classification === 'likely_false_positive');
+  const uncertainObjects = classifications.filter((c) => c.classification === 'uncertain');
+  const validObjects = classifications.filter((c) => c.classification === 'valid');
+  const summaryFalsePositives = topology.falsePositives;
+  const hasTopology =
+    topology.continuousWalls.length > 0 ||
+    topology.corners.length > 0 ||
+    topology.tJunctions.length > 0 ||
+    topology.falsePositives.length > 0 ||
+    classifications.length > 0;
+
+  const toggleHighlight = (ids: string[]) => {
+    setTopologyHighlightIds((prev) => {
+      const same = prev.length === ids.length && ids.every((id) => prev.includes(id));
+      return same ? [] : ids;
+    });
+  };
+
+  const topologyItem = (ids: string[]) => (
+    <button
+      type="button"
+      onClick={() => toggleHighlight(ids)}
+      title={t('debugFloorplanRecognition.topologyClickHint')}
+      className={`rounded-md border px-2 py-1 text-xs font-medium transition-colors hover:border-amber-400 hover:bg-amber-50 ${
+        topologyHighlightIds.length > 0 && ids.every((id) => topologyHighlightIds.includes(id)) && topologyHighlightIds.length === ids.length
+          ? 'border-amber-400 bg-amber-100'
+          : 'border-muted-foreground/20 bg-muted/30'
+      }`}
+    >
+      {ids.join(' + ')}
+    </button>
+  );
+
+  const topologyIdChip = (id: string) => (
+    <button
+      type="button"
+      onClick={() => toggleHighlight([id])}
+      title={t('debugFloorplanRecognition.topologyClickHint')}
+      className={`rounded-md border px-2 py-1 text-xs font-medium transition-colors hover:border-amber-400 hover:bg-amber-50 ${
+        topologyHighlightIds.length === 1 && topologyHighlightIds.includes(id) ? 'border-amber-400 bg-amber-100' : 'border-muted-foreground/20 bg-muted/30'
+      }`}
+    >
+      {id}
+    </button>
+  );
 
   return (
     <main className="min-h-screen bg-background pb-16">
@@ -537,9 +591,13 @@ export default function DebugFloorplanRecognitionPage() {
                   vlmVisibility={vlmVisibility}
                   showVlmIds={showVlmIds}
                   showConfidence={showConfidence}
-                  hideRaw={vlmMode === 'vlm-only'}
+                  hideRaw={false}
+                  topologyOnly={vlmMode === 'topology-only'}
+                  highlightedIds={topologyHighlightIds}
                 />
-                {vlmAnalysis && vlmMode === 'vlm-only' && <p className="mt-1 text-xs text-violet-600">VLM only — RAW layers hidden. Switch to Raw + VLM to compare.</p>}
+                {vlmAnalysis && vlmMode === 'topology-only' && (
+                  <p className="mt-1 text-xs text-violet-600">{t('debugFloorplanRecognition.topologyOnlyNote')}</p>
+                )}
               </div>
             </div>
           ) : (
@@ -562,8 +620,13 @@ export default function DebugFloorplanRecognitionPage() {
                 vlmVisibility={vlmVisibility}
                 showVlmIds={showVlmIds}
                 showConfidence={showConfidence}
-                hideRaw={vlmMode === 'vlm-only'}
+                hideRaw={false}
+                topologyOnly={vlmMode === 'topology-only'}
+                highlightedIds={topologyHighlightIds}
               />
+              {vlmAnalysis && vlmMode === 'topology-only' && (
+                <p className="mt-1 text-xs text-violet-600">{t('debugFloorplanRecognition.topologyOnlyNote')}</p>
+              )}
             </div>
           )
         ) : (
@@ -738,8 +801,8 @@ export default function DebugFloorplanRecognitionPage() {
                   <Button type="button" variant={vlmMode === 'raw+vlm' ? 'default' : 'outline'} size="sm" onClick={() => setVlmMode('raw+vlm')}>
                     {t('debugFloorplanRecognition.vlmModeRawVlm')}
                   </Button>
-                  <Button type="button" variant={vlmMode === 'vlm-only' ? 'default' : 'outline'} size="sm" onClick={() => setVlmMode('vlm-only')}>
-                    {t('debugFloorplanRecognition.vlmModeVlmOnly')}
+                  <Button type="button" variant={vlmMode === 'topology-only' ? 'default' : 'outline'} size="sm" onClick={() => setVlmMode('topology-only')}>
+                    {t('debugFloorplanRecognition.vlmModeTopologyOnly')}
                   </Button>
                 </div>
               </div>
@@ -749,6 +812,123 @@ export default function DebugFloorplanRecognitionPage() {
           {!vlmAnalysis && !vlmLoading && !vlmError ? (
             <p className="mt-4 text-sm text-muted-foreground">{t('debugFloorplanRecognition.vlmNoAnalysis')}</p>
           ) : null}
+
+          {/* Architectural Topology — the VLM → topology contract */}
+          {vlmAnalysis && (
+            <div className="mt-5 rounded-xl border bg-card p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+                  <Grid2x2 className="size-4 text-amber-600" aria-hidden /> {t('debugFloorplanRecognition.topologyTitle')}
+                </h3>
+                {topologyHighlightIds.length > 0 && (
+                  <Button variant="ghost" size="sm" onClick={() => setTopologyHighlightIds([])}>
+                    {t('debugFloorplanRecognition.topologyClear')}
+                  </Button>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.topologyIntro')}</p>
+              <p className="mt-1 text-xs text-amber-700">{t('debugFloorplanRecognition.topologyClickHint')}</p>
+
+              {!hasTopology ? (
+                <p className="mt-3 text-xs text-muted-foreground">{t('debugFloorplanRecognition.topologyEmpty')}</p>
+              ) : (
+                <div className="mt-3 grid gap-4 text-sm md:grid-cols-2 lg:grid-cols-3">
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-green-700">{t('debugFloorplanRecognition.topologyContinuousWalls')}</h4>
+                    {topology.continuousWalls.length === 0 ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.topologyNone')}</p>
+                    ) : (
+                      <ul className="mt-1 flex flex-wrap gap-1.5">
+                        {topology.continuousWalls.map((group, i) => (
+                          <li key={`cw-${i}`}>{topologyItem(group)}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-orange-700">{t('debugFloorplanRecognition.topologyCorners')}</h4>
+                    {topology.corners.length === 0 ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.topologyNone')}</p>
+                    ) : (
+                      <ul className="mt-1 flex flex-wrap gap-1.5">
+                        {topology.corners.map((pair, i) => (
+                          <li key={`cn-${i}`}>{topologyItem(pair)}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-blue-700">{t('debugFloorplanRecognition.topologyTJunctions')}</h4>
+                    {topology.tJunctions.length === 0 ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.topologyNone')}</p>
+                    ) : (
+                      <ul className="mt-1 flex flex-wrap gap-1.5">
+                        {topology.tJunctions.map((pair, i) => (
+                          <li key={`tj-${i}`}>{topologyItem(pair)}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-pink-700">{t('debugFloorplanRecognition.topologyFalsePositives')}</h4>
+                    {summaryFalsePositives.length === 0 && falsePositiveObjects.length === 0 ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.topologyNone')}</p>
+                    ) : (
+                      <ul className="mt-1 flex flex-wrap gap-1.5">
+                        {summaryFalsePositives.map((id, i) => (
+                          <li key={`fp-${i}`}>{topologyIdChip(id)}</li>
+                        ))}
+                        {falsePositiveObjects
+                          .filter((c) => !summaryFalsePositives.includes(c.objectId))
+                          .map((c, i) => (
+                            <li key={`fp-cls-${i}`}>{topologyIdChip(c.objectId)}</li>
+                          ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-amber-700">{t('debugFloorplanRecognition.topologySuspicious')}</h4>
+                    {suspiciousObjects.length === 0 ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.topologyNone')}</p>
+                    ) : (
+                      <ul className="mt-1 flex flex-wrap gap-1.5">
+                        {suspiciousObjects.map((c, i) => (
+                          <li key={`sp-${i}`}>
+                            <span className="inline-flex items-center gap-1">
+                              {topologyIdChip(c.objectId)}
+                              <span className="text-[10px] text-muted-foreground">{Math.round(c.confidence * 100)}%</span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-600">{t('debugFloorplanRecognition.topologyUncertain')}</h4>
+                    {uncertainObjects.length === 0 ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.topologyNone')}</p>
+                    ) : (
+                      <ul className="mt-1 flex flex-wrap gap-1.5">
+                        {uncertainObjects.map((c, i) => (
+                          <li key={`uc-${i}`}>{topologyIdChip(c.objectId)}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  {validObjects.length > 0 && (
+                    <div className="md:col-span-2 lg:col-span-3">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-green-800">{t('debugFloorplanRecognition.topologyValid')}</h4>
+                      <ul className="mt-1 flex flex-wrap gap-1.5">
+                        {validObjects.map((c, i) => (
+                          <li key={`vl-${i}`}>{topologyIdChip(c.objectId)}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Reasoning panel */}
           {vlmAnalysis && (
@@ -793,26 +973,12 @@ export default function DebugFloorplanRecognitionPage() {
                     )}
                   </div>
                   <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-wide text-violet-700">{t('debugFloorplanRecognition.vlmFindingsConnections')}</h4>
-                    {vlmAnalysis.wallConnections.length === 0 ? (
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-violet-700">{t('debugFloorplanRecognition.vlmFindingsClassifications')}</h4>
+                    {vlmAnalysis.objectClassifications.length === 0 ? (
                       <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmNoFindings')}</p>
                     ) : (
                       <ul className="mt-1 space-y-1">
-                        {vlmAnalysis.wallConnections.map((c, i) => (
-                          <li key={i} className="text-xs leading-5">
-                            <span className="font-medium">{c.wallIds.join(' + ')}</span> → {c.relationship} ({Math.round(c.confidence * 100)}%)
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-wide text-violet-700">{t('debugFloorplanRecognition.vlmFindingsArtifacts')}</h4>
-                    {vlmAnalysis.artifacts.length === 0 ? (
-                      <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmNoFindings')}</p>
-                    ) : (
-                      <ul className="mt-1 space-y-1">
-                        {vlmAnalysis.artifacts.map((a, i) => (
+                        {vlmAnalysis.objectClassifications.map((a, i) => (
                           <li key={i} className="text-xs leading-5">
                             <span className="font-medium">{a.objectId}</span> → {a.classification.replace(/_/g, ' ')} ({Math.round(a.confidence * 100)}%)
                             {a.reason && <span className="text-muted-foreground"> · {a.reason}</span>}
