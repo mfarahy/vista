@@ -186,6 +186,8 @@ export function VlmFloorplanOverlay({
   hideRaw,
   topologyOnly,
   highlightedIds,
+  onSelectObject,
+  selectedId,
 }: {
   imageUrl: string | null;
   imageWidth: number;
@@ -201,10 +203,13 @@ export function VlmFloorplanOverlay({
   hideRaw: boolean;
   topologyOnly?: boolean;
   highlightedIds?: string[];
+  onSelectObject?: (id: string | null) => void;
+  selectedId?: string | null;
 }) {
   if (!imageWidth || !imageHeight) return null;
   const viewBox = `0 0 ${imageWidth} ${imageHeight}`;
   const highlights = highlightedIds ?? [];
+  const isInteractive = Boolean(onSelectObject);
 
   return (
     <div className="relative w-full overflow-hidden rounded-xl border bg-white">
@@ -214,36 +219,103 @@ export function VlmFloorplanOverlay({
         ) : (
           <div className="absolute inset-0 bg-white" />
         )}
-        <svg viewBox={viewBox} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 h-full w-full" style={{ pointerEvents: 'none' }}>
+        <svg viewBox={viewBox} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 h-full w-full" style={{ pointerEvents: isInteractive ? 'auto' : 'none' }}>
           <defs>
             <marker id="vlm-arrow" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={6} markerHeight={6} orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill={VLM_COLORS.opening} />
             </marker>
           </defs>
 
-          {/* RAW polygons — hidden when hideRaw (raw hidden) */}
+          {/* Clickable RAW polygons — inspector */}
           {!hideRaw && (
             <>
               {visibility.wall &&
-                raw.wall.map((poly, i) => (
-                  <polygon key={`wall-${i}`} points={polygonPoints(poly)} fill={RAW_COLORS.wall} fillOpacity={0.28} stroke={RAW_COLORS.wall} strokeWidth={2} strokeOpacity={0.9} />
-                ))}
+                raw.wall.map((poly, i) => {
+                  const id = `wall-${i}`;
+                  const isSelected = selectedId === id;
+                  return (
+                    <polygon
+                      key={`wall-${i}`}
+                      points={polygonPoints(poly)}
+                      fill={RAW_COLORS.wall}
+                      fillOpacity={isSelected ? 0.5 : 0.28}
+                      stroke={RAW_COLORS.wall}
+                      strokeWidth={isSelected ? 3.5 : 2}
+                      strokeOpacity={0.9}
+                      style={{ cursor: isInteractive ? 'pointer' : undefined, pointerEvents: isInteractive ? 'auto' : 'none' }}
+                      onClick={() => onSelectObject?.(isSelected ? null : id)}
+                    />
+                  );
+                })}
               {visibility.door &&
-                raw.door.map((poly, i) => (
-                  <polygon key={`door-${i}`} points={polygonPoints(poly)} fill={RAW_COLORS.door} fillOpacity={0.28} stroke={RAW_COLORS.door} strokeWidth={2} />
-                ))}
+                raw.door.map((poly, i) => {
+                  const id = `door-${i}`;
+                  const isSelected = selectedId === id;
+                  return (
+                    <polygon
+                      key={`door-${i}`}
+                      points={polygonPoints(poly)}
+                      fill={RAW_COLORS.door}
+                      fillOpacity={isSelected ? 0.5 : 0.28}
+                      stroke={RAW_COLORS.door}
+                      strokeWidth={isSelected ? 3.5 : 2}
+                      style={{ cursor: isInteractive ? 'pointer' : undefined, pointerEvents: isInteractive ? 'auto' : 'none' }}
+                      onClick={() => onSelectObject?.(isSelected ? null : id)}
+                    />
+                  );
+                })}
               {visibility.entry_door &&
-                raw.entry_door.map((poly, i) => (
-                  <polygon key={`entry_door-${i}`} points={polygonPoints(poly)} fill={RAW_COLORS.entry_door} fillOpacity={0.32} stroke={RAW_COLORS.entry_door} strokeWidth={2} />
-                ))}
+                raw.entry_door.map((poly, i) => {
+                  const id = `entry_door-${i}`;
+                  const isSelected = selectedId === id;
+                  return (
+                    <polygon
+                      key={`entry_door-${i}`}
+                      points={polygonPoints(poly)}
+                      fill={RAW_COLORS.entry_door}
+                      fillOpacity={isSelected ? 0.5 : 0.32}
+                      stroke={RAW_COLORS.entry_door}
+                      strokeWidth={isSelected ? 3.5 : 2}
+                      style={{ cursor: isInteractive ? 'pointer' : undefined, pointerEvents: isInteractive ? 'auto' : 'none' }}
+                      onClick={() => onSelectObject?.(isSelected ? null : id)}
+                    />
+                  );
+                })}
               {visibility.window &&
-                raw.window.map((poly, i) => (
-                  <polygon key={`window-${i}`} points={polygonPoints(poly)} fill={RAW_COLORS.window} fillOpacity={0.28} stroke={RAW_COLORS.window} strokeWidth={2} />
-                ))}
+                raw.window.map((poly, i) => {
+                  const id = `window-${i}`;
+                  const isSelected = selectedId === id;
+                  return (
+                    <polygon
+                      key={`window-${i}`}
+                      points={polygonPoints(poly)}
+                      fill={RAW_COLORS.window}
+                      fillOpacity={isSelected ? 0.5 : 0.28}
+                      stroke={RAW_COLORS.window}
+                      strokeWidth={isSelected ? 3.5 : 2}
+                      style={{ cursor: isInteractive ? 'pointer' : undefined, pointerEvents: isInteractive ? 'auto' : 'none' }}
+                      onClick={() => onSelectObject?.(isSelected ? null : id)}
+                    />
+                  );
+                })}
               {visibility.kitchen &&
-                raw.kitchen.map((poly, i) => (
-                  <polygon key={`kitchen-${i}`} points={polygonPoints(poly)} fill={RAW_COLORS.kitchen} fillOpacity={0.24} stroke={RAW_COLORS.kitchen} strokeWidth={2} strokeDasharray="6 4" />
-                ))}
+                raw.kitchen.map((poly, i) => {
+                  const id = `kitchen-${i}`;
+                  const isSelected = selectedId === id;
+                  return (
+                    <polygon
+                      key={`kitchen-${i}`}
+                      points={polygonPoints(poly)}
+                      fill={RAW_COLORS.kitchen}
+                      fillOpacity={isSelected ? 0.45 : 0.24}
+                      stroke={RAW_COLORS.kitchen}
+                      strokeWidth={isSelected ? 3.5 : 2}
+                      strokeDasharray="6 4"
+                      style={{ cursor: isInteractive ? 'pointer' : undefined, pointerEvents: isInteractive ? 'auto' : 'none' }}
+                      onClick={() => onSelectObject?.(isSelected ? null : id)}
+                    />
+                  );
+                })}
               {visibility.door_center_line &&
                 raw.door_center_line.map((poly, i) => {
                   if (poly.length < 2) return null;

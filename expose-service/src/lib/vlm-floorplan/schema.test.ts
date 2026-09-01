@@ -343,6 +343,180 @@ describe('vlm-floorplan schema validation', () => {
     validateVlmAnalysis(analysis, rawFixture);
     assert.deepEqual(rawFixture, rawClone);
   });
+
+  describe('opening hostWallIds empty + uncertain', () => {
+    it('allows empty hostWallIds when relationship is uncertain', () => {
+      assert.doesNotThrow(() =>
+        vlmFloorplanAnalysisSchema.parse({
+          ...baseAnalysis,
+          openings: [{ objectId: 'window-0', type: 'window', hostWallIds: [], relationship: 'uncertain', confidence: 0.2, reason: 'cannot identify host' }],
+        }),
+      );
+    });
+
+    it('rejects empty hostWallIds when relationship is not uncertain', () => {
+      assert.throws(() =>
+        vlmFloorplanAnalysisSchema.parse({
+          ...baseAnalysis,
+          openings: [{ objectId: 'window-0', type: 'window', hostWallIds: [], relationship: 'interrupts_wall', confidence: 0.9, reason: null }],
+        }),
+      );
+    });
+
+    it('keeps uncertain openings with empty hostWallIds through validation (not dropped)', () => {
+      const analysis = vlmFloorplanAnalysisSchema.parse({
+        ...baseAnalysis,
+        openings: [{ objectId: 'window-0', type: 'window', hostWallIds: [], relationship: 'uncertain', confidence: 0.15, reason: 'uncertain host' }],
+      });
+      const { analysis: filtered, warnings } = validateVlmAnalysis(analysis, rawFixture);
+      assert.equal(filtered.openings.length, 1);
+      assert.deepEqual(filtered.openings[0].hostWallIds, []);
+      assert.equal(filtered.openings[0].relationship, 'uncertain');
+      assert.equal(warnings.length, 0);
+    });
+  });
+
+  describe('deduplication and conflicts — deterministic handling', () => {
+    it('deduplicates wallRelationships: prefers higher confidence', () => {
+      const analysis = vlmFloorplanAnalysisSchema.parse({
+        ...baseAnalysis,
+        wallRelationships: [
+          { wallIds: ['wall-0', 'wall-1'], relationship: 'corner', confidence: 0.6, reason: null },
+          { wallIds: ['wall-1', 'wall-0'], relationship: 'corner', confidence: 0.92, reason: null },
+        ],
+      });
+      const { analysis: filtered, warnings } = validateVlmAnalysis(analysis, rawFixture);
+      assert.equal(filtered.wallRelationships.length, 1);
+      assert.equal(filtered.wallRelationships[0].confidence, 0.92);
+      assert.ok(warnings.some((w) => w.includes('duplicate')));
+    });
+
+    it('marks duplicate wallRelationships as uncertain when confidence tied but relationship conflicts', () => {
+      const analysis = vlmFloorplanAnalysisSchema.parse({
+        ...baseAnalysis,
+        wallRelationships: [
+          { wallIds: ['wall-0', 'wall-1'], relationship: 'same_continuous_wall', confidence: 0.85, reason: null },
+          { wallIds: ['wall-1', 'wall-0'], relationship: 'corner', confidence: 0.85, reason: null },
+        ],
+      });
+      const { analysis: filtered, warnings } = validateVlmAnalysis(analysis, rawFixture);
+      assert.equal(filtered.wallRelationships.length, 1);
+      assert.equal(filtered.wallRelationships[0].relationship, 'uncertain');
+      assert.ok(warnings.some((w) => w.includes('conflict')));
+    });
+
+    it('deduplicates openings by objectId: prefers higher confidence', () => {
+      const analysis = vlmFloorplanAnalysisSchema.parse({
+        ...baseAnalysis,
+        openings: [
+          { objectId: 'window-0', type: 'window', hostWallIds: ['wall-0'], relationship: 'interrupts_wall', confidence: 0.5, reason: null },
+          { objectId: 'window-0', type: 'window', hostWallIds: ['wall-1'], relationship: 'interrupts_wall', confidence: 0.9, reason: null },
+        ],
+      });
+      const { analysis: filtered, warnings } = validateVlmAnalysis(analysis, rawFixture);
+      assert.equal(filtered.openings.length, 1);
+      assert.deepEqual(filtered.openings[0].hostWallIds, ['wall-1']);
+      assert.ok(warnings.some((w) => w.includes('duplicate')));
+    });
+
+    it('marks duplicate openings as uncertain when confidence tied but relationship conflicts', () => {
+      const analysis = vlmFloorplanAnalysisSchema.parse({
+        ...baseAnalysis,
+        openings: [
+          { objectId: 'window-0', type: 'window', hostWallIds: ['wall-0'], relationship: 'interrupts_wall', confidence: 0.7, reason: null },
+          { objectId: 'window-0', type: 'window', hostWallIds: ['wall-1'], relationship: 'uncertain', confidence: 0.7, reason: null },
+        ],
+      });
+      const { analysis: filtered } = validateVlmAnalysis(analysis, rawFixture);
+      assert.equal(filtered.openings.length, 1);
+      assert.equal(filtered.openings[0].relationship, 'uncertain');
+      assert.deepEqual(filtered.openings[0].hostWallIds, []);
+    });
+
+    it('deduplicates objectClassifications: prefers higher confidence', () => {
+      const analysis = vlmFloorplanAnalysisSchema.parse({
+        ...baseAnalysis,
+        objectClassifications: [
+          { objectId: 'window-0', classification: 'valid', confidence: 0.4, reason: null },
+          { objectId: 'window-0', classification: 'likely_false_positive', confidence: 0.95, reason: null },
+        ],
+      });
+      const { analysis: filtered, warnings } = validateVlmAnalysis(analysis, rawFixture);
+      assert.equal(filtered.objectClassifications.length, 1);
+      assert.equal(filtered.objectClassifications[0].classification, 'likely_false_positive');
+      assert.ok(warnings.some((w) => w.includes('duplicate')));
+    });
+
+    it('marks duplicate classifications as uncertain when tied and conflicting', () => {
+      const analysis = vlmFloorplanAnalysisSchema.parse({
+        ...baseAnalysis,
+        objectClassifications: [
+          { objectId: 'window-0', classification: 'valid', confidence: 0.8, reason: null },
+          { objectId: 'window-0', classification: 'suspicious', confidence: 0.8, reason: null },
+        ],
+      });
+      const { analysis: filtered, warnings } = validateVlmAnalysis(analysis, rawFixture);
+      assert.equal(filtered.objectClassifications.length, 1);
+      assert.equal(filtered.objectClassifications[0].classification, 'uncertain');
+      assert.ok(warnings.some((w) => w.includes('conflict')));
+    });
+
+    it('deduplicates topologySummary entries', () => {
+      const analysis = vlmFloorplanAnalysisSchema.parse({
+        ...baseAnalysis,
+        topologySummary: {
+          continuousWalls: [['wall-0', 'wall-1'], ['wall-1', 'wall-0']],
+          corners: [['wall-0', 'wall-1'], ['wall-0', 'wall-1']],
+          tJunctions: [['wall-0', 'wall-2']],
+          falsePositives: ['window-0', 'window-0'],
+        },
+      });
+      const { analysis: filtered, warnings } = validateVlmAnalysis(analysis, rawFixture);
+      assert.equal(filtered.topologySummary.continuousWalls.length, 1);
+      assert.equal(filtered.topologySummary.corners.length, 1);
+      assert.equal(filtered.topologySummary.falsePositives.length, 1);
+      assert.ok(warnings.some((w) => w.includes('duplicate')));
+    });
+
+    it('false positives from topologySummary must be valid IDs', () => {
+      const analysis = vlmFloorplanAnalysisSchema.parse({
+        ...baseAnalysis,
+        topologySummary: { continuousWalls: [], corners: [], tJunctions: [], falsePositives: ['wall-0'] },
+      });
+      const { analysis: filtered } = validateVlmAnalysis(analysis, rawFixture);
+      assert.deepEqual(filtered.topologySummary.falsePositives, ['wall-0']);
+    });
+
+    it('confidence bounds rejected outside 0..1 (schema)', () => {
+      assert.throws(() =>
+        vlmFloorplanAnalysisSchema.parse({
+          ...baseAnalysis,
+          wallRelationships: [{ wallIds: ['wall-0', 'wall-1'], relationship: 'corner', confidence: 1.1, reason: null }],
+        }),
+      );
+      assert.throws(() =>
+        vlmFloorplanAnalysisSchema.parse({
+          ...baseAnalysis,
+          openings: [{ objectId: 'window-0', type: 'window', hostWallIds: ['wall-0'], relationship: 'interrupts_wall', confidence: -0.05, reason: null }],
+        }),
+      );
+    });
+  });
+
+  describe('corner vs same_continuous_wall semantics', () => {
+    it('accepts corner and same_continuous_wall as distinct valid relationships', () => {
+      const corner = vlmFloorplanAnalysisSchema.parse({
+        ...baseAnalysis,
+        wallRelationships: [{ wallIds: ['wall-0', 'wall-1'], relationship: 'corner', confidence: 0.92, reason: 'North + East meet at right angle' }],
+      });
+      assert.equal(corner.wallRelationships[0].relationship, 'corner');
+      const same = vlmFloorplanAnalysisSchema.parse({
+        ...baseAnalysis,
+        wallRelationships: [{ wallIds: ['wall-0', 'wall-1'], relationship: 'same_continuous_wall', confidence: 0.92, reason: 'collinear segments of same straight wall' }],
+      });
+      assert.equal(same.wallRelationships[0].relationship, 'same_continuous_wall');
+    });
+  });
 });
 
 describe('vlm-floorplan topology contract against real fixture (c658e915…)', () => {

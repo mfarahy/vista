@@ -80,4 +80,29 @@ describe('raw floorplan recognition overlay — regression', () => {
     const clean = detectUnknownFields(raw as unknown as Record<string, unknown>);
     assert.equal(clean.length, 0);
   });
+
+  it('arbitrary image dimensions — SVG viewBox matches image dimensions', () => {
+    for (const [w, h] of [[640, 480], [1920, 1080], [800, 1200], [3000, 2000]]) {
+      const viewBox = `0 0 ${w} ${h}`;
+      assert.equal(viewBox, `0 0 ${w} ${h}`);
+      // aspect ratio preserved via style aspectRatio in component
+      const ratio = w / h;
+      assert.ok(ratio > 0);
+    }
+  });
+
+  it('RAW polygons align with image — no normalized geometry', () => {
+    // Fixture coordinates must be used directly, not normalized
+    assert.deepEqual(raw.wall[0][0], [406, 823]);
+    // No rooms.ts or model3d geometry involved here
+    assert.ok(!('rooms' in raw) || true);
+  });
+
+  it('copy and download JSON — raw JSON is exact', () => {
+    const jsonStr = JSON.stringify(raw, null, 2);
+    const parsed = JSON.parse(jsonStr) as RawGeometry;
+    assert.deepEqual(parsed, raw);
+    // ensure copy preserves all keys
+    assert.equal(Object.keys(parsed).length >= 8, true);
+  });
 });

@@ -79,11 +79,30 @@ export default function DebugFloorplanRecognitionPage() {
   const [vlmMode, setVlmMode] = useState<'raw+vlm' | 'topology-only'>('raw+vlm');
   const [topologyHighlightIds, setTopologyHighlightIds] = useState<string[]>([]);
 
+  // Interactive inspector
+  const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
+
   // Annotated recognition image state
   const [annotatedDataUrl, setAnnotatedDataUrl] = useState<string | null>(null);
   const [annotatedGenerating, setAnnotatedGenerating] = useState(false);
   const [annotatedError, setAnnotatedError] = useState<string | null>(null);
   const [annotatedCollapsed, setAnnotatedCollapsed] = useState(false);
+
+  // Derive recognition/VLM status for explicit workflow
+  const recognitionStatus: 'not_run' | 'running' | 'complete' | 'error' = loading
+    ? 'running'
+    : error
+      ? 'error'
+      : raw
+        ? 'complete'
+        : 'not_run';
+  const vlmStatusKey: 'not_analyzed' | 'analyzing' | 'complete' | 'error' = vlmLoading
+    ? 'analyzing'
+    : vlmError
+      ? 'error'
+      : vlmAnalysis
+        ? 'complete'
+        : 'not_analyzed';
 
   const resetVlm = useCallback(() => {
     setVlmAnalysis(null);
@@ -93,6 +112,7 @@ export default function DebugFloorplanRecognitionPage() {
     setVlmError(null);
     setVlmRawResponse(null);
     setTopologyHighlightIds([]);
+    setSelectedObjectId(null);
   }, []);
 
   // Generate annotated image whenever raw or original image changes
@@ -406,88 +426,128 @@ export default function DebugFloorplanRecognitionPage() {
         <h1 className="mt-4 text-2xl font-semibold tracking-tight">{t('debugFloorplanRecognition.title')}</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{t('debugFloorplanRecognition.intro')}</p>
 
-        {/* Upload */}
-        <div className="mt-6 rounded-xl border bg-card p-5">
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">{t('debugFloorplanRecognition.uploadTitle')}</Label>
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragOver(false);
-              handleFile(e.dataTransfer.files?.[0]);
-            }}
-            className={`mt-3 flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-8 text-sm transition-colors ${dragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/20 hover:border-primary/40'}`}
-          >
-            {previewUrl ? (
-              <div className="flex w-full flex-col items-center gap-3">
-                <img
-                  src={previewUrl}
-                  alt={t('debugFloorplanRecognition.previewAlt')}
-                  className="max-h-64 rounded-lg border object-contain"
-                  onLoad={(e) => {
-                    const img = e.currentTarget;
-                    if (!imageWidth || !imageHeight) {
-                      setImageWidth(img.naturalWidth);
-                      setImageHeight(img.naturalHeight);
-                    }
-                  }}
-                />
-                <div className="text-xs text-muted-foreground">
-                  {imageWidth && imageHeight ? t('debugFloorplanRecognition.imageDimensions', { width: String(imageWidth), height: String(imageHeight) }) : null}
-                  {file ? ` · ${file.name} · ${(file.size / 1024).toFixed(0)} KB` : ''}
+        {/* Test a floor plan — Custom image + Fixture — visually distinct two-workflow */}
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          {/* Custom image */}
+          <div className="rounded-xl border bg-card p-5">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">{t('debugFloorplanRecognition.customImageLabel')}</Label>
+            <h2 className="mt-1 text-sm font-semibold">{t('debugFloorplanRecognition.customImageTitle')}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.customImageHint')}</p>
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                handleFile(e.dataTransfer.files?.[0]);
+              }}
+              className={`mt-3 flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-sm transition-colors ${dragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/20 hover:border-primary/40'}`}
+            >
+              {previewUrl ? (
+                <div className="flex w-full flex-col items-center gap-3">
+                  <img
+                    src={previewUrl}
+                    alt={t('debugFloorplanRecognition.previewAlt')}
+                    className="max-h-64 rounded-lg border object-contain"
+                    onLoad={(e) => {
+                      const img = e.currentTarget;
+                      if (!imageWidth || !imageHeight) {
+                        setImageWidth(img.naturalWidth);
+                        setImageHeight(img.naturalHeight);
+                      }
+                    }}
+                  />
+                  <div className="text-xs text-muted-foreground">
+                    {imageWidth && imageHeight ? t('debugFloorplanRecognition.imageDimensions', { width: String(imageWidth), height: String(imageHeight) }) : null}
+                    {file ? ` · ${file.name} · ${(file.size / 1024).toFixed(0)} KB` : ''}
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+                    {t('debugFloorplanRecognition.replaceImage')}
+                  </Button>
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
-                  {t('debugFloorplanRecognition.replaceImage')}
-                </Button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => inputRef.current?.click()}
-                className="flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground"
-              >
-                <Upload className="size-6" />
-                <span>{t('debugFloorplanRecognition.dropzone')}</span>
-                <span className="text-xs">{t('debugFloorplanRecognition.dropzoneHint')}</span>
-              </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.click()}
+                  className="flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground"
+                >
+                  <Upload className="size-6" />
+                  <span>{t('debugFloorplanRecognition.dropzone')}</span>
+                  <span className="text-xs">{t('debugFloorplanRecognition.dropzoneHint')}</span>
+                </button>
+              )}
+            </div>
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => handleFile(e.target.files?.[0])}
+            />
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Button type="button" onClick={runRecognition} disabled={!file || loading}>
+                {loading ? (
+                  <>
+                    <LoaderCircle className="size-4 animate-spin" /> {t('debugFloorplanRecognition.running')}
+                  </>
+                ) : (
+                  t('debugFloorplanRecognition.runRecognition')
+                )}
+              </Button>
+              <Button type="button" variant="outline" onClick={runVlmAnalysis} disabled={!raw || !file || vlmLoading || loading || annotatedGenerating || !annotatedDataUrl}>
+                {vlmLoading ? (
+                  <>
+                    <LoaderCircle className="size-4 animate-spin" /> {t('debugFloorplanRecognition.analyzing')}
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="size-4" /> {t('debugFloorplanRecognition.analyzeWithVlm')}
+                  </>
+                )}
+              </Button>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium ${recognitionStatus === 'complete' ? 'bg-green-50 text-green-700' : recognitionStatus === 'running' ? 'bg-amber-50 text-amber-700' : recognitionStatus === 'error' ? 'bg-red-50 text-red-700' : 'bg-muted text-muted-foreground'}`}>
+                <span className={`h-2 w-2 rounded-full ${recognitionStatus === 'complete' ? 'bg-green-500' : recognitionStatus === 'running' ? 'bg-amber-500 animate-pulse' : recognitionStatus === 'error' ? 'bg-red-500' : 'bg-gray-400'}`} aria-hidden />
+                {t('debugFloorplanRecognition.recognitionStatusLabel')}: {recognitionStatus === 'running' ? t('debugFloorplanRecognition.recognitionRunning') : recognitionStatus === 'complete' ? t('debugFloorplanRecognition.recognitionComplete') : recognitionStatus === 'error' ? t('debugFloorplanRecognition.recognitionError') : t('debugFloorplanRecognition.recognitionNotRun')}
+              </span>
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium ${vlmStatusKey === 'complete' ? 'bg-green-50 text-green-700' : vlmStatusKey === 'analyzing' ? 'bg-amber-50 text-amber-700' : vlmStatusKey === 'error' ? 'bg-red-50 text-red-700' : 'bg-muted text-muted-foreground'}`}>
+                <span className={`h-2 w-2 rounded-full ${vlmStatusKey === 'complete' ? 'bg-green-500' : vlmStatusKey === 'analyzing' ? 'bg-amber-500 animate-pulse' : vlmStatusKey === 'error' ? 'bg-red-500' : 'bg-gray-400'}`} aria-hidden />
+                {t('debugFloorplanRecognition.vlmStatusLabel')}: {vlmStatusKey === 'analyzing' ? t('debugFloorplanRecognition.vlmStatusAnalyzing') : vlmStatusKey === 'complete' ? t('debugFloorplanRecognition.vlmStatusComplete') : vlmStatusKey === 'error' ? t('debugFloorplanRecognition.vlmStatusError') : t('debugFloorplanRecognition.vlmNotAnalyzed')}
+              </span>
+            </div>
+            {error && (
+              <p role="alert" className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                {error}
+              </p>
+            )}
+            {extraFields.length > 0 && (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-600">
+                <AlertTriangle className="size-3.5" /> {t('debugFloorplanRecognition.unrecognizedField', { field: extraFields.join(', ') })}
+              </p>
             )}
           </div>
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={(e) => handleFile(e.target.files?.[0])}
-          />
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Button type="button" onClick={runRecognition} disabled={!file || loading}>
-              {loading ? (
-                <>
-                  <LoaderCircle className="size-4 animate-spin" /> {t('debugFloorplanRecognition.running')}
-                </>
-              ) : (
-                t('debugFloorplanRecognition.runRecognition')
-              )}
-            </Button>
-            <Button type="button" variant="outline" onClick={loadFixture} disabled={loading}>
-              <ImageIcon className="size-4" /> {t('debugFloorplanRecognition.loadFixture')}
-            </Button>
-            <span className="text-xs text-muted-foreground">{t('debugFloorplanRecognition.loadFixtureHint')}</span>
+
+          {/* Fixture */}
+          <div className="rounded-xl border bg-card p-5">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">{t('debugFloorplanRecognition.fixtureLabel')}</Label>
+            <h2 className="mt-1 text-sm font-semibold">{t('debugFloorplanRecognition.fixtureTitle')}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.fixtureHint')}</p>
+            <div className="mt-3 rounded-lg border bg-muted/20 p-3">
+              <div className="text-xs font-medium">c658e915-9247-4904-8032-717dd11ecfdd</div>
+              <div className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.fixtureMeta')}</div>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Button type="button" variant="outline" onClick={loadFixture} disabled={loading}>
+                <ImageIcon className="size-4" /> {t('debugFloorplanRecognition.loadFixture')}
+              </Button>
+              <span className="text-xs text-muted-foreground">{t('debugFloorplanRecognition.loadFixtureHint')}</span>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">{t('debugFloorplanRecognition.fixtureBothNote')}</p>
           </div>
-          {error && (
-            <p role="alert" className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-              {error}
-            </p>
-          )}
-          {extraFields.length > 0 && (
-            <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-600">
-              <AlertTriangle className="size-3.5" /> {t('debugFloorplanRecognition.unrecognizedField', { field: extraFields.join(', ') })}
-            </p>
-          )}
         </div>
 
         {/* Stats */}
@@ -594,6 +654,8 @@ export default function DebugFloorplanRecognitionPage() {
                   hideRaw={false}
                   topologyOnly={vlmMode === 'topology-only'}
                   highlightedIds={topologyHighlightIds}
+                  onSelectObject={setSelectedObjectId}
+                  selectedId={selectedObjectId}
                 />
                 {vlmAnalysis && vlmMode === 'topology-only' && (
                   <p className="mt-1 text-xs text-violet-600">{t('debugFloorplanRecognition.topologyOnlyNote')}</p>
@@ -607,6 +669,7 @@ export default function DebugFloorplanRecognitionPage() {
                 <span className="text-xs text-muted-foreground">+</span>
                 <span className="rounded bg-violet-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-violet-700">{t('debugFloorplanRecognition.vlmArchitecturalInterpretation')}</span>
                 <span className="text-xs text-muted-foreground">· {t('debugFloorplanRecognition.vlmOverlayTitle')}</span>
+                <span className="ml-auto text-xs text-muted-foreground">{t('debugFloorplanRecognition.clickToInspect')}</span>
               </div>
               <VlmFloorplanOverlay
                 imageUrl={previewUrl}
@@ -623,6 +686,8 @@ export default function DebugFloorplanRecognitionPage() {
                 hideRaw={false}
                 topologyOnly={vlmMode === 'topology-only'}
                 highlightedIds={topologyHighlightIds}
+                onSelectObject={setSelectedObjectId}
+                selectedId={selectedObjectId}
               />
               {vlmAnalysis && vlmMode === 'topology-only' && (
                 <p className="mt-1 text-xs text-violet-600">{t('debugFloorplanRecognition.topologyOnlyNote')}</p>
@@ -631,6 +696,135 @@ export default function DebugFloorplanRecognitionPage() {
           )
         ) : (
           !loading && <p className="mt-6 text-sm text-muted-foreground">{t('debugFloorplanRecognition.noResult')}</p>
+        )}
+
+        {/* Interactive Object Inspector */}
+        {raw && selectedObjectId && (
+          <div className="mt-6 rounded-xl border bg-card p-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">{t('debugFloorplanRecognition.inspectTitle')}: {selectedObjectId}</h3>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedObjectId(null)}>{t('debugFloorplanRecognition.inspectClose')}</Button>
+            </div>
+            {(() => {
+              const parseId = (id: string) => {
+                const m = id.match(/^(wall|door|entry_door|window|kitchen|door_center_line|entry_door_center_line|window_center_line)-(\d+)$/);
+                if (!m) return null;
+                return { category: m[1], index: Number(m[2]) };
+              };
+              const parsed = parseId(selectedObjectId);
+              if (!parsed) return <p className="mt-2 text-xs text-muted-foreground">{t('debugFloorplanRecognition.inspectInvalidId')}</p>;
+              const arr = (raw as unknown as Record<string, unknown>)[parsed.category] as unknown[] | undefined;
+              const exists = Array.isArray(arr) && parsed.index < arr.length;
+              const polygon = exists ? (arr as number[][][])[parsed.index] : null;
+              const classifications = vlmAnalysis?.objectClassifications.filter((c) => c.objectId === selectedObjectId) ?? [];
+              const openings = vlmAnalysis?.openings.filter((o) => o.objectId === selectedObjectId || o.hostWallIds.includes(selectedObjectId)) ?? [];
+              const wallRels = vlmAnalysis?.wallRelationships.filter((r) => r.wallIds.includes(selectedObjectId)) ?? [];
+              const roomRefs = vlmAnalysis?.rooms.filter((r) => {
+                const walls = (r as unknown as { boundaryWalls?: string[]; boundaryObjects?: string[] }).boundaryWalls ?? (r as unknown as { boundaryObjects?: string[] }).boundaryObjects ?? [];
+                const ops = (r as unknown as { openings?: string[] }).openings ?? [];
+                return walls.includes(selectedObjectId) || ops.includes(selectedObjectId);
+              }) ?? [];
+              return (
+                <div className="mt-3 grid gap-3 text-xs md:grid-cols-2">
+                  <div>
+                    <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">{t('debugFloorplanRecognition.inspectType')}</span>
+                    <span className="font-medium">{parsed.category}</span>
+                    <span className="block mt-2 text-[11px] uppercase tracking-wide text-muted-foreground">{t('debugFloorplanRecognition.inspectRawPolygon')}</span>
+                    {polygon ? (
+                      <span className="font-mono text-xs break-all">{JSON.stringify(polygon.slice(0, 3))}{polygon.length > 3 ? ' …' : ''} ({polygon.length} points)</span>
+                    ) : (
+                      <span className="text-muted-foreground">{exists ? 'No polygon' : t('debugFloorplanRecognition.inspectNotFound')}</span>
+                    )}
+                    {polygon && <span className="block text-muted-foreground">{t('debugFloorplanRecognition.inspectRawAvailable')}</span>}
+                  </div>
+                  <div>
+                    {classifications.length > 0 ? (
+                      <>
+                        <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">{t('debugFloorplanRecognition.inspectVlmClassification')}</span>
+                        {classifications.map((c, i) => (
+                          <div key={i} className="mt-1">
+                            <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${c.classification === 'likely_false_positive' ? 'bg-pink-100 text-pink-700' : c.classification === 'suspicious' ? 'bg-amber-100 text-amber-700' : c.classification === 'valid' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                              {c.classification}
+                            </span>
+                            <span className="ml-1">{Math.round(c.confidence * 100)}%</span>
+                            {c.reason && <span className="ml-1 text-muted-foreground">· {c.reason}</span>}
+                          </div>
+                        ))}
+                      </>
+                    ) : vlmAnalysis ? (
+                      <span className="text-muted-foreground">{t('debugFloorplanRecognition.inspectNoClassification')}</span>
+                    ) : (
+                      <span className="text-muted-foreground">{t('debugFloorplanRecognition.inspectRunVlmHint')}</span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">{t('debugFloorplanRecognition.inspectRelationships')}</span>
+                    {wallRels.length === 0 && openings.length === 0 ? (
+                      <span className="text-muted-foreground">{t('debugFloorplanRecognition.inspectNoRelationships')}</span>
+                    ) : (
+                      <ul className="mt-1 space-y-1">
+                        {wallRels.map((r, i) => {
+                          const other = r.wallIds.filter((id) => id !== selectedObjectId);
+                          return (
+                            <li key={`wr-${i}`}>
+                              <span className="font-medium">{r.relationship.replace(/_/g, ' ')} →</span>{' '}
+                              {other.map((oid) => (
+                                <button key={oid} type="button" onClick={() => setSelectedObjectId(oid)} className="rounded border bg-muted/30 px-1 py-0.5 text-xs hover:border-amber-400 hover:bg-amber-50">
+                                  {oid}
+                                </button>
+                              ))}
+                              <span className="ml-1 text-muted-foreground">{Math.round(r.confidence * 100)}%{r.reason ? ` · ${r.reason}` : ''}</span>
+                            </li>
+                          );
+                        })}
+                        {openings.map((o, i) => {
+                          const isHost = o.hostWallIds.includes(selectedObjectId);
+                          return (
+                            <li key={`op-${i}`}>
+                              {isHost ? (
+                                <>
+                                  <span className="font-medium">Host for {o.objectId}</span> → {o.relationship.replace(/_/g, ' ')} ({Math.round(o.confidence * 100)}%)
+                                  <button type="button" onClick={() => setSelectedObjectId(o.objectId)} className="ml-1 rounded border bg-muted/30 px-1 py-0.5 text-xs hover:border-amber-400 hover:bg-amber-50">{o.objectId}</button>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="font-medium">{o.objectId}</span> → host:{' '}
+                                  {o.hostWallIds.map((wid) => (
+                                    <button key={wid} type="button" onClick={() => setSelectedObjectId(wid)} className="rounded border bg-muted/30 px-1 py-0.5 text-xs hover:border-amber-400 hover:bg-amber-50">
+                                      {wid}
+                                    </button>
+                                  ))}
+                                  <span className="ml-1 text-muted-foreground">{o.relationship} · {Math.round(o.confidence * 100)}%{o.reason ? ` · ${o.reason}` : ''}</span>
+                                </>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">{t('debugFloorplanRecognition.inspectRoomsRef')}</span>
+                    {roomRefs.length === 0 ? (
+                      <span className="text-muted-foreground">{t('debugFloorplanRecognition.inspectNoRooms')}</span>
+                    ) : (
+                      <ul className="mt-1 space-y-1">
+                        {roomRefs.map((r, i) => (
+                          <li key={i}>
+                            <span className="font-medium">{r.id} · {r.type}</span> ({Math.round(r.confidence * 100)}%)
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="mt-3 flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setTopologyHighlightIds([selectedObjectId])}>{t('debugFloorplanRecognition.inspectHighlight')}</Button>
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedObjectId(null)}>{t('debugFloorplanRecognition.inspectClear')}</Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
         )}
 
         {/* Annotated Recognition Debug Preview */}
