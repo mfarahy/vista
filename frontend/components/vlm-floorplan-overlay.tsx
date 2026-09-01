@@ -4,6 +4,43 @@ import { RAW_COLORS, type RawGeometry, type LayerVisibility } from './raw-floorp
 
 // ---- VLM types (mirrors backend zod schema) ----
 
+export type GeometryHintType = 'same_continuous_wall' | 'parallel_walls' | 'same_axis' | 'extend_to_intersection' | 'merge_walls';
+
+export type GeometryHint = {
+  type: GeometryHintType;
+  objectIds: string[];
+  confidence: number;
+  reason: string | null;
+};
+
+export type GeometryHintsVisibility = {
+  sameContinuousWall: boolean;
+  parallelWalls: boolean;
+  sameAxis: boolean;
+  extendToIntersection: boolean;
+  mergeWalls: boolean;
+};
+
+export const GEOMETRY_HINT_TYPES: GeometryHintType[] = ['same_continuous_wall', 'parallel_walls', 'same_axis', 'extend_to_intersection', 'merge_walls'];
+
+export function geometryHintLabel(t: GeometryHintType): string {
+  switch (t) {
+    case 'same_continuous_wall': return 'Same continuous wall';
+    case 'parallel_walls': return 'Parallel walls';
+    case 'same_axis': return 'Same axis';
+    case 'extend_to_intersection': return 'Extend to intersection';
+    case 'merge_walls': return 'Merge walls';
+  }
+}
+
+export const GEOMETRY_HINT_COLORS: Record<GeometryHintType, string> = {
+  same_continuous_wall: '#2e7d32',
+  parallel_walls: '#1565c0',
+  same_axis: '#00695c',
+  extend_to_intersection: '#ef6c00',
+  merge_walls: '#6a1b9a',
+};
+
 export type WallRelationship = {
   wallIds: string[];
   relationship:
@@ -59,6 +96,7 @@ export type VlmAnalysis = {
   objectClassifications: ObjectClassification[];
   rooms: RoomHypothesis[];
   topologySummary: TopologySummary;
+  geometryHints?: GeometryHint[];
 };
 
 export type VlmVisibility = {
@@ -188,6 +226,9 @@ export function VlmFloorplanOverlay({
   highlightedIds,
   onSelectObject,
   selectedId,
+  geometryVisibility,
+  showGeometryHints,
+  geometryOnlyMode,
 }: {
   imageUrl: string | null;
   imageWidth: number;
@@ -205,11 +246,18 @@ export function VlmFloorplanOverlay({
   highlightedIds?: string[];
   onSelectObject?: (id: string | null) => void;
   selectedId?: string | null;
+  geometryVisibility?: GeometryHintsVisibility;
+  showGeometryHints?: boolean;
+  geometryOnlyMode?: boolean;
 }) {
   if (!imageWidth || !imageHeight) return null;
   const viewBox = `0 0 ${imageWidth} ${imageHeight}`;
   const highlights = highlightedIds ?? [];
   const isInteractive = Boolean(onSelectObject);
+  const geometryReferencedIds = geometryOnlyMode && vlmAnalysis?.geometryHints
+    ? new Set((vlmAnalysis.geometryHints ?? []).flatMap((h) => h.objectIds))
+    : null;
+  const isGeometryReferenced = (id: string) => !geometryReferencedIds || geometryReferencedIds.has(id);
 
   return (
     <div className="relative w-full overflow-hidden rounded-xl border bg-white">
@@ -226,12 +274,13 @@ export function VlmFloorplanOverlay({
             </marker>
           </defs>
 
-          {/* Clickable RAW polygons — inspector */}
+          {/* Clickable RAW polygons — inspector (geometry-only mode: only hint-referenced IDs) */}
           {!hideRaw && (
             <>
               {visibility.wall &&
                 raw.wall.map((poly, i) => {
                   const id = `wall-${i}`;
+                  if (!isGeometryReferenced(id)) return null;
                   const isSelected = selectedId === id;
                   return (
                     <polygon
@@ -250,6 +299,7 @@ export function VlmFloorplanOverlay({
               {visibility.door &&
                 raw.door.map((poly, i) => {
                   const id = `door-${i}`;
+                  if (!isGeometryReferenced(id)) return null;
                   const isSelected = selectedId === id;
                   return (
                     <polygon
@@ -267,6 +317,7 @@ export function VlmFloorplanOverlay({
               {visibility.entry_door &&
                 raw.entry_door.map((poly, i) => {
                   const id = `entry_door-${i}`;
+                  if (!isGeometryReferenced(id)) return null;
                   const isSelected = selectedId === id;
                   return (
                     <polygon
@@ -284,6 +335,7 @@ export function VlmFloorplanOverlay({
               {visibility.window &&
                 raw.window.map((poly, i) => {
                   const id = `window-${i}`;
+                  if (!isGeometryReferenced(id)) return null;
                   const isSelected = selectedId === id;
                   return (
                     <polygon
@@ -301,6 +353,7 @@ export function VlmFloorplanOverlay({
               {visibility.kitchen &&
                 raw.kitchen.map((poly, i) => {
                   const id = `kitchen-${i}`;
+                  if (!isGeometryReferenced(id)) return null;
                   const isSelected = selectedId === id;
                   return (
                     <polygon
@@ -349,8 +402,8 @@ export function VlmFloorplanOverlay({
           {/* VLM layers */}
           {vlmAnalysis && (
             <>
-              {/* Object classifications — highlight object polygons */}
-              {vlmVisibility.objectClassifications &&
+              {/* Object classifications — highlight object polygons (hidden in geometry-only mode) */}
+              {!geometryOnlyMode && vlmVisibility.objectClassifications &&
                 vlmAnalysis.objectClassifications
                   .filter((c) => c.classification !== 'valid')
                   .map((c, idx) => {
@@ -379,8 +432,8 @@ export function VlmFloorplanOverlay({
                   })}
 
               {/* Rooms — boundaryWalls/openings are REFERENCES to RAW objects only. In topologyOnly mode the
-                  reconstructed centroid polygon outline is suppressed; room is shown as labels + wall refs. */}
-              {vlmVisibility.rooms &&
+                  reconstructed centroid polygon outline is suppressed; room is shown as labels + wall refs. Hidden in geometry-only mode. */}
+              {!geometryOnlyMode && vlmVisibility.rooms &&
                 vlmAnalysis.rooms.map((room, idx) => {
                   const wallIds = (room.boundaryWalls ?? room.boundaryObjects ?? []) as string[];
                   const openingIds = (room.openings ?? []) as string[];
@@ -434,8 +487,8 @@ export function VlmFloorplanOverlay({
                   );
                 })}
 
-              {/* Wall relationships — highlight actual wall polygons + connector between centroids */}
-              {vlmVisibility.wallRelationships &&
+              {/* Wall relationships — highlight actual wall polygons + connector between centroids (hidden in geometry-only) */}
+              {!geometryOnlyMode && vlmVisibility.wallRelationships &&
                 vlmAnalysis.wallRelationships.map((rel, idx) => {
                   const cents = rel.wallIds.map((id) => getCentroidForId(id, raw)).filter(Boolean) as { x: number; y: number }[];
                   if (cents.length < 2) return null;
@@ -470,6 +523,7 @@ export function VlmFloorplanOverlay({
 
               {/* Opening associations — highlight opening + host wall polygons + connector */}
               {vlmVisibility.openingAssociations &&
+                !geometryOnlyMode &&
                 vlmAnalysis.openings.map((op, idx) => {
                   const opPoly = getPolygonForId(op.objectId, raw);
                   const opCent = getCentroidForId(op.objectId, raw);
@@ -507,7 +561,113 @@ export function VlmFloorplanOverlay({
                     </g>
                   );
                 })}
+              {/* Object classifications & rooms hidden in geometryOnly mode */}
+              {geometryOnlyMode ? null : (
+                <>
+                  {/* placeholder — already rendered above, this branch just hides rooms/classifications */}
+                </>
+              )}
             </>
+          )}
+          {vlmAnalysis && (vlmAnalysis.geometryHints?.length ?? 0) > 0 && (showGeometryHints ?? true) && (
+            <>
+              {(vlmAnalysis.geometryHints ?? [])
+                .filter((h) => {
+                  const gv = geometryVisibility;
+                  if (!gv) return true;
+                  switch (h.type) {
+                    case 'same_continuous_wall': return gv.sameContinuousWall;
+                    case 'parallel_walls': return gv.parallelWalls;
+                    case 'same_axis': return gv.sameAxis;
+                    case 'extend_to_intersection': return gv.extendToIntersection;
+                    case 'merge_walls': return gv.mergeWalls;
+                    default: return true;
+                  }
+                })
+                .map((hint, idx) => {
+                  const cents = hint.objectIds.map((id) => getCentroidForId(id, raw)).filter(Boolean) as { x: number; y: number }[];
+                  if (cents.length < 2) return null;
+                  const col = GEOMETRY_HINT_COLORS[hint.type] ?? '#757575';
+                  const lowConf = hint.confidence < 0.75;
+                  return (
+                    <g key={`gh-${idx}`}>
+                      {hint.objectIds.map((id) => {
+                        const poly = getPolygonForId(id, raw);
+                        if (!poly) return null;
+                        return <polygon key={`gh-poly-${idx}-${id}`} points={polygonPoints(poly)} fill={col} fillOpacity={lowConf ? 0.10 : 0.18} stroke={col} strokeWidth={lowConf ? 2.5 : 3.5} strokeOpacity={lowConf ? 0.6 : 0.95} strokeDasharray={hint.type === 'extend_to_intersection' ? '10 6' : hint.type === 'merge_walls' ? '6 3' : hint.type === 'same_axis' ? '8 4' : hint.type === 'parallel_walls' ? '4 4' : '10 5'} />;
+                      })}
+                      {(() => {
+                        if (hint.type === 'merge_walls') {
+                          // for merge: connect all to first centroid
+                          const first = cents[0];
+                          return cents.slice(1).map((c, j) => {
+                            const mid = midpoint(first, c);
+                            return (
+                              <g key={`gh-merge-${idx}-${j}`}>
+                                <line x1={first.x} y1={first.y} x2={c.x} y2={c.y} stroke={col} strokeWidth={2.5} strokeDasharray="6 3" strokeOpacity={0.85} />
+                                {(showVlmIds || showConfidence) && j === 0 && (
+                                  <text x={mid.x} y={mid.y - 6} fontSize={7} fill={col} textAnchor="middle" paintOrder="stroke" stroke="#fff" strokeWidth={3} fontWeight={600}>
+                                    {showVlmIds ? geometryHintLabel(hint.type) : ''}{showVlmIds && showConfidence ? ' · ' : ''}{showConfidence ? `${Math.round(hint.confidence * 100)}%` : ''}
+                                  </text>
+                                )}
+                              </g>
+                            );
+                          });
+                        }
+                        if (hint.type === 'extend_to_intersection' && cents.length >= 2) {
+                          const src = cents[0];
+                          const tgt = cents[1];
+                          const mid = midpoint(src, tgt);
+                          return (
+                            <g key={`gh-ext-${idx}`}>
+                              <line x1={src.x} y1={src.y} x2={tgt.x} y2={tgt.y} stroke={col} strokeWidth={2.5} strokeDasharray="10 6" strokeOpacity={0.9} markerEnd="url(#vlm-arrow)" />
+                              <circle cx={src.x} cy={src.y} r={5} fill={col} stroke="#fff" strokeWidth={1.5} />
+                              <circle cx={tgt.x} cy={tgt.y} r={5} fill={col} stroke="#fff" strokeWidth={1.5} />
+                              {lowConf && <circle cx={mid.x} cy={mid.y} r={8} fill="none" stroke={col} strokeWidth={1} strokeDasharray="3 3" opacity={0.5} />}
+                              {(showVlmIds || showConfidence) && (
+                                <text x={mid.x} y={mid.y - 8} fontSize={7} fill={col} textAnchor="middle" paintOrder="stroke" stroke="#fff" strokeWidth={3} fontWeight={600}>
+                                  {showVlmIds ? `${hint.objectIds[0]} → ${hint.objectIds[1]}` : ''}{showVlmIds && showConfidence ? ' · ' : ''}{showConfidence ? `${Math.round(hint.confidence * 100)}%` : ''}
+                                </text>
+                              )}
+                            </g>
+                          );
+                        }
+                        // default: chain centroids sequentially
+                        return cents.slice(1).map((c, j) => {
+                          const prev = cents[j];
+                          const mid = midpoint(prev, c);
+                          // same_axis: draw axis line extended slightly
+                          const isAxis = hint.type === 'same_axis';
+                          return (
+                            <g key={`gh-seg-${idx}-${j}`}>
+                              <line x1={prev.x} y1={prev.y} x2={c.x} y2={c.y} stroke={col} strokeWidth={isAxis ? 3 : 2.5} strokeDasharray={isAxis ? '8 4' : hint.type === 'parallel_walls' ? '4 4' : '10 5'} strokeOpacity={0.9} />
+                              {isAxis && (
+                                <>
+                                  <line x1={prev.x} y1={prev.y} x2={prev.x + (c.x - prev.x) * 0.15} y2={prev.y + (c.y - prev.y) * 0.15} stroke={col} strokeWidth={5} strokeOpacity={0.25} />
+                                  <line x1={c.x} y1={c.y} x2={c.x + (prev.x - c.x) * 0.15} y2={c.y + (prev.y - c.y) * 0.15} stroke={col} strokeWidth={5} strokeOpacity={0.25} />
+                                </>
+                              )}
+                              <circle cx={prev.x} cy={prev.y} r={4} fill={col} stroke="#fff" strokeWidth={1.2} />
+                              {j === cents.length - 2 && <circle cx={c.x} cy={c.y} r={4} fill={col} stroke="#fff" strokeWidth={1.2} />}
+                              {(showVlmIds || showConfidence) && j === 0 && (
+                                <text x={mid.x} y={mid.y - 6} fontSize={7} fill={col} textAnchor="middle" paintOrder="stroke" stroke="#fff" strokeWidth={3} fontWeight={600}>
+                                  {showVlmIds ? geometryHintLabel(hint.type) : ''}{showVlmIds && showConfidence ? ' · ' : ''}{showConfidence ? `${Math.round(hint.confidence * 100)}%` : ''}
+                                </text>
+                              )}
+                            </g>
+                          );
+                        });
+                      })()}
+                    </g>
+                  );
+                })}
+            </>
+          )}
+          {/* Hide classifications/rooms/wallRelationships/openings in geometry-only mode: overlay already handles geometry pass */}
+          {geometryOnlyMode && vlmAnalysis && (
+            <g opacity={0} pointerEvents="none">
+              {/* suppress duplicate rendering — geometry pass already rendered */}
+            </g>
           )}
 
           {/* Clickable topology highlights — raw polygons only, no new geometry */}

@@ -22,7 +22,11 @@ import {
   type VlmVisibility,
   type TopologySummary,
   type ObjectClassification,
+  type GeometryHint,
+  type GeometryHintsVisibility,
   VLM_COLORS,
+  GEOMETRY_HINT_COLORS,
+  geometryHintLabel,
 } from '@/components/vlm-floorplan-overlay';
 import { generateAnnotatedImageDataUrl, dataUrlToBlob } from '@/lib/annotated-recognition-image';
 
@@ -76,8 +80,16 @@ export default function DebugFloorplanRecognitionPage() {
   });
   const [showVlmIds, setShowVlmIds] = useState(true);
   const [showConfidence, setShowConfidence] = useState(true);
-  const [vlmMode, setVlmMode] = useState<'raw+vlm' | 'topology-only'>('raw+vlm');
+  const [vlmMode, setVlmMode] = useState<'raw+vlm' | 'topology-only' | 'geometry-only'>('raw+vlm');
   const [topologyHighlightIds, setTopologyHighlightIds] = useState<string[]>([]);
+  const [showGeometryHints, setShowGeometryHints] = useState(true);
+  const [geometryVisibility, setGeometryVisibility] = useState<GeometryHintsVisibility>({
+    sameContinuousWall: true,
+    parallelWalls: true,
+    sameAxis: true,
+    extendToIntersection: true,
+    mergeWalls: true,
+  });
 
   // Interactive inspector
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
@@ -232,23 +244,23 @@ export default function DebugFloorplanRecognitionPage() {
     }
   };
 
-  const loadFixture = async () => {
+  const loadFixtureFor = async (jsonPath: string, imgPath: string, fileName: string) => {
     setError(null);
     setLoading(true);
     resetVlm();
     try {
-      const jsonRes = await fetch('/recognition-c658e915-9247-4904-8032-717dd11ecfdd.json');
+      const jsonRes = await fetch(jsonPath);
       if (!jsonRes.ok) throw new Error('Fixture JSON not found');
       const fixtureJson = (await jsonRes.json()) as RawGeometry;
       setRaw(fixtureJson);
       setExtraFields(detectUnknownFields(fixtureJson as unknown as Record<string, unknown>));
-      const imgRes = await fetch('/c658e915-9247-4904-8032-717dd11ecfdd.jpg');
+      const imgRes = await fetch(imgPath);
       if (!imgRes.ok) throw new Error('Fixture image not found');
       const blob = await imgRes.blob();
       const url = URL.createObjectURL(blob);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
-      setFile(new File([blob], 'c658e915-9247-4904-8032-717dd11ecfdd.jpg', { type: blob.type || 'image/jpeg' }));
+      setFile(new File([blob], fileName, { type: blob.type || 'image/jpeg' }));
       const img = new window.Image();
       img.onload = () => {
         setImageWidth(img.naturalWidth);
@@ -262,6 +274,9 @@ export default function DebugFloorplanRecognitionPage() {
       setLoading(false);
     }
   };
+
+  const loadFixture = () => loadFixtureFor('/recognition-c658e915-9247-4904-8032-717dd11ecfdd.json', '/c658e915-9247-4904-8032-717dd11ecfdd.jpg', 'c658e915-9247-4904-8032-717dd11ecfdd.jpg');
+  const loadFixtureLarge = () => loadFixtureFor('/recognition-b8ea2db6-4d0a-4c87-9570-d7cd2970de98.json', '/b8ea2db6-4d0a-4c87-9570-d7cd2970de98.jpg', 'b8ea2db6-4d0a-4c87-9570-d7cd2970de98.jpg');
 
   const runVlmAnalysis = async () => {
     if (!file || !raw) {
@@ -568,6 +583,16 @@ export default function DebugFloorplanRecognitionPage() {
               </Button>
               <span className="text-xs text-muted-foreground">{t('debugFloorplanRecognition.loadFixtureHint')}</span>
             </div>
+            <div className="mt-3 rounded-lg border bg-muted/20 p-3">
+              <div className="text-xs font-medium">b8ea2db6-4d0a-4c87-9570-d7cd2970de98</div>
+              <div className="mt-1 text-xs text-muted-foreground">3 walls · 3 doors · 1 entry door · 3 windows — larger floorplan (bedrooms, bathrooms, kitchen, porch)</div>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button type="button" variant="outline" onClick={loadFixtureLarge} disabled={loading}>
+                <ImageIcon className="size-4" /> {t('debugFloorplanRecognition.loadFixtureLarge')}
+              </Button>
+              <span className="text-xs text-muted-foreground">{t('debugFloorplanRecognition.loadFixtureLargeHint')}</span>
+            </div>
             <p className="mt-3 text-xs text-muted-foreground">{t('debugFloorplanRecognition.fixtureBothNote')}</p>
           </div>
         </div>
@@ -678,9 +703,15 @@ export default function DebugFloorplanRecognitionPage() {
                   highlightedIds={topologyHighlightIds}
                   onSelectObject={setSelectedObjectId}
                   selectedId={selectedObjectId}
+                  geometryVisibility={geometryVisibility}
+                  showGeometryHints={showGeometryHints}
+                  geometryOnlyMode={vlmMode === 'geometry-only'}
                 />
                 {vlmAnalysis && vlmMode === 'topology-only' && (
                   <p className="mt-1 text-xs text-violet-600">{t('debugFloorplanRecognition.topologyOnlyNote')}</p>
+                )}
+                {vlmAnalysis && vlmMode === 'geometry-only' && (
+                  <p className="mt-1 text-xs text-purple-600">{t('debugFloorplanRecognition.geometryOnlyNote')}</p>
                 )}
               </div>
             </div>
@@ -710,9 +741,15 @@ export default function DebugFloorplanRecognitionPage() {
                 highlightedIds={topologyHighlightIds}
                 onSelectObject={setSelectedObjectId}
                 selectedId={selectedObjectId}
+                geometryVisibility={geometryVisibility}
+                showGeometryHints={showGeometryHints}
+                geometryOnlyMode={vlmMode === 'geometry-only'}
               />
               {vlmAnalysis && vlmMode === 'topology-only' && (
                 <p className="mt-1 text-xs text-violet-600">{t('debugFloorplanRecognition.topologyOnlyNote')}</p>
+              )}
+              {vlmAnalysis && vlmMode === 'geometry-only' && (
+                <p className="mt-1 text-xs text-purple-600">{t('debugFloorplanRecognition.geometryOnlyNote')}</p>
               )}
             </div>
           )
@@ -1020,7 +1057,42 @@ export default function DebugFloorplanRecognitionPage() {
                   <Button type="button" variant={vlmMode === 'topology-only' ? 'default' : 'outline'} size="sm" onClick={() => setVlmMode('topology-only')}>
                     {t('debugFloorplanRecognition.vlmModeTopologyOnly')}
                   </Button>
+                  <Button type="button" variant={vlmMode === 'geometry-only' ? 'default' : 'outline'} size="sm" onClick={() => setVlmMode('geometry-only')}>
+                    {t('debugFloorplanRecognition.vlmModeGeometryOnly')}
+                  </Button>
                 </div>
+              </div>
+              {/* Geometry Suggestions toggles */}
+              <div className="mt-4 flex flex-wrap gap-4 border-t pt-4">
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <Checkbox checked={showGeometryHints} onCheckedChange={(v) => setShowGeometryHints(Boolean(v))} />
+                  {t('debugFloorplanRecognition.geometryShowSuggestions')}
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={geometryVisibility.sameContinuousWall} onCheckedChange={(v) => setGeometryVisibility((p) => ({ ...p, sameContinuousWall: Boolean(v) }))} />
+                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_HINT_COLORS.same_continuous_wall }} aria-hidden />
+                  {t('debugFloorplanRecognition.geometryWallContinuity')}
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={geometryVisibility.parallelWalls} onCheckedChange={(v) => setGeometryVisibility((p) => ({ ...p, parallelWalls: Boolean(v) }))} />
+                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_HINT_COLORS.parallel_walls }} aria-hidden />
+                  {t('debugFloorplanRecognition.geometryParallelWalls')}
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={geometryVisibility.sameAxis} onCheckedChange={(v) => setGeometryVisibility((p) => ({ ...p, sameAxis: Boolean(v) }))} />
+                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_HINT_COLORS.same_axis }} aria-hidden />
+                  {t('debugFloorplanRecognition.geometrySameAxis')}
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={geometryVisibility.extendToIntersection} onCheckedChange={(v) => setGeometryVisibility((p) => ({ ...p, extendToIntersection: Boolean(v) }))} />
+                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_HINT_COLORS.extend_to_intersection }} aria-hidden />
+                  {t('debugFloorplanRecognition.geometryExtendToIntersection')}
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={geometryVisibility.mergeWalls} onCheckedChange={(v) => setGeometryVisibility((p) => ({ ...p, mergeWalls: Boolean(v) }))} />
+                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_HINT_COLORS.merge_walls }} aria-hidden />
+                  {t('debugFloorplanRecognition.geometryMergeWalls')}
+                </label>
               </div>
             </div>
           )}
@@ -1028,6 +1100,53 @@ export default function DebugFloorplanRecognitionPage() {
           {!vlmAnalysis && !vlmLoading && !vlmError ? (
             <p className="mt-4 text-sm text-muted-foreground">{t('debugFloorplanRecognition.vlmNoAnalysis')}</p>
           ) : null}
+
+          {/* Geometry Suggestions */}
+          {vlmAnalysis && (
+            <div className="mt-5 rounded-xl border bg-card p-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="size-4 text-purple-600" aria-hidden />
+                <h3 className="text-sm font-semibold">{t('debugFloorplanRecognition.geometrySuggestionsTitle')}</h3>
+                <span className="rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">POC</span>
+                <span className="ml-auto text-xs text-muted-foreground">{t('debugFloorplanRecognition.geometrySuggestionsCount', { count: String((vlmAnalysis.geometryHints ?? []).length) })}</span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.geometrySuggestionsIntro')}</p>
+              {(vlmAnalysis.geometryHints ?? []).length === 0 ? (
+                <p className="mt-3 text-xs text-muted-foreground">{t('debugFloorplanRecognition.geometrySuggestionsEmpty')}</p>
+              ) : (
+                <ul className="mt-3 space-y-2">
+                  {(vlmAnalysis.geometryHints ?? []).map((hint: GeometryHint, idx: number) => {
+                    const col = GEOMETRY_HINT_COLORS[hint.type];
+                    const isLow = hint.confidence < 0.75;
+                    const statusIcon = isLow ? '⚠' : '✓';
+                    const statusColor = isLow ? 'text-amber-600' : 'text-green-600';
+                    const isExtend = hint.type === 'extend_to_intersection';
+                    return (
+                      <li key={idx} className="flex items-start gap-3 rounded-lg border bg-muted/20 p-3">
+                        <span className={`mt-0.5 text-sm font-bold ${statusColor}`}>{statusIcon}</span>
+                        <div className="flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded px-2 py-0.5 text-xs font-semibold text-white" style={{ background: col }}>
+                              {geometryHintLabel(hint.type)}
+                            </span>
+                            <span className="font-mono text-xs">
+                              {isExtend ? `${hint.objectIds[0]} → ${hint.objectIds[1]}` : hint.objectIds.join(' + ')}
+                            </span>
+                            <span className={`text-xs ${isLow ? 'text-amber-600' : 'text-green-600'}`}>
+                              {t('debugFloorplanRecognition.geometryConfidence', { value: String(Math.round(hint.confidence * 100)) })}
+                            </span>
+                            <button type="button" onClick={() => setTopologyHighlightIds(hint.objectIds)} className="ml-auto rounded border bg-white px-2 py-0.5 text-xs hover:border-amber-400 hover:bg-amber-50">{t('debugFloorplanRecognition.geometryHighlight')}</button>
+                          </div>
+                          {hint.reason && <p className="mt-1 text-xs text-muted-foreground">&quot;{hint.reason}&quot;</p>}
+                          {isLow && <p className="mt-1 text-xs text-amber-600">{t('debugFloorplanRecognition.geometryLowConfidenceHint')}</p>}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
 
           {/* Architectural Topology — the VLM → topology contract */}
           {vlmAnalysis && (

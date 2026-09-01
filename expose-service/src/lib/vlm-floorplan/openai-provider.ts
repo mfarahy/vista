@@ -83,6 +83,7 @@ export class VlmFloorplanProvider {
         openings: validated.openings.length,
         objectClassifications: validated.objectClassifications.length,
         rooms: validated.rooms.length,
+        geometryHints: validated.geometryHints.length,
         topologySummary: validated.topologySummary
           ? validated.topologySummary.continuousWalls.length +
             validated.topologySummary.corners.length +

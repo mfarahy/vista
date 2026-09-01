@@ -85,12 +85,30 @@ export const emptyTopologySummary = (): TopologySummary => ({
   falsePositives: [],
 });
 
+// ---- Geometry hints (VLM proposes constraints, never geometry) ----
+
+export const geometryHintTypeSchema = z.enum([
+  'same_continuous_wall',
+  'parallel_walls',
+  'same_axis',
+  'extend_to_intersection',
+  'merge_walls',
+]);
+
+export const geometryHintSchema = z.object({
+  type: geometryHintTypeSchema,
+  objectIds: z.array(z.string().min(1)).min(2).max(10),
+  confidence: z.number().min(0).max(1),
+  reason: z.string().max(500).nullable(),
+});
+
 export const vlmFloorplanAnalysisSchema = z.object({
   wallRelationships: z.array(wallRelationshipSchema).max(50),
   openings: z.array(openingAssociationSchema).max(30),
   objectClassifications: z.array(objectClassificationSchema).max(30),
   rooms: z.array(roomHypothesisSchema).max(20),
   topologySummary: topologySummarySchema,
+  geometryHints: z.array(geometryHintSchema).max(50).default([]),
 });
 
 export type WallRelationship = z.infer<typeof wallRelationshipSchema>;
@@ -98,6 +116,8 @@ export type OpeningAssociation = z.infer<typeof openingAssociationSchema>;
 export type ObjectClassification = z.infer<typeof objectClassificationSchema>;
 export type RoomHypothesis = z.infer<typeof roomHypothesisSchema>;
 export type TopologySummary = z.infer<typeof topologySummarySchema>;
+export type GeometryHintType = z.infer<typeof geometryHintTypeSchema>;
+export type GeometryHint = z.infer<typeof geometryHintSchema>;
 export type VlmFloorplanAnalysis = z.infer<typeof vlmFloorplanAnalysisSchema>;
 
 // Validation helpers for mapping VLM object IDs to raw recognition objects
@@ -361,6 +381,46 @@ function deduplicateTopologySummary(
   return { continuousWalls, corners, tJunctions, falsePositives };
 }
 
+function deduplicateGeometryHints(
+  hints: GeometryHint[],
+  raw: Record<string, unknown>,
+  warnings: string[],
+): GeometryHint[] {
+  const filtered: GeometryHint[] = [];
+  for (const h of hints) {
+    const { valid, invalid } = filterIdGroup(h.objectIds, raw, 2);
+    if (invalid.length) warnings.push(`geometryHints invalid objectIds: ${invalid.join(',')}`);
+    if (valid.length < 2) {
+      if (valid.length > 0) warnings.push(`geometryHints ${h.type} hint dropped — only ${valid.length} valid IDs remain`);
+      else warnings.push(`geometryHints ${h.type} hint dropped — no valid IDs`);
+      continue;
+    }
+    filtered.push({ ...h, objectIds: valid });
+  }
+
+  // Deduplicate by type + sorted objectIds key, keep highest confidence
+  const groups = new Map<string, GeometryHint[]>();
+  for (const h of filtered) {
+    const key = `${h.type}|${[...h.objectIds].sort().join('|')}`;
+    const arr = groups.get(key) ?? [];
+    arr.push(h);
+    groups.set(key, arr);
+  }
+
+  const result: GeometryHint[] = [];
+  for (const [key, group] of groups) {
+    if (group.length === 1) {
+      result.push({ ...group[0], objectIds: [...group[0].objectIds].sort() });
+      continue;
+    }
+    group.sort((a, b) => b.confidence - a.confidence);
+    const top = group[0];
+    warnings.push(`geometryHints duplicate for ${key}: kept highest confidence (${top.confidence}), dropped ${group.length - 1} duplicate(s)`);
+    result.push({ ...top, objectIds: [...top.objectIds].sort() });
+  }
+  return result;
+}
+
 export function validateVlmAnalysis(
   analysis: VlmFloorplanAnalysis,
   raw: Record<string, unknown>,
@@ -370,6 +430,8 @@ export function validateVlmAnalysis(
   const filteredWallRelationships = deduplicateWallRelationships(analysis.wallRelationships, raw, warnings);
   const filteredOpenings = deduplicateOpenings(analysis.openings, raw, warnings);
   const filteredClassifications = deduplicateClassifications(analysis.objectClassifications, raw, warnings);
+  const geometryHints = (analysis as unknown as { geometryHints?: GeometryHint[] }).geometryHints ?? [];
+  const filteredGeometryHints = deduplicateGeometryHints(geometryHints, raw, warnings);
 
   const filteredRooms = analysis.rooms.filter((r) => {
     // Support both new schema (boundaryWalls/openings) and legacy boundaryObjects fallback
@@ -413,6 +475,7 @@ export function validateVlmAnalysis(
       objectClassifications: filteredClassifications,
       rooms: dedupedRooms,
       topologySummary: topology,
+      geometryHints: filteredGeometryHints,
     },
     warnings,
   };

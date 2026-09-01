@@ -119,6 +119,7 @@ export function debugFloorplanRecognitionRouter(): Router {
             openings: filtered.openings.length,
             rooms: filtered.rooms.length,
             objectClassifications: filtered.objectClassifications.length,
+            geometryHints: (filtered as unknown as { geometryHints?: unknown[] }).geometryHints?.length ?? 0,
             warnings: warnings.length,
           },
           'VLM floorplan analysis completed',
