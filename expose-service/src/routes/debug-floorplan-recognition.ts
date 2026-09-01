@@ -235,12 +235,31 @@ export function debugFloorplanRecognitionRouter(): Router {
         const cause = (error as { cause?: unknown })?.cause;
         const causeMessage =
           cause instanceof Error ? cause.message : typeof cause === 'string' ? cause : '';
+        const errorString = String(error);
+        const errorMessage = error instanceof Error ? error.message : errorString;
+        const isInvalidUrl =
+          errorString.includes('Failed to parse URL') ||
+          errorMessage.includes('Failed to parse URL') ||
+          errorMessage.includes('Invalid URL') ||
+          apiUrl.includes('${') ||
+          apiUrl.includes('$');
+        if (isInvalidUrl) {
+          log.error(
+            { err: error, durationMs, apiUrl },
+            'Debug floorplan recognition failed — invalid URL (misconfiguration)',
+          );
+          return sendError(
+            res,
+            503,
+            `Floorplan recognition service is misconfigured (invalid URL: ${apiUrl}). Check FLOORPLAN_RECOGNITION_URL env var — expected like http://floorplan-recognition:5000/predictions. For local testing: docker compose --profile floorplan up floorplan-recognition — or use "Load fixture".`,
+          );
+        }
         const isConnectionRefused =
-          (error instanceof TypeError && error.message.includes('fetch failed')) ||
+          (error instanceof TypeError && errorMessage.includes('fetch failed')) ||
           causeMessage.includes('ECONNREFUSED') ||
           (error as { code?: string })?.code === 'ECONNREFUSED' ||
           (cause as { code?: string } | undefined)?.code === 'ECONNREFUSED' ||
-          String(error).includes('ECONNREFUSED');
+          errorString.includes('ECONNREFUSED');
 
         if (isConnectionRefused) {
           log.error(
@@ -254,8 +273,8 @@ export function debugFloorplanRecognitionRouter(): Router {
           );
         }
         log.error({ err: error, durationMs, apiUrl }, 'Debug floorplan recognition failed');
-        const message = error instanceof Error && error.message && error.message !== 'fetch failed: ' && error.message.trim() !== 'fetch failed'
-          ? error.message
+        const message = error instanceof Error && errorMessage && errorMessage !== 'fetch failed: ' && errorMessage.trim() !== 'fetch failed'
+          ? errorMessage
           : `Floorplan recognition failed — service not reachable at ${apiUrl}`;
         return sendError(res, 502, message);
       } finally {

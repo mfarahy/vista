@@ -102,7 +102,9 @@ spec:
                   name: {{ .Release.Name }}-secrets
                   key: MELTFLEX_API_KEY
             - name: FLOORPLAN_RECOGNITION_URL
-              value: {{ .Values.config.FLOORPLAN_RECOGNITION_URL | default "http://localhost:5000/predictions" | quote }}
+              {{- $floorplanUrl := .Values.config.FLOORPLAN_RECOGNITION_URL | default "" }}
+              {{- if contains "$" $floorplanUrl }}{{ $floorplanUrl = "" }}{{ end }}
+              value: {{ $floorplanUrl | default "http://floorplan-recognition:5000/predictions" | quote }}
             - name: FLOORPLAN_3D_PROVIDER
               value: {{ .Values.config.FLOORPLAN_3D_PROVIDER | default "floorplan-recognition" | quote }}
             - name: PUBLIC_API_BASE_URL

@@ -148,12 +148,29 @@ export class FloorplanRecognitionProvider implements FloorPlanProvider {
       const cause = (error as { cause?: unknown })?.cause;
       const causeMessage =
         cause instanceof Error ? cause.message : typeof cause === 'string' ? cause : '';
+      const errorString = String(error);
+      const errorMessage = error instanceof Error ? error.message : errorString;
+      const isInvalidUrl =
+        errorString.includes('Failed to parse URL') ||
+        errorMessage.includes('Failed to parse URL') ||
+        errorMessage.includes('Invalid URL') ||
+        this.apiUrl.includes('${') ||
+        this.apiUrl.includes('$');
+      if (isInvalidUrl) {
+        log.error(
+          { provider: this.name, assetId: input.assetId, durationMs, apiUrl: this.apiUrl, err: error },
+          'Floorplan recognition service misconfigured — invalid URL',
+        );
+        throw new Error(
+          `Floorplan recognition service is misconfigured (invalid URL: ${this.apiUrl}). Check FLOORPLAN_RECOGNITION_URL — expected like http://floorplan-recognition:5000/predictions`,
+        );
+      }
       const isConnectionRefused =
-        (error instanceof TypeError && String(error.message).includes('fetch failed')) ||
+        (error instanceof TypeError && String(errorMessage).includes('fetch failed')) ||
         causeMessage.includes('ECONNREFUSED') ||
         (error as { code?: string })?.code === 'ECONNREFUSED' ||
         (cause as { code?: string } | undefined)?.code === 'ECONNREFUSED' ||
-        String(error).includes('ECONNREFUSED');
+        errorString.includes('ECONNREFUSED');
       if (isConnectionRefused) {
         log.error(
           { provider: this.name, assetId: input.assetId, durationMs, apiUrl: this.apiUrl, err: error },
