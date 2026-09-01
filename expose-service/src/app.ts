@@ -12,6 +12,7 @@ import { documentsRouter } from './routes/documents.js';
 import { brokerProfileRouter } from './routes/broker-profile.js';
 import { jobsRouter, type JobDeps } from './routes/jobs.js';
 import { floorplan3DJobsRouter } from './routes/floorplan3d-jobs.js';
+import { debugFloorplanRecognitionRouter } from './routes/debug-floorplan-recognition.js';
 import type { DocumentStorage } from './lib/document-storage.js';
 import type { DocumentRecordStore } from './lib/document-record-store.js';
 import type { RenderPdfFunction } from './services/pdf.js';
@@ -94,6 +95,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.use(
     floorplan3DJobsRouter({ jobs: options.jobs, storage: options.documentStorage }),
   );
+  app.use(debugFloorplanRecognitionRouter());
   app.use(jobsRouter(options.jobs));
 
   app.use(errorHandler);

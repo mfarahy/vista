@@ -1,0 +1,361 @@
+{
+  "status": 200,
+  "model": "gpt-5.6-luna",
+  "durationMs": 33495,
+  "warnings": [],
+  "analysis": {
+    "wallRelationships": [
+      {
+        "wallIds": [
+          "wall-3",
+          "wall-1"
+        ],
+        "relationship": "same_continuous_wall",
+        "confidence": 0.88,
+        "reason": "These objects form the upper and lower portions of the east exterior facade, with the facade interrupted by detected openings."
+      },
+      {
+        "wallIds": [
+          "wall-4",
+          "wall-0"
+        ],
+        "relationship": "same_continuous_wall",
+        "confidence": 0.62,
+        "reason": "The objects appear to continue the lower west-side exterior boundary around the bathroom and entrance area, although wall-0 is noisy."
+      },
+      {
+        "wallIds": [
+          "wall-2",
+          "wall-4"
+        ],
+        "relationship": "separate_walls",
+        "confidence": 0.82,
+        "reason": "They define different sides of the kitchen and connect through the kitchen-side corner/opening region."
+      },
+      {
+        "wallIds": [
+          "wall-2",
+          "wall-1"
+        ],
+        "relationship": "separate_walls",
+        "confidence": 0.72,
+        "reason": "These are distinct interior and exterior/lower boundary structures separating the living area from the hall and adjacent spaces."
+      }
+    ],
+    "openings": [
+      {
+        "objectId": "door-0",
+        "type": "door",
+        "hostWallIds": [
+          "wall-4"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.78,
+        "reason": "This is the bathroom-to-hall door in the west-side internal boundary."
+      },
+      {
+        "objectId": "door-1",
+        "type": "door",
+        "hostWallIds": [
+          "wall-1"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.67,
+        "reason": "This opening connects the lower hall or windfang area with the living room boundary."
+      },
+      {
+        "objectId": "door-2",
+        "type": "door",
+        "hostWallIds": [
+          "wall-1"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.79,
+        "reason": "This is the principal doorway from the Diele/hall into the living area."
+      },
+      {
+        "objectId": "door-3",
+        "type": "door",
+        "hostWallIds": [
+          "wall-4"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.7,
+        "reason": "The opening is located in the west-side boundary at the stair/hall connection."
+      },
+      {
+        "objectId": "door-4",
+        "type": "door",
+        "hostWallIds": [
+          "wall-4",
+          "wall-2"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.84,
+        "reason": "This doorway is at the kitchen's lower-right boundary where the west-side and internal partition detections meet."
+      },
+      {
+        "objectId": "door-5",
+        "type": "door",
+        "hostWallIds": [
+          "wall-2"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.86,
+        "reason": "This opening lies in the partition between the kitchen and living side of the plan."
+      },
+      {
+        "objectId": "entry_door-0",
+        "type": "entry_door",
+        "hostWallIds": [
+          "wall-1",
+          "wall-0"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.61,
+        "reason": "The main entrance is in the projecting lower entrance boundary; the exact split between wall-0 and wall-1 is noisy."
+      },
+      {
+        "objectId": "window-0",
+        "type": "window",
+        "hostWallIds": [
+          "wall-4",
+          "wall-0"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.72,
+        "reason": "This is the low horizontal bathroom window in the lower west exterior wall."
+      },
+      {
+        "objectId": "window-1",
+        "type": "window",
+        "hostWallIds": [
+          "wall-1"
+        ],
+        "relationship": "uncertain",
+        "confidence": 0.08,
+        "reason": "The diagonal detection does not correspond to a visible architectural window and is likely furniture or another false positive."
+      },
+      {
+        "objectId": "window-2",
+        "type": "window",
+        "hostWallIds": [
+          "wall-3",
+          "wall-1"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.95,
+        "reason": "This tall opening is the clearly visible east facade window/door element, spanning the transition between the upper and lower east-wall detections."
+      },
+      {
+        "objectId": "window-3",
+        "type": "window",
+        "hostWallIds": [
+          "wall-3"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.94,
+        "reason": "This is the horizontal kitchen window on the north/top exterior wall."
+      },
+      {
+        "objectId": "window-4",
+        "type": "window",
+        "hostWallIds": [
+          "wall-3",
+          "wall-1"
+        ],
+        "relationship": "interrupts_wall",
+        "confidence": 0.88,
+        "reason": "This opening lies on the east exterior facade above the tall living-room opening."
+      }
+    ],
+    "wallConnections": [
+      {
+        "wallIds": [
+          "wall-3",
+          "wall-1"
+        ],
+        "relationship": "corner",
+        "confidence": 0.86,
+        "reason": "The upper exterior boundary turns into the east facade at the living-room northeast corner."
+      },
+      {
+        "wallIds": [
+          "wall-4",
+          "wall-2"
+        ],
+        "relationship": "corner",
+        "confidence": 0.8,
+        "reason": "The west-side boundary and kitchen/living partition meet around the kitchen and stair-side junction."
+      },
+      {
+        "wallIds": [
+          "wall-2",
+          "wall-1"
+        ],
+        "relationship": "T_junction",
+        "confidence": 0.69,
+        "reason": "The internal kitchen/hall partition terminates into the larger living-room and lower boundary structure."
+      },
+      {
+        "wallIds": [
+          "wall-4",
+          "wall-0"
+        ],
+        "relationship": "collinear",
+        "confidence": 0.6,
+        "reason": "They appear to be aligned portions of the lower west exterior boundary, with the detected window and entrance creating segmentation."
+      }
+    ],
+    "rooms": [
+      {
+        "id": "kitchen-0",
+        "type": "kitchen",
+        "boundaryWalls": [
+          "wall-3",
+          "wall-4",
+          "wall-2"
+        ],
+        "openings": [
+          "window-3",
+          "door-4",
+          "door-5"
+        ],
+        "confidence": 0.9,
+        "reason": "The kitchen recognition region agrees with the enclosed upper-left room; wall-3 is the exterior top boundary, wall-4 the west boundary, and wall-2 the east/internal boundary.",
+        "boundaryObjects": [
+          "wall-3",
+          "wall-4",
+          "wall-2"
+        ]
+      },
+      {
+        "id": "living-0",
+        "type": "living",
+        "boundaryWalls": [
+          "wall-3",
+          "wall-2",
+          "wall-1"
+        ],
+        "openings": [
+          "door-1",
+          "door-2",
+          "door-5",
+          "window-2",
+          "window-4"
+        ],
+        "confidence": 0.86,
+        "reason": "The large central-right enclosed room is the living area, opening toward the hall and the terrace-facing east facade.",
+        "boundaryObjects": [
+          "wall-3",
+          "wall-2",
+          "wall-1"
+        ]
+      },
+      {
+        "id": "hallway-0",
+        "type": "hallway",
+        "boundaryWalls": [
+          "wall-4",
+          "wall-2",
+          "wall-1"
+        ],
+        "openings": [
+          "door-2",
+          "door-3",
+          "door-4"
+        ],
+        "confidence": 0.72,
+        "reason": "The Diele is the central circulation space between kitchen, living room, stair, and lower entrance zone.",
+        "boundaryObjects": [
+          "wall-4",
+          "wall-2",
+          "wall-1"
+        ]
+      },
+      {
+        "id": "entrance-0",
+        "type": "entrance",
+        "boundaryWalls": [
+          "wall-4",
+          "wall-0",
+          "wall-1"
+        ],
+        "openings": [
+          "entry_door-0",
+          "door-0",
+          "door-1"
+        ],
+        "confidence": 0.7,
+        "reason": "The lower windfang/entrance zone is enclosed by the west and lower wall detections and connects the main entry with the hall and living area.",
+        "boundaryObjects": [
+          "wall-4",
+          "wall-0",
+          "wall-1"
+        ]
+      },
+      {
+        "id": "bathroom-0",
+        "type": "bathroom",
+        "boundaryWalls": [
+          "wall-4",
+          "wall-0"
+        ],
+        "openings": [
+          "door-0",
+          "window-0"
+        ],
+        "confidence": 0.84,
+        "reason": "The WC/Duschbad is the small enclosed lower-left room with one hall door and a south-facing exterior window.",
+        "boundaryObjects": [
+          "wall-4",
+          "wall-0"
+        ]
+      },
+      {
+        "id": "terrace-0",
+        "type": "terrace",
+        "boundaryWalls": [
+          "wall-1"
+        ],
+        "openings": [
+          "window-2",
+          "window-4"
+        ],
+        "confidence": 0.78,
+        "reason": "The terrace is outside the living-room east facade; the detected east openings provide the connection or visual opening toward it.",
+        "boundaryObjects": [
+          "wall-1"
+        ]
+      },
+      {
+        "id": "unknown-0",
+        "type": "outside",
+        "boundaryWalls": [
+          "wall-1"
+        ],
+        "openings": [],
+        "confidence": 0.55,
+        "reason": "The exterior area beyond the east facade is outside space, distinct from the enclosed living room and terrace label.",
+        "boundaryObjects": [
+          "wall-1"
+        ]
+      }
+    ],
+    "artifacts": [
+      {
+        "objectId": "window-1",
+        "classification": "likely_false_positive",
+        "confidence": 0.98,
+        "reason": "The diagonal shape is inconsistent with the drawn architecture and appears to overlap furniture rather than a wall opening."
+      },
+      {
+        "objectId": "wall-0",
+        "classification": "suspicious",
+        "confidence": 0.65,
+        "reason": "The small irregular detection near the lower entrance/bathroom boundary may combine wall fragments and opening geometry rather than represent one clean wall object."
+      }
+    ]
+  },
+  "rawContent": null
+}

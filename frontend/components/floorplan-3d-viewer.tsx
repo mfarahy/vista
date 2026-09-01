@@ -10,9 +10,9 @@ import type { FloorPlan3DModel } from '@/app/create/[id]/types';
  * the PDF print route and node-based template tests) never evaluates WebGL
  * code and simply renders the placeholder.
  */
-export default function FloorPlan3DViewer({ model }: { model: FloorPlan3DModel }) {
+export default function FloorPlan3DViewer({ model, topView = false }: { model: FloorPlan3DModel; topView?: boolean }) {
   const { t } = useI18n();
-  const [Scene, setScene] = useState<ComponentType<{ model: FloorPlan3DModel }> | null>(null);
+  const [Scene, setScene] = useState<ComponentType<{ model: FloorPlan3DModel; topView?: boolean }> | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -32,5 +32,5 @@ export default function FloorPlan3DViewer({ model }: { model: FloorPlan3DModel }
       </div>
     );
   }
-  return <Scene model={model} />;
+  return <Scene model={model} topView={topView} />;
 }

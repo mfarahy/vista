@@ -24,10 +24,12 @@ import {
   simplifyPolygon,
   traceFreeRegionBoundary,
 } from './geometry.js';
-import type { DetectedRoom, NormalizedFloorPlan, Point } from './types.js';
+import type { DetectedRoom, NormalizedFloorPlan, Point, RoomAdjacency } from './types.js';
 
 /** Minimum room area (square pixels); smaller components are noise. */
 const MIN_ROOM_AREA = 900;
+/** Minimum area for an exterior component to be kept as terrace/outside (smaller fragments are window/border artifacts). */
+const MIN_EXTERIOR_AREA = 12000;
 /**
  * Grid dilation radius in pixels. The recognition model often leaves small
  * gaps between adjacent wall/door/window polygons (window piers, door
@@ -83,6 +85,14 @@ function roomAt(rooms: DetectedRoom[], point: Point): DetectedRoom | null {
   return null;
 }
 
+function roomAtInterior(rooms: DetectedRoom[], point: Point): DetectedRoom | null {
+  for (const room of rooms) {
+    if (room.exterior) continue;
+    if (pointInPolygon(point, room.polygon)) return room;
+  }
+  return null;
+}
+
 /**
  * Probe distances (pixels) used to find the rooms flanking an opening or
  * wall. The first probe that lands in a room wins; the increasing distances
@@ -90,7 +100,7 @@ function roomAt(rooms: DetectedRoom[], point: Point): DetectedRoom | null {
  */
 const PROBE_DISTANCES = [DILATE_RADIUS + 2, DILATE_RADIUS + 6, DILATE_RADIUS + 12, DILATE_RADIUS + 24];
 
-/** Rooms on each side of a centerline midpoint, probing along the normal. */
+/** Rooms on each side of a centerline midpoint, probing along the normal. Prefers interior rooms so a door between two interiors does not spuriously match the huge exterior shell that covers wall bands. */
 function flankingRooms(
   mid: Point,
   normal: Point,
@@ -98,14 +108,26 @@ function flankingRooms(
 ): Array<{ room: DetectedRoom; side: number }> {
   const found: Array<{ room: DetectedRoom; side: number }> = [];
   for (const side of [1, -1]) {
+    let matched: DetectedRoom | null = null;
+    // First try interior rooms only (wall bands are inside the exterior shell when it is a donut, so the first hit would otherwise be exterior).
     for (const d of PROBE_DISTANCES) {
-      const room = roomAt(rooms, { x: mid.x + normal.x * side * d, y: mid.y + normal.y * side * d });
+      const room = roomAtInterior(rooms, { x: mid.x + normal.x * side * d, y: mid.y + normal.y * side * d });
       if (room) {
-        if (!found.some((f) => f.side === side && f.room.id === room.id)) {
-          found.push({ room, side });
-        }
+        matched = room;
         break;
       }
+    }
+    if (!matched) {
+      for (const d of PROBE_DISTANCES) {
+        const room = roomAt(rooms, { x: mid.x + normal.x * side * d, y: mid.y + normal.y * side * d });
+        if (room) {
+          matched = room;
+          break;
+        }
+      }
+    }
+    if (matched && !found.some((f) => f.side === side && f.room.id === matched.id)) {
+      found.push({ room: matched, side });
     }
   }
   return found;
@@ -136,6 +158,26 @@ function samplePolygon(polygon: Point[], step: number): Point[] {
  */
 export function detectRooms(plan: NormalizedFloorPlan): DetectedRoom[] {
   const grid = buildGrid(plan, blockedPolygons(plan));
+  // Also burn normalized wall centerlines (thick) into the blocked mask.
+  // Raw polygons have corner gaps; the normalized walls after snapping close
+  // the shell. Rasterizing them ensures the free-space flood fill respects
+  // the corrected topology (terrace separation, interior partitions).
+  for (const wall of plan.walls) {
+    const dx = wall.to.x - wall.from.x;
+    const dy = wall.to.y - wall.from.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const hw = wall.thickness / 2;
+    const poly: Point[] = [
+      { x: wall.from.x + nx * hw, y: wall.from.y + ny * hw },
+      { x: wall.from.x - nx * hw, y: wall.from.y - ny * hw },
+      { x: wall.to.x - nx * hw, y: wall.to.y - ny * hw },
+      { x: wall.to.x + nx * hw, y: wall.to.y + ny * hw },
+    ];
+    const mask = rasterizePolygon(poly, grid.width, grid.height, grid.originX, grid.originY);
+    for (let i = 0; i < mask.length; i++) if (mask[i]) grid.blocked[i] = 1;
+  }
 
   // Close hairline gaps between wall polygons (recognition noise).
   const closed = dilateGrid(grid.blocked, grid.width, grid.height, DILATE_RADIUS);
@@ -197,6 +239,24 @@ export function detectRooms(plan: NormalizedFloorPlan): DetectedRoom[] {
   // Interior rooms first (largest first), exterior space last.
   rooms.sort((a, b) => (a.exterior === b.exterior ? b.area - a.area : a.exterior ? 1 : -1));
 
+  // Tiny exterior fragments (window piers, border slivers, stair artifacts)
+  // are not real terrace/outside space. Drop them so the terrace stays one component.
+  let filtered = rooms.filter((r) => !r.exterior || r.area >= MIN_EXTERIOR_AREA);
+  const exteriorRooms = filtered.filter((r) => r.exterior);
+  if (exteriorRooms.length > 1) {
+    const largest = exteriorRooms.slice().sort((a, b) => b.area - a.area)[0];
+    filtered = filtered.filter((r) => !r.exterior || r.id === largest.id);
+  }
+  // Reassign ids after filtering to keep them stable for tests (room-0 is largest interior, etc.)
+  // but keep exterior at the end.
+  const interiors = filtered.filter((r) => !r.exterior);
+  const exteriors = filtered.filter((r) => r.exterior);
+  // Keep original ids for stability; no renumbering.
+
+  // Use filtered list from now on
+  rooms.length = 0;
+  rooms.push(...interiors, ...exteriors);
+
   // Kitchen hint: recognized kitchen regions overlap one room.
   for (const region of plan.kitchenRegions) {
     if (region.length < 3) continue;
@@ -238,12 +298,39 @@ export function detectRooms(plan: NormalizedFloorPlan): DetectedRoom[] {
     const dx = wall.to.x - wall.from.x;
     const dy = wall.to.y - wall.from.y;
     const len = Math.hypot(dx, dy) || 1;
-    const normal = { x: -dy / len, y: dy / len };
+    const normal = { x: -dy / len, y: dx / len };
     const mid = { x: (wall.from.x + wall.to.x) / 2, y: (wall.from.y + wall.to.y) / 2 };
     const flanking = flankingRooms(mid, normal, rooms);
     wall.exterior = !flanking.some(({ room }) => !room.exterior);
   }
 
   plan.rooms = rooms;
+  plan.roomAdjacency = buildRoomAdjacency(plan);
   return rooms;
+}
+
+/**
+ * Builds the room connectivity graph from door/entry-door openings: an edge
+ * between the two interior rooms an opening's centerline connects. Openings
+ * that only touch one room (e.g. a door into the exterior) are skipped.
+ * Windows never establish room-to-room connectivity.
+ */
+function buildRoomAdjacency(plan: NormalizedFloorPlan): RoomAdjacency[] {
+  const edges: RoomAdjacency[] = [];
+  const seen = new Set<string>();
+  for (const opening of plan.openings) {
+    if (opening.kind === 'window') continue;
+    const roomIds = [...new Set(opening.roomIds)];
+    if (roomIds.length < 2) continue;
+    for (let i = 0; i < roomIds.length; i++) {
+      for (let j = i + 1; j < roomIds.length; j++) {
+        const [a, b] = [roomIds[i], roomIds[j]].sort();
+        const key = `${a}|${b}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        edges.push({ roomA: a, roomB: b, openingId: opening.id });
+      }
+    }
+  }
+  return edges;
 }

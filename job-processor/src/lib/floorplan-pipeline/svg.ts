@@ -116,7 +116,9 @@ export function renderDebugSvg(plan: NormalizedFloorPlan, labels: Partial<DebugS
   // Outside space (terrace / surroundings) fills under everything else.
   for (const room of plan.rooms) {
     if (!room.exterior) continue;
-    parts.push(polygonElement(room.polygon, { fill: OUTSIDE_COLOR, stroke: '#b8b4ac', 'stroke-width': '1' }));
+    parts.push(
+      polygonElement(room.polygon, { fill: OUTSIDE_COLOR, 'fill-opacity': '0.85', stroke: '#b8b4ac', 'stroke-width': '1' }),
+    );
   }
 
   // Rooms (interior) with labels.
@@ -125,11 +127,14 @@ export function renderDebugSvg(plan: NormalizedFloorPlan, labels: Partial<DebugS
     if (room.exterior) continue;
     roomIndex += 1;
     const color = ROOM_COLORS[(roomIndex - 1) % ROOM_COLORS.length];
-    parts.push(polygonElement(room.polygon, { fill: color, stroke: '#8a867e', 'stroke-width': '1' }));
+    parts.push(polygonElement(room.polygon, { fill: color, 'fill-opacity': '0.7', stroke: '#8a867e', 'stroke-width': '1' }));
     const c = polygonCentroid(room.polygon);
     const text = roomLabel(room, roomIndex, l);
     parts.push(
       `<text x="${c.x}" y="${-c.y}" font-size="12" font-weight="600" fill="#444" text-anchor="middle">${text}</text>`,
+    );
+    parts.push(
+      `<text x="${c.x}" y="${-c.y + 14}" font-size="9" fill="#777" text-anchor="middle">${room.id}</text>`,
     );
   }
 
@@ -137,6 +142,21 @@ export function renderDebugSvg(plan: NormalizedFloorPlan, labels: Partial<DebugS
   for (const region of plan.kitchenRegions) {
     if (polygonArea(region) < 50) continue;
     parts.push(polygonElement(region, { fill: 'none', stroke: KITCHEN_COLOR, 'stroke-width': '2', 'stroke-dasharray': '6 4' }));
+  }
+
+  // Room adjacency graph: thin dashed lines between centroids of rooms
+  // connected through a door, drawn above the room fills so the topology is
+  // visible independently of semantic room labels.
+  const roomById = new Map(plan.rooms.map((r) => [r.id, r]));
+  for (const edge of plan.roomAdjacency) {
+    const a = roomById.get(edge.roomA);
+    const b = roomById.get(edge.roomB);
+    if (!a || !b) continue;
+    const ca = polygonCentroid(a.polygon);
+    const cb = polygonCentroid(b.polygon);
+    parts.push(
+      `<line x1="${ca.x}" y1="${-ca.y}" x2="${cb.x}" y2="${-cb.y}" stroke="#444" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/>`,
+    );
   }
 
   // Walls: thick strokes along the center lines.
@@ -160,10 +180,15 @@ export function renderDebugSvg(plan: NormalizedFloorPlan, labels: Partial<DebugS
     }
   }
 
+  // Coordinates are drawn as (x, -y); shift by bounds so the plan lands
+  // inside the viewBox instead of the raw (possibly large) pixel offsets.
+  const offsetX = pad - b.minX;
+  const offsetY = pad + b.maxY;
+
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" font-family="system-ui, sans-serif">` +
     `<rect x="0" y="0" width="${width}" height="${height}" fill="#fafaf8"/>` +
-    `<g transform="translate(${pad},${pad})">${parts.join('')}</g>` +
+    `<g transform="translate(${offsetX},${offsetY})">${parts.join('')}</g>` +
     `<g class="legend">${legend(l)}</g>` +
     '</svg>'
   );

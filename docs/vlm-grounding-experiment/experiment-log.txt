@@ -1,0 +1,12 @@
+annotated PNG saved
+annotated panel screenshot saved
+analyze clicked
+response: 200 http://localhost:4000/api/debug/floorplan-recognition/vlm-analysis
+vlm response body captured
+grounding heading visible
+after-annotated.json saved
+overlay screenshot saved
+vlm-only screenshot saved
+grounding screenshot saved
+findings screenshot saved
+full page screenshot saved

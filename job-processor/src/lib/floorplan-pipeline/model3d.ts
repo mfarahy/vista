@@ -201,10 +201,18 @@ export function buildFloorPlan3DModel(plan: NormalizedFloorPlan): FloorPlan3DMod
     }
   }
 
+  const wallById = new Map(plan.walls.map((w) => [w.id, w]));
   for (const opening of plan.openings) {
     const mid = toM({ x: (opening.from.x + opening.to.x) / 2, y: (opening.from.y + opening.to.y) / 2 });
-    const dx = opening.to.x - opening.from.x;
-    const dy = opening.to.y - opening.from.y;
+    // Prefer the host wall's own axis for rotation: recognition sometimes
+    // reports opening endpoints that are not perfectly parallel to their
+    // host wall (noisy polygon corners), which previously produced door /
+    // window leaves rotated at arbitrary angles ("random slats") instead of
+    // sitting flush in the wall. The opening's own vector is only used as a
+    // fallback when it isn't associated with a wall run.
+    const hostWall = opening.wallId ? wallById.get(opening.wallId) : undefined;
+    const dx = hostWall ? hostWall.to.x - hostWall.from.x : opening.to.x - opening.from.x;
+    const dy = hostWall ? hostWall.to.y - hostWall.from.y : opening.to.y - opening.from.y;
     const record: ModelOpening = {
       id: opening.id,
       level: 0,
