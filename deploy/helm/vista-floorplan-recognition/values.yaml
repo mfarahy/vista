@@ -1,0 +1,23 @@
+replicaCount: 1
+
+image:
+  repository: r8.im/ton731/floorplan-recognition
+  tag: "sha256:6d9285b49483724cfa20294f80f711ca32fc1c488bb98ca01f0499651d966773"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 5000
+  targetPort: 5000
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 2Gi
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+
+# Optional imagePullSecrets
+global:
+  imagePullSecrets: []

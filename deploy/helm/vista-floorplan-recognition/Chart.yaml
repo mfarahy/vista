@@ -1,0 +1,6 @@
+apiVersion: v2
+name: vista-floorplan-recognition
+version: 0.1.0
+appVersion: "1.0.0"
+type: application
+description: Floorplan recognition model (ton731/floorplan-recognition) for Vista debug and 3D pipeline
