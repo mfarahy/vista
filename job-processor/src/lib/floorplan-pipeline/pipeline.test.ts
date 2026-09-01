@@ -356,7 +356,7 @@ describe('regression: room topology', () => {
       assert.equal(model.id, norm.id, `model room id mismatch at ${i}`);
       assert.ok(model.points.length >= 4, `model room ${model.id} floor polygon too few points`);
       // Floor area should be close to room area (same polygon transformed)
-      assert.ok(Math.abs(model.areaM2 - norm.areaM2) < 1.0, `model room ${model.id} areaM2 ${model.areaM2} diverges from normalized ${norm.areaM2}`);
+      assert.ok(Math.abs(model.areaM2! - norm.areaM2) < 1.0, `model room ${model.id} areaM2 ${model.areaM2} diverges from normalized ${norm.areaM2}`);
       // Floor polygon centroid should be near normalized centroid transformed to meters
       const toM = (p: { x: number; y: number }) => ({ x: (p.x - cx) / scale, y: (p.y - cy) / scale });
       const normPointsM = norm.polygon.map(toM);
@@ -503,7 +503,7 @@ describe('regression: geometry verification — source overlay', () => {
       const norm = result.normalized.rooms[i];
       const model = result.model3d.rooms[i];
       assert.equal(model.id, norm.id);
-      assert.ok(Math.abs(model.areaM2 - norm.areaM2) < 1.0, `room ${norm.id} area mismatch ${model.areaM2} vs ${norm.areaM2}`);
+      assert.ok(Math.abs(model.areaM2! - norm.areaM2) < 1.0, `room ${norm.id} area mismatch ${model.areaM2} vs ${norm.areaM2}`);
       assert.equal(model.points.length, norm.polygon.length);
     }
   });
