@@ -125,7 +125,76 @@ is unreliable.
 | `annotated-pixel-probe.json`                              | per-object overlay verification + global change rate                   |
 | `raw-geometry-summary.txt`                                | ground-truth bbox summary of the raw recognition JSON                  |
 
-## Reproduce
+---
+
+# Topology Contract Experiment (`feat/vlm-topology-contract`)
+
+**Branch:** `feat/vlm-topology-contract` · **Model:** `gpt-5.6-luna` (via the deployed
+expose-service's `OPENAI_API_KEY`, mapped from the CI/CD pipeline variables)
+
+Refines the VLM output into a clean **architectural topology / cleanup graph**:
+
+- The VLM's only responsibility is understanding relationships between RAW objects and
+  flagging incorrect detections. It never emits coordinates or geometry.
+- Output = four categories (`wallRelationships`, `openings`, `objectClassifications`,
+  `rooms`) + a compact `topologySummary`.
+- Every ID is validated against the RAW JSON (`validateVlmAnalysis`); invalid IDs are
+  filtered and surfaced as warnings. All runs below reported **0 warnings**.
+
+## Results (canonical run — `after-topology-contract.json`)
+
+- **East facade continuity:** `wall-3 + wall-1` → `same_continuous_wall` (0.96); the
+  topology summary lists the same pair under `continuousWalls`. ✅
+- **window-2 → east facade:** host `wall-1`, `interrupts_wall` (0.97), "vertical window
+  embedded in the eastern exterior facade". ✅
+- **window-3 (kitchen window):** this run grounded it to `wall-3` (0.95) — a known weak
+  spot (bbox starts at x=433, window ends x=429); prior runs sometimes correctly chose
+  `wall-4`. Confirms run-to-run variance on ambiguous openings.
+- **Kitchen:** `kitchen-0` boundary `wall-4 + wall-2 + wall-3`, openings
+  `window-3, door-4, door-5` (0.93). (Including wall-3 is defensible here but the prior
+  grounding run dropped it — see above.)
+- **Hallway / circulation:** `hallway-0` (Diele) `wall-4 + wall-2 + wall-1` with
+  `door-2, door-3, door-4`; `entrance-0` (Windfang) `wall-0 + wall-1 + wall-4`.
+- **False positive:** `window-1` → `likely_false_positive` (0.98–0.99); its opening
+  association drops to `uncertain` 0.12 instead of guessing a host. ✅
+- **Stair contamination:** `wall-4` → `suspicious` (0.72–0.88), "geometry should not be
+  trusted as one clean wall"; `window-4` → `suspicious` in run 2/3. ✅
+- **New relationship types work:** `perpendicular`, `extension_of` were used correctly.
+- **ID grounding integrity:** every ID in all runs existed in the RAW JSON (0 warnings).
+- **Uncertainty discipline:** ambiguous hosts (window-1) are `uncertain` with low
+  confidence; the model does not force relationships.
+
+## Prompt refinement from the runs
+
+An initial run classified center-line objects (`door_center_line-*`, …) and under-listed
+rooms. The prompt now explicitly forbids classifying center-line detections and requires
+enumerating **all** major rooms. After the fix: exactly the 18 architectural objects are
+classified and 6 rooms are emitted.
+
+## Artifacts (topology contract)
+
+| file                                                         | content                                                                |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `after-topology-contract.json`                               | canonical run (original + annotated + RAW JSON), 0 warnings, ~36 s     |
+| `after-topology-contract-run1.json`                          | first run before the prompt refinement (6 rooms, no center-line noise) |
+| `annotated-topology-contract.png`                            | annotated recognition image rendered by `scripts/vlm-topology-experiment.ts` |
+| `8-ui-full-page-topology.png`                                | full debug page after topology analysis                                 |
+| `9-topology-section.png`                                     | **Architectural Topology** section (continuous walls / corners / T-junctions / false positives / suspicious) |
+| `10-overlay-topology.png`                                    | main overlay: RAW + VLM topology relationships                          |
+| `11-highlight-continuous-wall.png`                           | overlay after clicking `wall-3 + wall-1` (highlights the RAW polygons)  |
+| `12-highlight-false-positive.png`                            | overlay after clicking `window-1` (highlight + FP marker)               |
+| `13-highlight-suspicious.png`                                | overlay after clicking `wall-4` (suspicious highlight)                  |
+| `14-topology-only-mode.png`                                  | "Topology only" mode (reconstruction hidden)                            |
+
+## Reproduce (CLI)
+
+```bash
+# from expose-service/, with OPENAI_API_KEY set (e.g. from the pipeline variable
+# mapped to the deployed expose-service env)
+OPENAI_API_KEY=... OPENAI_MODEL=gpt-5.6-luna npx tsx scripts/vlm-topology-experiment.ts
+```
+
+## Reproduce (UI)
 
 1. Start the frontend (`:3000`) and expose-service (`:4000`, `OPENAI_API_KEY` set).
 2. Open `/debug/floorplan-recognition`, click **Load fixture**.
