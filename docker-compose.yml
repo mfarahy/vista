@@ -83,6 +83,27 @@ services:
     profiles:
       - storage
 
+  # ── Floorplan Recognition Model (ton731/floorplan-recognition) ───────────────
+  # Local image-recognition endpoint used by expose-service debug route
+  # and job-processor floorplan-recognition provider.
+  # Uses the same cog image as test-floorplan-model.ps1.
+  floorplan-recognition:
+    image: r8.im/ton731/floorplan-recognition@sha256:6d9285b49483724cfa20294f80f711ca32fc1c488bb98ca01f0499651d966773
+    restart: unless-stopped
+    ports:
+      - "${FLOORPLAN_RECOGNITION_PORT:-5000}:5000"
+    networks:
+      - monitor-net
+    profiles:
+      - floorplan
+      - full
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   # ── Async Job Processor (consumes jobs from NATS) ─────────────────────────────
   job-processor:
     build:
@@ -94,6 +115,7 @@ services:
       NATS_URL: nats://nats:4222
       NATS_SUBJECT_PREFIX: vista.jobs
       DATABASE_URL: "${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/vista}"
+      FLOORPLAN_RECOGNITION_URL: "${FLOORPLAN_RECOGNITION_URL:-http://floorplan-recognition:5000/predictions}"
       # Document files are read directly from the shared object storage (R2);
       # the worker no longer calls expose-service over HTTP.
       DOCUMENT_STORAGE_PROVIDER: "${DOCUMENT_STORAGE_PROVIDER:-local}"

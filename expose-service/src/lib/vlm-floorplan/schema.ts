@@ -33,10 +33,20 @@ export const wallRelationshipSchema = z.object({
 export const openingAssociationSchema = z.object({
   objectId: z.string().min(1),
   type: z.enum(['door', 'entry_door', 'window']),
-  hostWallIds: z.array(z.string().min(1)).min(1).max(10),
+  hostWallIds: z.array(z.string().min(1)).max(10),
   relationship: z.enum(['interrupts_wall', 'adjacent', 'uncertain']),
   confidence: z.number().min(0).max(1),
   reason: z.string().max(500).nullable(),
+}).superRefine((val, ctx) => {
+  if (val.hostWallIds.length === 0 && val.relationship !== 'uncertain') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'hostWallIds may only be empty when relationship is "uncertain"',
+    });
+  }
+  if (val.relationship === 'uncertain' && val.hostWallIds.length > 0) {
+    // allowed but we keep it permissive; validation layer will handle
+  }
 });
 
 // ---- Object classification ----
@@ -150,39 +160,216 @@ function filterIdGroup(
   return { valid: [], invalid };
 }
 
+/**
+ * Deduplication: for duplicate object relationships prefer higher confidence.
+ * If confidence is effectively tied (within EPS) but relationships conflict,
+ * mark the result uncertain. Never silently choose contradictory facts.
+ */
+const DEDUP_EPS = 0.001;
+
+function normalizeWallKey(ids: string[]): string {
+  return [...ids].sort().join('|');
+}
+
+function deduplicateWallRelationships(
+  relationships: WallRelationship[],
+  raw: Record<string, unknown>,
+  warnings: string[],
+): WallRelationship[] {
+  // First filter invalid IDs
+  const filtered: WallRelationship[] = [];
+  for (const r of relationships) {
+    const { valid, invalid } = filterIdGroup(r.wallIds, raw, 2);
+    if (invalid.length) warnings.push(`wallRelationships invalid ids: ${invalid.join(',')}`);
+    if (valid.length < 2) continue;
+    // normalize to sorted order for dedup stability, but preserve original sorted
+    const sortedValid = [...valid].sort();
+    filtered.push({ ...r, wallIds: sortedValid });
+  }
+
+  // Group by normalized key
+  const groups = new Map<string, WallRelationship[]>();
+  for (const r of filtered) {
+    const key = normalizeWallKey(r.wallIds);
+    const arr = groups.get(key) ?? [];
+    arr.push(r);
+    groups.set(key, arr);
+  }
+
+  const result: WallRelationship[] = [];
+  for (const [key, group] of groups) {
+    if (group.length === 1) {
+      result.push(group[0]);
+      continue;
+    }
+    // sort by confidence desc
+    group.sort((a, b) => b.confidence - a.confidence);
+    const top = group[0];
+    const second = group[1];
+    const tie = Math.abs(top.confidence - second.confidence) < DEDUP_EPS;
+    const conflict = group.some((g) => g.relationship !== top.relationship);
+    if (tie && conflict) {
+      warnings.push(
+        `wallRelationships duplicate conflict for ${key}: ${group.map((g) => `${g.relationship}(${g.confidence})`).join(', ')} → marked uncertain`,
+      );
+      result.push({ ...top, relationship: 'uncertain', reason: `Conflicting relationships for ${key}: ${group.map((g) => g.relationship).join(', ')}` });
+    } else {
+      if (group.length > 1) {
+        warnings.push(`wallRelationships duplicate for ${key}: kept highest confidence ${top.relationship} (${top.confidence}), dropped ${group.length - 1} duplicate(s)`);
+      }
+      result.push(top);
+    }
+  }
+  return result;
+}
+
+function deduplicateOpenings(
+  openings: OpeningAssociation[],
+  raw: Record<string, unknown>,
+  warnings: string[],
+): OpeningAssociation[] {
+  const filtered: OpeningAssociation[] = [];
+  for (const o of openings) {
+    if (!isValidObjectId(o.objectId, raw)) {
+      warnings.push(`openings invalid objectId: ${o.objectId}`);
+      continue;
+    }
+    const { valid, invalid } = filterValidIds(o.hostWallIds, raw);
+    if (invalid.length) warnings.push(`openings invalid hostWallIds: ${invalid.join(',')}`);
+    // Allow empty hostWallIds only when uncertain
+    if (valid.length === 0 && o.relationship !== 'uncertain') {
+      warnings.push(`openings ${o.objectId} has no valid hostWallIds but relationship is ${o.relationship} → dropped`);
+      continue;
+    }
+    filtered.push({ ...o, hostWallIds: valid });
+  }
+
+  const groups = new Map<string, OpeningAssociation[]>();
+  for (const o of filtered) {
+    const arr = groups.get(o.objectId) ?? [];
+    arr.push(o);
+    groups.set(o.objectId, arr);
+  }
+
+  const result: OpeningAssociation[] = [];
+  for (const [objId, group] of groups) {
+    if (group.length === 1) {
+      result.push(group[0]);
+      continue;
+    }
+    group.sort((a, b) => b.confidence - a.confidence);
+    const top = group[0];
+    const second = group[1];
+    const tie = Math.abs(top.confidence - second.confidence) < DEDUP_EPS;
+    const conflict = group.some((g) => g.relationship !== top.relationship || g.hostWallIds.join('|') !== top.hostWallIds.join('|'));
+    if (tie && conflict) {
+      warnings.push(`openings duplicate conflict for ${objId}: ${group.map((g) => `${g.relationship}(${g.confidence})`).join(', ')} → marked uncertain`);
+      result.push({ ...top, relationship: 'uncertain', hostWallIds: [], reason: `Conflicting opening associations for ${objId}` });
+    } else {
+      warnings.push(`openings duplicate for ${objId}: kept highest confidence ${top.relationship} (${top.confidence}), dropped ${group.length - 1} duplicate(s)`);
+      result.push(top);
+    }
+  }
+  return result;
+}
+
+function deduplicateClassifications(
+  classifications: ObjectClassification[],
+  raw: Record<string, unknown>,
+  warnings: string[],
+): ObjectClassification[] {
+  const filtered: ObjectClassification[] = [];
+  for (const c of classifications) {
+    if (!isValidObjectId(c.objectId, raw)) {
+      warnings.push(`objectClassifications invalid objectId: ${c.objectId}`);
+      continue;
+    }
+    filtered.push({ ...c });
+  }
+
+  const groups = new Map<string, ObjectClassification[]>();
+  for (const c of filtered) {
+    const arr = groups.get(c.objectId) ?? [];
+    arr.push(c);
+    groups.set(c.objectId, arr);
+  }
+
+  const result: ObjectClassification[] = [];
+  for (const [objId, group] of groups) {
+    if (group.length === 1) {
+      result.push(group[0]);
+      continue;
+    }
+    group.sort((a, b) => b.confidence - a.confidence);
+    const top = group[0];
+    const second = group[1];
+    const tie = Math.abs(top.confidence - second.confidence) < DEDUP_EPS;
+    const conflict = group.some((g) => g.classification !== top.classification);
+    if (tie && conflict) {
+      warnings.push(`objectClassifications duplicate conflict for ${objId}: ${group.map((g) => `${g.classification}(${g.confidence})`).join(', ')} → marked uncertain`);
+      result.push({ ...top, classification: 'uncertain', reason: `Conflicting classifications for ${objId}: ${group.map((g) => g.classification).join(', ')}` });
+    } else {
+      warnings.push(`objectClassifications duplicate for ${objId}: kept highest confidence ${top.classification} (${top.confidence}), dropped ${group.length - 1} duplicate(s)`);
+      result.push(top);
+    }
+  }
+  return result;
+}
+
+function deduplicateTopologySummary(
+  summary: TopologySummary,
+  raw: Record<string, unknown>,
+  warnings: string[],
+): TopologySummary {
+  function dedupGroups(groups: string[][], kind: string, minLen: number): string[][] {
+    const seen = new Map<string, string[]>();
+    const result: string[][] = [];
+    for (const g of groups) {
+      const { valid, invalid } = filterIdGroup(g, raw, minLen);
+      if (invalid.length) warnings.push(`topologySummary.${kind} invalid ids: ${invalid.join(',')}`);
+      if (valid.length < minLen) continue;
+      const key = [...valid].sort().join('|');
+      if (seen.has(key)) {
+        warnings.push(`topologySummary.${kind} duplicate: ${valid.join(',')} dropped`);
+        continue;
+      }
+      seen.set(key, valid);
+      result.push(valid);
+    }
+    return result;
+  }
+
+  const continuousWalls = dedupGroups(summary.continuousWalls, 'continuousWalls', 2);
+  const corners = dedupGroups(summary.corners, 'corners', 2);
+  const tJunctions = dedupGroups(summary.tJunctions, 'tJunctions', 2);
+
+  const seenFp = new Set<string>();
+  const falsePositives: string[] = [];
+  for (const id of summary.falsePositives) {
+    if (!isValidObjectId(id, raw)) {
+      warnings.push(`topologySummary.falsePositives invalid id: ${id}`);
+      continue;
+    }
+    if (seenFp.has(id)) {
+      warnings.push(`topologySummary.falsePositives duplicate: ${id} dropped`);
+      continue;
+    }
+    seenFp.add(id);
+    falsePositives.push(id);
+  }
+
+  return { continuousWalls, corners, tJunctions, falsePositives };
+}
+
 export function validateVlmAnalysis(
   analysis: VlmFloorplanAnalysis,
   raw: Record<string, unknown>,
 ): { analysis: VlmFloorplanAnalysis; warnings: string[] } {
   const warnings: string[] = [];
 
-  const filteredWallRelationships = analysis.wallRelationships.filter((r) => {
-    const { valid, invalid } = filterIdGroup(r.wallIds, raw, 2);
-    if (invalid.length) warnings.push(`wallRelationships invalid ids: ${invalid.join(',')}`);
-    if (valid.length < 2) return false;
-    r.wallIds = valid;
-    return true;
-  });
-
-  const filteredOpenings = analysis.openings.filter((o) => {
-    if (!isValidObjectId(o.objectId, raw)) {
-      warnings.push(`openings invalid objectId: ${o.objectId}`);
-      return false;
-    }
-    const { valid, invalid } = filterValidIds(o.hostWallIds, raw);
-    if (invalid.length) warnings.push(`openings invalid hostWallIds: ${invalid.join(',')}`);
-    if (valid.length === 0) return false;
-    o.hostWallIds = valid;
-    return true;
-  });
-
-  const filteredClassifications = analysis.objectClassifications.filter((c) => {
-    if (!isValidObjectId(c.objectId, raw)) {
-      warnings.push(`objectClassifications invalid objectId: ${c.objectId}`);
-      return false;
-    }
-    return true;
-  });
+  const filteredWallRelationships = deduplicateWallRelationships(analysis.wallRelationships, raw, warnings);
+  const filteredOpenings = deduplicateOpenings(analysis.openings, raw, warnings);
+  const filteredClassifications = deduplicateClassifications(analysis.objectClassifications, raw, warnings);
 
   const filteredRooms = analysis.rooms.filter((r) => {
     // Support both new schema (boundaryWalls/openings) and legacy boundaryObjects fallback
@@ -205,38 +392,27 @@ export function validateVlmAnalysis(
     return true;
   });
 
-  // Topology summary — every ID must exist in RAW JSON; drop groups that no longer have enough valid IDs.
-  const summary = analysis.topologySummary;
-  const continuousWalls = summary.continuousWalls.filter((group) => {
-    const { valid, invalid } = filterIdGroup(group, raw, 2);
-    if (invalid.length) warnings.push(`topologySummary.continuousWalls invalid ids: ${invalid.join(',')}`);
-    return valid.length >= 2;
-  });
-  const corners = summary.corners.filter((pair) => {
-    const { valid, invalid } = filterIdGroup(pair, raw, 2);
-    if (invalid.length) warnings.push(`topologySummary.corners invalid ids: ${invalid.join(',')}`);
-    return valid.length >= 2;
-  });
-  const tJunctions = summary.tJunctions.filter((pair) => {
-    const { valid, invalid } = filterIdGroup(pair, raw, 2);
-    if (invalid.length) warnings.push(`topologySummary.tJunctions invalid ids: ${invalid.join(',')}`);
-    return valid.length >= 2;
-  });
-  const falsePositives = summary.falsePositives.filter((id) => {
-    if (!isValidObjectId(id, raw)) {
-      warnings.push(`topologySummary.falsePositives invalid id: ${id}`);
-      return false;
+  // Deduplicate rooms by id
+  const roomSeen = new Set<string>();
+  const dedupedRooms: typeof filteredRooms = [];
+  for (const r of filteredRooms) {
+    if (roomSeen.has(r.id)) {
+      warnings.push(`rooms duplicate id: ${r.id} dropped`);
+      continue;
     }
-    return true;
-  });
+    roomSeen.add(r.id);
+    dedupedRooms.push(r);
+  }
+
+  const topology = deduplicateTopologySummary(analysis.topologySummary, raw, warnings);
 
   return {
     analysis: {
       wallRelationships: filteredWallRelationships,
       openings: filteredOpenings,
       objectClassifications: filteredClassifications,
-      rooms: filteredRooms,
-      topologySummary: { continuousWalls, corners, tJunctions, falsePositives },
+      rooms: dedupedRooms,
+      topologySummary: topology,
     },
     warnings,
   };
