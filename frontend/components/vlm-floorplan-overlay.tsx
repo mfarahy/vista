@@ -1,45 +1,179 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { RAW_COLORS, type RawGeometry, type LayerVisibility } from './raw-floorplan-overlay';
 
-// ---- VLM types (mirrors backend zod schema) ----
+// ---- Geometry constraints (mirrors backend zod schema) ----
+//
+// The VLM proposes deterministic, actionable relationships between existing RAW
+// recognition objects — never coordinates or replacement geometry. For
+// directional types the ORDER of objectIds is significant (source → target):
+// - continue_wall: [source, target] — wall continues from source toward target
+// - extend_wall: [source, target] — source is extended to reach target
+// - opening_interrupts_wall: [opening, hostWall]
 
-export type GeometryHintType = 'same_continuous_wall' | 'parallel_walls' | 'same_axis' | 'extend_to_intersection' | 'merge_walls';
+export type GeometryConstraintType =
+  | 'merge_walls'
+  | 'continue_wall'
+  | 'extend_wall'
+  | 'remove_object'
+  | 'parallel_walls'
+  | 'perpendicular_walls'
+  | 'same_axis'
+  | 'wall_corner'
+  | 'wall_t_junction'
+  | 'opening_interrupts_wall';
 
-export type GeometryHint = {
-  type: GeometryHintType;
+export type GeometryConstraint = {
+  type: GeometryConstraintType;
   objectIds: string[];
   confidence: number;
   reason: string | null;
 };
 
-export type GeometryHintsVisibility = {
-  sameContinuousWall: boolean;
-  parallelWalls: boolean;
-  sameAxis: boolean;
-  extendToIntersection: boolean;
+export type GeometryConstraintsVisibility = {
   mergeWalls: boolean;
+  continueWall: boolean;
+  extendWall: boolean;
+  removeObject: boolean;
+  parallelWalls: boolean;
+  perpendicularWalls: boolean;
+  sameAxis: boolean;
+  wallCorner: boolean;
+  wallTJunction: boolean;
+  openingInterruptsWall: boolean;
 };
 
-export const GEOMETRY_HINT_TYPES: GeometryHintType[] = ['same_continuous_wall', 'parallel_walls', 'same_axis', 'extend_to_intersection', 'merge_walls'];
+export const defaultConstraintsVisibility: GeometryConstraintsVisibility = {
+  mergeWalls: true,
+  continueWall: true,
+  extendWall: true,
+  removeObject: true,
+  parallelWalls: true,
+  perpendicularWalls: true,
+  sameAxis: true,
+  wallCorner: true,
+  wallTJunction: true,
+  openingInterruptsWall: true,
+};
 
-export function geometryHintLabel(t: GeometryHintType): string {
-  switch (t) {
-    case 'same_continuous_wall': return 'Same continuous wall';
-    case 'parallel_walls': return 'Parallel walls';
-    case 'same_axis': return 'Same axis';
-    case 'extend_to_intersection': return 'Extend to intersection';
+export const GEOMETRY_CONSTRAINT_TYPES: GeometryConstraintType[] = [
+  'merge_walls',
+  'continue_wall',
+  'extend_wall',
+  'remove_object',
+  'parallel_walls',
+  'perpendicular_walls',
+  'same_axis',
+  'wall_corner',
+  'wall_t_junction',
+  'opening_interrupts_wall',
+];
+
+export function geometryConstraintLabel(type: GeometryConstraintType): string {
+  switch (type) {
     case 'merge_walls': return 'Merge walls';
+    case 'continue_wall': return 'Continue wall';
+    case 'extend_wall': return 'Extend wall';
+    case 'remove_object': return 'Remove object';
+    case 'parallel_walls': return 'Parallel walls';
+    case 'perpendicular_walls': return 'Perpendicular walls';
+    case 'same_axis': return 'Same axis';
+    case 'wall_corner': return 'Wall corner';
+    case 'wall_t_junction': return 'Wall T-junction';
+    case 'opening_interrupts_wall': return 'Opening interrupts wall';
   }
 }
 
-export const GEOMETRY_HINT_COLORS: Record<GeometryHintType, string> = {
-  same_continuous_wall: '#2e7d32',
-  parallel_walls: '#1565c0',
-  same_axis: '#00695c',
-  extend_to_intersection: '#ef6c00',
+export const GEOMETRY_CONSTRAINT_COLORS: Record<GeometryConstraintType, string> = {
   merge_walls: '#6a1b9a',
+  continue_wall: '#2e7d32',
+  extend_wall: '#ef6c00',
+  remove_object: '#c62828',
+  parallel_walls: '#1565c0',
+  perpendicular_walls: '#7b1fa2',
+  same_axis: '#00695c',
+  wall_corner: '#f9a825',
+  wall_t_junction: '#1e88e5',
+  opening_interrupts_wall: '#00acc1',
 };
+
+/** Confidence below this threshold is rendered as "low confidence". */
+export const LOW_CONFIDENCE_THRESHOLD = 0.75;
+
+export function isLowConfidenceConstraint(confidence: number): boolean {
+  return confidence < LOW_CONFIDENCE_THRESHOLD;
+}
+
+/** Stable key for React lists / selection identity. */
+export function constraintKey(constraint: GeometryConstraint): string {
+  return `${constraint.type}|${constraint.objectIds.join('|')}`;
+}
+
+export function sortConstraintsByConfidence(constraints: GeometryConstraint[]): GeometryConstraint[] {
+  return [...constraints].sort((a, b) => b.confidence - a.confidence);
+}
+
+export type ConstraintSummary = {
+  total: number;
+  mergeWalls: number;
+  continueWall: number;
+  extendWall: number;
+  removeObject: number;
+  parallelPerpendicular: number;
+  corners: number;
+  tJunctions: number;
+  openingInterruptions: number;
+};
+
+export function summarizeConstraints(constraints: GeometryConstraint[]): ConstraintSummary {
+  const summary: ConstraintSummary = {
+    total: constraints.length,
+    mergeWalls: 0,
+    continueWall: 0,
+    extendWall: 0,
+    removeObject: 0,
+    parallelPerpendicular: 0,
+    corners: 0,
+    tJunctions: 0,
+    openingInterruptions: 0,
+  };
+  for (const c of constraints) {
+    switch (c.type) {
+      case 'merge_walls': summary.mergeWalls += 1; break;
+      case 'continue_wall': summary.continueWall += 1; break;
+      case 'extend_wall': summary.extendWall += 1; break;
+      case 'remove_object': summary.removeObject += 1; break;
+      case 'parallel_walls':
+      case 'perpendicular_walls': summary.parallelPerpendicular += 1; break;
+      case 'wall_corner': summary.corners += 1; break;
+      case 'wall_t_junction': summary.tJunctions += 1; break;
+      case 'opening_interrupts_wall': summary.openingInterruptions += 1; break;
+    }
+  }
+  return summary;
+}
+
+export function filterConstraintsByVisibility(
+  constraints: GeometryConstraint[],
+  visibility: GeometryConstraintsVisibility,
+): GeometryConstraint[] {
+  return constraints.filter((c) => {
+    switch (c.type) {
+      case 'merge_walls': return visibility.mergeWalls;
+      case 'continue_wall': return visibility.continueWall;
+      case 'extend_wall': return visibility.extendWall;
+      case 'remove_object': return visibility.removeObject;
+      case 'parallel_walls': return visibility.parallelWalls;
+      case 'perpendicular_walls': return visibility.perpendicularWalls;
+      case 'same_axis': return visibility.sameAxis;
+      case 'wall_corner': return visibility.wallCorner;
+      case 'wall_t_junction': return visibility.wallTJunction;
+      case 'opening_interrupts_wall': return visibility.openingInterruptsWall;
+      default: return true;
+    }
+  });
+}
 
 export type WallRelationship = {
   wallIds: string[];
@@ -96,7 +230,7 @@ export type VlmAnalysis = {
   objectClassifications: ObjectClassification[];
   rooms: RoomHypothesis[];
   topologySummary: TopologySummary;
-  geometryHints?: GeometryHint[];
+  geometryConstraints?: GeometryConstraint[];
 };
 
 export type VlmVisibility = {
@@ -183,6 +317,20 @@ function midpoint(a: { x: number; y: number }, b: { x: number; y: number }): { x
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
 
+function polygonBounds(poly: number[][]): { minX: number; minY: number; maxX: number; maxY: number } {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const [x, y] of poly) {
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  }
+  return { minX, minY, maxX, maxY };
+}
+
 function roomColor(type: RoomHypothesis['type']): string {
   switch (type) {
     case 'living': return '#aed581';
@@ -226,9 +374,11 @@ export function VlmFloorplanOverlay({
   highlightedIds,
   onSelectObject,
   selectedId,
-  geometryVisibility,
-  showGeometryHints,
+  constraintsVisibility,
+  showConstraints,
   geometryOnlyMode,
+  onSelectConstraint,
+  selectedConstraintId,
 }: {
   imageUrl: string | null;
   imageWidth: number;
@@ -246,16 +396,18 @@ export function VlmFloorplanOverlay({
   highlightedIds?: string[];
   onSelectObject?: (id: string | null) => void;
   selectedId?: string | null;
-  geometryVisibility?: GeometryHintsVisibility;
-  showGeometryHints?: boolean;
+  constraintsVisibility?: GeometryConstraintsVisibility;
+  showConstraints?: boolean;
   geometryOnlyMode?: boolean;
+  onSelectConstraint?: (key: string | null) => void;
+  selectedConstraintId?: string | null;
 }) {
   if (!imageWidth || !imageHeight) return null;
   const viewBox = `0 0 ${imageWidth} ${imageHeight}`;
   const highlights = highlightedIds ?? [];
   const isInteractive = Boolean(onSelectObject);
-  const geometryReferencedIds = geometryOnlyMode && vlmAnalysis?.geometryHints
-    ? new Set((vlmAnalysis.geometryHints ?? []).flatMap((h) => h.objectIds))
+  const geometryReferencedIds = geometryOnlyMode && vlmAnalysis?.geometryConstraints
+    ? new Set((vlmAnalysis.geometryConstraints ?? []).flatMap((h) => h.objectIds))
     : null;
   const isGeometryReferenced = (id: string) => !geometryReferencedIds || geometryReferencedIds.has(id);
 
@@ -271,6 +423,9 @@ export function VlmFloorplanOverlay({
           <defs>
             <marker id="vlm-arrow" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={6} markerHeight={6} orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill={VLM_COLORS.opening} />
+            </marker>
+            <marker id="gc-arrow" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={6} markerHeight={6} orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#111" />
             </marker>
           </defs>
 
@@ -569,98 +724,243 @@ export function VlmFloorplanOverlay({
               )}
             </>
           )}
-          {vlmAnalysis && (vlmAnalysis.geometryHints?.length ?? 0) > 0 && (showGeometryHints ?? true) && (
+          {/* Geometry Constraints layer — VLM-proposed relationships drawn on top of RAW geometry.
+              Every constraint is clickable (details panel lives in the page). No new geometry is created. */}
+          {vlmAnalysis && (vlmAnalysis.geometryConstraints?.length ?? 0) > 0 && (showConstraints ?? true) && (
             <>
-              {(vlmAnalysis.geometryHints ?? [])
-                .filter((h) => {
-                  const gv = geometryVisibility;
-                  if (!gv) return true;
-                  switch (h.type) {
-                    case 'same_continuous_wall': return gv.sameContinuousWall;
-                    case 'parallel_walls': return gv.parallelWalls;
-                    case 'same_axis': return gv.sameAxis;
-                    case 'extend_to_intersection': return gv.extendToIntersection;
-                    case 'merge_walls': return gv.mergeWalls;
-                    default: return true;
-                  }
-                })
-                .map((hint, idx) => {
-                  const cents = hint.objectIds.map((id) => getCentroidForId(id, raw)).filter(Boolean) as { x: number; y: number }[];
-                  if (cents.length < 2) return null;
-                  const col = GEOMETRY_HINT_COLORS[hint.type] ?? '#757575';
-                  const lowConf = hint.confidence < 0.75;
-                  return (
-                    <g key={`gh-${idx}`}>
-                      {hint.objectIds.map((id) => {
-                        const poly = getPolygonForId(id, raw);
-                        if (!poly) return null;
-                        return <polygon key={`gh-poly-${idx}-${id}`} points={polygonPoints(poly)} fill={col} fillOpacity={lowConf ? 0.10 : 0.18} stroke={col} strokeWidth={lowConf ? 2.5 : 3.5} strokeOpacity={lowConf ? 0.6 : 0.95} strokeDasharray={hint.type === 'extend_to_intersection' ? '10 6' : hint.type === 'merge_walls' ? '6 3' : hint.type === 'same_axis' ? '8 4' : hint.type === 'parallel_walls' ? '4 4' : '10 5'} />;
-                      })}
-                      {(() => {
-                        if (hint.type === 'merge_walls') {
-                          // for merge: connect all to first centroid
-                          const first = cents[0];
-                          return cents.slice(1).map((c, j) => {
-                            const mid = midpoint(first, c);
-                            return (
-                              <g key={`gh-merge-${idx}-${j}`}>
-                                <line x1={first.x} y1={first.y} x2={c.x} y2={c.y} stroke={col} strokeWidth={2.5} strokeDasharray="6 3" strokeOpacity={0.85} />
-                                {(showVlmIds || showConfidence) && j === 0 && (
-                                  <text x={mid.x} y={mid.y - 6} fontSize={7} fill={col} textAnchor="middle" paintOrder="stroke" stroke="#fff" strokeWidth={3} fontWeight={600}>
-                                    {showVlmIds ? geometryHintLabel(hint.type) : ''}{showVlmIds && showConfidence ? ' · ' : ''}{showConfidence ? `${Math.round(hint.confidence * 100)}%` : ''}
-                                  </text>
-                                )}
-                              </g>
-                            );
-                          });
-                        }
-                        if (hint.type === 'extend_to_intersection' && cents.length >= 2) {
-                          const src = cents[0];
-                          const tgt = cents[1];
-                          const mid = midpoint(src, tgt);
+              {filterConstraintsByVisibility(
+                vlmAnalysis.geometryConstraints ?? [],
+                constraintsVisibility ?? defaultConstraintsVisibility,
+              ).map((c) => {
+                const key = constraintKey(c);
+                const cents = c.objectIds.map((id) => getCentroidForId(id, raw)).filter(Boolean) as { x: number; y: number }[];
+                const col = GEOMETRY_CONSTRAINT_COLORS[c.type] ?? '#757575';
+                const lowConf = isLowConfidenceConstraint(c.confidence);
+                const selected = selectedConstraintId === key;
+                const cLabel = (() => {
+                  const parts: string[] = [];
+                  if (showVlmIds) parts.push(geometryConstraintLabel(c.type));
+                  if (showConfidence) parts.push(`${Math.round(c.confidence * 100)}%`);
+                  return parts.join(' · ');
+                })();
+                const dashFor = (polyIdx: number): string | undefined => {
+                  if (c.type === 'remove_object') return '3 2';
+                  if (c.type === 'opening_interrupts_wall') return polyIdx === 0 ? '4 3' : '6 4';
+                  if (c.type === 'extend_wall') return polyIdx === 1 ? undefined : '10 6';
+                  if (c.type === 'merge_walls') return '6 3';
+                  if (c.type === 'same_axis') return '8 4';
+                  if (c.type === 'parallel_walls' || c.type === 'perpendicular_walls') return '4 4';
+                  if (c.type === 'continue_wall') return '10 5';
+                  return '5 4';
+                };
+                const label = (pos: { x: number; y: number }, dy = -8): ReactNode =>
+                  (showVlmIds || showConfidence) ? (
+                    <text x={pos.x} y={pos.y + dy} fontSize={7} fill={col} textAnchor="middle" paintOrder="stroke" stroke="#fff" strokeWidth={3} fontWeight={700}>
+                      {cLabel}
+                    </text>
+                  ) : null;
+                return (
+                  <g
+                    key={`gc-${key}`}
+                    style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectConstraint?.(selected ? null : key);
+                    }}
+                  >
+                    {/* highlight referenced RAW polygons */}
+                    {c.objectIds.map((id, i) => {
+                      const poly = getPolygonForId(id, raw);
+                      if (!poly) return null;
+                      const polyCol = c.type === 'remove_object' ? '#c62828' : c.type === 'opening_interrupts_wall' && i === 0 ? '#e53935' : col;
+                      return (
+                        <polygon
+                          key={`gc-poly-${key}-${i}`}
+                          points={polygonPoints(poly)}
+                          fill={polyCol}
+                          fillOpacity={lowConf ? 0.10 : selected ? 0.30 : 0.18}
+                          stroke={polyCol}
+                          strokeWidth={selected ? 5 : lowConf ? 2.5 : 3.5}
+                          strokeOpacity={lowConf ? 0.6 : 0.95}
+                          strokeDasharray={dashFor(i)}
+                        />
+                      );
+                    })}
+
+                    {/* per-type connector visuals */}
+                    {(() => {
+                      if (c.type === 'remove_object') {
+                        // cross out the RAW object (no new geometry — marker only)
+                        return cents.map((cc, i) => {
+                          const poly = getPolygonForId(c.objectIds[i], raw);
+                          const b = poly ? polygonBounds(poly) : null;
+                          const r = b ? Math.min(Math.max(b.maxX - b.minX, b.maxY - b.minY) * 0.22, 22) : 12;
                           return (
-                            <g key={`gh-ext-${idx}`}>
-                              <line x1={src.x} y1={src.y} x2={tgt.x} y2={tgt.y} stroke={col} strokeWidth={2.5} strokeDasharray="10 6" strokeOpacity={0.9} markerEnd="url(#vlm-arrow)" />
-                              <circle cx={src.x} cy={src.y} r={5} fill={col} stroke="#fff" strokeWidth={1.5} />
-                              <circle cx={tgt.x} cy={tgt.y} r={5} fill={col} stroke="#fff" strokeWidth={1.5} />
-                              {lowConf && <circle cx={mid.x} cy={mid.y} r={8} fill="none" stroke={col} strokeWidth={1} strokeDasharray="3 3" opacity={0.5} />}
-                              {(showVlmIds || showConfidence) && (
-                                <text x={mid.x} y={mid.y - 8} fontSize={7} fill={col} textAnchor="middle" paintOrder="stroke" stroke="#fff" strokeWidth={3} fontWeight={600}>
-                                  {showVlmIds ? `${hint.objectIds[0]} → ${hint.objectIds[1]}` : ''}{showVlmIds && showConfidence ? ' · ' : ''}{showConfidence ? `${Math.round(hint.confidence * 100)}%` : ''}
-                                </text>
-                              )}
-                            </g>
-                          );
-                        }
-                        // default: chain centroids sequentially
-                        return cents.slice(1).map((c, j) => {
-                          const prev = cents[j];
-                          const mid = midpoint(prev, c);
-                          // same_axis: draw axis line extended slightly
-                          const isAxis = hint.type === 'same_axis';
-                          return (
-                            <g key={`gh-seg-${idx}-${j}`}>
-                              <line x1={prev.x} y1={prev.y} x2={c.x} y2={c.y} stroke={col} strokeWidth={isAxis ? 3 : 2.5} strokeDasharray={isAxis ? '8 4' : hint.type === 'parallel_walls' ? '4 4' : '10 5'} strokeOpacity={0.9} />
-                              {isAxis && (
-                                <>
-                                  <line x1={prev.x} y1={prev.y} x2={prev.x + (c.x - prev.x) * 0.15} y2={prev.y + (c.y - prev.y) * 0.15} stroke={col} strokeWidth={5} strokeOpacity={0.25} />
-                                  <line x1={c.x} y1={c.y} x2={c.x + (prev.x - c.x) * 0.15} y2={c.y + (prev.y - c.y) * 0.15} stroke={col} strokeWidth={5} strokeOpacity={0.25} />
-                                </>
-                              )}
-                              <circle cx={prev.x} cy={prev.y} r={4} fill={col} stroke="#fff" strokeWidth={1.2} />
-                              {j === cents.length - 2 && <circle cx={c.x} cy={c.y} r={4} fill={col} stroke="#fff" strokeWidth={1.2} />}
-                              {(showVlmIds || showConfidence) && j === 0 && (
-                                <text x={mid.x} y={mid.y - 6} fontSize={7} fill={col} textAnchor="middle" paintOrder="stroke" stroke="#fff" strokeWidth={3} fontWeight={600}>
-                                  {showVlmIds ? geometryHintLabel(hint.type) : ''}{showVlmIds && showConfidence ? ' · ' : ''}{showConfidence ? `${Math.round(hint.confidence * 100)}%` : ''}
-                                </text>
-                              )}
+                            <g key={`gc-x-${key}-${i}`}>
+                              <line x1={cc.x - r} y1={cc.y - r} x2={cc.x + r} y2={cc.y + r} stroke="#c62828" strokeWidth={4} strokeLinecap="round" />
+                              <line x1={cc.x - r} y1={cc.y + r} x2={cc.x + r} y2={cc.y - r} stroke="#c62828" strokeWidth={4} strokeLinecap="round" />
+                              <circle cx={cc.x} cy={cc.y} r={r + 6} fill="none" stroke="#c62828" strokeWidth={2} strokeDasharray="4 3" opacity={0.7} />
+                              {label(cc, 0)}
                             </g>
                           );
                         });
-                      })()}
-                    </g>
-                  );
-                })}
+                      }
+                      if (cents.length < 2) return null;
+                      const first = cents[0];
+                      if (c.type === 'merge_walls') {
+                        return cents.slice(1).map((cc, j) => {
+                          const mid = midpoint(first, cc);
+                          return (
+                            <g key={`gc-merge-${key}-${j}`}>
+                              <line x1={first.x} y1={first.y} x2={cc.x} y2={cc.y} stroke={col} strokeWidth={2.5} strokeDasharray="6 3" strokeOpacity={0.9} />
+                              <circle cx={first.x} cy={first.y} r={5} fill={col} stroke="#fff" strokeWidth={1.5} />
+                              <circle cx={cc.x} cy={cc.y} r={5} fill={col} stroke="#fff" strokeWidth={1.5} />
+                              {j === 0 && label(mid)}
+                            </g>
+                          );
+                        });
+                      }
+                      if (c.type === 'continue_wall') {
+                        const tgt = cents[1];
+                        const mid = midpoint(first, tgt);
+                        return (
+                          <g key={`gc-continue-${key}`}>
+                            <line x1={first.x} y1={first.y} x2={tgt.x} y2={tgt.y} stroke={col} strokeWidth={3} strokeDasharray="10 5" strokeOpacity={0.9} markerEnd="url(#gc-arrow)" />
+                            <circle cx={first.x} cy={first.y} r={5} fill={col} stroke="#fff" strokeWidth={1.5} />
+                            <circle cx={tgt.x} cy={tgt.y} r={5} fill={col} stroke="#fff" strokeWidth={1.5} />
+                            {label(mid)}
+                          </g>
+                        );
+                      }
+                      if (c.type === 'extend_wall') {
+                        const tgt = cents[1];
+                        const mid = midpoint(first, tgt);
+                        const dx = tgt.x - first.x;
+                        const dy = tgt.y - first.y;
+                        const len = Math.hypot(dx, dy) || 1;
+                        const ex = first.x - (dx / len) * 18;
+                        const ey = first.y - (dy / len) * 18;
+                        return (
+                          <g key={`gc-extend-${key}`}>
+                            {/* extension-direction indicator: source edge points toward target */}
+                            <line x1={ex} y1={ey} x2={first.x} y2={first.y} stroke={col} strokeWidth={4} strokeOpacity={0.55} markerEnd="url(#gc-arrow)" />
+                            <line x1={first.x} y1={first.y} x2={tgt.x} y2={tgt.y} stroke={col} strokeWidth={2.5} strokeDasharray="10 6" strokeOpacity={0.9} markerEnd="url(#gc-arrow)" />
+                            <circle cx={first.x} cy={first.y} r={5} fill={col} stroke="#fff" strokeWidth={1.5} />
+                            <circle cx={tgt.x} cy={tgt.y} r={6} fill={col} stroke="#fff" strokeWidth={2} />
+                            {label(mid, -10)}
+                          </g>
+                        );
+                      }
+                      if (c.type === 'parallel_walls') {
+                        const tgt = cents[1];
+                        const mid = midpoint(first, tgt);
+                        return (
+                          <g key={`gc-parallel-${key}`}>
+                            <line x1={first.x} y1={first.y} x2={tgt.x} y2={tgt.y} stroke={col} strokeWidth={2.5} strokeDasharray="4 4" strokeOpacity={0.9} />
+                            <circle cx={first.x} cy={first.y} r={4} fill={col} stroke="#fff" strokeWidth={1.2} />
+                            <circle cx={tgt.x} cy={tgt.y} r={4} fill={col} stroke="#fff" strokeWidth={1.2} />
+                            {label(mid)}
+                          </g>
+                        );
+                      }
+                      if (c.type === 'perpendicular_walls') {
+                        const tgt = cents[1];
+                        const mid = midpoint(first, tgt);
+                        return (
+                          <g key={`gc-perp-${key}`}>
+                            <line x1={first.x} y1={first.y} x2={tgt.x} y2={tgt.y} stroke={col} strokeWidth={2.5} strokeDasharray="4 4" strokeOpacity={0.9} />
+                            <circle cx={first.x} cy={first.y} r={4} fill={col} stroke="#fff" strokeWidth={1.2} />
+                            <circle cx={tgt.x} cy={tgt.y} r={4} fill={col} stroke="#fff" strokeWidth={1.2} />
+                            {/* small right-angle marker near the relationship */}
+                            <path d={`M ${mid.x - 9} ${mid.y} L ${mid.x - 9} ${mid.y + 9} L ${mid.x} ${mid.y + 9}`} fill="none" stroke={col} strokeWidth={2.5} />
+                            {label(mid, -12)}
+                          </g>
+                        );
+                      }
+                      if (c.type === 'same_axis') {
+                        const tgt = cents[1];
+                        const mid = midpoint(first, tgt);
+                        const dx = tgt.x - first.x;
+                        const dy = tgt.y - first.y;
+                        const len = Math.hypot(dx, dy) || 1;
+                        const ex1 = first.x - (dx / len) * 24;
+                        const ey1 = first.y - (dy / len) * 24;
+                        const ex2 = tgt.x + (dx / len) * 24;
+                        const ey2 = tgt.y + (dy / len) * 24;
+                        return (
+                          <g key={`gc-axis-${key}`}>
+                            <line x1={ex1} y1={ey1} x2={ex2} y2={ey2} stroke={col} strokeWidth={3} strokeDasharray="8 4" strokeOpacity={0.9} />
+                            <circle cx={first.x} cy={first.y} r={4} fill={col} stroke="#fff" strokeWidth={1.2} />
+                            <circle cx={tgt.x} cy={tgt.y} r={4} fill={col} stroke="#fff" strokeWidth={1.2} />
+                            {label(mid, -10)}
+                          </g>
+                        );
+                      }
+                      if (c.type === 'wall_corner' || c.type === 'wall_t_junction') {
+                        const tgt = cents[1];
+                        const mid = midpoint(first, tgt);
+                        const marker =
+                          c.type === 'wall_corner' ? (
+                            <path d={`M ${mid.x - 10} ${mid.y + 6} L ${mid.x - 10} ${mid.y - 6} L ${mid.x + 6} ${mid.y - 6}`} fill="none" stroke={col} strokeWidth={3} strokeLinecap="round" />
+                          ) : (
+                            <path d={`M ${mid.x - 8} ${mid.y + 8} L ${mid.x - 8} ${mid.y - 8} L ${mid.x + 8} ${mid.y - 8}`} fill="none" stroke={col} strokeWidth={3} strokeLinecap="round" />
+                          );
+                        return (
+                          <g key={`gc-junction-${key}`}>
+                            <line x1={first.x} y1={first.y} x2={mid.x} y2={mid.y} stroke={col} strokeWidth={2} strokeDasharray="5 4" strokeOpacity={0.7} />
+                            <line x1={tgt.x} y1={tgt.y} x2={mid.x} y2={mid.y} stroke={col} strokeWidth={2} strokeDasharray="5 4" strokeOpacity={0.7} />
+                            <circle cx={mid.x} cy={mid.y} r={10} fill={col} fillOpacity={0.15} stroke={col} strokeWidth={2.5} strokeDasharray="4 3" />
+                            {marker}
+                            {label(mid, -16)}
+                          </g>
+                        );
+                      }
+                      if (c.type === 'opening_interrupts_wall') {
+                        const opening = first;
+                        const host = cents[1];
+                        const mid = midpoint(opening, host);
+                        return (
+                          <g key={`gc-opening-${key}`}>
+                            <line x1={opening.x} y1={opening.y} x2={host.x} y2={host.y} stroke={col} strokeWidth={2.5} strokeDasharray="6 3" strokeOpacity={0.9} markerEnd="url(#gc-arrow)" />
+                            <circle cx={opening.x} cy={opening.y} r={5} fill={col} stroke="#fff" strokeWidth={1.5} />
+                            <circle cx={host.x} cy={host.y} r={5} fill={col} stroke="#fff" strokeWidth={1.5} />
+                            {label(mid)}
+                          </g>
+                        );
+                      }
+                      return null;
+                    })()}
+
+                    {/* invisible click target covering the whole constraint bbox (on top, transparent) */}
+                    {(() => {
+                      const polys = c.objectIds.map((id) => getPolygonForId(id, raw)).filter(Boolean) as number[][][];
+                      if (polys.length === 0) return null;
+                      let minX = Infinity;
+                      let minY = Infinity;
+                      let maxX = -Infinity;
+                      let maxY = -Infinity;
+                      for (const p of polys) {
+                        const b = polygonBounds(p);
+                        if (b.minX < minX) minX = b.minX;
+                        if (b.minY < minY) minY = b.minY;
+                        if (b.maxX > maxX) maxX = b.maxX;
+                        if (b.maxY > maxY) maxY = b.maxY;
+                      }
+                      const pad = 8;
+                      return (
+                        <rect
+                          x={minX - pad}
+                          y={minY - pad}
+                          width={maxX - minX + pad * 2}
+                          height={maxY - minY + pad * 2}
+                          fill="transparent"
+                          style={{ pointerEvents: 'auto' }}
+                        />
+                      );
+                    })()}
+                  </g>
+                );
+              })}
             </>
           )}
           {/* Hide classifications/rooms/wallRelationships/openings in geometry-only mode: overlay already handles geometry pass */}

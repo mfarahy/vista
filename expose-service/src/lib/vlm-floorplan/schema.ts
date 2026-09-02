@@ -85,22 +85,54 @@ export const emptyTopologySummary = (): TopologySummary => ({
   falsePositives: [],
 });
 
-// ---- Geometry hints (VLM proposes constraints, never geometry) ----
+// ---- Geometry constraints (VLM proposes constraints, never geometry) ----
+//
+// The VLM's ONLY job here is to propose deterministic, actionable geometric
+// relationships between existing RAW recognition objects. It NEVER produces
+// coordinates, lengths or replacement geometry. For directional constraint
+// types the ORDER of `objectIds` is significant: the first ID is the source,
+// subsequent IDs are the targets (see `geometryConstraintSchema` docs below).
 
-export const geometryHintTypeSchema = z.enum([
-  'same_continuous_wall',
-  'parallel_walls',
-  'same_axis',
-  'extend_to_intersection',
+export const geometryConstraintTypeSchema = z.enum([
   'merge_walls',
+  'continue_wall',
+  'extend_wall',
+  'remove_object',
+  'parallel_walls',
+  'perpendicular_walls',
+  'same_axis',
+  'wall_corner',
+  'wall_t_junction',
+  'opening_interrupts_wall',
 ]);
 
-export const geometryHintSchema = z.object({
-  type: geometryHintTypeSchema,
-  objectIds: z.array(z.string().min(1)).min(2).max(10),
-  confidence: z.number().min(0).max(1),
-  reason: z.string().max(500).nullable(),
-});
+/**
+ * A single geometry constraint.
+ *
+ * Directional semantics (order of objectIds matters — encoded explicitly in the
+ * data, never buried in `reason`):
+ * - continue_wall: [source, target] — the wall continues from source toward target.
+ * - extend_wall: [source, target] — source is truncated and extended to reach target.
+ * - opening_interrupts_wall: [opening, hostWall] — the opening interrupts the host wall.
+ * - all other types are symmetric (ID order is not semantically significant).
+ */
+export const geometryConstraintSchema = z
+  .object({
+    type: geometryConstraintTypeSchema,
+    objectIds: z.array(z.string().min(1)).min(1).max(10),
+    confidence: z.number().min(0).max(1),
+    reason: z.string().max(500).nullable(),
+  })
+  .superRefine((val, ctx) => {
+    // remove_object may target a single RAW object; every other constraint type
+    // describes a relationship and therefore needs at least two objects.
+    if (val.type !== 'remove_object' && val.objectIds.length < 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `geometryConstraints of type "${val.type}" require at least 2 objectIds`,
+      });
+    }
+  });
 
 export const vlmFloorplanAnalysisSchema = z.object({
   wallRelationships: z.array(wallRelationshipSchema).max(50),
@@ -108,7 +140,7 @@ export const vlmFloorplanAnalysisSchema = z.object({
   objectClassifications: z.array(objectClassificationSchema).max(30),
   rooms: z.array(roomHypothesisSchema).max(20),
   topologySummary: topologySummarySchema,
-  geometryHints: z.array(geometryHintSchema).max(50).default([]),
+  geometryConstraints: z.array(geometryConstraintSchema).max(100).default([]),
 });
 
 export type WallRelationship = z.infer<typeof wallRelationshipSchema>;
@@ -116,8 +148,8 @@ export type OpeningAssociation = z.infer<typeof openingAssociationSchema>;
 export type ObjectClassification = z.infer<typeof objectClassificationSchema>;
 export type RoomHypothesis = z.infer<typeof roomHypothesisSchema>;
 export type TopologySummary = z.infer<typeof topologySummarySchema>;
-export type GeometryHintType = z.infer<typeof geometryHintTypeSchema>;
-export type GeometryHint = z.infer<typeof geometryHintSchema>;
+export type GeometryConstraintType = z.infer<typeof geometryConstraintTypeSchema>;
+export type GeometryConstraint = z.infer<typeof geometryConstraintSchema>;
 export type VlmFloorplanAnalysis = z.infer<typeof vlmFloorplanAnalysisSchema>;
 
 // Validation helpers for mapping VLM object IDs to raw recognition objects
@@ -381,42 +413,51 @@ function deduplicateTopologySummary(
   return { continuousWalls, corners, tJunctions, falsePositives };
 }
 
-function deduplicateGeometryHints(
-  hints: GeometryHint[],
+// Constraint types whose objectIds order is semantically significant (source → target).
+const DIRECTIONAL_CONSTRAINT_TYPES = new Set(['continue_wall', 'extend_wall', 'opening_interrupts_wall']);
+
+function deduplicateGeometryConstraints(
+  constraints: GeometryConstraint[],
   raw: Record<string, unknown>,
   warnings: string[],
-): GeometryHint[] {
-  const filtered: GeometryHint[] = [];
-  for (const h of hints) {
-    const { valid, invalid } = filterIdGroup(h.objectIds, raw, 2);
-    if (invalid.length) warnings.push(`geometryHints invalid objectIds: ${invalid.join(',')}`);
-    if (valid.length < 2) {
-      if (valid.length > 0) warnings.push(`geometryHints ${h.type} hint dropped — only ${valid.length} valid IDs remain`);
-      else warnings.push(`geometryHints ${h.type} hint dropped — no valid IDs`);
+): GeometryConstraint[] {
+  const filtered: GeometryConstraint[] = [];
+  for (const c of constraints) {
+    // remove_object may target a single RAW object; all other types need ≥2.
+    const minValid = c.type === 'remove_object' ? 1 : 2;
+    const { valid, invalid } = filterIdGroup(c.objectIds, raw, minValid);
+    if (invalid.length) warnings.push(`geometryConstraints invalid objectIds: ${invalid.join(',')}`);
+    if (valid.length < minValid) {
+      if (valid.length > 0) warnings.push(`geometryConstraints ${c.type} constraint dropped — only ${valid.length} valid IDs remain`);
+      else warnings.push(`geometryConstraints ${c.type} constraint dropped — no valid IDs`);
       continue;
     }
-    filtered.push({ ...h, objectIds: valid });
+    filtered.push({ ...c, objectIds: valid });
   }
 
-  // Deduplicate by type + sorted objectIds key, keep highest confidence
-  const groups = new Map<string, GeometryHint[]>();
-  for (const h of filtered) {
-    const key = `${h.type}|${[...h.objectIds].sort().join('|')}`;
+  // Deduplicate by type + objectIds key, keep highest confidence.
+  // Directional types keep their original order (source → target); symmetric
+  // types are normalized to sorted order so reversed duplicates collapse.
+  const groups = new Map<string, GeometryConstraint[]>();
+  for (const c of filtered) {
+    const key = DIRECTIONAL_CONSTRAINT_TYPES.has(c.type)
+      ? `${c.type}|${c.objectIds.join('|')}`
+      : `${c.type}|${[...c.objectIds].sort().join('|')}`;
     const arr = groups.get(key) ?? [];
-    arr.push(h);
+    arr.push(c);
     groups.set(key, arr);
   }
 
-  const result: GeometryHint[] = [];
+  const result: GeometryConstraint[] = [];
   for (const [key, group] of groups) {
     if (group.length === 1) {
-      result.push({ ...group[0], objectIds: [...group[0].objectIds].sort() });
+      result.push({ ...group[0], objectIds: [...group[0].objectIds] });
       continue;
     }
     group.sort((a, b) => b.confidence - a.confidence);
     const top = group[0];
-    warnings.push(`geometryHints duplicate for ${key}: kept highest confidence (${top.confidence}), dropped ${group.length - 1} duplicate(s)`);
-    result.push({ ...top, objectIds: [...top.objectIds].sort() });
+    warnings.push(`geometryConstraints duplicate for ${key}: kept highest confidence (${top.confidence}), dropped ${group.length - 1} duplicate(s)`);
+    result.push({ ...top, objectIds: [...top.objectIds] });
   }
   return result;
 }
@@ -430,8 +471,8 @@ export function validateVlmAnalysis(
   const filteredWallRelationships = deduplicateWallRelationships(analysis.wallRelationships, raw, warnings);
   const filteredOpenings = deduplicateOpenings(analysis.openings, raw, warnings);
   const filteredClassifications = deduplicateClassifications(analysis.objectClassifications, raw, warnings);
-  const geometryHints = (analysis as unknown as { geometryHints?: GeometryHint[] }).geometryHints ?? [];
-  const filteredGeometryHints = deduplicateGeometryHints(geometryHints, raw, warnings);
+  const geometryConstraints = (analysis as unknown as { geometryConstraints?: GeometryConstraint[] }).geometryConstraints ?? [];
+  const filteredGeometryConstraints = deduplicateGeometryConstraints(geometryConstraints, raw, warnings);
 
   const filteredRooms = analysis.rooms.filter((r) => {
     // Support both new schema (boundaryWalls/openings) and legacy boundaryObjects fallback
@@ -475,7 +516,7 @@ export function validateVlmAnalysis(
       objectClassifications: filteredClassifications,
       rooms: dedupedRooms,
       topologySummary: topology,
-      geometryHints: filteredGeometryHints,
+      geometryConstraints: filteredGeometryConstraints,
     },
     warnings,
   };
