@@ -603,9 +603,9 @@ describe('vlm-floorplan topology contract against real fixture (c658e915…)', (
   });
 });
 
-// ---- GeometryHints contract tests ----
+// ---- GeometryConstraints contract tests ----
 
-describe('vlm-floorplan geometryHints', () => {
+describe('vlm-floorplan geometryConstraints', () => {
   const rawFixture = {
     wall: [[ [0, 0], [1, 1] ], [ [0, 0], [1, 1] ], [ [0, 0], [1, 1] ], [ [0, 0], [1, 1] ]],
     door: [[ [0, 0] ], [ [0, 0] ]],
@@ -623,100 +623,158 @@ describe('vlm-floorplan geometryHints', () => {
     objectClassifications: [],
     rooms: [],
     topologySummary: emptyTopologySummary(),
-    geometryHints: [],
+    geometryConstraints: [],
   };
 
-  it('parses all five supported hint types', () => {
+  const allTypes = [
+    'merge_walls',
+    'continue_wall',
+    'extend_wall',
+    'remove_object',
+    'parallel_walls',
+    'perpendicular_walls',
+    'same_axis',
+    'wall_corner',
+    'wall_t_junction',
+    'opening_interrupts_wall',
+  ] as const;
+
+  it('parses all ten supported constraint types', () => {
     const input = {
       ...baseAnalysis,
-      geometryHints: [
-        { type: 'same_continuous_wall', objectIds: ['wall-3', 'wall-1'], confidence: 0.94, reason: 'continuous east exterior wall' },
-        { type: 'parallel_walls', objectIds: ['wall-0', 'wall-1'], confidence: 0.91, reason: 'both vertical' },
-        { type: 'same_axis', objectIds: ['wall-2', 'wall-3'], confidence: 0.93, reason: 'collinear' },
-        { type: 'extend_to_intersection', objectIds: ['wall-1', 'wall-0'], confidence: 0.88, reason: 'truncated interior wall' },
+      geometryConstraints: [
         { type: 'merge_walls', objectIds: ['wall-0', 'wall-2'], confidence: 0.97, reason: 'fragmented facade' },
+        { type: 'continue_wall', objectIds: ['wall-3', 'wall-1'], confidence: 0.94, reason: 'same vertical wall interrupted by recognition fragmentation' },
+        { type: 'extend_wall', objectIds: ['wall-1', 'wall-0'], confidence: 0.88, reason: 'truncated interior wall' },
+        { type: 'remove_object', objectIds: ['wall-1'], confidence: 0.99, reason: 'overlaps furniture' },
+        { type: 'parallel_walls', objectIds: ['wall-0', 'wall-1'], confidence: 0.91, reason: 'both vertical' },
+        { type: 'perpendicular_walls', objectIds: ['wall-2', 'wall-3'], confidence: 0.87, reason: 'right angle' },
+        { type: 'same_axis', objectIds: ['wall-2', 'wall-3'], confidence: 0.93, reason: 'collinear' },
+        { type: 'wall_corner', objectIds: ['wall-0', 'wall-1'], confidence: 0.92, reason: 'meet at corner' },
+        { type: 'wall_t_junction', objectIds: ['wall-0', 'wall-2'], confidence: 0.81, reason: 'T-junction' },
+        { type: 'opening_interrupts_wall', objectIds: ['window-2', 'wall-1'], confidence: 0.96, reason: 'window interrupts east facade' },
       ],
     };
     const parsed = vlmFloorplanAnalysisSchema.parse(input);
-    assert.equal(parsed.geometryHints.length, 5);
-    assert.equal(parsed.geometryHints[0].type, 'same_continuous_wall');
-    assert.equal(parsed.geometryHints[3].type, 'extend_to_intersection');
+    assert.equal(parsed.geometryConstraints.length, 10);
+    for (const type of allTypes) {
+      assert.ok(parsed.geometryConstraints.some((c) => c.type === type), `missing constraint type ${type}`);
+    }
   });
 
-  it('rejects unknown hint types', () => {
+  it('rejects unknown constraint types', () => {
     assert.throws(() => vlmFloorplanAnalysisSchema.parse({
       ...baseAnalysis,
-      geometryHints: [{ type: 'rotate_wall', objectIds: ['wall-0', 'wall-1'], confidence: 0.5, reason: null }],
-    }));
-  });
-
-  it('rejects hint with less than 2 objectIds', () => {
-    assert.throws(() => vlmFloorplanAnalysisSchema.parse({
-      ...baseAnalysis,
-      geometryHints: [{ type: 'same_continuous_wall', objectIds: ['wall-0'], confidence: 0.5, reason: null }],
+      geometryConstraints: [{ type: 'rotate_wall', objectIds: ['wall-0', 'wall-1'], confidence: 0.5, reason: null }],
     }));
   });
 
   it('rejects missing objectIds', () => {
     assert.throws(() => vlmFloorplanAnalysisSchema.parse({
       ...baseAnalysis,
-      geometryHints: [{ type: 'parallel_walls', confidence: 0.5, reason: null } as never],
+      geometryConstraints: [{ type: 'parallel_walls', confidence: 0.5, reason: null } as never],
     }));
+  });
+
+  it('requires at least 2 objectIds for non-remove_object constraint types', () => {
+    for (const type of ['merge_walls', 'continue_wall', 'extend_wall', 'parallel_walls', 'perpendicular_walls', 'same_axis', 'wall_corner', 'wall_t_junction', 'opening_interrupts_wall']) {
+      assert.throws(() => vlmFloorplanAnalysisSchema.parse({
+        ...baseAnalysis,
+        geometryConstraints: [{ type, objectIds: ['wall-0'], confidence: 0.5, reason: null }],
+      }), `expected ${type} with single objectId to be rejected`);
+    }
+  });
+
+  it('allows a single objectId for remove_object', () => {
+    assert.doesNotThrow(() => vlmFloorplanAnalysisSchema.parse({
+      ...baseAnalysis,
+      geometryConstraints: [{ type: 'remove_object', objectIds: ['wall-1'], confidence: 0.99, reason: 'false positive' }],
+    }));
+  });
+
+  it('preserves direction order for directional constraint types through validation', () => {
+    const analysis = vlmFloorplanAnalysisSchema.parse({
+      ...baseAnalysis,
+      geometryConstraints: [
+        { type: 'continue_wall', objectIds: ['wall-3', 'wall-1'], confidence: 0.94, reason: null },
+        { type: 'extend_wall', objectIds: ['wall-2', 'wall-3'], confidence: 0.88, reason: null },
+        { type: 'opening_interrupts_wall', objectIds: ['window-2', 'wall-1'], confidence: 0.96, reason: null },
+      ],
+    });
+    const { analysis: filtered, warnings } = validateVlmAnalysis(analysis, rawFixture);
+    assert.equal(warnings.length, 0);
+    assert.deepEqual(filtered.geometryConstraints[0].objectIds, ['wall-3', 'wall-1']);
+    assert.deepEqual(filtered.geometryConstraints[1].objectIds, ['wall-2', 'wall-3']);
+    assert.deepEqual(filtered.geometryConstraints[2].objectIds, ['window-2', 'wall-1']);
   });
 
   it('rejects confidence outside 0..1', () => {
     assert.throws(() => vlmFloorplanAnalysisSchema.parse({
       ...baseAnalysis,
-      geometryHints: [{ type: 'same_axis', objectIds: ['wall-0', 'wall-1'], confidence: 1.5, reason: null }],
+      geometryConstraints: [{ type: 'same_axis', objectIds: ['wall-0', 'wall-1'], confidence: 1.5, reason: null }],
     }));
     assert.throws(() => vlmFloorplanAnalysisSchema.parse({
       ...baseAnalysis,
-      geometryHints: [{ type: 'merge_walls', objectIds: ['wall-0', 'wall-1'], confidence: -0.1, reason: null }],
+      geometryConstraints: [{ type: 'merge_walls', objectIds: ['wall-0', 'wall-1'], confidence: -0.1, reason: null }],
     }));
   });
 
   it('filters invalid objectIds exactly like existing VLM references', () => {
     const analysis = vlmFloorplanAnalysisSchema.parse({
       ...baseAnalysis,
-      geometryHints: [
-        { type: 'same_continuous_wall', objectIds: ['wall-0', 'wall-99'], confidence: 0.9, reason: null },
+      geometryConstraints: [
+        { type: 'continue_wall', objectIds: ['wall-0', 'wall-99'], confidence: 0.9, reason: null },
         { type: 'parallel_walls', objectIds: ['wall-10', 'wall-11'], confidence: 0.9, reason: null },
         { type: 'same_axis', objectIds: ['wall-0', 'wall-1'], confidence: 0.9, reason: null },
       ],
     });
     const { analysis: filtered, warnings } = validateVlmAnalysis(analysis, rawFixture);
-    assert.ok(warnings.some((w) => w.includes('geometryHints')));
-    assert.equal(filtered.geometryHints.length, 1);
-    assert.deepEqual(filtered.geometryHints[0].objectIds, ['wall-0', 'wall-1']);
+    assert.ok(warnings.some((w) => w.includes('geometryConstraints')));
+    assert.equal(filtered.geometryConstraints.length, 1);
+    assert.deepEqual(filtered.geometryConstraints[0].objectIds, ['wall-0', 'wall-1']);
   });
 
-  it('filters partially invalid hints and preserves valid IDs after filtering', () => {
+  it('filters partially invalid constraints and preserves valid IDs after filtering', () => {
     const analysis = vlmFloorplanAnalysisSchema.parse({
       ...baseAnalysis,
-      geometryHints: [
+      geometryConstraints: [
         { type: 'merge_walls', objectIds: ['wall-0', 'wall-1', 'wall-99'], confidence: 0.9, reason: null },
       ],
     });
     const { analysis: filtered, warnings } = validateVlmAnalysis(analysis, rawFixture);
     assert.ok(warnings.some((w) => w.includes('invalid objectIds')));
-    // wall-99 invalid → filtered to 2 valid IDs, hint preserved with valid subset
-    assert.equal(filtered.geometryHints.length, 1);
-    assert.deepEqual(filtered.geometryHints[0].objectIds, ['wall-0', 'wall-1']);
+    // wall-99 invalid → filtered to 2 valid IDs, constraint preserved with valid subset
+    assert.equal(filtered.geometryConstraints.length, 1);
+    assert.deepEqual(filtered.geometryConstraints[0].objectIds, ['wall-0', 'wall-1']);
   });
 
-  it('omits hint entirely when <2 valid IDs remain after filtering', () => {
+  it('filters invalid IDs from remove_object and keeps single valid ID', () => {
     const analysis = vlmFloorplanAnalysisSchema.parse({
       ...baseAnalysis,
-      geometryHints: [
-        { type: 'extend_to_intersection', objectIds: ['wall-0', 'wall-99'], confidence: 0.8, reason: 'one valid only' },
+      geometryConstraints: [
+        { type: 'remove_object', objectIds: ['wall-0', 'wall-99'], confidence: 0.9, reason: null },
+        { type: 'remove_object', objectIds: ['door-99'], confidence: 0.9, reason: null },
       ],
     });
     const { analysis: filtered, warnings } = validateVlmAnalysis(analysis, rawFixture);
-    assert.equal(filtered.geometryHints.length, 0);
+    assert.ok(warnings.some((w) => w.includes('invalid objectIds')));
+    assert.equal(filtered.geometryConstraints.length, 1);
+    assert.deepEqual(filtered.geometryConstraints[0].objectIds, ['wall-0']);
+  });
+
+  it('omits constraint entirely when too few valid IDs remain after filtering', () => {
+    const analysis = vlmFloorplanAnalysisSchema.parse({
+      ...baseAnalysis,
+      geometryConstraints: [
+        { type: 'extend_wall', objectIds: ['wall-0', 'wall-99'], confidence: 0.8, reason: 'one valid only' },
+      ],
+    });
+    const { analysis: filtered, warnings } = validateVlmAnalysis(analysis, rawFixture);
+    assert.equal(filtered.geometryConstraints.length, 0);
     assert.ok(warnings.some((w) => w.includes('dropped')));
   });
 
-  it('preserves existing VLM schema compatibility when geometryHints absent (defaults to [])', () => {
+  it('preserves existing VLM schema compatibility when geometryConstraints absent (defaults to [])', () => {
     const legacy = {
       wallRelationships: [],
       openings: [],
@@ -725,73 +783,92 @@ describe('vlm-floorplan geometryHints', () => {
       topologySummary: emptyTopologySummary(),
     };
     const parsed = vlmFloorplanAnalysisSchema.parse(legacy as never);
-    assert.deepEqual(parsed.geometryHints, []);
+    assert.deepEqual(parsed.geometryConstraints, []);
     const { analysis: filtered, warnings } = validateVlmAnalysis(parsed, rawFixture);
-    assert.deepEqual(filtered.geometryHints, []);
+    assert.deepEqual(filtered.geometryConstraints, []);
     assert.equal(warnings.length, 0);
   });
 
-  it('deduplicates geometryHints by type+ids keeping highest confidence', () => {
+  it('deduplicates geometryConstraints by type+ids keeping highest confidence', () => {
     const analysis = vlmFloorplanAnalysisSchema.parse({
       ...baseAnalysis,
-      geometryHints: [
-        { type: 'same_continuous_wall', objectIds: ['wall-0', 'wall-1'], confidence: 0.6, reason: null },
-        { type: 'same_continuous_wall', objectIds: ['wall-1', 'wall-0'], confidence: 0.92, reason: null },
+      geometryConstraints: [
+        { type: 'parallel_walls', objectIds: ['wall-0', 'wall-1'], confidence: 0.6, reason: null },
+        { type: 'parallel_walls', objectIds: ['wall-1', 'wall-0'], confidence: 0.92, reason: null },
       ],
     });
     const { analysis: filtered, warnings } = validateVlmAnalysis(analysis, rawFixture);
-    assert.equal(filtered.geometryHints.length, 1);
-    assert.equal(filtered.geometryHints[0].confidence, 0.92);
+    assert.equal(filtered.geometryConstraints.length, 1);
+    assert.equal(filtered.geometryConstraints[0].confidence, 0.92);
     assert.ok(warnings.some((w) => w.includes('duplicate')));
   });
 
-  it('allows empty geometryHints', () => {
-    const parsed = vlmFloorplanAnalysisSchema.parse({ ...baseAnalysis, geometryHints: [] });
-    assert.deepEqual(parsed.geometryHints, []);
+  it('does NOT collapse reversed directional constraints (direction is significant)', () => {
+    const analysis = vlmFloorplanAnalysisSchema.parse({
+      ...baseAnalysis,
+      geometryConstraints: [
+        { type: 'continue_wall', objectIds: ['wall-0', 'wall-1'], confidence: 0.7, reason: null },
+        { type: 'continue_wall', objectIds: ['wall-1', 'wall-0'], confidence: 0.8, reason: null },
+      ],
+    });
+    const { analysis: filtered } = validateVlmAnalysis(analysis, rawFixture);
+    // opposite directions are distinct constraints
+    assert.equal(filtered.geometryConstraints.length, 2);
+  });
+
+  it('allows empty geometryConstraints', () => {
+    const parsed = vlmFloorplanAnalysisSchema.parse({ ...baseAnalysis, geometryConstraints: [] });
+    assert.deepEqual(parsed.geometryConstraints, []);
   });
 });
 
-describe('vlm-floorplan geometryHints against real fixture (c658e915…)', () => {
+describe('vlm-floorplan geometryConstraints against real fixture (c658e915…)', () => {
   let fixture: Record<string, unknown>;
   before(async () => {
     fixture = (await import('../../../../job-processor/src/lib/floorplan-pipeline/fixtures/recognition-c658e915-9247-4904-8032-717dd11ecfdd.json', { with: { type: 'json' } } as unknown as ImportAttributes)).default as Record<string, unknown>;
   });
 
-  it('validates realistic geometry hints against the fixture without warnings', () => {
+  it('validates realistic geometry constraints against the fixture without warnings', () => {
     const analysis = vlmFloorplanAnalysisSchema.parse({
       wallRelationships: [],
       openings: [],
       objectClassifications: [],
       rooms: [],
       topologySummary: emptyTopologySummary(),
-      geometryHints: [
-        { type: 'same_continuous_wall', objectIds: ['wall-3', 'wall-1'], confidence: 0.94, reason: 'The two detected segments form one continuous east exterior wall interrupted by a window.' },
-        { type: 'parallel_walls', objectIds: ['wall-1', 'wall-0'], confidence: 0.91, reason: 'Both wall segments run vertically with the same orientation in the floorplan.' },
-        { type: 'same_axis', objectIds: ['wall-3', 'wall-0'], confidence: 0.93, reason: 'The wall segments appear collinear and belong to the same structural line.' },
-        { type: 'extend_to_intersection', objectIds: ['wall-2', 'wall-3'], confidence: 0.88, reason: 'The interior wall appears to terminate at the exterior wall.' },
+      geometryConstraints: [
+        { type: 'continue_wall', objectIds: ['wall-3', 'wall-1'], confidence: 0.94, reason: 'The two detected segments form one continuous east exterior wall interrupted by a window.' },
         { type: 'merge_walls', objectIds: ['wall-0', 'wall-3'], confidence: 0.97, reason: 'Both detections form one continuous exterior facade around window openings.' },
+        { type: 'parallel_walls', objectIds: ['wall-1', 'wall-0'], confidence: 0.91, reason: 'Both wall segments run vertically with the same orientation in the floorplan.' },
+        { type: 'perpendicular_walls', objectIds: ['wall-3', 'wall-0'], confidence: 0.89, reason: 'East and north exterior walls meet at a right angle.' },
+        { type: 'same_axis', objectIds: ['wall-3', 'wall-0'], confidence: 0.93, reason: 'The wall segments appear collinear and belong to the same structural line.' },
+        { type: 'extend_wall', objectIds: ['wall-2', 'wall-3'], confidence: 0.88, reason: 'The interior wall appears truncated before reaching the intersecting wall.' },
+        { type: 'wall_corner', objectIds: ['wall-3', 'wall-2'], confidence: 0.92, reason: 'The two walls meet at a corner.' },
+        { type: 'wall_t_junction', objectIds: ['wall-0', 'wall-2'], confidence: 0.78, reason: 'Interior wall meets the exterior wall in a T-junction.' },
+        { type: 'opening_interrupts_wall', objectIds: ['window-2', 'wall-1'], confidence: 0.96, reason: 'The window interrupts the east exterior facade.' },
+        { type: 'remove_object', objectIds: ['window-1'], confidence: 0.99, reason: 'The detection overlaps furniture and does not represent an architectural opening.' },
       ],
     });
     const { analysis: filtered, warnings } = validateVlmAnalysis(analysis, fixture);
     assert.deepEqual(warnings, []);
-    assert.equal(filtered.geometryHints.length, 5);
+    assert.equal(filtered.geometryConstraints.length, 10);
   });
 
-  it('filters fabricated IDs from geometryHints in fixture context', () => {
+  it('filters fabricated IDs from geometryConstraints in fixture context', () => {
     const analysis = vlmFloorplanAnalysisSchema.parse({
       wallRelationships: [],
       openings: [],
       objectClassifications: [],
       rooms: [],
       topologySummary: emptyTopologySummary(),
-      geometryHints: [
-        { type: 'same_continuous_wall', objectIds: ['wall-0', 'wall-99'], confidence: 0.9, reason: null },
+      geometryConstraints: [
+        { type: 'continue_wall', objectIds: ['wall-0', 'wall-99'], confidence: 0.9, reason: null },
         { type: 'merge_walls', objectIds: ['wall-0', 'wall-1'], confidence: 0.9, reason: null },
+        { type: 'remove_object', objectIds: ['window-500'], confidence: 0.9, reason: null },
       ],
     });
     const { analysis: filtered, warnings } = validateVlmAnalysis(analysis, fixture);
     assert.ok(warnings.length > 0);
-    assert.equal(filtered.geometryHints.length, 1);
-    assert.deepEqual(filtered.geometryHints[0].objectIds, ['wall-0', 'wall-1']);
+    assert.equal(filtered.geometryConstraints.length, 1);
+    assert.deepEqual(filtered.geometryConstraints[0].objectIds, ['wall-0', 'wall-1']);
   });
 });

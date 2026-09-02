@@ -22,11 +22,16 @@ import {
   type VlmVisibility,
   type TopologySummary,
   type ObjectClassification,
-  type GeometryHint,
-  type GeometryHintsVisibility,
+  type GeometryConstraint,
+  type GeometryConstraintsVisibility,
   VLM_COLORS,
-  GEOMETRY_HINT_COLORS,
-  geometryHintLabel,
+  GEOMETRY_CONSTRAINT_COLORS,
+  geometryConstraintLabel,
+  defaultConstraintsVisibility,
+  constraintKey,
+  sortConstraintsByConfidence,
+  summarizeConstraints,
+  isLowConfidenceConstraint,
 } from '@/components/vlm-floorplan-overlay';
 import { generateAnnotatedImageDataUrl, dataUrlToBlob } from '@/lib/annotated-recognition-image';
 
@@ -80,16 +85,13 @@ export default function DebugFloorplanRecognitionPage() {
   });
   const [showVlmIds, setShowVlmIds] = useState(true);
   const [showConfidence, setShowConfidence] = useState(true);
-  const [vlmMode, setVlmMode] = useState<'raw+vlm' | 'topology-only' | 'geometry-only'>('raw+vlm');
+  const [vlmMode, setVlmMode] = useState<'raw+vlm' | 'topology-only' | 'geometry-only' | 'raw+vlm+constraints'>('raw+vlm');
   const [topologyHighlightIds, setTopologyHighlightIds] = useState<string[]>([]);
-  const [showGeometryHints, setShowGeometryHints] = useState(true);
-  const [geometryVisibility, setGeometryVisibility] = useState<GeometryHintsVisibility>({
-    sameContinuousWall: true,
-    parallelWalls: true,
-    sameAxis: true,
-    extendToIntersection: true,
-    mergeWalls: true,
+  const [showConstraints, setShowConstraints] = useState(true);
+  const [constraintsVisibility, setConstraintsVisibility] = useState<GeometryConstraintsVisibility>({
+    ...defaultConstraintsVisibility,
   });
+  const [selectedConstraintId, setSelectedConstraintId] = useState<string | null>(null);
 
   // Interactive inspector
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
@@ -125,6 +127,7 @@ export default function DebugFloorplanRecognitionPage() {
     setVlmRawResponse(null);
     setTopologyHighlightIds([]);
     setSelectedObjectId(null);
+    setSelectedConstraintId(null);
   }, []);
 
   // Generate annotated image whenever raw or original image changes
@@ -330,11 +333,15 @@ export default function DebugFloorplanRecognitionPage() {
       setVlmWarnings(body.warnings ?? []);
       setVlmRawResponse(body.rawResponse ?? null);
       setTopologyHighlightIds([]);
-      // enable all VLM layers by default after analysis
+      setSelectedConstraintId(null);
+      // enable all VLM layers + constraints by default after analysis
       setVlmVisibility({ wallRelationships: true, openingAssociations: true, objectClassifications: true, rooms: true });
       setShowVlmIds(true);
       setShowConfidence(true);
-      setVlmMode('raw+vlm');
+      setShowConstraints(true);
+      setConstraintsVisibility({ ...defaultConstraintsVisibility });
+      // Raw + VLM + Constraints is the default view once analysis is complete
+      setVlmMode('raw+vlm+constraints');
     } catch (e) {
       setVlmError(e instanceof Error ? e.message : t('debugFloorplanRecognition.vlmError'));
     } finally {
@@ -698,14 +705,16 @@ export default function DebugFloorplanRecognitionPage() {
                   vlmVisibility={vlmVisibility}
                   showVlmIds={showVlmIds}
                   showConfidence={showConfidence}
-                  hideRaw={false}
+                  hideRaw={vlmMode === 'topology-only'}
                   topologyOnly={vlmMode === 'topology-only'}
                   highlightedIds={topologyHighlightIds}
                   onSelectObject={setSelectedObjectId}
                   selectedId={selectedObjectId}
-                  geometryVisibility={geometryVisibility}
-                  showGeometryHints={showGeometryHints}
+                  constraintsVisibility={constraintsVisibility}
+                  showConstraints={showConstraints && (vlmMode === 'raw+vlm+constraints' || vlmMode === 'geometry-only')}
                   geometryOnlyMode={vlmMode === 'geometry-only'}
+                  onSelectConstraint={setSelectedConstraintId}
+                  selectedConstraintId={selectedConstraintId}
                 />
                 {vlmAnalysis && vlmMode === 'topology-only' && (
                   <p className="mt-1 text-xs text-violet-600">{t('debugFloorplanRecognition.topologyOnlyNote')}</p>
@@ -736,14 +745,16 @@ export default function DebugFloorplanRecognitionPage() {
                 vlmVisibility={vlmVisibility}
                 showVlmIds={showVlmIds}
                 showConfidence={showConfidence}
-                hideRaw={false}
+                hideRaw={vlmMode === 'topology-only'}
                 topologyOnly={vlmMode === 'topology-only'}
                 highlightedIds={topologyHighlightIds}
                 onSelectObject={setSelectedObjectId}
                 selectedId={selectedObjectId}
-                geometryVisibility={geometryVisibility}
-                showGeometryHints={showGeometryHints}
+                constraintsVisibility={constraintsVisibility}
+                showConstraints={showConstraints && (vlmMode === 'raw+vlm+constraints' || vlmMode === 'geometry-only')}
                 geometryOnlyMode={vlmMode === 'geometry-only'}
+                onSelectConstraint={setSelectedConstraintId}
+                selectedConstraintId={selectedConstraintId}
               />
               {vlmAnalysis && vlmMode === 'topology-only' && (
                 <p className="mt-1 text-xs text-violet-600">{t('debugFloorplanRecognition.topologyOnlyNote')}</p>
@@ -1051,6 +1062,9 @@ export default function DebugFloorplanRecognitionPage() {
                 </label>
                 <div className="flex items-center gap-2 text-sm">
                   <span className="text-xs text-muted-foreground">Mode:</span>
+                  <Button type="button" variant={vlmMode === 'raw+vlm+constraints' ? 'default' : 'outline'} size="sm" onClick={() => setVlmMode('raw+vlm+constraints')}>
+                    {t('debugFloorplanRecognition.vlmModeRawVlmConstraints')}
+                  </Button>
                   <Button type="button" variant={vlmMode === 'raw+vlm' ? 'default' : 'outline'} size="sm" onClick={() => setVlmMode('raw+vlm')}>
                     {t('debugFloorplanRecognition.vlmModeRawVlm')}
                   </Button>
@@ -1062,36 +1076,61 @@ export default function DebugFloorplanRecognitionPage() {
                   </Button>
                 </div>
               </div>
-              {/* Geometry Suggestions toggles */}
+              {/* Geometry Constraints toggles */}
               <div className="mt-4 flex flex-wrap gap-4 border-t pt-4">
                 <label className="flex items-center gap-2 text-sm font-medium">
-                  <Checkbox checked={showGeometryHints} onCheckedChange={(v) => setShowGeometryHints(Boolean(v))} />
-                  {t('debugFloorplanRecognition.geometryShowSuggestions')}
+                  <Checkbox checked={showConstraints} onCheckedChange={(v) => setShowConstraints(Boolean(v))} />
+                  {t('debugFloorplanRecognition.constraintsShowLayer')}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={geometryVisibility.sameContinuousWall} onCheckedChange={(v) => setGeometryVisibility((p) => ({ ...p, sameContinuousWall: Boolean(v) }))} />
-                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_HINT_COLORS.same_continuous_wall }} aria-hidden />
-                  {t('debugFloorplanRecognition.geometryWallContinuity')}
+                  <Checkbox checked={constraintsVisibility.mergeWalls} onCheckedChange={(v) => setConstraintsVisibility((p) => ({ ...p, mergeWalls: Boolean(v) }))} />
+                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_CONSTRAINT_COLORS.merge_walls }} aria-hidden />
+                  {t('debugFloorplanRecognition.constraintsMergeWalls')}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={geometryVisibility.parallelWalls} onCheckedChange={(v) => setGeometryVisibility((p) => ({ ...p, parallelWalls: Boolean(v) }))} />
-                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_HINT_COLORS.parallel_walls }} aria-hidden />
-                  {t('debugFloorplanRecognition.geometryParallelWalls')}
+                  <Checkbox checked={constraintsVisibility.continueWall} onCheckedChange={(v) => setConstraintsVisibility((p) => ({ ...p, continueWall: Boolean(v) }))} />
+                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_CONSTRAINT_COLORS.continue_wall }} aria-hidden />
+                  {t('debugFloorplanRecognition.constraintsContinueWall')}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={geometryVisibility.sameAxis} onCheckedChange={(v) => setGeometryVisibility((p) => ({ ...p, sameAxis: Boolean(v) }))} />
-                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_HINT_COLORS.same_axis }} aria-hidden />
-                  {t('debugFloorplanRecognition.geometrySameAxis')}
+                  <Checkbox checked={constraintsVisibility.extendWall} onCheckedChange={(v) => setConstraintsVisibility((p) => ({ ...p, extendWall: Boolean(v) }))} />
+                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_CONSTRAINT_COLORS.extend_wall }} aria-hidden />
+                  {t('debugFloorplanRecognition.constraintsExtendWall')}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={geometryVisibility.extendToIntersection} onCheckedChange={(v) => setGeometryVisibility((p) => ({ ...p, extendToIntersection: Boolean(v) }))} />
-                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_HINT_COLORS.extend_to_intersection }} aria-hidden />
-                  {t('debugFloorplanRecognition.geometryExtendToIntersection')}
+                  <Checkbox checked={constraintsVisibility.removeObject} onCheckedChange={(v) => setConstraintsVisibility((p) => ({ ...p, removeObject: Boolean(v) }))} />
+                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_CONSTRAINT_COLORS.remove_object }} aria-hidden />
+                  {t('debugFloorplanRecognition.constraintsRemoveObject')}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={geometryVisibility.mergeWalls} onCheckedChange={(v) => setGeometryVisibility((p) => ({ ...p, mergeWalls: Boolean(v) }))} />
-                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_HINT_COLORS.merge_walls }} aria-hidden />
-                  {t('debugFloorplanRecognition.geometryMergeWalls')}
+                  <Checkbox checked={constraintsVisibility.parallelWalls} onCheckedChange={(v) => setConstraintsVisibility((p) => ({ ...p, parallelWalls: Boolean(v) }))} />
+                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_CONSTRAINT_COLORS.parallel_walls }} aria-hidden />
+                  {t('debugFloorplanRecognition.constraintsParallelWalls')}
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={constraintsVisibility.perpendicularWalls} onCheckedChange={(v) => setConstraintsVisibility((p) => ({ ...p, perpendicularWalls: Boolean(v) }))} />
+                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_CONSTRAINT_COLORS.perpendicular_walls }} aria-hidden />
+                  {t('debugFloorplanRecognition.constraintsPerpendicularWalls')}
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={constraintsVisibility.sameAxis} onCheckedChange={(v) => setConstraintsVisibility((p) => ({ ...p, sameAxis: Boolean(v) }))} />
+                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_CONSTRAINT_COLORS.same_axis }} aria-hidden />
+                  {t('debugFloorplanRecognition.constraintsSameAxis')}
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={constraintsVisibility.wallCorner} onCheckedChange={(v) => setConstraintsVisibility((p) => ({ ...p, wallCorner: Boolean(v) }))} />
+                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_CONSTRAINT_COLORS.wall_corner }} aria-hidden />
+                  {t('debugFloorplanRecognition.constraintsWallCorner')}
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={constraintsVisibility.wallTJunction} onCheckedChange={(v) => setConstraintsVisibility((p) => ({ ...p, wallTJunction: Boolean(v) }))} />
+                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_CONSTRAINT_COLORS.wall_t_junction }} aria-hidden />
+                  {t('debugFloorplanRecognition.constraintsWallTJunction')}
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={constraintsVisibility.openingInterruptsWall} onCheckedChange={(v) => setConstraintsVisibility((p) => ({ ...p, openingInterruptsWall: Boolean(v) }))} />
+                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: GEOMETRY_CONSTRAINT_COLORS.opening_interrupts_wall }} aria-hidden />
+                  {t('debugFloorplanRecognition.constraintsOpeningInterruptsWall')}
                 </label>
               </div>
             </div>
@@ -1101,44 +1140,105 @@ export default function DebugFloorplanRecognitionPage() {
             <p className="mt-4 text-sm text-muted-foreground">{t('debugFloorplanRecognition.vlmNoAnalysis')}</p>
           ) : null}
 
-          {/* Geometry Suggestions */}
+          {/* Geometry Constraints */}
           {vlmAnalysis && (
             <div className="mt-5 rounded-xl border bg-card p-4">
               <div className="flex items-center gap-2">
                 <Sparkles className="size-4 text-purple-600" aria-hidden />
-                <h3 className="text-sm font-semibold">{t('debugFloorplanRecognition.geometrySuggestionsTitle')}</h3>
+                <h3 className="text-sm font-semibold">{t('debugFloorplanRecognition.constraintsTitle')}</h3>
                 <span className="rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">POC</span>
-                <span className="ml-auto text-xs text-muted-foreground">{t('debugFloorplanRecognition.geometrySuggestionsCount', { count: String((vlmAnalysis.geometryHints ?? []).length) })}</span>
+                <span className="ml-auto text-xs text-muted-foreground">{t('debugFloorplanRecognition.constraintsCount', { count: String((vlmAnalysis.geometryConstraints ?? []).length) })}</span>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.geometrySuggestionsIntro')}</p>
-              {(vlmAnalysis.geometryHints ?? []).length === 0 ? (
-                <p className="mt-3 text-xs text-muted-foreground">{t('debugFloorplanRecognition.geometrySuggestionsEmpty')}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.constraintsIntro')}</p>
+
+              {/* Constraint summary */}
+              {(() => {
+                const summary = summarizeConstraints(vlmAnalysis.geometryConstraints ?? []);
+                const chips: Array<{ label: string; value: number }> = [
+                  { label: t('debugFloorplanRecognition.constraintsSumMerge'), value: summary.mergeWalls },
+                  { label: t('debugFloorplanRecognition.constraintsSumContinue'), value: summary.continueWall },
+                  { label: t('debugFloorplanRecognition.constraintsSumExtend'), value: summary.extendWall },
+                  { label: t('debugFloorplanRecognition.constraintsSumRemove'), value: summary.removeObject },
+                  { label: t('debugFloorplanRecognition.constraintsSumParallelPerp'), value: summary.parallelPerpendicular },
+                  { label: t('debugFloorplanRecognition.constraintsSumCorners'), value: summary.corners },
+                  { label: t('debugFloorplanRecognition.constraintsSumTJunctions'), value: summary.tJunctions },
+                  { label: t('debugFloorplanRecognition.constraintsSumOpening'), value: summary.openingInterruptions },
+                ];
+                return (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {chips.map((chip) => (
+                      <span key={chip.label} className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${chip.value > 0 ? 'border-purple-200 bg-purple-50 text-purple-800' : 'border-muted-foreground/20 bg-muted/30 text-muted-foreground'}`}>
+                        <span className="font-semibold">{chip.value}</span>
+                        {chip.label}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Selected constraint details panel */}
+              {selectedConstraintId && (() => {
+                const sel = (vlmAnalysis.geometryConstraints ?? []).find((c) => constraintKey(c) === selectedConstraintId);
+                if (!sel) return null;
+                const col = GEOMETRY_CONSTRAINT_COLORS[sel.type];
+                const directional = sel.type === 'continue_wall' || sel.type === 'extend_wall' || sel.type === 'opening_interrupts_wall';
+                return (
+                  <div className="mt-3 rounded-lg border-2 bg-white p-3" style={{ borderColor: col }}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded px-2 py-0.5 text-xs font-semibold text-white" style={{ background: col }}>
+                          {geometryConstraintLabel(sel.type)}
+                        </span>
+                        <span className="font-mono text-xs">{sel.objectIds.join(directional ? ' → ' : ' + ')}</span>
+                        <span className={`text-xs font-semibold ${isLowConfidenceConstraint(sel.confidence) ? 'text-amber-600' : 'text-green-600'}`}>
+                          {t('debugFloorplanRecognition.constraintsConfidence', { value: String(Math.round(sel.confidence * 100)) })}
+                        </span>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedConstraintId(null)}>
+                        {t('debugFloorplanRecognition.constraintsDetailsClose')}
+                      </Button>
+                    </div>
+                    <p className="mt-2 text-xs font-semibold text-muted-foreground">{t('debugFloorplanRecognition.constraintsDetailsType')}: <span className="font-mono">{sel.type}</span></p>
+                    <p className="mt-1 text-xs font-semibold text-muted-foreground">{t('debugFloorplanRecognition.constraintsDetailsObjects')}: <span className="font-mono">{sel.objectIds.join(', ')}</span></p>
+                    <p className="mt-1 text-xs font-semibold text-muted-foreground">{t('debugFloorplanRecognition.constraintsDetailsConfidence')}: <span className="font-mono">{sel.confidence.toFixed(3)}</span>{isLowConfidenceConstraint(sel.confidence) && <span className="ml-1 text-amber-600">{t('debugFloorplanRecognition.constraintsLowConfidenceHint')}</span>}</p>
+                    <p className="mt-1 text-xs leading-5 text-foreground">{t('debugFloorplanRecognition.constraintsDetailsReason')}: <span className="italic">{sel.reason ?? t('debugFloorplanRecognition.constraintsNoReason')}</span></p>
+                  </div>
+                );
+              })()}
+
+              {(vlmAnalysis.geometryConstraints ?? []).length === 0 ? (
+                <p className="mt-3 text-xs text-muted-foreground">{t('debugFloorplanRecognition.constraintsEmpty')}</p>
               ) : (
                 <ul className="mt-3 space-y-2">
-                  {(vlmAnalysis.geometryHints ?? []).map((hint: GeometryHint, idx: number) => {
-                    const col = GEOMETRY_HINT_COLORS[hint.type];
-                    const isLow = hint.confidence < 0.75;
-                    const statusIcon = isLow ? '⚠' : '✓';
-                    const statusColor = isLow ? 'text-amber-600' : 'text-green-600';
-                    const isExtend = hint.type === 'extend_to_intersection';
+                  {sortConstraintsByConfidence(vlmAnalysis.geometryConstraints ?? []).map((c: GeometryConstraint) => {
+                    const col = GEOMETRY_CONSTRAINT_COLORS[c.type];
+                    const isLow = isLowConfidenceConstraint(c.confidence);
+                    const directional = c.type === 'continue_wall' || c.type === 'extend_wall' || c.type === 'opening_interrupts_wall';
+                    const isSelected = selectedConstraintId === constraintKey(c);
                     return (
-                      <li key={idx} className="flex items-start gap-3 rounded-lg border bg-muted/20 p-3">
-                        <span className={`mt-0.5 text-sm font-bold ${statusColor}`}>{statusIcon}</span>
+                      <li key={constraintKey(c)} className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${isSelected ? 'border-purple-400 bg-purple-50/50' : 'bg-muted/20 hover:border-purple-300'}`}>
+                        <span className={`mt-0.5 text-sm font-bold ${isLow ? 'text-amber-600' : 'text-green-600'}`}>{isLow ? '⚠' : '✓'}</span>
                         <div className="flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="rounded px-2 py-0.5 text-xs font-semibold text-white" style={{ background: col }}>
-                              {geometryHintLabel(hint.type)}
+                              {geometryConstraintLabel(c.type)}
                             </span>
                             <span className="font-mono text-xs">
-                              {isExtend ? `${hint.objectIds[0]} → ${hint.objectIds[1]}` : hint.objectIds.join(' + ')}
+                              {directional ? `${c.objectIds[0]} → ${c.objectIds.slice(1).join(' → ')}` : c.objectIds.join(' + ')}
                             </span>
                             <span className={`text-xs ${isLow ? 'text-amber-600' : 'text-green-600'}`}>
-                              {t('debugFloorplanRecognition.geometryConfidence', { value: String(Math.round(hint.confidence * 100)) })}
+                              {t('debugFloorplanRecognition.constraintsConfidence', { value: String(Math.round(c.confidence * 100)) })}
                             </span>
-                            <button type="button" onClick={() => setTopologyHighlightIds(hint.objectIds)} className="ml-auto rounded border bg-white px-2 py-0.5 text-xs hover:border-amber-400 hover:bg-amber-50">{t('debugFloorplanRecognition.geometryHighlight')}</button>
+                            {isLow && <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">{t('debugFloorplanRecognition.constraintsLowConfidenceBadge')}</span>}
+                            <div className="ml-auto flex gap-1.5">
+                              <Button type="button" variant="outline" size="sm" onClick={() => { setTopologyHighlightIds(c.objectIds); }}>{t('debugFloorplanRecognition.geometryHighlight')}</Button>
+                              <Button type="button" variant={isSelected ? 'default' : 'outline'} size="sm" onClick={() => setSelectedConstraintId(isSelected ? null : constraintKey(c))}>
+                                {t('debugFloorplanRecognition.constraintsDetails')}
+                              </Button>
+                            </div>
                           </div>
-                          {hint.reason && <p className="mt-1 text-xs text-muted-foreground">&quot;{hint.reason}&quot;</p>}
-                          {isLow && <p className="mt-1 text-xs text-amber-600">{t('debugFloorplanRecognition.geometryLowConfidenceHint')}</p>}
+                          {c.reason && <p className="mt-1 text-xs text-muted-foreground">&quot;{c.reason}&quot;</p>}
+                          {isLow && <p className="mt-1 text-xs text-amber-600">{t('debugFloorplanRecognition.constraintsLowConfidenceHint')}</p>}
                         </div>
                       </li>
                     );
