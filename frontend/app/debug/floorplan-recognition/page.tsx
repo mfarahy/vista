@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Copy, Check, LoaderCircle, Upload, Image as ImageIcon, AlertTriangle, Brain, Download, Sparkles, Grid2x2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
@@ -34,6 +34,11 @@ import {
   isLowConfidenceConstraint,
 } from '@/components/vlm-floorplan-overlay';
 import { generateAnnotatedImageDataUrl, dataUrlToBlob } from '@/lib/annotated-recognition-image';
+import { extractGeometryPrimitives } from '@/lib/geometry-primitives';
+import {
+  GeometryPrimitivesOverlay,
+  PRIMITIVE_COLORS,
+} from '@/components/geometry-primitives-overlay';
 
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
@@ -95,6 +100,16 @@ export default function DebugFloorplanRecognitionPage() {
 
   // Interactive inspector
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
+
+  // Geometry primitives state
+  const [primitiveMode, setPrimitiveMode] = useState<'raw' | 'raw+primitives' | 'primitives-only'>('raw+primitives');
+  const [showPrimitivesLayer, setShowPrimitivesLayer] = useState(true);
+  const [showPrimitiveLabels, setShowPrimitiveLabels] = useState(false);
+  const [showPrimitiveMeasurements, setShowPrimitiveMeasurements] = useState(false);
+  const [showSourcePolygons, setShowSourcePolygons] = useState(true);
+  const [selectedPrimitiveId, setSelectedPrimitiveId] = useState<string | null>(null);
+  const [primitivesJsonCollapsed, setPrimitivesJsonCollapsed] = useState(false);
+  const [primitivesCopied, setPrimitivesCopied] = useState(false);
 
   // Annotated recognition image state
   const [annotatedDataUrl, setAnnotatedDataUrl] = useState<string | null>(null);
@@ -222,12 +237,13 @@ export default function DebugFloorplanRecognitionPage() {
         if (res.status === 504) {
           throw new Error(body.error || t('debugFloorplanRecognition.errorProviderTimeout'));
         }
-        throw new Error(body.error || t('debugFloorplanRecognition.errorRecognitionFailed'));
+        throw new Error(body.error || t('debugFloorplanRecognition.errorRecognitionStatus', { status: String(res.status) }));
       }
       if (!body.raw) throw new Error(t('debugFloorplanRecognition.errorMalformedResponse'));
       setRaw(body.raw as RawGeometry);
       setExtraFields(detectUnknownFields(body.raw as unknown as Record<string, unknown>));
       setDurationMs(body.durationMs ?? null);
+      setSelectedPrimitiveId(null);
     } catch (e) {
       const msg = e instanceof Error ? e.message : t('debugFloorplanRecognition.errorRecognitionFailed');
       // Network-level fetch failure (expose-service not reachable) — show localized hint once
@@ -271,6 +287,7 @@ export default function DebugFloorplanRecognitionPage() {
       };
       img.src = url;
       setDurationMs(null);
+      setSelectedPrimitiveId(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load fixture');
     } finally {
@@ -362,8 +379,32 @@ export default function DebugFloorplanRecognitionPage() {
     URL.revokeObjectURL(url);
   };
 
+  const exportPrimitives = () => {
+    if (!primitivesResult) return;
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      imageSize: { width: imageWidth, height: imageHeight },
+      thresholds: primitivesResult.thresholds,
+      summary: primitivesResult.summary,
+      primitives: primitivesResult.primitives,
+      relationships: primitivesResult.relationships,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `geometry-primitives-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const maxCoord = raw ? computeMaxCoord(raw) : null;
   const outOfBounds = maxCoord && imageWidth && imageHeight ? maxCoord.maxX > imageWidth || maxCoord.maxY > imageHeight : false;
+
+  // Geometry primitives — derived deterministically from the RAW result on the client.
+  const primitivesResult = useMemo(() => (raw ? extractGeometryPrimitives(raw) : null), [raw]);
 
   const stats = raw
     ? {
@@ -448,6 +489,77 @@ export default function DebugFloorplanRecognitionPage() {
       {id}
     </button>
   );
+
+  // Overlay stack: RAW + VLM (existing) combined with the Geometry Primitives
+  // layer in the SAME coordinate system. Mode controls what is rendered.
+  const renderOverlayStack = () => {
+    if (!raw) return null;
+    if (primitiveMode === 'primitives-only') {
+      return showPrimitivesLayer && primitivesResult ? (
+        <GeometryPrimitivesOverlay
+          imageUrl={previewUrl}
+          imageWidth={imageWidth}
+          imageHeight={imageHeight}
+          result={primitivesResult}
+          raw={raw.wall}
+          showLabels={showPrimitiveLabels}
+          showMeasurements={showPrimitiveMeasurements}
+          showSourcePolygons={showSourcePolygons}
+          showImage={showImage}
+          selectedId={selectedPrimitiveId}
+          onSelect={setSelectedPrimitiveId}
+        />
+      ) : (
+        <div className="rounded-xl border bg-white p-5 text-sm text-muted-foreground">
+          <img src={previewUrl ?? undefined} alt={t('debugFloorplanRecognition.previewAlt')} className="h-auto w-full rounded object-contain" />
+          <p className="mt-2">{t('geometryPrimitives.noData')}</p>
+        </div>
+      );
+    }
+    return (
+      <div className="relative">
+        <VlmFloorplanOverlay
+          imageUrl={previewUrl}
+          imageWidth={imageWidth}
+          imageHeight={imageHeight}
+          raw={raw}
+          visibility={visibility}
+          showIds={showIds}
+          showImage={showImage}
+          vlmAnalysis={vlmAnalysis}
+          vlmVisibility={vlmVisibility}
+          showVlmIds={showVlmIds}
+          showConfidence={showConfidence}
+          hideRaw={vlmMode === 'topology-only'}
+          topologyOnly={vlmMode === 'topology-only'}
+          highlightedIds={topologyHighlightIds}
+          onSelectObject={setSelectedObjectId}
+          selectedId={selectedObjectId}
+          constraintsVisibility={constraintsVisibility}
+          showConstraints={showConstraints && (vlmMode === 'raw+vlm+constraints' || vlmMode === 'geometry-only')}
+          geometryOnlyMode={vlmMode === 'geometry-only'}
+          onSelectConstraint={setSelectedConstraintId}
+          selectedConstraintId={selectedConstraintId}
+        />
+        {showPrimitivesLayer && primitiveMode === 'raw+primitives' && primitivesResult && (
+          <GeometryPrimitivesOverlay
+            overlaid
+            imageUrl={null}
+            imageWidth={imageWidth}
+            imageHeight={imageHeight}
+            result={primitivesResult}
+            raw={raw.wall}
+            showLabels={showPrimitiveLabels}
+            showMeasurements={showPrimitiveMeasurements}
+            showSourcePolygons={showSourcePolygons}
+            showImage={false}
+            selectedId={selectedPrimitiveId}
+            onSelect={setSelectedPrimitiveId}
+          />
+        )}
+      </div>
+    );
+  };
 
   return (
     <main className="min-h-screen bg-background pb-16">
@@ -677,7 +789,122 @@ export default function DebugFloorplanRecognitionPage() {
           </div>
         )}
 
-        {/* Visualization — RAW + VLM combined */}
+        {/* Geometry Primitives — deterministic extraction layer */}
+        {!raw && (
+          <div className="mt-6 rounded-xl border bg-card p-4">
+            <div className="flex items-center gap-2">
+              <span className="rounded bg-teal-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-teal-700">{t('geometryPrimitives.badge')}</span>
+              <span className="text-xs text-muted-foreground">— {t('geometryPrimitives.noRaw')}</span>
+            </div>
+          </div>
+        )}
+        {raw && primitivesResult && (
+          <div className="mt-6 rounded-xl border bg-card p-4">
+            <div className="flex items-center gap-2">
+              <span className="rounded bg-teal-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-teal-700">{t('geometryPrimitives.badge')}</span>
+              <span className="text-xs text-muted-foreground">— {t('geometryPrimitives.intro')}</span>
+            </div>
+
+            {/* Mode selector */}
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground">{t('geometryPrimitives.modeLabel')}:</span>
+              <Button type="button" variant={primitiveMode === 'raw' ? 'default' : 'outline'} size="sm" onClick={() => setPrimitiveMode('raw')}>
+                {t('geometryPrimitives.modeRaw')}
+              </Button>
+              <Button type="button" variant={primitiveMode === 'raw+primitives' ? 'default' : 'outline'} size="sm" onClick={() => setPrimitiveMode('raw+primitives')}>
+                {t('geometryPrimitives.modeRawPlus')}
+              </Button>
+              <Button type="button" variant={primitiveMode === 'primitives-only' ? 'default' : 'outline'} size="sm" onClick={() => setPrimitiveMode('primitives-only')}>
+                {t('geometryPrimitives.modeOnly')}
+              </Button>
+            </div>
+
+            {/* Layer + label toggles */}
+            <div className="mt-4 flex flex-wrap gap-4 border-t pt-4">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={showPrimitivesLayer} onCheckedChange={(v) => setShowPrimitivesLayer(Boolean(v))} />
+                {t('geometryPrimitives.layerToggle')}
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={showPrimitiveLabels} onCheckedChange={(v) => setShowPrimitiveLabels(Boolean(v))} />
+                {t('geometryPrimitives.showLabels')}
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={showPrimitiveMeasurements} onCheckedChange={(v) => setShowPrimitiveMeasurements(Boolean(v))} />
+                {t('geometryPrimitives.showMeasurements')}
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={showSourcePolygons} onCheckedChange={(v) => setShowSourcePolygons(Boolean(v))} />
+                {t('geometryPrimitives.showSourcePolygons')}
+              </label>
+            </div>
+
+            {/* Visual diagnostic summary */}
+            <div className="mt-4 border-t pt-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('geometryPrimitives.summaryTitle')}</h3>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {[
+                  { label: t('geometryPrimitives.summaryRawWalls'), value: primitivesResult.summary.rawWallCount, tone: 'neutral' as const },
+                  { label: t('geometryPrimitives.summaryRuns'), value: primitivesResult.summary.runs, tone: 'neutral' as const },
+                  { label: t('geometryPrimitives.summaryHorizontal'), value: primitivesResult.summary.horizontal, tone: 'teal' as const },
+                  { label: t('geometryPrimitives.summaryVertical'), value: primitivesResult.summary.vertical, tone: 'violet' as const },
+                  { label: t('geometryPrimitives.summaryDiagonal'), value: primitivesResult.summary.diagonal, tone: 'amber' as const },
+                  { label: t('geometryPrimitives.summaryNoOrientation'), value: primitivesResult.summary.noReliableOrientation, tone: 'neutral' as const },
+                  { label: t('geometryPrimitives.summaryCorners'), value: primitivesResult.summary.corners, tone: 'neutral' as const },
+                  { label: t('geometryPrimitives.summaryThickness'), value: primitivesResult.summary.withThicknessEvidence, tone: 'green' as const },
+                  { label: t('geometryPrimitives.summaryAmbiguous'), value: primitivesResult.summary.ambiguous, tone: 'amber' as const },
+                  { label: t('geometryPrimitives.summaryLowQuality'), value: primitivesResult.summary.lowQuality, tone: 'red' as const },
+                ].map((chip) => (
+                  <span
+                    key={chip.label}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
+                      chip.tone === 'teal'
+                        ? 'border-teal-200 bg-teal-50 text-teal-800'
+                        : chip.tone === 'violet'
+                          ? 'border-violet-200 bg-violet-50 text-violet-800'
+                          : chip.tone === 'amber'
+                            ? 'border-amber-200 bg-amber-50 text-amber-800'
+                            : chip.tone === 'green'
+                              ? 'border-green-200 bg-green-50 text-green-800'
+                              : chip.tone === 'red'
+                                ? 'border-red-200 bg-red-50 text-red-800'
+                                : 'border-muted-foreground/20 bg-muted/30 text-muted-foreground'
+                    }`}
+                  >
+                    <span className="font-semibold">{chip.value}</span> {chip.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-4 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">{t('geometryPrimitives.legend')}:</span>
+              {[
+                { color: PRIMITIVE_COLORS.horizontal, label: t('geometryPrimitives.legendHorizontal'), dashed: false },
+                { color: PRIMITIVE_COLORS.vertical, label: t('geometryPrimitives.legendVertical'), dashed: false },
+                { color: PRIMITIVE_COLORS.diagonal, label: t('geometryPrimitives.legendDiagonal'), dashed: false },
+                { color: PRIMITIVE_COLORS.corner, label: t('geometryPrimitives.legendCorner'), dashed: false, dot: true },
+                { color: '#111', label: t('geometryPrimitives.legendUncertain'), dashed: true },
+                { color: PRIMITIVE_COLORS.selected, label: t('geometryPrimitives.legendSelected'), dashed: false },
+                { color: PRIMITIVE_COLORS.sourcePolygon, label: t('geometryPrimitives.legendSourcePolygon'), dashed: true },
+              ].map((item) => (
+                <span key={item.label} className="inline-flex items-center gap-1.5">
+                  {item.dot ? (
+                    <span className="inline-block size-2.5 rounded-full border border-white" style={{ background: item.color }} />
+                  ) : (
+                    <span className="inline-block h-0.5 w-6 rounded" style={{ background: item.color, opacity: item.dashed ? 0.6 : 1 }} />
+                  )}
+                  {item.label}
+                </span>
+              ))}
+            </div>
+
+            <p className="mt-4 border-t pt-4 text-xs text-muted-foreground">{t('geometryPrimitives.selectHint')}</p>
+          </div>
+        )}
+
+        {/* Visualization — RAW + VLM + Geometry Primitives (mode-aware) */}
         {raw && previewUrl && imageWidth ? (
           sideBySide ? (
             <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -691,76 +918,62 @@ export default function DebugFloorplanRecognitionPage() {
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('debugFloorplanRecognition.rawOverlay')}</h3>
-                  {vlmAnalysis && <span className="rounded bg-violet-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700">{t('debugFloorplanRecognition.vlmArchitecturalInterpretation')}</span>}
+                  {primitiveMode === 'primitives-only' ? (
+                    <span className="rounded bg-teal-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-700">{t('geometryPrimitives.badge')}</span>
+                  ) : (
+                    vlmAnalysis && <span className="rounded bg-violet-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700">{t('debugFloorplanRecognition.vlmArchitecturalInterpretation')}</span>
+                  )}
                 </div>
-                <VlmFloorplanOverlay
-                  imageUrl={previewUrl}
-                  imageWidth={imageWidth}
-                  imageHeight={imageHeight}
-                  raw={raw}
-                  visibility={visibility}
-                  showIds={showIds}
-                  showImage={showImage}
-                  vlmAnalysis={vlmAnalysis}
-                  vlmVisibility={vlmVisibility}
-                  showVlmIds={showVlmIds}
-                  showConfidence={showConfidence}
-                  hideRaw={vlmMode === 'topology-only'}
-                  topologyOnly={vlmMode === 'topology-only'}
-                  highlightedIds={topologyHighlightIds}
-                  onSelectObject={setSelectedObjectId}
-                  selectedId={selectedObjectId}
-                  constraintsVisibility={constraintsVisibility}
-                  showConstraints={showConstraints && (vlmMode === 'raw+vlm+constraints' || vlmMode === 'geometry-only')}
-                  geometryOnlyMode={vlmMode === 'geometry-only'}
-                  onSelectConstraint={setSelectedConstraintId}
-                  selectedConstraintId={selectedConstraintId}
-                />
+                {renderOverlayStack()}
                 {vlmAnalysis && vlmMode === 'topology-only' && (
                   <p className="mt-1 text-xs text-violet-600">{t('debugFloorplanRecognition.topologyOnlyNote')}</p>
                 )}
                 {vlmAnalysis && vlmMode === 'geometry-only' && (
                   <p className="mt-1 text-xs text-purple-600">{t('debugFloorplanRecognition.geometryOnlyNote')}</p>
                 )}
+                {primitiveMode === 'primitives-only' && (
+                  <p className="mt-1 text-xs text-teal-700">{t('geometryPrimitives.modeOnlyNote')}</p>
+                )}
               </div>
             </div>
           ) : (
             <div className="mt-6">
               <div className="mb-2 flex flex-wrap items-center gap-2">
-                <span className="rounded bg-red-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-red-600">{t('debugFloorplanRecognition.vlmRawModelOutput')}</span>
-                <span className="text-xs text-muted-foreground">+</span>
-                <span className="rounded bg-violet-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-violet-700">{t('debugFloorplanRecognition.vlmArchitecturalInterpretation')}</span>
-                <span className="text-xs text-muted-foreground">· {t('debugFloorplanRecognition.vlmOverlayTitle')}</span>
-                <span className="ml-auto text-xs text-muted-foreground">{t('debugFloorplanRecognition.clickToInspect')}</span>
+                {primitiveMode === 'primitives-only' ? (
+                  <>
+                    <span className="rounded bg-teal-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-teal-700">{t('geometryPrimitives.badge')}</span>
+                    <span className="text-xs text-muted-foreground">· {t('geometryPrimitives.modeOnly')}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{t('geometryPrimitives.selectHint')}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="rounded bg-red-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-red-600">{t('debugFloorplanRecognition.vlmRawModelOutput')}</span>
+                    {showPrimitivesLayer && primitiveMode === 'raw+primitives' && (
+                      <>
+                        <span className="text-xs text-muted-foreground">+</span>
+                        <span className="rounded bg-teal-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-teal-700">{t('geometryPrimitives.badge')}</span>
+                      </>
+                    )}
+                    {vlmAnalysis && (
+                      <>
+                        <span className="text-xs text-muted-foreground">+</span>
+                        <span className="rounded bg-violet-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-violet-700">{t('debugFloorplanRecognition.vlmArchitecturalInterpretation')}</span>
+                      </>
+                    )}
+                    <span className="text-xs text-muted-foreground">· {t('debugFloorplanRecognition.vlmOverlayTitle')}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{t('debugFloorplanRecognition.clickToInspect')}</span>
+                  </>
+                )}
               </div>
-              <VlmFloorplanOverlay
-                imageUrl={previewUrl}
-                imageWidth={imageWidth}
-                imageHeight={imageHeight}
-                raw={raw}
-                visibility={visibility}
-                showIds={showIds}
-                showImage={showImage}
-                vlmAnalysis={vlmAnalysis}
-                vlmVisibility={vlmVisibility}
-                showVlmIds={showVlmIds}
-                showConfidence={showConfidence}
-                hideRaw={vlmMode === 'topology-only'}
-                topologyOnly={vlmMode === 'topology-only'}
-                highlightedIds={topologyHighlightIds}
-                onSelectObject={setSelectedObjectId}
-                selectedId={selectedObjectId}
-                constraintsVisibility={constraintsVisibility}
-                showConstraints={showConstraints && (vlmMode === 'raw+vlm+constraints' || vlmMode === 'geometry-only')}
-                geometryOnlyMode={vlmMode === 'geometry-only'}
-                onSelectConstraint={setSelectedConstraintId}
-                selectedConstraintId={selectedConstraintId}
-              />
+              {renderOverlayStack()}
               {vlmAnalysis && vlmMode === 'topology-only' && (
                 <p className="mt-1 text-xs text-violet-600">{t('debugFloorplanRecognition.topologyOnlyNote')}</p>
               )}
               {vlmAnalysis && vlmMode === 'geometry-only' && (
                 <p className="mt-1 text-xs text-purple-600">{t('debugFloorplanRecognition.geometryOnlyNote')}</p>
+              )}
+              {primitiveMode === 'primitives-only' && (
+                <p className="mt-1 text-xs text-teal-700">{t('geometryPrimitives.modeOnlyNote')}</p>
               )}
             </div>
           )
@@ -896,6 +1109,149 @@ export default function DebugFloorplanRecognitionPage() {
             })()}
           </div>
         )}
+
+        {/* Primitive Details Panel */}
+        {primitivesResult && selectedPrimitiveId && (() => {
+          const primitive = primitivesResult.primitives.find((p) => p.primitiveId === selectedPrimitiveId);
+          if (!primitive) return null;
+          const rels = primitivesResult.relationships.filter((r) => r.a === selectedPrimitiveId || r.b === selectedPrimitiveId);
+          const otherIdOf = (r: { a: string; b: string }) => (r.a === selectedPrimitiveId ? r.b : r.a);
+          const relLabel = (type: string) => {
+            switch (type) {
+              case 'parallel': return t('geometryPrimitives.relParallel');
+              case 'perpendicular': return t('geometryPrimitives.relPerpendicular');
+              case 'same_axis': return t('geometryPrimitives.relSameAxis');
+              case 'close_parallel': return t('geometryPrimitives.relCloseParallel');
+              case 'endpoint_proximity': return t('geometryPrimitives.relEndpointProximity');
+              case 'intersection': return t('geometryPrimitives.relIntersection');
+              case 'overlap': return t('geometryPrimitives.relOverlap');
+              case 'offset': return t('geometryPrimitives.relOffset');
+              default: return type.replace(/_/g, ' ');
+            }
+          };
+          const orientationLabel =
+            primitive.orientation === 'horizontal'
+              ? t('geometryPrimitives.orientationHorizontal')
+              : primitive.orientation === 'vertical'
+                ? t('geometryPrimitives.orientationVertical')
+                : t('geometryPrimitives.orientationDiagonal');
+          const qualityLabel =
+            primitive.quality === 'high'
+              ? t('geometryPrimitives.qualityHigh')
+              : primitive.quality === 'medium'
+                ? t('geometryPrimitives.qualityMedium')
+                : t('geometryPrimitives.qualityLow');
+          const thicknessLabel =
+            primitive.estimatedThicknessPx !== null
+              ? t('geometryPrimitives.detailThicknessReliable', { px: String(Math.round(primitive.estimatedThicknessPx)) })
+              : primitive.thickness.reason === 'ambiguous_parallel_boundaries'
+                ? `${t('geometryPrimitives.detailThicknessAmbiguous')} (${t('geometryPrimitives.thicknessReasonAmbiguous')})`
+                : t('geometryPrimitives.detailThicknessNone');
+          return (
+            <div className="mt-6 rounded-xl border-2 border-teal-300 bg-card p-5">
+              <div className="flex items-center justify-between">
+                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                  <span className="inline-block size-3 rounded-sm" style={{ background: primitive.kind === 'corner' ? PRIMITIVE_COLORS.corner : PRIMITIVE_COLORS[primitive.orientation], opacity: primitive.uncertain ? 0.55 : 1 }} aria-hidden />
+                  {t('geometryPrimitives.detailTitle')}: <span className="font-mono">{primitive.primitiveId}</span>
+                </h3>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setSelectedObjectId(primitive.sourceObjectId)}>
+                    {t('geometryPrimitives.detailParentRaw')}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedPrimitiveId(null)}>
+                    {t('geometryPrimitives.detailClose')}
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 text-xs md:grid-cols-2">
+                <div className="rounded-lg border bg-muted/20 p-3">
+                  <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">{t('geometryPrimitives.detailKind')}</span>
+                  <span className="font-medium">{primitive.kind === 'run' ? t('geometryPrimitives.run') : t('geometryPrimitives.corner')} · {orientationLabel}</span>
+                  <span className="mt-2 block text-[11px] uppercase tracking-wide text-muted-foreground">{t('geometryPrimitives.detailSource')}</span>
+                  <span className="font-mono">{primitive.sourceObjectId} (polygon #{primitive.sourcePolygonIndex})</span>
+                  <span className="mt-2 block text-[11px] uppercase tracking-wide text-muted-foreground">{t('geometryPrimitives.detailEndpoints')}</span>
+                  <span className="font-mono">({Math.round(primitive.from.x)}, {Math.round(primitive.from.y)}) → ({Math.round(primitive.to.x)}, {Math.round(primitive.to.y)})</span>
+                  {primitive.kind === 'run' && primitive.sourceVertexIndices.length > 0 && (
+                    <>
+                      <span className="mt-2 block text-[11px] uppercase tracking-wide text-muted-foreground">{t('geometryPrimitives.detailSourceVertices')}</span>
+                      <span className="font-mono">[{primitive.sourceVertexIndices.join(', ')}]</span>
+                    </>
+                  )}
+                </div>
+                <div className="rounded-lg border bg-muted/20 p-3">
+                  <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">{t('geometryPrimitives.detailLength')}</span>
+                  <span className="font-medium">{primitive.lengthPx}px</span>
+                  <span className="mt-2 block text-[11px] uppercase tracking-wide text-muted-foreground">{t('geometryPrimitives.detailAngle')}</span>
+                  <span className="font-medium">
+                    {primitive.kind === 'corner' && primitive.vertexAngleDeg !== null
+                      ? `${t('geometryPrimitives.detailVertexAngle')}: ${primitive.vertexAngleDeg.toFixed(1)}°`
+                      : `${primitive.angleDeg.toFixed(1)}°`}
+                  </span>
+                  <span className="mt-2 block text-[11px] uppercase tracking-wide text-muted-foreground">{t('geometryPrimitives.detailOrientation')}</span>
+                  <span className="font-medium">{orientationLabel}</span>
+                  <span className="mt-2 block text-[11px] uppercase tracking-wide text-muted-foreground">{t('geometryPrimitives.detailBoundingBox')}</span>
+                  <span className="font-mono">
+                    ({Math.round(primitive.boundingBox.minX)}, {Math.round(primitive.boundingBox.minY)}) – ({Math.round(primitive.boundingBox.maxX)}, {Math.round(primitive.boundingBox.maxY)})
+                  </span>
+                  <span className="mt-2 block text-[11px] uppercase tracking-wide text-muted-foreground">{t('geometryPrimitives.detailQuality')}</span>
+                  <span className={`font-medium ${primitive.quality === 'low' ? 'text-amber-600' : primitive.quality === 'high' ? 'text-green-700' : ''}`}>
+                    {qualityLabel} · {t('geometryPrimitives.detailConfidence')}: {Math.round(primitive.confidence * 100)}%
+                  </span>
+                </div>
+                <div className="rounded-lg border bg-muted/20 p-3">
+                  <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">{t('geometryPrimitives.detailThickness')}</span>
+                  <span className={`font-medium ${primitive.estimatedThicknessPx !== null ? 'text-green-700' : primitive.thickness.reason === 'ambiguous_parallel_boundaries' ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                    {thicknessLabel}
+                  </span>
+                  {primitive.thickness.partnerIds.length > 0 && (
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">{t('geometryPrimitives.detailThicknessPartners')}</span>
+                      {primitive.thickness.partnerIds.map((pid) => (
+                        <button
+                          key={pid}
+                          type="button"
+                          onClick={() => setSelectedPrimitiveId(pid)}
+                          className="rounded border bg-muted/30 px-1.5 py-0.5 font-mono text-xs hover:border-teal-400 hover:bg-teal-50"
+                        >
+                          {pid}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {primitive.straightnessPx !== null && (
+                    <>
+                      <span className="mt-2 block text-[11px] uppercase tracking-wide text-muted-foreground">{t('geometryPrimitives.detailStraightness')}</span>
+                      <span className="font-mono">{primitive.straightnessPx}px</span>
+                    </>
+                  )}
+                </div>
+                <div className="rounded-lg border bg-muted/20 p-3">
+                  <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">{t('geometryPrimitives.detailRelationships')}</span>
+                  {rels.length === 0 ? (
+                    <span className="text-muted-foreground">{t('geometryPrimitives.detailNoRelationships')}</span>
+                  ) : (
+                    <ul className="mt-1 max-h-64 space-y-1 overflow-auto">
+                      {rels.map((r, i) => (
+                        <li key={`rel-${i}`} className="flex items-center gap-1.5">
+                          <span className="rounded bg-teal-50 px-1.5 py-0.5 text-[10px] font-semibold text-teal-800">{relLabel(r.type)}</span>
+                          <span className="font-mono text-xs">{r.value}{r.unit}</span>
+                          <span className="text-muted-foreground">→</span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPrimitiveId(otherIdOf(r))}
+                            className="rounded border bg-muted/30 px-1.5 py-0.5 font-mono text-xs hover:border-teal-400 hover:bg-teal-50"
+                          >
+                            {otherIdOf(r)}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Annotated Recognition Debug Preview */}
         {raw && previewUrl && imageWidth ? (
@@ -1552,6 +1908,47 @@ export default function DebugFloorplanRecognitionPage() {
             {!jsonCollapsed && (
               <pre className="max-h-[600px] overflow-auto bg-muted/20 p-4 text-xs">
                 <code>{JSON.stringify(raw, null, 2)}</code>
+              </pre>
+            )}
+          </div>
+        )}
+
+        {/* Geometry Primitives JSON */}
+        {primitivesResult && raw && (
+          <div className="mt-6 rounded-xl border bg-card">
+            <div className="flex items-center justify-between border-b px-4 py-3">
+              <h3 className="text-sm font-semibold">{t('geometryPrimitives.jsonTitle')}</h3>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    const payload = {
+                      generatedAt: new Date().toISOString(),
+                      imageSize: { width: imageWidth, height: imageHeight },
+                      thresholds: primitivesResult.thresholds,
+                      summary: primitivesResult.summary,
+                      primitives: primitivesResult.primitives,
+                      relationships: primitivesResult.relationships,
+                    };
+                    await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+                    setPrimitivesCopied(true);
+                    setTimeout(() => setPrimitivesCopied(false), 1500);
+                  }}
+                >
+                  {primitivesCopied ? <Check className="size-3" /> : <Copy className="size-3" />} {primitivesCopied ? t('debugFloorplanRecognition.copied') : t('debugFloorplanRecognition.copyJson')}
+                </Button>
+                <Button variant="outline" size="sm" onClick={exportPrimitives}>
+                  <Download className="size-3.5" /> {t('geometryPrimitives.export')}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setPrimitivesJsonCollapsed((v) => !v)}>
+                  {primitivesJsonCollapsed ? t('debugFloorplanRecognition.expand') : t('debugFloorplanRecognition.collapse')}
+                </Button>
+              </div>
+            </div>
+            {!primitivesJsonCollapsed && (
+              <pre className="max-h-[600px] overflow-auto bg-muted/20 p-4 text-xs">
+                <code>{JSON.stringify(primitivesResult, null, 2)}</code>
               </pre>
             )}
           </div>
