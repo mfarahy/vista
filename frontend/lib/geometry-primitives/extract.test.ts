@@ -262,6 +262,31 @@ describe('geometry primitives — pairwise relationships', () => {
   });
 });
 
+describe('geometry primitives — degenerate edges', () => {
+  it('duplicate consecutive vertices are cleaned, not turned into primitives', () => {
+    const polygon = [
+      [0, 0], [0, 0], [100, 0], [100, 0], [100, 50], [0, 50], [0, 0],
+    ];
+    const primitives = extractWallPrimitives('wall-0', polygon, 0);
+    const runs = primitives.filter((p) => p.kind === 'run');
+    assert.equal(runs.length, 4);
+    assert.ok(runs.every((r) => r.lengthPx > 0));
+  });
+
+  it('polygons with fewer than 4 distinct vertices yield no primitives', () => {
+    assert.deepEqual(extractWallPrimitives('wall-0', [[0, 0], [10, 0], [5, 5]], 0), []);
+    assert.deepEqual(extractWallPrimitives('wall-0', [[0, 0], [0, 0], [0, 0]], 0), []);
+    assert.deepEqual(extractWallPrimitives('wall-0', [], 0), []);
+  });
+
+  it('zero-length closing edge does not create a spurious run', () => {
+    const polygon = [[0, 0], [100, 0], [100, 50], [0, 50], [0, 50]];
+    const primitives = extractWallPrimitives('wall-0', polygon, 0);
+    const runs = primitives.filter((p) => p.kind === 'run');
+    assert.equal(runs.length, 4);
+  });
+});
+
 describe('geometry primitives — ambiguous thickness handling', () => {
   it('two near-identical parallel candidates ⇒ null thickness with ambiguous reason', () => {
     // A ribbon with two equally plausible parallel boundaries 8px and 9px away
