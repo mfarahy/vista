@@ -845,6 +845,7 @@ export default function DebugFloorplanRecognitionPage() {
               <div className="mt-2 flex flex-wrap gap-2">
                 {[
                   { label: t('geometryPrimitives.summaryRawWalls'), value: primitivesResult.summary.rawWallCount, tone: 'neutral' as const },
+                  { label: t('geometryPrimitives.summaryTotal'), value: primitivesResult.summary.totalPrimitives, tone: 'neutral' as const },
                   { label: t('geometryPrimitives.summaryRuns'), value: primitivesResult.summary.runs, tone: 'neutral' as const },
                   { label: t('geometryPrimitives.summaryHorizontal'), value: primitivesResult.summary.horizontal, tone: 'teal' as const },
                   { label: t('geometryPrimitives.summaryVertical'), value: primitivesResult.summary.vertical, tone: 'violet' as const },
@@ -874,6 +875,35 @@ export default function DebugFloorplanRecognitionPage() {
                     <span className="font-semibold">{chip.value}</span> {chip.label}
                   </span>
                 ))}
+              </div>
+              {/* Per-RAW-object breakdown — which detections are actually compound */}
+              <div className="mt-3">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('geometryPrimitives.compoundTitle')}</h4>
+                <p className="mt-1 text-xs text-muted-foreground">{t('geometryPrimitives.compoundHint')}</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {(() => {
+                    const counts = new Map<string, number>();
+                    for (const p of primitivesResult.primitives) {
+                      counts.set(p.sourceObjectId, (counts.get(p.sourceObjectId) ?? 0) + 1);
+                    }
+                    return [...counts.entries()]
+                      .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+                      .map(([id, count]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setSelectedObjectId(id)}
+                          title={t('geometryPrimitives.compoundHint')}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-xs transition-colors hover:border-teal-400 hover:bg-teal-50 ${
+                            selectedObjectId === id ? 'border-teal-400 bg-teal-100' : 'border-muted-foreground/20 bg-muted/30'
+                          }`}
+                        >
+                          <span className="font-semibold">{id}</span>
+                          <span className="font-sans text-muted-foreground">→ {t('geometryPrimitives.compoundPrimitives', { count: String(count) })}</span>
+                        </button>
+                      ));
+                  })()}
+                </div>
               </div>
             </div>
 
