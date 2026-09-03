@@ -134,6 +134,62 @@ export const geometryConstraintSchema = z
     }
   });
 
+// ---- Geometry relationships (VLM geometry interpretation POC) ----
+//
+// The VLM reasons about deterministic geometry PRIMITIVES (straight runs
+// extracted from RAW wall polygons, e.g. `wall-5:s0`) and returns semantic
+// relationships between those existing primitives. It NEVER calculates,
+// invents, or modifies geometry — all coordinates stay in the RAW /
+// primitives input. A deterministic geometry solver consumes these
+// relationships later (not implemented in this POC).
+
+export const geometryRelationshipTypeSchema = z.enum([
+  'same_wall',
+  'wall_continuation',
+  'wall_corner',
+  'wall_t_junction',
+  'parallel',
+  'perpendicular',
+  'same_axis',
+  'opening_interrupts_wall',
+  'belongs_to_same_raw_object',
+  'likely_false_positive',
+  'likely_non_architectural',
+]);
+
+/**
+ * A single geometry relationship between existing primitives.
+ *
+ * Directional semantics (order of sourcePrimitiveIds matters — encoded
+ * explicitly in the data, never buried in `reason`):
+ * - wall_continuation: [source, target] — source continues toward target.
+ * - opening_interrupts_wall: [wallPrimitive, …] + sourceObjectIds[0] is the
+ *   interrupting opening, sourceObjectIds[1] is the host wall.
+ * - all other types are symmetric (ID order is not significant).
+ */
+export const geometryRelationshipSchema = z
+  .object({
+    type: geometryRelationshipTypeSchema,
+    sourcePrimitiveIds: z.array(z.string().min(1)).min(1).max(10),
+    sourceObjectIds: z.array(z.string().min(1)).max(10),
+    confidence: z.number().min(0).max(1),
+    reason: z.string().max(500).nullable(),
+  })
+  .superRefine((val, ctx) => {
+    // Single-primitive verdicts may target one primitive; every other
+    // relationship type describes how ≥2 primitives relate.
+    if (
+      val.type !== 'likely_false_positive' &&
+      val.type !== 'likely_non_architectural' &&
+      val.sourcePrimitiveIds.length < 2
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `geometryRelationships of type "${val.type}" require at least 2 sourcePrimitiveIds`,
+      });
+    }
+  });
+
 export const vlmFloorplanAnalysisSchema = z.object({
   wallRelationships: z.array(wallRelationshipSchema).max(50),
   openings: z.array(openingAssociationSchema).max(30),
@@ -141,6 +197,7 @@ export const vlmFloorplanAnalysisSchema = z.object({
   rooms: z.array(roomHypothesisSchema).max(20),
   topologySummary: topologySummarySchema,
   geometryConstraints: z.array(geometryConstraintSchema).max(100).default([]),
+  geometryRelationships: z.array(geometryRelationshipSchema).max(150).default([]),
 });
 
 export type WallRelationship = z.infer<typeof wallRelationshipSchema>;
@@ -150,6 +207,8 @@ export type RoomHypothesis = z.infer<typeof roomHypothesisSchema>;
 export type TopologySummary = z.infer<typeof topologySummarySchema>;
 export type GeometryConstraintType = z.infer<typeof geometryConstraintTypeSchema>;
 export type GeometryConstraint = z.infer<typeof geometryConstraintSchema>;
+export type GeometryRelationshipType = z.infer<typeof geometryRelationshipTypeSchema>;
+export type GeometryRelationship = z.infer<typeof geometryRelationshipSchema>;
 export type VlmFloorplanAnalysis = z.infer<typeof vlmFloorplanAnalysisSchema>;
 
 // Validation helpers for mapping VLM object IDs to raw recognition objects
@@ -462,9 +521,71 @@ function deduplicateGeometryConstraints(
   return result;
 }
 
+// Relationship types whose sourcePrimitiveIds order is significant (source → target).
+const DIRECTIONAL_GEOMETRY_RELATIONSHIP_TYPES = new Set(['wall_continuation', 'opening_interrupts_wall']);
+
+/** Syntactic check for a geometry primitive ID (`wall-5:s0`, `wall-5:c2`, legacy `wall-5:p0`). */
+export function isValidPrimitiveIdFormat(primitiveId: string): boolean {
+  return /^(wall|door|entry_door|window|kitchen)-\d+:[scp]\d+$/.test(primitiveId);
+}
+
+function deduplicateGeometryRelationships(
+  relationships: GeometryRelationship[],
+  raw: Record<string, unknown>,
+  warnings: string[],
+  knownPrimitiveIds?: Set<string>,
+): GeometryRelationship[] {
+  const filtered: GeometryRelationship[] = [];
+  for (const r of relationships) {
+    const invalidFormat = r.sourcePrimitiveIds.filter((id) => !isValidPrimitiveIdFormat(id));
+    if (invalidFormat.length) warnings.push(`geometryRelationships invalid primitiveId format: ${invalidFormat.join(',')}`);
+    let prims = r.sourcePrimitiveIds.filter((id) => isValidPrimitiveIdFormat(id));
+    if (knownPrimitiveIds) {
+      const unknown = prims.filter((id) => !knownPrimitiveIds.has(id));
+      if (unknown.length) warnings.push(`geometryRelationships unknown primitiveIds: ${unknown.join(',')}`);
+      prims = prims.filter((id) => knownPrimitiveIds.has(id));
+    }
+    const minPrims =
+      r.type === 'likely_false_positive' || r.type === 'likely_non_architectural' ? 1 : 2;
+    if (prims.length < minPrims) {
+      warnings.push(`geometryRelationships ${r.type} dropped — only ${prims.length} valid primitiveIds remain`);
+      continue;
+    }
+    const { valid, invalid } = filterValidIds(r.sourceObjectIds, raw);
+    if (invalid.length) warnings.push(`geometryRelationships invalid sourceObjectIds: ${invalid.join(',')}`);
+    filtered.push({ ...r, sourcePrimitiveIds: prims, sourceObjectIds: valid });
+  }
+
+  // Deduplicate by type + primitive key, keep highest confidence.
+  // Directional types keep original order; symmetric types use sorted order.
+  const groups = new Map<string, GeometryRelationship[]>();
+  for (const r of filtered) {
+    const key = DIRECTIONAL_GEOMETRY_RELATIONSHIP_TYPES.has(r.type)
+      ? `${r.type}|${r.sourcePrimitiveIds.join('|')}`
+      : `${r.type}|${[...r.sourcePrimitiveIds].sort().join('|')}`;
+    const arr = groups.get(key) ?? [];
+    arr.push(r);
+    groups.set(key, arr);
+  }
+
+  const result: GeometryRelationship[] = [];
+  for (const [key, group] of groups) {
+    if (group.length === 1) {
+      result.push({ ...group[0], sourcePrimitiveIds: [...group[0].sourcePrimitiveIds] });
+      continue;
+    }
+    group.sort((a, b) => b.confidence - a.confidence);
+    const top = group[0];
+    warnings.push(`geometryRelationships duplicate for ${key}: kept highest confidence (${top.confidence}), dropped ${group.length - 1} duplicate(s)`);
+    result.push({ ...top, sourcePrimitiveIds: [...top.sourcePrimitiveIds] });
+  }
+  return result;
+}
+
 export function validateVlmAnalysis(
   analysis: VlmFloorplanAnalysis,
   raw: Record<string, unknown>,
+  knownPrimitiveIds?: Set<string>,
 ): { analysis: VlmFloorplanAnalysis; warnings: string[] } {
   const warnings: string[] = [];
 
@@ -473,6 +594,8 @@ export function validateVlmAnalysis(
   const filteredClassifications = deduplicateClassifications(analysis.objectClassifications, raw, warnings);
   const geometryConstraints = (analysis as unknown as { geometryConstraints?: GeometryConstraint[] }).geometryConstraints ?? [];
   const filteredGeometryConstraints = deduplicateGeometryConstraints(geometryConstraints, raw, warnings);
+  const geometryRelationships = (analysis as unknown as { geometryRelationships?: GeometryRelationship[] }).geometryRelationships ?? [];
+  const filteredGeometryRelationships = deduplicateGeometryRelationships(geometryRelationships, raw, warnings, knownPrimitiveIds);
 
   const filteredRooms = analysis.rooms.filter((r) => {
     // Support both new schema (boundaryWalls/openings) and legacy boundaryObjects fallback
@@ -517,6 +640,7 @@ export function validateVlmAnalysis(
       rooms: dedupedRooms,
       topologySummary: topology,
       geometryConstraints: filteredGeometryConstraints,
+      geometryRelationships: filteredGeometryRelationships,
     },
     warnings,
   };

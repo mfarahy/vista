@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import { vlmFloorplanAnalysisSchema, type VlmFloorplanAnalysis } from './schema.js';
 import { VLM_SYSTEM_PROMPT, buildVlmUserMessage } from './prompt.js';
+import type { VlmPrimitive } from './geometry-primitives.js';
 import { getLogger, trackExternalCall } from '../logger.js';
 import type { RawFloorplanRecognitionResponse } from '../../routes/debug-floorplan-recognition.js';
 
@@ -11,6 +12,7 @@ export interface VlmInput {
   raw: RawFloorplanRecognitionResponse;
   annotatedImageBuffer?: Buffer;
   annotatedMimeType?: string;
+  primitives?: VlmPrimitive[];
 }
 
 export interface VlmResult {
@@ -84,6 +86,7 @@ export class VlmFloorplanProvider {
         objectClassifications: validated.objectClassifications.length,
         rooms: validated.rooms.length,
         geometryConstraints: validated.geometryConstraints.length,
+        geometryRelationships: validated.geometryRelationships.length,
         topologySummary: validated.topologySummary
           ? validated.topologySummary.continuousWalls.length +
             validated.topologySummary.corners.length +

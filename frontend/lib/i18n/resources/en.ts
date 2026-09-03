@@ -1657,6 +1657,10 @@ const en = {
     constraintsDetailsConfidence: 'Confidence',
     constraintsDetailsReason: 'Reason',
     constraintsNoReason: 'No reason provided.',
+    geometryRelationshipsTitle: 'Geometry Relationships',
+    geometryRelationshipsIntro: 'VLM-interpreted relationships between existing geometry primitives (never coordinates, never new geometry). Directional types preserve source → target ordering. Consumed later by a deterministic geometry solver (not implemented in this POC).',
+    geometryRelationshipsCount: '{count} relationships',
+    geometryRelationshipsEmpty: 'No geometry relationships. The VLM found no confident primitive relationships for the current RAW result.',
     geometryHighlight: 'Highlight',
   },
   geometryPrimitives: {

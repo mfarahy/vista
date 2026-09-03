@@ -17,6 +17,7 @@ import { zodResponseFormat } from 'openai/helpers/zod';
 import { chromium } from 'playwright';
 import { VLM_SYSTEM_PROMPT, buildVlmUserMessage } from '../src/lib/vlm-floorplan/prompt.js';
 import { vlmFloorplanAnalysisSchema, validateVlmAnalysis } from '../src/lib/vlm-floorplan/schema.js';
+import { buildPrimitiveIdSet, extractVlmPrimitives } from '../src/lib/vlm-floorplan/geometry-primitives.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..');
@@ -95,6 +96,9 @@ async function renderAnnotated(imagePath, raw): Promise<Buffer> {
 const raw = JSON.parse(readFileSync(FIXTURE_RAW, 'utf8'));
 const imageBuffer = readFileSync(FIXTURE_IMAGE);
 const annotatedBuffer = await renderAnnotated(FIXTURE_IMAGE, raw);
+const primitives = extractVlmPrimitives(raw);
+const primitiveIds = buildPrimitiveIdSet(primitives);
+console.log(`primitives=${primitives.length} (${primitives.map((p) => p.primitiveId).join(', ')})`);
 
 const client = new OpenAI({ apiKey, baseURL: process.env.OPENAI_BASE_URL || undefined });
 const started = Date.now();
@@ -111,6 +115,7 @@ const completion = await client.chat.completions.parse({
         raw,
         annotatedImageBuffer: annotatedBuffer,
         annotatedMimeType: 'image/png',
+        primitives,
       }) as never,
     },
   ],
@@ -123,10 +128,10 @@ if (!parsed) {
   process.exit(1);
 }
 const validated = vlmFloorplanAnalysisSchema.parse(parsed);
-const { analysis, warnings } = validateVlmAnalysis(validated, raw);
+const { analysis, warnings } = validateVlmAnalysis(validated, raw, primitiveIds);
 
 writeFileSync(outPath, JSON.stringify({ model, durationMs, usage: completion.usage, warnings, analysis }, null, 2));
 console.log(`annotated: ${ANNOTATED_TMP}`);
 console.log(`result: ${outPath}`);
-console.log(`warnings=${warnings.length} wallRelationships=${analysis.wallRelationships.length} openings=${analysis.openings.length} objectClassifications=${analysis.objectClassifications.length} rooms=${analysis.rooms.length}`);
+console.log(`warnings=${warnings.length} wallRelationships=${analysis.wallRelationships.length} openings=${analysis.openings.length} objectClassifications=${analysis.objectClassifications.length} rooms=${analysis.rooms.length} geometryRelationships=${analysis.geometryRelationships.length}`);
 console.log(`summary: continuousWalls=${analysis.topologySummary.continuousWalls.length} corners=${analysis.topologySummary.corners.length} tJunctions=${analysis.topologySummary.tJunctions.length} falsePositives=${analysis.topologySummary.falsePositives.length}`);

@@ -31,6 +31,50 @@ export type GeometryConstraint = {
   reason: string | null;
 };
 
+// ---- Geometry relationships (VLM geometry interpretation POC) ----
+//
+// The VLM reasons about deterministic geometry PRIMITIVES (straight runs
+// extracted from RAW wall polygons) and returns semantic relationships
+// between those existing primitives — never coordinates or new geometry.
+// Directional types preserve source → target ordering:
+// - wall_continuation: [source, target]
+// - opening_interrupts_wall: sourcePrimitiveIds = wall primitives,
+//   sourceObjectIds = [opening, hostWall]
+
+export type GeometryRelationshipType =
+  | 'same_wall'
+  | 'wall_continuation'
+  | 'wall_corner'
+  | 'wall_t_junction'
+  | 'parallel'
+  | 'perpendicular'
+  | 'same_axis'
+  | 'opening_interrupts_wall'
+  | 'belongs_to_same_raw_object'
+  | 'likely_false_positive'
+  | 'likely_non_architectural';
+
+export type GeometryRelationship = {
+  type: GeometryRelationshipType;
+  sourcePrimitiveIds: string[];
+  sourceObjectIds: string[];
+  confidence: number;
+  reason: string | null;
+};
+
+export function sortGeometryRelationshipsByConfidence(relationships: GeometryRelationship[]): GeometryRelationship[] {
+  return [...relationships].sort((a, b) => b.confidence - a.confidence);
+}
+
+/** Stable key for React lists. Directional types keep order; others sort. */
+export function geometryRelationshipKey(r: GeometryRelationship): string {
+  const prims =
+    r.type === 'wall_continuation' || r.type === 'opening_interrupts_wall'
+      ? r.sourcePrimitiveIds.join('|')
+      : [...r.sourcePrimitiveIds].sort().join('|');
+  return `${r.type}|${prims}`;
+}
+
 export type GeometryConstraintsVisibility = {
   mergeWalls: boolean;
   continueWall: boolean;
@@ -231,6 +275,7 @@ export type VlmAnalysis = {
   rooms: RoomHypothesis[];
   topologySummary: TopologySummary;
   geometryConstraints?: GeometryConstraint[];
+  geometryRelationships?: GeometryRelationship[];
 };
 
 export type VlmVisibility = {

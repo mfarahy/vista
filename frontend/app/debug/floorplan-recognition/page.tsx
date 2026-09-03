@@ -24,6 +24,9 @@ import {
   type ObjectClassification,
   type GeometryConstraint,
   type GeometryConstraintsVisibility,
+  type GeometryRelationship,
+  sortGeometryRelationshipsByConfidence,
+  geometryRelationshipKey,
   VLM_COLORS,
   GEOMETRY_CONSTRAINT_COLORS,
   geometryConstraintLabel,
@@ -314,6 +317,30 @@ export default function DebugFloorplanRecognitionPage() {
       const form = new FormData();
       form.append('image', file);
       form.append('raw', JSON.stringify(raw));
+      // Geometry primitives (VLM geometry-interpretation POC input): the VLM
+      // reasons about these existing primitives and returns relationships
+      // between them — it never calculates geometry. The backend falls back
+      // to server-side extraction when this field is absent.
+      if (primitivesResult) {
+        const runs = primitivesResult.primitives.filter((p) => p.kind === 'run');
+        form.append(
+          'primitives',
+          JSON.stringify(
+            runs.map((p) => ({
+              primitiveId: p.primitiveId,
+              sourceObjectId: p.sourceObjectId,
+              type: 'run',
+              start: { x: p.from.x, y: p.from.y },
+              end: { x: p.to.x, y: p.to.y },
+              lengthPx: p.lengthPx,
+              angleDeg: p.angleDeg,
+              orientation: p.orientation,
+              thicknessPx: p.estimatedThicknessPx,
+              sourceVertexIndices: p.sourceVertexIndices,
+            })),
+          ),
+        );
+      }
       // Attach annotated image as second image if available
       if (annotatedDataUrl) {
         try {
@@ -1626,6 +1653,44 @@ export default function DebugFloorplanRecognitionPage() {
                           {c.reason && <p className="mt-1 text-xs text-muted-foreground">&quot;{c.reason}&quot;</p>}
                           {isLow && <p className="mt-1 text-xs text-amber-600">{t('debugFloorplanRecognition.constraintsLowConfidenceHint')}</p>}
                         </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {/* Geometry Relationships — VLM geometry interpretation POC */}
+          {vlmAnalysis && (
+            <div className="mt-5 rounded-xl border bg-card p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold">{t('debugFloorplanRecognition.geometryRelationshipsTitle')}</h3>
+                <span className="text-xs text-muted-foreground">{t('debugFloorplanRecognition.geometryRelationshipsCount', { count: String((vlmAnalysis.geometryRelationships ?? []).length) })}</span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.geometryRelationshipsIntro')}</p>
+              {(vlmAnalysis.geometryRelationships ?? []).length === 0 ? (
+                <p className="mt-3 text-xs text-muted-foreground">{t('debugFloorplanRecognition.geometryRelationshipsEmpty')}</p>
+              ) : (
+                <ul className="mt-3 space-y-2">
+                  {sortGeometryRelationshipsByConfidence(vlmAnalysis.geometryRelationships ?? []).map((r: GeometryRelationship) => {
+                    const directional = r.type === 'wall_continuation' || r.type === 'opening_interrupts_wall';
+                    const prims = directional ? r.sourcePrimitiveIds.join(' → ') : r.sourcePrimitiveIds.join(' + ');
+                    return (
+                      <li key={geometryRelationshipKey(r)} className="rounded-lg border bg-muted/20 p-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded bg-teal-600 px-2 py-0.5 font-mono text-xs font-semibold text-white">
+                            {r.type}
+                          </span>
+                          <span className="font-mono text-xs">{prims}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('debugFloorplanRecognition.constraintsConfidence', { value: String(Math.round(r.confidence * 100)) })}
+                          </span>
+                        </div>
+                        {r.sourceObjectIds.length > 0 && (
+                          <p className="mt-1 font-mono text-xs text-muted-foreground">{r.sourceObjectIds.join(', ')}</p>
+                        )}
+                        {r.reason && <p className="mt-1 text-xs text-muted-foreground">&quot;{r.reason}&quot;</p>}
                       </li>
                     );
                   })}

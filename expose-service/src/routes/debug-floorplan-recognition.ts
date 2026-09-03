@@ -4,6 +4,11 @@ import { getLogger, trackExternalCall } from '../lib/logger.js';
 import { upload, isAllowedImageMime, MAX_IMAGE_BYTES } from '../lib/upload.js';
 import { VlmFloorplanProvider } from '../lib/vlm-floorplan/openai-provider.js';
 import { validateVlmAnalysis } from '../lib/vlm-floorplan/schema.js';
+import {
+  buildPrimitiveIdSet,
+  extractVlmPrimitives,
+  normalizeVlmPrimitives,
+} from '../lib/vlm-floorplan/geometry-primitives.js';
 
 const DEFAULT_RECOGNITION_URL = 'http://localhost:5000/predictions';
 const DEFAULT_TIMEOUT_MS = 120_000;
@@ -56,6 +61,7 @@ export function debugFloorplanRecognitionRouter(): Router {
       const annotatedFile = files?.annotatedImage?.[0];
       const body = (req as unknown as { body?: Record<string, unknown> }).body ?? {};
       const rawField = body.raw as unknown;
+      const primitivesField = body.primitives as unknown;
 
       if (!file) return sendError(res, 400, 'Eine Bilddatei ist erforderlich');
       if (!isAllowedImageMime(file.mimetype)) return sendError(res, 400, 'Nur JPG, PNG und WEBP werden unterstützt');
@@ -91,6 +97,22 @@ export function debugFloorplanRecognitionRouter(): Router {
 
       const log = getLogger();
       const startedAt = performance.now();
+
+      // Geometry primitives (VLM geometry-interpretation POC input): prefer a
+      // client-supplied list (computed with the same stable IDs), otherwise
+      // extract deterministically server-side. The VLM only receives
+      // relationships input — it never calculates geometry.
+      let primitives = extractVlmPrimitives(raw);
+      if (typeof primitivesField === 'string' && primitivesField.length > 0) {
+        try {
+          const normalized = normalizeVlmPrimitives(JSON.parse(primitivesField));
+          if (normalized) primitives = normalized;
+          else log.warn('VLM request contained malformed primitives — falling back to server extraction');
+        } catch {
+          log.warn('VLM request primitives field is not valid JSON — falling back to server extraction');
+        }
+      }
+      const primitiveIds = buildPrimitiveIdSet(primitives);
       try {
         const provider = new VlmFloorplanProvider();
         const result = await provider.analyze({
@@ -99,12 +121,14 @@ export function debugFloorplanRecognitionRouter(): Router {
           raw,
           annotatedImageBuffer: annotatedFile?.buffer,
           annotatedMimeType: annotatedFile?.mimetype,
+          primitives,
         });
 
-        // Validate/filter IDs against raw geometry
+        // Validate/filter IDs against raw geometry + known primitives
         const { analysis: filtered, warnings } = validateVlmAnalysis(
           result.analysis,
           raw as unknown as Record<string, unknown>,
+          primitiveIds,
         );
         if (warnings.length) {
           log.warn({ warnings }, 'VLM analysis contained invalid IDs filtered out');
@@ -120,6 +144,8 @@ export function debugFloorplanRecognitionRouter(): Router {
             rooms: filtered.rooms.length,
             objectClassifications: filtered.objectClassifications.length,
             geometryConstraints: (filtered as unknown as { geometryConstraints?: unknown[] }).geometryConstraints?.length ?? 0,
+            geometryRelationships: filtered.geometryRelationships.length,
+            primitives: primitives.length,
             warnings: warnings.length,
           },
           'VLM floorplan analysis completed',
@@ -131,6 +157,7 @@ export function debugFloorplanRecognitionRouter(): Router {
           durationMs: result.durationMs ?? durationMs,
           warnings,
           rawResponse: result.rawResponse,
+          primitives: { count: primitives.length, ids: primitives.map((p) => p.primitiveId) },
         });
       } catch (error) {
         const durationMs = Math.round(performance.now() - startedAt);

@@ -1666,6 +1666,10 @@ const de: TranslationSchema = {
     constraintsDetailsConfidence: 'Konfidenz',
     constraintsDetailsReason: 'Begründung',
     constraintsNoReason: 'Keine Begründung angegeben.',
+    geometryRelationshipsTitle: 'Geometrie-Beziehungen',
+    geometryRelationshipsIntro: 'Vom VLM interpretierte Beziehungen zwischen existierenden Geometrie-Primitiven (keine Koordinaten, keine neue Geometrie). Direktionale Typen erhalten die Quell-→-Ziel-Reihenfolge. Wird später von einem deterministischen Geometrie-Solver verarbeitet (in diesem POC nicht implementiert).',
+    geometryRelationshipsCount: '{count} Beziehungen',
+    geometryRelationshipsEmpty: 'Keine Geometrie-Beziehungen. Das VLM fand keine sicheren Primitiv-Beziehungen für das aktuelle RAW-Ergebnis.',
     geometryHighlight: 'Hervorheben',
   },
   geometryPrimitives: {

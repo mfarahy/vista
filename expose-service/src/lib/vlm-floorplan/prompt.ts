@@ -1,4 +1,6 @@
 import type { RawFloorplanRecognitionResponse } from '../../routes/debug-floorplan-recognition.js';
+import type { VlmPrimitive } from './geometry-primitives.js';
+import { serializePrimitivesForVlm } from './geometry-primitives.js';
 
 export const VLM_SYSTEM_PROMPT = [
   'You are an expert architectural analyst for a floor plan TOPOLOGY/CLEANUP step.',
@@ -22,7 +24,7 @@ export const VLM_SYSTEM_PROMPT = [
   '',
   'CRITICAL: Never invent object IDs. Only IDs present in RAW JSON are valid. If you cannot reliably map an element to an ID via the annotated image, do NOT guess.',
   '',
-  'OUTPUT — five categories, a compact summary, plus a geometry-constraint list:',
+  'OUTPUT — five categories, a compact summary, plus a geometry-constraint list, plus a geometry-relationship list:',
   '',
   '1. WALL RELATIONSHIPS (wallRelationships):',
   'Describe how pairs/groups of detected wall objects relate architecturally.',
@@ -110,6 +112,30 @@ export const VLM_SYSTEM_PROMPT = [
   '- openings interrupting otherwise continuous walls',
   'TOPOLOGY vs CONSTRAINT: wallRelationships/topologySummary = architectural interpretation. geometryConstraints = actionable relationships for a future deterministic solver. Keep the two concepts separate. If an existing topology relationship can directly produce a geometry constraint, you MAY emit the corresponding constraint, but do not duplicate information unnecessarily.',
   '',
+  '7. GEOMETRY RELATIONSHIPS (geometryRelationships) — VLM GEOMETRY INTERPRETATION POC:',
+  'You receive GEOMETRY PRIMITIVES: deterministic straight wall runs extracted from RAW wall polygons (e.g. wall-5:s0). One RAW object (e.g. wall-5) may contain several unrelated wall segments — west exterior wall, bedroom partition, bathroom partition, opening-adjacent fragments.',
+  'Your job is NOT to calculate or invent geometry. Your job is to answer: which primitives belong to the same physical wall? Which are continuations? Which form a corner / T-junction? Which are parallel / perpendicular / same-axis? Which primitive is likely a false detection? Which opening interrupts which wall? Which primitive belongs to another RAW object? Which geometry should be ignored?',
+  'Each relationship: { "type": "<one_of_eleven>", "sourcePrimitiveIds": ["<primitive-id>", ...], "sourceObjectIds": ["<raw-id>", ...], "confidence": 0.0-1.0, "reason": "<string or null>" }.',
+  'Allowed types (exactly these eleven):',
+  '- same_wall: 2+ primitives are segments of the SAME physical straight wall run.',
+  '- wall_continuation: sourcePrimitiveIds[0] continues toward sourcePrimitiveIds[1]. ORDER MATTERS — first is the source, second is the continuation target. Example: ["wall-8:s2", "wall-4:s0"].',
+  '- wall_corner: 2 primitives meet at a corner (approximately perpendicular).',
+  '- wall_t_junction: 2 primitives meet at a T-junction (one ends against the other).',
+  '- parallel: 2+ primitives are visually parallel (offset, not same axis).',
+  '- perpendicular: 2 primitives are visually perpendicular but do NOT meet (no corner/T-junction evidence).',
+  '- same_axis: 2+ primitives are collinear on the same geometric axis.',
+  '- opening_interrupts_wall: an opening interrupts a wall. sourcePrimitiveIds = affected wall primitives; sourceObjectIds[0] = the opening (door/window/entry_door), sourceObjectIds[1] = the host wall. ORDER of sourceObjectIds MATTERS — first is the opening, second is the host wall.',
+  '- belongs_to_same_raw_object: 2+ primitives genuinely belong to one RAW object (confirm the grouping is correct).',
+  '- likely_false_positive: 1+ primitives are likely false detections (furniture, stairs, text, symbols, decorative graphics). Single primitive allowed.',
+  '- likely_non_architectural: 1+ primitives exist geometrically but are not architectural walls (e.g. stair outlines, hatching). Single primitive allowed.',
+  'CRITICAL GEOMETRY-RELATIONSHIP RULES:',
+  '- NEVER invent coordinates, redraw walls, estimate missing coordinates, move vertices, snap geometry, calculate wall lengths/thicknesses, generate room polygons, or reconstruct the floorplan. You produce ONLY relationships between EXISTING primitives.',
+  '- Only reference primitive IDs listed in GEOMETRY PRIMITIVES and RAW object IDs present in RAW JSON. Never invent IDs. If you cannot reliably map a primitive, omit it or lower the confidence.',
+  '- Every primitive must be traceable: primitive → sourceObjectId → original RAW polygon. Put the human-readable justification in reason, never coordinates.',
+  '- Prefer low confidence or omission over unsupported assumptions. Never force a relationship.',
+  '- Directional types (wall_continuation, opening_interrupts_wall) MUST preserve source → target ordering.',
+  '- Do NOT implement the final geometry solver. Do not propose merged coordinates or corrected vertices.',
+  '',
   'ARCHITECTURAL REASONING STYLE:',
   'Distinguish architectural truth from recognition artifacts. Example reasoning:',
   'RAW: wall-3 and wall-1 are two polygons. ARCHITECTURAL INTERPRETATION: two detections of one continuous facade. CONSTRAINTS: merge_walls or continue_wall.',
@@ -122,7 +148,7 @@ export const VLM_SYSTEM_PROMPT = [
   '- Confidence must combine BOTH architectural confidence AND object-ID grounding confidence. If architecture is clear but the ID is ambiguous, keep confidence low.',
   '',
   'FORMAT:',
-  '- Every array (wallRelationships, openings, objectClassifications, rooms) must be present — use empty array [] if no findings. topologySummary and geometryConstraints must always be present (use [] if no constraints).',
+  '- Every array (wallRelationships, openings, objectClassifications, rooms) must be present — use empty array [] if no findings. topologySummary, geometryConstraints and geometryRelationships must always be present (use [] if none).',
   '- Every relationship/classification/constraint needs a confidence 0.0-1.0 and a reason (string or null).',
   '- Do not assume that sequential IDs represent spatial order (wall-0 next to wall-1 is not guaranteed).',
   '- Return ONLY the structured JSON. No prose outside the schema.',
@@ -138,6 +164,7 @@ export function buildVlmUserMessage(params: {
   raw: RawFloorplanRecognitionResponse;
   annotatedImageBuffer?: Buffer;
   annotatedMimeType?: string;
+  primitives?: VlmPrimitive[];
 }): VlmUserContentPart[] {
   const rawSummary = {
     wall: params.raw.wall.length,
@@ -152,6 +179,20 @@ export function buildVlmUserMessage(params: {
 
   const rawJsonStr = JSON.stringify(params.raw, null, 2);
   const hasAnnotated = !!params.annotatedImageBuffer;
+  const primitives = params.primitives ?? [];
+  const primitivesSection =
+    primitives.length > 0
+      ? [
+          '',
+          `GEOMETRY PRIMITIVES (${primitives.length} runs extracted deterministically from RAW wall polygons — the ONLY primitive IDs you may reference):`,
+          serializePrimitivesForVlm(primitives),
+          '',
+          'PRIMITIVE TRACEABILITY: each primitive lists src=<raw-object-id> and verts=[raw vertex indices]. Trace primitive → RAW object → original polygon. Never invent a primitive ID.',
+        ].join('\n')
+      : [
+          '',
+          'GEOMETRY PRIMITIVES: none supplied (no wall runs extracted). Return geometryRelationships as [] — never invent primitive IDs.',
+        ].join('\n');
 
   return [
     {
@@ -197,6 +238,20 @@ export function buildVlmUserMessage(params: {
         '- Look for false-positive detections (furniture, stairs, text, symbols, decorative graphics) → remove_object.',
         '- Only create a constraint when there is visual evidence in the source image. Prefer low confidence over unsupported assumptions. Never invent IDs, coordinates or lengths.',
         '- The VLM is proposing constraints, not constructing geometry.',
+        '',
+        primitivesSection,
+        '',
+        'GEOMETRY RELATIONSHIPS — reason about the GEOMETRY PRIMITIVES above (never coordinates, never new geometry):',
+        '- Which primitives belong to the same physical wall? → same_wall.',
+        '- Which primitives are continuations of each other? → wall_continuation (source → target order).',
+        '- Which primitives form a corner / T-junction? → wall_corner / wall_t_junction.',
+        '- Which primitives are parallel / perpendicular / same-axis? → parallel / perpendicular / same_axis.',
+        '- Which opening interrupts which wall? → opening_interrupts_wall (sourcePrimitiveIds = wall primitives, sourceObjectIds = [opening, hostWall]).',
+        '- Which primitives genuinely belong to one RAW object? → belongs_to_same_raw_object.',
+        '- Which primitive is likely a false detection / non-architectural? → likely_false_positive / likely_non_architectural (single primitive allowed).',
+        '- Which geometry should be ignored? → likely_false_positive / likely_non_architectural with reason.',
+        '- The VLM is NEVER the geometry calculator: no invented coordinates, no redrawn walls, no moved vertices, no snapped geometry, no lengths/thicknesses, no room polygons, no floorplan reconstruction.',
+        '- Do NOT implement the final geometry solver. Relationships only.',
         '',
         'Return the topology JSON structure only.',
       ]
