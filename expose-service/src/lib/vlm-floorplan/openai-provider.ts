@@ -44,6 +44,13 @@ export class VlmFloorplanProvider {
 
   async analyze(input: VlmInput): Promise<VlmResult> {
     const started = performance.now();
+    // NOTE: intentionally uses `create` (not `parse`) so the raw VLM JSON
+    // reaches our boundary normalizer BEFORE strict Zod validation.
+    // `parse` validates client-side with the same superRefine (≥2
+    // sourcePrimitiveIds) and would throw on a single malformed
+    // opening_interrupts_wall before normalization can drop/repair it.
+    // The response_format still constrains the model server-side; the strict
+    // `vlmFloorplanAnalysisSchema.parse` below remains the acceptance gate.
     const completion = await trackExternalCall(
       {
         service: 'openai',
@@ -51,7 +58,7 @@ export class VlmFloorplanProvider {
         props: { provider: this.name, model: this.model },
       },
       () =>
-        this.client.chat.completions.parse({
+        this.client.chat.completions.create({
           model: this.model,
           response_format: zodResponseFormat(vlmFloorplanAnalysisSchema, 'vlm_floorplan_analysis'),
           messages: [
@@ -62,25 +69,36 @@ export class VlmFloorplanProvider {
     );
 
     const durationMs = Math.round(performance.now() - started);
-    const parsed = completion.choices[0]?.message.parsed as VlmFloorplanAnalysis | undefined;
+    const message = completion.choices[0]?.message as
+      | { content?: string | null; refusal?: string | null }
+      | undefined;
+    const rawContent = message?.content ?? '';
 
-    if (!parsed) {
-      // Fallback: try to parse raw content as JSON for debugging
-      const rawContent = completion.choices[0]?.message.content ?? '';
+    if (!rawContent) {
       throw Object.assign(new Error('VLM returned no structured result'), {
         rawContent,
         rawResponse: completion,
       });
     }
 
+    let rawJson: unknown;
+    try {
+      rawJson = JSON.parse(rawContent);
+    } catch {
+      throw Object.assign(new Error('VLM returned invalid JSON'), {
+        rawContent,
+        rawResponse: completion,
+      });
+    }
+
     // Boundary normalization: drop/repair malformed opening_interrupts_wall
-    // entries (fewer than 2 sourcePrimitiveIds) before strict Zod parsing so a
-    // single invalid relationship cannot fail the whole analysis. The validator
+    // entries (fewer than 2 sourcePrimitiveIds) before strict Zod parsing so
+    // malformed relationships cannot fail the whole analysis. The validator
     // itself stays strict; every repair/drop is logged and surfaced.
     const primitivesForRepair = input.primitives ?? [];
     const knownPrimitiveIds = new Set(primitivesForRepair.map((p) => p.primitiveId));
     const primitiveToSourceObject = new Map(primitivesForRepair.map((p) => [p.primitiveId, p.sourceObjectId] as const));
-    const normalization = normalizeRawGeometryRelationships(parsed, {
+    const normalization = normalizeRawGeometryRelationships(rawJson, {
       knownPrimitiveIds: knownPrimitiveIds.size > 0 ? knownPrimitiveIds : undefined,
       primitiveToSourceObject,
     });

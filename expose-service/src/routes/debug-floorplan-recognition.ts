@@ -63,7 +63,7 @@ interface RunpodPredictResponse {
 
 /** Base URL without query string — safe to log (no secrets in this integration). */
 export function runpodBaseUrl(): string | null {
-  const raw = (process.env.RUNPOD_INFERENCE_URL ?? '').trim().replace(/\/+$/, '');
+  const raw = (process.env.RASTER_AI_URL ?? '').trim().replace(/\/+$/, '');
   return raw.length > 0 ? raw : null;
 }
 
