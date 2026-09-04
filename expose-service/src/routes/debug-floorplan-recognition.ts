@@ -13,6 +13,79 @@ import {
 const DEFAULT_RECOGNITION_URL = 'http://localhost:5000/predictions';
 const DEFAULT_TIMEOUT_MS = 120_000;
 
+/** GPU inference via RunPod needs a longer budget than the local Docker model. */
+const RUNPOD_TIMEOUT_MS = 300_000;
+
+/** Empty wall/door/window geometry kept for backward compatibility. */
+const EMPTY_RAW_GEOMETRY: RawFloorplanRecognitionResponse = {
+  wall: [],
+  door: [],
+  entry_door: [],
+  window: [],
+  kitchen: [],
+  door_center_line: [],
+  entry_door_center_line: [],
+  window_center_line: [],
+};
+
+export interface RunpodRefinedSpace {
+  id: string;
+  room_type: string;
+  area: number | null;
+  polygon: number[][];
+  graph?: string[];
+}
+
+export interface RunpodDraftSpace {
+  id: number | string;
+  label?: string;
+  category_id?: number;
+  polygon: number[][];
+}
+
+interface RunpodPredictResponse {
+  status?: string;
+  stage?: string;
+  refinement?: string;
+  request_id?: string;
+  model?: { checkpoint_key?: string; semantic_classes?: number; device?: string };
+  room_count?: number;
+  spaces?: RunpodDraftSpace[];
+  floorplan_png_base64?: string;
+  inference_ms?: number;
+  vlm_model?: string;
+  refine_ms?: number;
+  refined_room_count?: number;
+  refined_total_area?: number | null;
+  refined_spaces?: RunpodRefinedSpace[];
+  refined_floorplan_png_base64?: string;
+}
+
+/** Base URL without query string — safe to log (no secrets in this integration). */
+export function runpodBaseUrl(): string | null {
+  const raw = (process.env.RUNPOD_INFERENCE_URL ?? '').trim().replace(/\/+$/, '');
+  return raw.length > 0 ? raw : null;
+}
+
+export function runpodPredictUrl(): string | null {
+  const base = runpodBaseUrl();
+  return base ? `${base}/predict?refine=vlm` : null;
+}
+
+/** Validate a base64 PNG: decodable, non-empty, PNG magic header. */
+export function toPngDataUrl(base64: unknown): string | null {
+  if (typeof base64 !== 'string' || base64.length === 0) return null;
+  let bytes: Buffer;
+  try {
+    bytes = Buffer.from(base64, 'base64');
+  } catch {
+    return null;
+  }
+  if (bytes.length < 8) return null;
+  if (bytes[0] !== 0x89 || bytes[1] !== 0x50 || bytes[2] !== 0x4e || bytes[3] !== 0x47) return null;
+  return `data:image/png;base64,${base64}`;
+}
+
 export interface RawFloorplanRecognitionResponse {
   wall: number[][][];
   door: number[][][];
@@ -43,6 +116,33 @@ function parseRecognitionOutput(output: string): RawFloorplanRecognitionResponse
     window_center_line: (parsed.window_center_line as number[][][]) ?? [],
     ...parsed,
   } as RawFloorplanRecognitionResponse;
+}
+
+/** Normalize RunPod draft spaces (CubiCasa5k) — passthrough with type guards. */
+function normalizeDraftSpaces(spaces: unknown): RunpodDraftSpace[] {
+  if (!Array.isArray(spaces)) return [];
+  return spaces
+    .filter((s): s is Record<string, unknown> => typeof s === 'object' && s !== null)
+    .map((s) => ({
+      id: (typeof s.id === 'number' || typeof s.id === 'string' ? s.id : -1) as number | string,
+      label: typeof s.label === 'string' ? s.label : undefined,
+      category_id: typeof s.category_id === 'number' ? s.category_id : undefined,
+      polygon: Array.isArray(s.polygon) ? (s.polygon as number[][]) : [],
+    }));
+}
+
+/** Normalize RunPod refined spaces (VLM) — passthrough with type guards. */
+function normalizeRefinedSpaces(spaces: unknown): RunpodRefinedSpace[] {
+  if (!Array.isArray(spaces)) return [];
+  return spaces
+    .filter((s): s is Record<string, unknown> => typeof s === 'object' && s !== null)
+    .map((s) => ({
+      id: typeof s.id === 'string' ? s.id : String(s.id ?? ''),
+      room_type: typeof s.room_type === 'string' ? s.room_type : 'Unknown',
+      area: typeof s.area === 'number' ? s.area : null,
+      polygon: Array.isArray(s.polygon) ? (s.polygon as number[][]) : [],
+      graph: Array.isArray(s.graph) ? (s.graph as string[]) : undefined,
+    }));
 }
 
 export function debugFloorplanRecognitionRouter(): Router {
@@ -187,6 +287,120 @@ export function debugFloorplanRecognitionRouter(): Router {
       if (!isAllowedImageMime(file.mimetype)) return sendError(res, 400, 'Nur JPG, PNG und WEBP werden unterstützt');
       if (file.size > MAX_IMAGE_BYTES) return sendError(res, 400, 'Bilder dürfen maximal 15 MB groß sein');
       if (file.size === 0) return sendError(res, 400, 'Die Bilddatei ist leer');
+
+      const runpodUrl = runpodPredictUrl();
+      if (runpodUrl) {
+        // ── RunPod path: CubiCasa5k + VLM refinement (OpenAI key stays on RunPod) ──
+        const log = getLogger();
+        const startedAt = performance.now();
+        const endpointForLog = runpodBaseUrl() ?? '(runpod)';
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), RUNPOD_TIMEOUT_MS);
+        try {
+          const form = new FormData();
+          form.append(
+            'file',
+            new Blob([new Uint8Array(file.buffer)], { type: file.mimetype }),
+            file.originalname || 'floorplan.jpg',
+          );
+          const response = await trackExternalCall(
+            { service: 'runpod', operation: 'predict-vlm', props: { via: 'debug-endpoint' } },
+            () => fetch(runpodUrl, { method: 'POST', body: form, signal: controller.signal }),
+          );
+          const durationMs = Math.round(performance.now() - startedAt);
+          if (!response.ok) {
+            const text = await response.text().catch(() => '');
+            log.warn(
+              { httpStatus: response.status, responseBody: text.slice(0, 1000), durationMs, endpoint: endpointForLog },
+              'RunPod floorplan inference non-OK',
+            );
+            return sendError(res, 502, `RunPod inference failed with status ${response.status}`);
+          }
+          let json: RunpodPredictResponse;
+          try {
+            json = (await response.json()) as RunpodPredictResponse;
+          } catch {
+            log.warn({ durationMs, endpoint: endpointForLog }, 'RunPod floorplan inference returned malformed JSON');
+            return sendError(res, 502, 'RunPod returned an invalid response');
+          }
+          if (json.status !== 'ok') {
+            log.warn({ status: json.status, durationMs, endpoint: endpointForLog }, 'RunPod floorplan inference failed');
+            return sendError(res, 502, 'RunPod inference failed');
+          }
+          const draftImageDataUrl = toPngDataUrl(json.floorplan_png_base64);
+          const refinedImageDataUrl = toPngDataUrl(json.refined_floorplan_png_base64);
+          if (!draftImageDataUrl || !refinedImageDataUrl) {
+            log.warn(
+              {
+                requestId: json.request_id,
+                hasDraft: Boolean(json.floorplan_png_base64),
+                hasRefined: Boolean(json.refined_floorplan_png_base64),
+                durationMs,
+                endpoint: endpointForLog,
+              },
+              'RunPod floorplan inference returned invalid image data',
+            );
+            return sendError(res, 502, 'RunPod returned invalid image data');
+          }
+          const draftSpaces = normalizeDraftSpaces(json.spaces);
+          const refinedSpaces = normalizeRefinedSpaces(json.refined_spaces);
+          log.info(
+            {
+              requestId: json.request_id,
+              endpoint: endpointForLog,
+              stage: json.stage,
+              roomCount: json.room_count,
+              refinedRoomCount: json.refined_room_count,
+              vlmModel: json.vlm_model,
+              inferenceMs: json.inference_ms,
+              refineMs: json.refine_ms,
+              durationMs,
+            },
+            'RunPod floorplan inference completed — request={requestId}, stage={stage}, rooms={roomCount}, refined={refinedRoomCount}, inference={inferenceMs}ms, refine={refineMs}ms, total={durationMs}ms',
+          );
+          return res.json({
+            raw: { ...EMPTY_RAW_GEOMETRY },
+            durationMs,
+            imageInfo: { mimeType: file.mimetype, bytes: file.size, fileName: file.originalname },
+            provider: 'runpod',
+            requestId: json.request_id ?? null,
+            stage: json.stage ?? null,
+            refinement: json.refinement ?? null,
+            roomCount: json.room_count ?? draftSpaces.length,
+            spaces: draftSpaces,
+            draftImageDataUrl,
+            inferenceMs: json.inference_ms ?? null,
+            vlmModel: json.vlm_model ?? null,
+            refineMs: json.refine_ms ?? null,
+            refinedRoomCount: json.refined_room_count ?? refinedSpaces.length,
+            refinedTotalArea: json.refined_total_area ?? null,
+            refinedSpaces,
+            refinedImageDataUrl,
+          });
+        } catch (error) {
+          const durationMs = Math.round(performance.now() - startedAt);
+          if (error instanceof Error && error.name === 'AbortError') {
+            log.error({ durationMs, endpoint: endpointForLog, timeoutMs: RUNPOD_TIMEOUT_MS }, 'RunPod floorplan inference timed out');
+            return sendError(res, 504, `RunPod inference timed out after ${durationMs}ms`);
+          }
+          const cause = (error as { cause?: unknown })?.cause;
+          const causeMessage = cause instanceof Error ? cause.message : typeof cause === 'string' ? cause : '';
+          const errorString = String(error);
+          const isConnectionIssue =
+            (error instanceof TypeError && errorString.includes('fetch failed')) ||
+            causeMessage.includes('ECONNREFUSED') ||
+            causeMessage.includes('ENOTFOUND') ||
+            (error as { code?: string })?.code === 'ECONNREFUSED';
+          if (isConnectionIssue) {
+            log.error({ err: error, durationMs, endpoint: endpointForLog }, 'RunPod floorplan inference unavailable');
+            return sendError(res, 503, `RunPod inference service is not available at ${endpointForLog}`);
+          }
+          log.error({ err: error, durationMs, endpoint: endpointForLog }, 'RunPod floorplan inference failed');
+          return sendError(res, 502, 'RunPod inference failed');
+        } finally {
+          clearTimeout(timer);
+        }
+      }
 
       const apiUrl = process.env.FLOORPLAN_RECOGNITION_URL ?? DEFAULT_RECOGNITION_URL;
       const timeoutMs = DEFAULT_TIMEOUT_MS;

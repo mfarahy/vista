@@ -45,6 +45,20 @@ import {
 
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
+interface RunpodResult {
+  provider: string;
+  requestId: string | null;
+  stage: string | null;
+  roomCount: number;
+  draftImageDataUrl: string;
+  inferenceMs: number | null;
+  vlmModel: string | null;
+  refineMs: number | null;
+  refinedRoomCount: number;
+  refinedTotalArea: number | null;
+  refinedImageDataUrl: string;
+}
+
 export default function DebugFloorplanRecognitionPage() {
   const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -55,6 +69,7 @@ export default function DebugFloorplanRecognitionPage() {
   const [raw, setRaw] = useState<RawGeometry | null>(null);
   const [extraFields, setExtraFields] = useState<string[]>([]);
   const [durationMs, setDurationMs] = useState<number | null>(null);
+  const [runpod, setRunpod] = useState<RunpodResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [jsonCollapsed, setJsonCollapsed] = useState(false);
@@ -137,7 +152,7 @@ export default function DebugFloorplanRecognitionPage() {
         : 'not_analyzed';
 
   const resetVlm = useCallback(() => {
-    setVlmAnalysis(null);
+    setRunpod(null);    setVlmAnalysis(null);
     setVlmModel(null);
     setVlmDurationMs(null);
     setVlmWarnings([]);
@@ -228,7 +243,22 @@ export default function DebugFloorplanRecognitionPage() {
       const form = new FormData();
       form.append('image', file);
       const res = await apiFetch('/api/debug/floorplan-recognition', { method: 'POST', body: form });
-      const body = (await res.json().catch(() => ({}))) as { raw?: RawGeometry; durationMs?: number; error?: string };
+      const body = (await res.json().catch(() => ({}))) as {
+        raw?: RawGeometry;
+        durationMs?: number;
+        error?: string;
+        provider?: string;
+        requestId?: string | null;
+        stage?: string | null;
+        roomCount?: number;
+        draftImageDataUrl?: string;
+        inferenceMs?: number | null;
+        vlmModel?: string | null;
+        refineMs?: number | null;
+        refinedRoomCount?: number;
+        refinedTotalArea?: number | null;
+        refinedImageDataUrl?: string;
+      };
       if (!res.ok) {
         if (res.status === 503) {
           // Backend already returns a detailed 503 message (includes hint).
@@ -246,6 +276,23 @@ export default function DebugFloorplanRecognitionPage() {
       setRaw(body.raw as RawGeometry);
       setExtraFields(detectUnknownFields(body.raw as unknown as Record<string, unknown>));
       setDurationMs(body.durationMs ?? null);
+      if (body.provider === 'runpod' && body.draftImageDataUrl && body.refinedImageDataUrl) {
+        setRunpod({
+          provider: body.provider,
+          requestId: body.requestId ?? null,
+          stage: body.stage ?? null,
+          roomCount: body.roomCount ?? 0,
+          draftImageDataUrl: body.draftImageDataUrl,
+          inferenceMs: body.inferenceMs ?? null,
+          vlmModel: body.vlmModel ?? null,
+          refineMs: body.refineMs ?? null,
+          refinedRoomCount: body.refinedRoomCount ?? 0,
+          refinedTotalArea: body.refinedTotalArea ?? null,
+          refinedImageDataUrl: body.refinedImageDataUrl,
+        });
+      } else {
+        setRunpod(null);
+      }
       setSelectedPrimitiveId(null);
     } catch (e) {
       const msg = e instanceof Error ? e.message : t('debugFloorplanRecognition.errorRecognitionFailed');
@@ -779,6 +826,75 @@ export default function DebugFloorplanRecognitionPage() {
             </div>
           </div>
         ) : null}
+
+        {/* RunPod GPU result — original / draft / refined comparison */}
+        {runpod && previewUrl && (
+          <div className="mt-6 rounded-xl border bg-card p-5">
+            <h2 className="text-sm font-semibold">{t('debugFloorplanRecognition.runpodTitle')}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.runpodIntro')}</p>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+              {runpod.requestId && <span>{t('debugFloorplanRecognition.runpodRequestId', { id: runpod.requestId })}</span>}
+              {runpod.vlmModel && <span>{t('debugFloorplanRecognition.runpodModel', { model: runpod.vlmModel })}</span>}
+              {runpod.inferenceMs !== null && <span>{t('debugFloorplanRecognition.runpodInferenceMs', { ms: String(Math.round(runpod.inferenceMs)) })}</span>}
+              {runpod.refineMs !== null && <span>{t('debugFloorplanRecognition.runpodRefineMs', { ms: String(Math.round(runpod.refineMs)) })}</span>}
+              {durationMs !== null && <span>{t('debugFloorplanRecognition.runpodTotalMs', { ms: String(durationMs) })}</span>}
+            </div>
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <div>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('debugFloorplanRecognition.runpodOriginal')}</h3>
+                <div className="overflow-hidden rounded-xl border">
+                  <img src={previewUrl} alt={t('debugFloorplanRecognition.previewAlt')} className="h-auto w-full object-contain" />
+                </div>
+              </div>
+              <div>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t('debugFloorplanRecognition.runpodDraft')} · {t('debugFloorplanRecognition.runpodDraftRooms', { count: String(runpod.roomCount) })}
+                </h3>
+                <div className="overflow-hidden rounded-xl border">
+                  <img src={runpod.draftImageDataUrl} alt={t('debugFloorplanRecognition.runpodDraft')} className="h-auto w-full object-contain" />
+                </div>
+                <div className="mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const a = document.createElement('a');
+                      a.href = runpod.draftImageDataUrl;
+                      a.download = `runpod-draft-${Date.now()}.png`;
+                      a.click();
+                    }}
+                  >
+                    <Download className="size-3.5" /> {t('debugFloorplanRecognition.runpodDownloadDraft')}
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t('debugFloorplanRecognition.runpodRefined')} · {t('debugFloorplanRecognition.runpodRefinedRooms', { count: String(runpod.refinedRoomCount) })}
+                </h3>
+                <div className="overflow-hidden rounded-xl border">
+                  <img src={runpod.refinedImageDataUrl} alt={t('debugFloorplanRecognition.runpodRefined')} className="h-auto w-full object-contain" />
+                </div>
+                <div className="mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const a = document.createElement('a');
+                      a.href = runpod.refinedImageDataUrl;
+                      a.download = `runpod-refined-${Date.now()}.png`;
+                      a.click();
+                    }}
+                  >
+                    <Download className="size-3.5" /> {t('debugFloorplanRecognition.runpodDownloadRefined')}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* RAW Layer Controls */}
         {raw && (
