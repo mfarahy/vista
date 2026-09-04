@@ -1,0 +1,34 @@
+# built
+diff_rass
+diff_ras/build/
+diff_ras/native_rasterizer.*
+diff_ras/rasterizer.egg-info/PKG-INFO
+
+models/ops
+
+# pycache
+__pycache__
+.pyc
+
+# data
+data/
+data2/
+s3d_floorplan_eval/montefloor_data
+*.html
+
+# test script
+slurm_scripts*
+
+# outputs
+output
+output*
+wandb
+wandb_keys
+watch_folder
+cross_eval_out
+*.json
+*.png
+*.csv
+*.log
+*.svg
+*.zip

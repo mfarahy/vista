@@ -1,0 +1,100 @@
+# ─── Raster2Seq public stack (GPU) ───────────────────────────────────────────
+# Vista -> Public HTTPS URL -> Cloudflare Tunnel -> raster2seq-api -> Raster2Seq
+#
+# Single compose file. The API image (Dockerfile.gpu) runs REAL model
+# inference on the host GPU (override with RASTER2SEQ_MOCK=true for the
+# schema-identical mock fallback). Requires Docker GPU support, verified with:
+#   docker run --rm --gpus all nvidia/cuda:11.8.0-base-ubuntu22.04 nvidia-smi
+#
+# Local API (no Cloudflare account needed):
+#   docker compose up -d --build raster2seq-api
+#   curl http://localhost:3026/health
+# NOTE: first start compiles the attention ops inside the container
+# (~4 min, once per fresh container), so the API needs a few minutes.
+#
+# Public API (one-time Cloudflare setup first, see README):
+#   copy .env.example to .env, set CLOUDFLARE_TUNNEL_TOKEN, then
+#   docker compose up -d --build
+#
+# The tunnel uses Cloudflare's remotely-managed mode (token): the public
+# hostname is configured in the Cloudflare dashboard and points at
+# http://raster2seq-api:3000. No local config.yml is required.
+
+services:
+  # ── Raster2Seq API (GPU: Node.js wrapper + CUDA 11.8 inference) ────────────
+  raster2seq-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    image: raster2seq-local-api:gpu
+    restart: unless-stopped
+    expose:
+      - "3000"
+    # Loopback-only host binding for local dev: reachable at
+    # http://localhost:${RASTER2SEQ_PORT:-3026} but NOT exposed to the LAN or
+    # the public internet. Host port 3026 avoids the frontend on :3000;
+    # the container still listens on :3000 internally (tunnel URL unchanged).
+    # Remove the `ports:` block entirely if the API should only be reachable
+    # inside the Docker network.
+    ports:
+      - "127.0.0.1:${RASTER2SEQ_PORT:-3026}:3000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PORT: 3000
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      # Hardcoded: the image only ships python3 (host .env may point at a
+      # Windows venv, which must never leak in here).
+      PYTHON_BIN: python3
+      CHECKPOINT: ${CHECKPOINT:-hf:cubicasa5k}
+      DEVICE: ${DEVICE:-cuda}
+      INFERENCE_TIMEOUT_MS: ${INFERENCE_TIMEOUT_MS:-300000}
+      MAX_IMAGE_MB: ${MAX_IMAGE_MB:-15}
+      RASTER2SEQ_MOCK: ${RASTER2SEQ_MOCK:-false}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      REFINE_TIMEOUT_MS: ${REFINE_TIMEOUT_MS:-180000}
+      REFINE_TEMPERATURE: ${REFINE_TEMPERATURE:-}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      # First boot compiles the CUDA ops (~4 min on a fresh container).
+      start_period: 300s
+
+  # ── Cloudflare Tunnel (thin networking layer, no app logic) ───────────────
+  # Uses the official cloudflared image with a remotely-managed tunnel token.
+  # It dials out to Cloudflare and forwards public HTTPS traffic to the API
+  # over the Docker network. NOTE: it must use the Compose service name
+  # (http://raster2seq-api:3000) — never localhost — configured as the tunnel's
+  # service URL in the Cloudflare dashboard.
+  # Without a token it logs an error and retries; the API keeps working.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    depends_on:
+      raster2seq-api:
+        condition: service_healthy
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}

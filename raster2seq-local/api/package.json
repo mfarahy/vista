@@ -1,0 +1,20 @@
+{
+  "name": "raster2seq-local-api",
+  "version": "0.1.0",
+  "description": "Thin local HTTP wrapper around Raster2Seq floorplan inference for Vista.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test:smoke": "node smoke-test.mjs"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "multer": "^2.3.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

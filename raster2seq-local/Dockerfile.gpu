@@ -1,0 +1,76 @@
+# Full GPU image: Node.js API + Python Raster2Seq inference on CUDA 11.8.
+# Unlike the mock Dockerfile, this image runs REAL model inference inside
+# the container (needs `--gpus` / the docker-compose.gpu.yml override).
+# Base matches torch 2.3.1+cu118, so no nvcc version tricks are needed and
+# the upstream ops build runs exactly as documented (models/ops/make.sh).
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PORT=3000 \
+    PYTHON_BIN=python3 \
+    RASTER2SEQ_MOCK=false \
+    DEVICE=cuda \
+    CHECKPOINT=hf:cubicasa5k \
+    NODE_ENV=production
+
+WORKDIR /app
+
+# ── System: Node 22, Python 3.10, compilers ──────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates curl gnupg \
+      build-essential ninja-build wget \
+      python3 python3-pip python3-dev \
+      libgl1 libglib2.0-0 \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+         | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
+         > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Python: GPU torch first (own layer for cache reuse) ──────────────────
+RUN pip3 install --no-cache-dir torch==2.3.1 torchvision==0.18.1 \
+      --index-url https://download.pytorch.org/whl/cu118
+
+# ── Python: upstream requirements + small extras the wrapper needs ───────
+# NOTE: keep this as ONE resolver run of the unpinned upstream set plus
+# einops/plotly. The Windows-verified wrapper pins (numpy==1.26.4 etc.)
+# conflict with upstream's scipy/matplotlib pins on Linux — torchvision
+# already pulls pillow, everything else resolves transitively.
+COPY raster2seq/requirements.txt ./raster2seq-req.txt
+RUN grep -v '^scipy==' raster2seq-req.txt > req.txt \
+    && pip3 install --no-cache-dir -r req.txt scipy einops plotly \
+    && rm raster2seq-req.txt req.txt
+
+# ── Upstream model code (unmodified) ─────────────────────────────────────
+COPY raster2seq ./raster2seq
+
+# ── Checkpoint baked in (~1.45 GB): first request needs no download ──────
+RUN python3 -c "import sys; sys.path.insert(0, 'raster2seq'); \
+      from raster2seq_hub import download_checkpoint; \
+      print(download_checkpoint('cubicasa5k'))"
+
+# The deformable-attention ops compile at container START (see entrypoint):
+# `docker build` has no GPU, and upstream setup.py refuses to build without
+# CUDA. TORCH_CUDA_ARCH_LIST=7.5 targets the GTX 1660 Ti only (fast build).
+ENV TORCH_CUDA_ARCH_LIST="7.5"
+# Lets the compiled extension find torch's bundled libc10/libtorch at import.
+ENV LD_LIBRARY_PATH=/usr/local/lib/python3.10/dist-packages/torch/lib
+COPY docker-entrypoint-gpu.sh ./
+RUN chmod +x docker-entrypoint-gpu.sh
+
+# ── Node.js API layer ────────────────────────────────────────────────────
+COPY api/package*.json ./api/
+RUN npm ci --omit=dev --prefix ./api
+COPY api/server.js ./api/
+COPY api/lib ./api/lib
+COPY inference/infer_single.py ./inference/
+COPY samples ./samples
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=120s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+
+ENTRYPOINT ["./docker-entrypoint-gpu.sh"]

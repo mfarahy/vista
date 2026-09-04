@@ -1,0 +1,13 @@
+# Local-only artifacts (never commit)
+node_modules/
+api/.env
+.env
+__pycache__/
+.venv/
+checkpoints/
+.cuda-shim/
+pred_outputs/
+tmp/
+*.pth
+*.log
+.DS_Store
