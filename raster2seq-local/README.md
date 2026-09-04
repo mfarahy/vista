@@ -239,10 +239,22 @@ returned; `/api/health` only reports `refinement.vlm_configured` + model name.
 
 Vista integration: `POST {SERVICE_URL}/api/floorplan/analyze` with the plan
 as multipart `image`; read `result.spaces[]` (`category_id`/`label`/`polygon`).
-The existing `expose-service` consumer (`src/lib/raster2seq.ts`,
-`src/lib/v360-geometry.ts`) expects `spaces[]`/`refined_spaces[]` with
-`polygon` arrays — this response is compatible with the `spaces` half
-(no VLM refinement stage; see limitations).
+
+### Drop-in RunPod replacement for expose-service
+
+`POST {SERVICE_URL}/predict?refine=vlm` (multipart field `file`) speaks the
+exact contract `expose-service/src/lib/raster2seq.ts` expects: the raw result
+object with `status: 'ok'`, `spaces[]`, `refined_spaces[]`, `request_id`,
+`room_count`, `inference_ms`/`refine_ms` — no `{success, result}` envelope.
+To switch Vista from RunPod to this service, only the env var changes:
+
+```bash
+# expose-service/.env (local) or Helm config.RASTER_AI_URL (deployed)
+RASTER_AI_URL=http://localhost:3000   # was https://….proxy.runpod.net
+```
+
+No `expose-service` code changes needed (`v360.ts`, `v360-geometry.ts`,
+`debug-floorplan-recognition.ts` keep working untouched).
 
 ## Testing
 

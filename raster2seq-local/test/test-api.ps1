@@ -33,12 +33,12 @@ try {
   }
 
   # 1. Health check
-  Write-Host "`n[1/8] GET /api/health" -ForegroundColor Cyan
+  Write-Host "`n[1/10] GET /api/health" -ForegroundColor Cyan
   $health = Invoke-RestMethod -Uri "$BaseUrl/api/health" -TimeoutSec 10
   Write-Host ($health | ConvertTo-Json -Compress)
 
   # 2. Valid floorplan upload
-  Write-Host "`n[2/8] POST valid image" -ForegroundColor Cyan
+  Write-Host "`n[2/10] POST valid image" -ForegroundColor Cyan
   $sample = Join-Path $root "samples\floorplan-multiroom.png"
   $validBody = curl.exe -s -X POST "$BaseUrl/api/floorplan/analyze" -F "image=@$sample"
   $valid = $validBody | ConvertFrom-Json
@@ -49,12 +49,12 @@ try {
   Write-Host ("First space: " + ($first | ConvertTo-Json -Compress))
 
   # 3. Missing image
-  Write-Host "`n[3/8] POST without image" -ForegroundColor Cyan
+  Write-Host "`n[3/10] POST without image" -ForegroundColor Cyan
   $missingBody = curl.exe -s -X POST "$BaseUrl/api/floorplan/analyze"
   Assert-JsonCode $missingBody "MISSING_IMAGE" | Out-Null
 
   # 4. Invalid file (text content, image mime)
-  Write-Host "`n[4/8] POST invalid image bytes" -ForegroundColor Cyan
+  Write-Host "`n[4/10] POST invalid image bytes" -ForegroundColor Cyan
   $fake = Join-Path $env:TEMP "r2s-fake-test.png"
   "not an image" | Set-Content -LiteralPath $fake -NoNewline
   $invalidBody = curl.exe -s -X POST "$BaseUrl/api/floorplan/analyze" `
@@ -63,13 +63,13 @@ try {
   Remove-Item -LiteralPath $fake -Force -ErrorAction SilentlyContinue
 
   # 5. Unexpected field name
-  Write-Host "`n[5/8] POST wrong field name" -ForegroundColor Cyan
+  Write-Host "`n[5/10] POST wrong field name" -ForegroundColor Cyan
   $wrongFieldBody = curl.exe -s -X POST "$BaseUrl/api/floorplan/analyze" -F "photo=@$sample"
   Assert-JsonCode $wrongFieldBody "MISSING_IMAGE" | Out-Null
 
   # 6. Temp cleanup: the service stages uploads only in its own TMP_DIR
   # (default $env:TEMP\raster2seq-local); nothing may remain there.
-  Write-Host "`n[6/8] temp cleanup" -ForegroundColor Cyan
+  Write-Host "`n[6/10] temp cleanup" -ForegroundColor Cyan
   $stageDir = if ($env:TMP_DIR) { $env:TMP_DIR } else { Join-Path $env:TEMP "raster2seq-local" }
   $leftovers = @()
   if (Test-Path -LiteralPath $stageDir) {
@@ -79,7 +79,7 @@ try {
   Write-Host "[OK] staging dir clean ($stageDir)" -ForegroundColor Green
 
   # 7. Mock VLM refinement contract (?refine=vlm, no API key needed in mock)
-  Write-Host "`n[7/8] POST ?refine=vlm (mock)" -ForegroundColor Cyan
+  Write-Host "`n[7/10] POST ?refine=vlm (mock)" -ForegroundColor Cyan
   $refineBody = curl.exe -s -X POST "$BaseUrl/api/floorplan/analyze?refine=vlm" -F "image=@$sample"
   $refined = $refineBody | ConvertFrom-Json
   if ($refined.success -ne $true) { throw "Expected success, got: $refineBody" }
@@ -93,8 +93,25 @@ try {
   if (-not $rs.id -or -not $rs.room_type -or -not $rs.polygon) { throw "Bad refined space: $($rs | ConvertTo-Json -Compress)" }
   Write-Host ("[OK] refined_room_count=" + $refined.result.refined_room_count) -ForegroundColor Green
 
-  # 8. Missing-key guard (no server needed; exercises the real guard)
-  Write-Host "`n[8/8] refine without OPENAI_API_KEY" -ForegroundColor Cyan
+  # 8. RunPod-compatible alias (what expose-service calls: field `file`,
+  # raw body with status/spaces, no {success,result} envelope)
+  Write-Host "`n[8/10] POST /predict?refine=vlm (mock)" -ForegroundColor Cyan
+  $predictBody = curl.exe -s -X POST "$BaseUrl/predict?refine=vlm" -F "file=@$sample"
+  $predict = $predictBody | ConvertFrom-Json
+  if ($predict.status -ne 'ok') { throw "Expected status ok, got: $predictBody" }
+  if ($predict.success) { throw "Alias must not wrap the body: $predictBody" }
+  if (-not $predict.spaces -or -not $predict.refined_spaces) { throw "Missing spaces: $predictBody" }
+  Write-Host ("[OK] unwrapped ok, spaces=" + $predict.spaces.Count) -ForegroundColor Green
+
+  # 9. Alias draft (no refine flag)
+  Write-Host "`n[9/10] POST /predict draft (mock)" -ForegroundColor Cyan
+  $predictDraftBody = curl.exe -s -X POST "$BaseUrl/predict" -F "file=@$sample"
+  $predictDraft = $predictDraftBody | ConvertFrom-Json
+  if ($predictDraft.status -ne 'ok' -or -not $predictDraft.spaces) { throw "Bad draft alias: $predictDraftBody" }
+  Write-Host "[OK] draft alias ok" -ForegroundColor Green
+
+  # 10. Missing-key guard (no server needed; exercises the real guard)
+  Write-Host "`n[10/10] refine without OPENAI_API_KEY" -ForegroundColor Cyan
   $guardScript = "import('./lib/vlm-refine.js').then(async (m) => { try { await m.refineFloorplan({ imageBuffer: Buffer.alloc(10), mimeType: 'image/png', draft: { spaces: [] }, requestId: 'test' }); console.log('CODE:NONE'); } catch (e) { console.log('CODE:' + e.code); } })"
   Push-Location (Join-Path $root 'api')
   try {

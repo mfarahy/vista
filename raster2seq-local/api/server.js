@@ -155,20 +155,31 @@ app.get('/health', (_req, res) => {
   res.json(healthPayload());
 });
 
-app.post('/api/floorplan/analyze', upload, async (req, res) => {
+/**
+ * Shared analyze implementation.
+ * @param {boolean} wrap - true: `{success, result}` envelope (native
+ *   contract); false: raw result object with `status: 'ok'` (RunPod
+ *   `/predict` compatible, consumed by expose-service `raster2seq.ts`).
+ */
+async function handleAnalyze(req, res, wrap) {
   // Accept the RunPod field name `file` as an alias for compatibility.
   const file = req.files?.image?.[0] ?? req.files?.file?.[0];
+  // Wrap-aware validation errors (same shape decision as failHere below).
+  const failValidation = (httpStatus, code, message) =>
+    wrap
+      ? fail(res, httpStatus, code, message)
+      : res.status(httpStatus).json({ status: 'error', code, message });
   if (!file) {
-    return fail(res, 400, 'MISSING_IMAGE', 'No image uploaded. Send multipart field "image".');
+    return failValidation(400, 'MISSING_IMAGE', 'No image uploaded. Send multipart field "image" (or "file").');
   }
   if (!ALLOWED_MIME.has(file.mimetype)) {
-    return fail(res, 400, 'INVALID_IMAGE', 'Only JPG, PNG and WEBP images are supported.');
+    return failValidation(400, 'INVALID_IMAGE', 'Only JPG, PNG and WEBP images are supported.');
   }
   if (file.size === 0) {
-    return fail(res, 400, 'INVALID_IMAGE', 'The uploaded image is empty.');
+    return failValidation(400, 'INVALID_IMAGE', 'The uploaded image is empty.');
   }
   if (!sniffImage(file.buffer, file.mimetype)) {
-    return fail(res, 400, 'INVALID_IMAGE', 'The uploaded file is not a valid image.');
+    return failValidation(400, 'INVALID_IMAGE', 'The uploaded file is not a valid image.');
   }
 
   const started = Date.now();
@@ -176,6 +187,15 @@ app.post('/api/floorplan/analyze', upload, async (req, res) => {
   const wantRefine = req.query.refine === 'vlm';
   const ext = file.mimetype === 'image/png' ? 'png' : file.mimetype === 'image/webp' ? 'webp' : 'jpg';
   let stagedPath = null;
+
+  const ok = (result, mocked = false) =>
+    wrap
+      ? res.json({ success: true, ...(mocked ? { mocked: true } : {}), result })
+      : res.json(result);
+  const failHere = (httpStatus, code, message) =>
+    wrap
+      ? fail(res, httpStatus, code, message)
+      : res.status(httpStatus).json({ status: 'error', code, message });
 
   try {
     fs.mkdirSync(config.tmpDir, { recursive: true });
@@ -195,7 +215,7 @@ app.post('/api/floorplan/analyze', upload, async (req, res) => {
         result.refinement = 'none';
       }
       log('log', 'floorplan analyzed (mock)', { requestId, roomCount: result.room_count, wantRefine });
-      return res.json({ success: true, mocked: true, result });
+      return ok(result, true);
     }
 
     stagedPath = path.join(config.tmpDir, `${requestId}.${ext}`);
@@ -211,14 +231,14 @@ app.post('/api/floorplan/analyze', upload, async (req, res) => {
     const result = await runInference(stagedPath);
     if (!result || result.status !== 'ok' || !Array.isArray(result.spaces)) {
       log('error', 'malformed model output', { requestId });
-      return fail(res, 502, 'MALFORMED_OUTPUT', 'The model returned an unexpected response.');
+      return failHere(502, 'MALFORMED_OUTPUT', 'The model returned an unexpected response.');
     }
     result.request_id = requestId;
 
     if (wantRefine) {
       if (!config.vlmConfigured) {
         log('error', 'VLM refinement requested but not configured', { requestId });
-        return fail(res, 503, 'VLM_NOT_CONFIGURED', 'VLM refinement is not configured.');
+        return failHere(503, 'VLM_NOT_CONFIGURED', 'VLM refinement is not configured.');
       }
       const refined = await refineFloorplan({
         imageBuffer: file.buffer,
@@ -240,36 +260,44 @@ app.post('/api/floorplan/analyze', upload, async (req, res) => {
       refineMs: result.refine_ms,
       totalMs: Date.now() - started,
     });
-    return res.json({ success: true, result });
+    return ok(result);
   } catch (err) {
     const code = err?.code;
     if (code === 'TIMEOUT') {
       log('error', 'inference timed out', { requestId });
-      return fail(res, 504, 'INFERENCE_TIMEOUT', 'Floorplan analysis timed out. Please retry.');
+      return failHere(504, 'INFERENCE_TIMEOUT', 'Floorplan analysis timed out. Please retry.');
     }
     if (code === 'SPAWN' || code === 'model_unavailable') {
       log('error', 'model unavailable', { requestId, detail: sanitize(err.message) });
-      return fail(res, 503, 'MODEL_UNAVAILABLE', 'The recognition model is not available.');
+      return failHere(503, 'MODEL_UNAVAILABLE', 'The recognition model is not available.');
     }
     if (code === 'VLM_NOT_CONFIGURED') {
-      return fail(res, 503, 'VLM_NOT_CONFIGURED', 'VLM refinement is not configured.');
+      return failHere(503, 'VLM_NOT_CONFIGURED', 'VLM refinement is not configured.');
     }
     if (code === 'VLM_TIMEOUT') {
       log('error', 'refinement timed out', { requestId });
-      return fail(res, 504, 'VLM_TIMEOUT', 'VLM refinement timed out. Please retry.');
+      return failHere(504, 'VLM_TIMEOUT', 'VLM refinement timed out. Please retry.');
     }
     if (code === 'VLM_FAILED' || code === 'VLM_MALFORMED') {
       log('error', 'refinement failed', { requestId, detail: sanitize(err.message) });
-      return fail(res, 502, 'VLM_FAILED', 'VLM refinement failed.');
+      return failHere(502, 'VLM_FAILED', 'VLM refinement failed.');
     }
     log('error', 'inference failed', { requestId, detail: sanitize(err.message) });
-    return fail(res, 502, 'INFERENCE_FAILED', 'Floorplan analysis failed.');
+    return failHere(502, 'INFERENCE_FAILED', 'Floorplan analysis failed.');
   } finally {
     if (stagedPath) {
       fs.rm(stagedPath, { force: true }, () => {});
     }
   }
-});
+}
+
+app.post('/api/floorplan/analyze', upload, (req, res) => handleAnalyze(req, res, true));
+
+// RunPod-compatible alias consumed by expose-service (`RASTER_AI_URL` +
+// `/predict?refine=vlm`, multipart field `file`): same pipeline, but the raw
+// result object (`status: 'ok'`, `spaces`, `refined_spaces`) without the
+// `{success, result}` envelope.
+app.post('/predict', upload, (req, res) => handleAnalyze(req, res, false));
 
 // Multer size-limit errors arrive here; keep the contract {success:false,...}.
 app.use((err, _req, res, _next) => {
