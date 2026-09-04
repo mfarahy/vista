@@ -30,7 +30,8 @@ by one shared coordinate system.
   the camera rotates and are hidden automatically when the direction is behind
   the camera.
 - Spatial annotation prototype (Phase 3): one "Window" annotation with a
-  view-dependent fade, living in the living room.
+  view-dependent fade, living in the living room (superseded by the
+  geometry-based overlay in Phase 7, kept as `spatialAnnotation.js`).
 - Interactive panorama viewer, full-screen
   - drag to look around
   - zoom in / zoom out
@@ -42,6 +43,15 @@ by one shared coordinate system.
   **2D Floor Plan**, the **3D View** and the **360°** panorama viewer.
   Clicking a panorama marker in the 2D floor plan or the 3D view switches to
   the 360° view for that exact panorama.
+- **Geometry-based window overlay** (Phase 7): one real Living Room window
+  (`WINDOWS` in `src/floorplan.js`, 1.8 m wide on the north wall) derived to
+  world-space corners (`src/windowGeometry.js`), rendered as glass in the 3D
+  view and as a lightweight SVG outline + `1.80 m` label above the Pannellum
+  viewer (`src/windowOverlay.js` via `src/panoramaProjection.js`). The overlay
+  tracks yaw/pitch/zoom and hides when the window leaves the view. The
+  generated Living Room panorama paints the same window at its exact spatial
+  direction, so alignment is visually verifiable. Append `?debug` to the URL
+  for a small overlay debug readout (camera, view, corners, projections).
 
 Not included (by design): a floor-plan editor, textured/production-grade 3D
 buildings, measurements, uploads, authentication, backend, database, API.
@@ -93,11 +103,19 @@ A deliberately small, static floor plan — not a floor-plan editor:
   outgoing link, and the `navigateToPanorama()` logic (preserves pitch/zoom,
   faces back toward the source panorama, cross-fade via `sceneFadeDuration`).
 - `src/spatialAnnotation.js` — the Phase 3 window annotation (fade loop),
-  now idempotent so it survives scene re-loads.
+  superseded by Phase 7 (kept for history, no longer attached).
 - `src/coordinates.js` — the canonical floor-plan-to-3D coordinate mapping
   (Phase 6).
-- `src/floorplan.js` — the static floor-plan data: rooms, walls and doors,
-  derived from the panorama positions and links (Phase 6).
+- `src/floorplan.js` — the static floor-plan data: rooms, walls, doors
+  (Phase 6) plus one real Living Room window (Phase 7).
+- `src/windowGeometry.js` — derives the window's four world-space corners
+  from wall geometry + width/offset/sill/height (Phase 7).
+- `src/panoramaProjection.js` — projects world-space corners to screen via
+  panorama yaw/pitch + viewer yaw/pitch/hfov, mirroring Pannellum's own
+  hotspot math (Phase 7).
+- `src/windowOverlay.js` — lightweight SVG overlay above Pannellum showing
+  the projected window outline + `1.80 m`, with hide/fade and `?debug` mode
+  (Phase 7).
 - `src/FloorPlan2D.jsx` — renders the floor plan as SVG, with clickable
   panorama markers (Phase 6).
 - `src/Scene3D.jsx` — a minimal three.js scene (extruded walls + clickable
@@ -108,8 +126,9 @@ A deliberately small, static floor plan — not a floor-plan editor:
 - `scripts/generate-panoramas.mjs` — pure-Node (no dependencies) generator
   that paints the three sample equirectangular images (1920×960 PNG). Each
   image shows the room's letter, compass markers and one doorway per outgoing
-  link, painted at exactly the navigation arrow's yaw. Regenerate with
-  `npm run generate:panos`.
+  link, painted at exactly the navigation arrow's yaw. The Living Room image
+  additionally paints the Phase 7 window at its exact spatial direction via
+  ray-vs-wall intersection. Regenerate with `npm run generate:panos`.
 
 ## Panorama images
 

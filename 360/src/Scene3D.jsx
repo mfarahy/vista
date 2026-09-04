@@ -13,8 +13,9 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { PANORAMAS } from './panoramas.js'
-import { ROOMS, WALLS } from './floorplan.js'
+import { ROOMS, WALLS, WINDOWS, roomById } from './floorplan.js'
 import { EYE_HEIGHT_M, floorPlanToWorld3D } from './coordinates.js'
+import { windowFloorSegment, windowWorldCorners } from './windowGeometry.js'
 
 const WALL_HEIGHT_M = 2.6
 const WALL_THICKNESS_M = 0.12
@@ -77,6 +78,50 @@ export default function Scene3D({ activePanoramaId, onSelectPanorama }) {
       mesh.position.set(mid.x, WALL_HEIGHT_M / 2, mid.z)
       mesh.rotation.y = -Math.atan2(dy, dx)
       scene.add(mesh)
+    }
+
+    // Windows (Phase 7): one translucent glass plane per floor-plan window,
+    // built from the same derived world-space corners used for the 360
+    // overlay, offset slightly toward the room interior so the plane sits on
+    // the wall's inner face instead of inside the wall box.
+    for (const win of WINDOWS) {
+      const room = roomById(win.roomId)
+      const { center } = windowFloorSegment(win)
+      const toRoom = { x: room.center.x - center.x, y: room.center.y - center.y }
+      const toRoomLen = Math.hypot(toRoom.x, toRoom.y) || 1
+      const inset = WALL_THICKNESS_M / 2 + 0.01
+      const off = {
+        x: (toRoom.x / toRoomLen) * inset,
+        z: (toRoom.y / toRoomLen) * inset,
+      }
+      const corners = windowWorldCorners(win).map((c) => ({
+        x: c.x + off.x,
+        y: c.y,
+        z: c.z + off.z,
+      }))
+      const positions = new Float32Array(corners.flatMap((c) => [c.x, c.y, c.z]))
+      const geometry = new THREE.BufferGeometry()
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+      geometry.setIndex([0, 1, 2, 0, 2, 3])
+      geometry.computeVertexNormals()
+      const glass = new THREE.Mesh(
+        geometry,
+        new THREE.MeshBasicMaterial({
+          color: 0x93c5fd,
+          transparent: true,
+          opacity: 0.85,
+          side: THREE.DoubleSide,
+        }),
+      )
+      scene.add(glass)
+      const edgeGeometry = new THREE.BufferGeometry()
+      edgeGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+      edgeGeometry.setIndex([0, 1, 2, 3, 0])
+      const edges = new THREE.Line(
+        edgeGeometry,
+        new THREE.LineBasicMaterial({ color: 0x1d4ed8 }),
+      )
+      scene.add(edges)
     }
 
     // Panorama markers, positioned via the canonical coordinate mapping.

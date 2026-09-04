@@ -6,7 +6,8 @@
 // panoramas and the 3D view use (see `coordinates.js`).
 
 import { PANORAMAS } from './panoramas.js'
-import { DOORS, ROOMS, WALLS } from './floorplan.js'
+import { DOORS, ROOMS, WALLS, WINDOWS } from './floorplan.js'
+import { windowFloorSegment } from './windowGeometry.js'
 
 const SCALE = 40 // px per meter
 const PADDING = 40 // px
@@ -114,6 +115,22 @@ export default function FloorPlan2D({ activePanoramaId, onSelectPanorama }) {
             className="floorplan-wall"
           />
         )
+      })}
+
+      {WINDOWS.flatMap((win) => {
+        const { a, b } = windowFloorSegment(win)
+        const p1 = toSvg(a)
+        const p2 = toSvg(b)
+        return [
+          <line
+            key={win.id}
+            x1={p1.x}
+            y1={p1.y}
+            x2={p2.x}
+            y2={p2.y}
+            className="floorplan-window"
+          />,
+        ]
       })}
 
       {PANORAMAS.map((pano) => {

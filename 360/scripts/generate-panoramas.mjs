@@ -19,6 +19,10 @@ import { writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { LINKS, PANORAMAS, linkYaw, worldYawBetween } from '../src/panoramas.js'
+import { EYE_HEIGHT_M } from '../src/coordinates.js'
+import { WINDOWS } from '../src/floorplan.js'
+import { windowFloorSegment, windowTopM, windowWorldCorners } from '../src/windowGeometry.js'
+import { worldPointToYawPitch } from '../src/panoramaProjection.js'
 
 const WIDTH = 1920
 const HEIGHT = 960
@@ -192,6 +196,92 @@ const COMPASS_COLORS = [
 
 // ---------------------------------------------------------------- painting
 
+// Paints every floor-plan window belonging to `pano` via exact ray-vs-wall
+// intersection, so the painted window sits at precisely the spatial
+// direction the geometry-based 360 overlay projects. No duplicated
+// coordinates: wall plane, along-wall extents and heights all come from
+// `WINDOWS` / `windowFloorSegment()`.
+function paintWindows(canvas, pano) {
+  const camX = pano.position.x
+  const camY = EYE_HEIGHT_M
+  const camZ = pano.position.y
+  const cameraPos = { x: camX, y: camY, z: camZ }
+
+  for (const win of WINDOWS) {
+    if (win.roomId !== pano.id) continue
+    const seg = windowFloorSegment(win)
+    const top = windowTopM(win)
+    const sill = win.sillM
+    const yConst = Math.abs(seg.a.y - seg.b.y) < 1e-9
+    const planeX = seg.a.x
+    const planeY = seg.a.y
+    const xMin = Math.min(seg.a.x, seg.b.x)
+    const xMax = Math.max(seg.a.x, seg.b.x)
+    const yMin = Math.min(seg.a.y, seg.b.y)
+    const yMax = Math.max(seg.a.y, seg.b.y)
+
+    // Pixel bounds from the corners' angular extents (expanded slightly).
+    const corners = windowWorldCorners(win)
+    const yp = corners.map((c) => worldPointToYawPitch(c, cameraPos, pano.orientation))
+    const yawMin = Math.min(...yp.map((p) => p.yaw)) - 1.5
+    const yawMax = Math.max(...yp.map((p) => p.yaw)) + 1.5
+    const pitchMin = Math.min(...yp.map((p) => p.pitch)) - 1.5
+    const pitchMax = Math.max(...yp.map((p) => p.pitch)) + 1.5
+    const px0 = Math.max(0, Math.floor(((yawMin + 180) / 360) * WIDTH))
+    const px1 = Math.min(WIDTH - 1, Math.ceil(((yawMax + 180) / 360) * WIDTH))
+    const py0 = Math.max(0, Math.floor(((90 - pitchMax) / 180) * HEIGHT))
+    const py1 = Math.min(HEIGHT - 1, Math.ceil(((90 - pitchMin) / 180) * HEIGHT))
+
+    const FRAME = [248, 248, 245]
+    const GLASS = [172, 202, 232]
+
+    for (let py = py0; py <= py1; py++) {
+      const pitch = 90 - ((py + 0.5) / HEIGHT) * 180
+      const pitchRad = (pitch * Math.PI) / 180
+      const cp = Math.cos(pitchRad)
+      const dy = Math.sin(pitchRad)
+      for (let px = px0; px <= px1; px++) {
+        const yaw = ((px + 0.5) / WIDTH) * 360 - 180
+        const worldYaw = yaw + pano.orientation
+        const yawRad = (worldYaw * Math.PI) / 180
+        const dx = cp * Math.cos(yawRad)
+        const dz = cp * Math.sin(yawRad)
+
+        let hitAlong
+        let hitY
+        if (yConst) {
+          if (Math.abs(dz) < 1e-9) continue
+          const t = (planeY - camZ) / dz
+          if (t <= 0) continue
+          const hitX = camX + t * dx
+          hitY = camY + t * dy
+          if (hitX < xMin - 1e-9 || hitX > xMax + 1e-9) continue
+          if (hitY < sill - 1e-9 || hitY > top + 1e-9) continue
+          hitAlong = (hitX - xMin) / (xMax - xMin || 1)
+        } else {
+          if (Math.abs(dx) < 1e-9) continue
+          const t = (planeX - camX) / dx
+          if (t <= 0) continue
+          const hitZ = camZ + t * dz
+          hitY = camY + t * dy
+          if (hitZ < yMin - 1e-9 || hitZ > yMax + 1e-9) continue
+          if (hitY < sill - 1e-9 || hitY > top + 1e-9) continue
+          hitAlong = (hitZ - yMin) / (yMax - yMin || 1)
+        }
+        const v = (hitY - sill) / (top - sill || 1)
+        const isFrame =
+          hitAlong < 0.07 || hitAlong > 0.93 || v < 0.09 || v > 0.91
+        const isMullion =
+          (hitAlong > 0.475 && hitAlong < 0.525) || (v > 0.47 && v < 0.53)
+        canvas.set(px, py, isFrame || isMullion ? FRAME : GLASS)
+      }
+    }
+    console.log(
+      `  window ${win.id}: yaw ${yp[0].yaw.toFixed(1)}..${yp[1].yaw.toFixed(1)} pitch ${pitchMin.toFixed(1)}..${pitchMax.toFixed(1)}`,
+    )
+  }
+}
+
 function paintPanorama(pano) {
   const canvas = makeCanvas()
   const theme = ROOM_THEME[pano.id]
@@ -239,6 +329,10 @@ function paintPanorama(pano) {
     canvas.fillYawRect(yaw - doorHalf, yaw + doorHalf, -33, -30, shade(theme.floor, 0.8))
     canvas.drawLetter(targetTheme.letter, yaw, 0, 12, targetTheme.wall)
   }
+
+  // Real window (Phase 7): painted at its exact spatial direction so the
+  // geometry-based overlay can be validated visually.
+  paintWindows(canvas, pano)
 
   return encodePng(canvas)
 }

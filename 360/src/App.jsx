@@ -7,7 +7,7 @@ import {
   buildScenesConfig,
   navigateToPanorama,
 } from './spatialNavigation.js'
-import { attachWindowAnnotation } from './spatialAnnotation.js'
+import { attachWindowOverlay } from './windowOverlay.js'
 import FloorPlan2D from './FloorPlan2D.jsx'
 import Scene3D from './Scene3D.jsx'
 
@@ -43,7 +43,7 @@ export default function App() {
     if (view !== '360') return
 
     let viewer
-    let annotationCleanup
+    let overlayCleanup
 
     // One Pannellum scene per panorama; navigation arrows are part of each
     // scene's hotspot configuration.
@@ -73,24 +73,20 @@ export default function App() {
       initialSceneRef.current = sceneId
       setActivePanoramaId(sceneId)
 
-      // The window annotation (Phase 3) only exists in the living room.
+      // Geometry-based window overlay (Phase 7): attaches for any panorama
+      // that owns a floor-plan window (currently living room only).
       // Navigation arrows are created by Pannellum from the scene config.
-      if (annotationCleanup) {
-        annotationCleanup()
-        annotationCleanup = undefined
+      if (overlayCleanup) {
+        overlayCleanup()
+        overlayCleanup = undefined
       }
-      if (sceneId === 'living-room') {
-        annotationCleanup = attachWindowAnnotation(
-          viewer,
-          containerRef.current,
-        )
-      }
+      overlayCleanup = attachWindowOverlay(viewer, containerRef.current, sceneId)
     }
     viewer.on('load', handleSceneLoad)
 
     return () => {
       viewer.off('load', handleSceneLoad)
-      if (annotationCleanup) annotationCleanup()
+      if (overlayCleanup) overlayCleanup()
       viewer.destroy()
     }
   }, [view])
