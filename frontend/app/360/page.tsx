@@ -1,14 +1,10 @@
 import { getTranslations } from '@/lib/i18n/core';
-import { ThreeSixtyPreview } from '@/components/preview/three-sixty/ThreeSixtyPreview';
+import { Floorplan360Workflow } from '@/components/v360/floorplan-360-workflow';
 
 export const metadata = {
   title: getTranslations('en').t('viewers.nav.threeSixty'),
 };
 
 export default function ThreeSixtyPage() {
-  return (
-    <div className="h-dvh w-full overflow-hidden">
-      <ThreeSixtyPreview />
-    </div>
-  );
+  return <Floorplan360Workflow />;
 }

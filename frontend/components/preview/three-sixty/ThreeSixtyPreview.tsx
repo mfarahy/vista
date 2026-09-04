@@ -11,6 +11,7 @@ import {
   type PannellumViewer,
 } from './spatialNavigation';
 import { attachWindowOverlay } from './windowOverlay';
+import { attachFloorBoundaryOverlay } from './floorBoundaryOverlay';
 import { WINDOWS } from './floorplan';
 import { windowWidthValue } from './windowGeometry';
 import { useI18n } from '@/lib/i18n';
@@ -23,6 +24,21 @@ type ViewerHandle = PannellumViewer & {
   off: (event: 'load', handler: () => void) => void;
   getScene: () => string;
   destroy: () => void;
+};
+
+/**
+ * A single uploaded 360 panorama to render instead of the static demo scenes.
+ * `yaw` is the initial viewing direction; the floor boundary (normalized
+ * polygon) is projected as the phase-1 floor-to-wall overlay.
+ */
+export type ThreeSixtyPanorama = {
+  imageUrl: string;
+  /** Initial panorama yaw in degrees; also used as the overlay orientation. */
+  yaw: number;
+  /** Floor-boundary polygon in normalized [0,1] floor-plan coordinates. */
+  floorBoundary?: number[][];
+  /** Camera position in normalized [0,1] floor-plan coordinates. */
+  camera?: { x: number; y: number };
 };
 
 function roomLabelKey(id: string): string {
@@ -57,15 +73,15 @@ function loadPannellumScript(): Promise<void> {
   });
 }
 
-export function ThreeSixtyPreview() {
+export function ThreeSixtyPreview({ panorama }: { panorama?: ThreeSixtyPanorama }) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   // Tracks which scene the viewer should (re)mount on; kept out of the
   // effect's dependency array so in-viewer arrow navigation (which also
   // updates it) doesn't tear down and recreate the Pannellum viewer.
-  const initialSceneRef = useRef('living-room');
+  const initialSceneRef = useRef(panorama ? 'uploaded' : 'living-room');
   const [currentLabel, setCurrentLabel] = useState(() =>
-    t(roomLabelKey('living-room')),
+    t(panorama ? 'viewers.threeSixty.uploadedPanorama' : roomLabelKey('living-room')),
   );
 
   useEffect(() => {
@@ -88,9 +104,51 @@ export function ThreeSixtyPreview() {
       if (disposed || !containerRef.current) return;
 
       const pannellum = window.pannellum as
-        | { viewer: (container: HTMLElement, config: unknown) => ViewerHandle }
-        | undefined;
+        { viewer: (container: HTMLElement, config: unknown) => ViewerHandle } | undefined;
       if (!pannellum) return;
+
+      if (panorama) {
+        // Single uploaded panorama: no navigation links, just the boundary
+        // overlay attached when the scene loads.
+        const scenes = {
+          uploaded: {
+            panorama: panorama.imageUrl,
+            yaw: panorama.yaw,
+            pitch: 0,
+            hfov: 100,
+            hotSpots: [],
+          },
+        };
+        viewer = pannellum.viewer(containerRef.current, {
+          type: 'equirectangular',
+          firstScene: 'uploaded',
+          scenes,
+          autoLoad: true,
+          sceneFadeDuration: FADE_TRANSITION_MS,
+          mouseZoom: true,
+          keyboardZoom: true,
+          showControls: false,
+          compass: false,
+          tooltip: false,
+        });
+
+        handleSceneLoad = () => {
+          setCurrentLabel(t('viewers.threeSixty.uploadedPanorama'));
+          if (overlayCleanup) {
+            overlayCleanup();
+            overlayCleanup = undefined;
+          }
+          if (panorama.floorBoundary && panorama.camera && containerRef.current) {
+            overlayCleanup = attachFloorBoundaryOverlay(viewer!, containerRef.current, {
+              boundary: panorama.floorBoundary,
+              camera: panorama.camera,
+              orientation: panorama.yaw,
+            });
+          }
+        };
+        viewer.on('load', handleSceneLoad);
+        return;
+      }
 
       const scenes = buildScenesConfig(
         (link) => {
@@ -118,7 +176,7 @@ export function ThreeSixtyPreview() {
       const handleSceneLoadInner = () => {
         const sceneId = viewer?.getScene();
         const pano = sceneId ? panoramaById(sceneId) : undefined;
-        setCurrentLabel(pano ? t(roomLabelKey(pano.id)) : sceneId ?? '');
+        setCurrentLabel(pano ? t(roomLabelKey(pano.id)) : (sceneId ?? ''));
         if (sceneId) initialSceneRef.current = sceneId;
 
         // Geometry-based window overlay: attaches for any panorama that owns
@@ -153,7 +211,7 @@ export function ThreeSixtyPreview() {
         viewer.destroy();
       }
     };
-  }, [t]);
+  }, [t, panorama]);
 
   return (
     <div className="vista-360-preview">
@@ -173,7 +231,9 @@ export function ThreeSixtyPreview() {
       </div>
 
       <h1 className="vista-360-preview__title">
-        {t('viewers.threeSixty.roomPattern', { room: currentLabel })}
+        {panorama
+          ? t('viewers.threeSixty.uploadedPanorama')
+          : t('viewers.threeSixty.roomPattern', { room: currentLabel })}
       </h1>
     </div>
   );

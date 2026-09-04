@@ -212,3 +212,52 @@ model Document {
     @@index([propertyId])
     @@index([status])
 }
+
+/// 2D floor plan uploaded for the Vista 360 floorplan-to-panorama MVP. The
+/// original image bytes live in the swappable object storage (R2) keyed by
+/// `originalKey`; this table stores metadata, the raw Raster2Seq analysis
+/// result (JSON, untouched) and a small derived floor-boundary representation
+/// used by the 360 overlay. Camera position is stored normalized (0..1).
+model Floorplan {
+    id             String    @id @default(cuid())
+    propertyId     String?
+    originalKey    String
+    imageUrl       String
+    mimeType       String
+    size           Int
+    width          Int?
+    height         Int?
+    status         String    @default("pending")
+    error          String?
+    analysisResult Json?
+    floorBoundary  Json?
+    cameraX        Float?
+    cameraY        Float?
+    cameraYaw      Float?
+    panoramas      Panorama[]
+    createdAt      DateTime  @default(now())
+    updatedAt      DateTime  @updatedAt
+
+    @@index([propertyId])
+}
+
+/// A 360 panorama belonging to a floor plan. Bytes live in object storage
+/// (R2) keyed by `originalKey`. A floor plan can have multiple panoramas;
+/// the camera position is copied from the floor plan at upload time so every
+/// panorama stays self-describing.
+model Panorama {
+    id          String   @id @default(cuid())
+    floorplanId String
+    originalKey String
+    imageUrl    String
+    mimeType    String
+    size        Int
+    cameraX     Float?
+    cameraY     Float?
+    cameraYaw   Float?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    floorplan   Floorplan @relation(fields: [floorplanId], references: [id], onDelete: Cascade)
+
+    @@index([floorplanId])
+}

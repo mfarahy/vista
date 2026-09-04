@@ -1197,11 +1197,13 @@ const de: TranslationSchema = {
     sectionAbout: 'Über',
     sectionAboutDescription: 'Kurze Vorstellung und ausführliche Beschreibung.',
     sectionCredentials: 'Qualifikationen & Empfehlungen',
-    sectionCredentialsDescription: 'Auszeichnungen, Zertifizierungen und Referenzen, die Vertrauen schaffen.',
+    sectionCredentialsDescription:
+      'Auszeichnungen, Zertifizierungen und Referenzen, die Vertrauen schaffen.',
     sectionBranding: 'Zusätzliches Branding',
     sectionBrandingDescription: 'Weitere Logos, Badges oder Links (optional).',
     fieldPhoto: 'Profilfoto',
-    fieldPhotoHint: 'Laden Sie ein Porträtfoto hoch oder geben Sie eine direkte Bild-URL an (https://…).',
+    fieldPhotoHint:
+      'Laden Sie ein Porträtfoto hoch oder geben Sie eine direkte Bild-URL an (https://…).',
     fieldName: 'Name',
     fieldNamePlaceholder: 'z. B. Max Mustermann',
     fieldJobTitle: 'Berufsbezeichnung / Rolle',
@@ -1292,22 +1294,29 @@ const de: TranslationSchema = {
     loadingModel: '3D-Modell wird geladen…',
     errors: {
       invalidImage: 'Das Bild ist ungültig. Bitte laden Sie eine JPG-, PNG- oder WEBP-Datei hoch.',
-      unsupportedType: 'Nicht unterstützter Dateityp. Bitte laden Sie ein JPG-, PNG- oder WEBP-Bild hoch.',
+      unsupportedType:
+        'Nicht unterstützter Dateityp. Bitte laden Sie ein JPG-, PNG- oder WEBP-Bild hoch.',
       tooLarge: 'Das Bild ist zu groß. Maximale Größe ist 15 MB.',
       missingFile: 'Bitte wählen Sie zuerst ein Grundrissbild aus.',
       authFailed: 'Authentifizierung fehlgeschlagen. Bitte kontaktieren Sie den Support.',
       insufficientCredits: 'Service-Guthaben aufgebraucht. Bitte versuchen Sie es später erneut.',
       rateLimited: 'Service ist ausgelastet. Bitte versuchen Sie es gleich erneut.',
-      serverError: 'Der 3D-Service ist vorübergehend nicht verfügbar. Bitte versuchen Sie es erneut.',
-      timeout: 'Die Konvertierung hat zu lange gedauert. Der Grundriss ist möglicherweise zu komplex. Bitte versuchen Sie es erneut.',
-      malformedResponse: 'Der 3D-Dienst hat eine unerwartete Antwort geliefert. Bitte versuchen Sie es erneut.',
-      conversionFailed: 'Der Grundriss konnte nicht konvertiert werden. Bitte versuchen Sie ein klareres Bild.',
+      serverError:
+        'Der 3D-Service ist vorübergehend nicht verfügbar. Bitte versuchen Sie es erneut.',
+      timeout:
+        'Die Konvertierung hat zu lange gedauert. Der Grundriss ist möglicherweise zu komplex. Bitte versuchen Sie es erneut.',
+      malformedResponse:
+        'Der 3D-Dienst hat eine unerwartete Antwort geliefert. Bitte versuchen Sie es erneut.',
+      conversionFailed:
+        'Der Grundriss konnte nicht konvertiert werden. Bitte versuchen Sie ein klareres Bild.',
       notConfigured: 'Die 3D-Erzeugung ist nicht konfiguriert. Bitte kontaktieren Sie den Support.',
-      invalidGlb: 'Das erzeugte 3D-Modell konnte nicht geladen werden. Bitte versuchen Sie es erneut.',
+      invalidGlb:
+        'Das erzeugte 3D-Modell konnte nicht geladen werden. Bitte versuchen Sie es erneut.',
     },
     meltflex: {
       title: 'Grundriss → 3D',
-      intro: 'Laden Sie einen 2D-Grundriss hoch und erzeugen Sie ein begehbares 3D-Modell via MeltFlex.',
+      intro:
+        'Laden Sie einen 2D-Grundriss hoch und erzeugen Sie ein begehbares 3D-Modell via MeltFlex.',
       dropzone: 'Klicken oder Grundrissbild ablegen',
       dropzoneHint: 'JPG · PNG · WEBP, bis 15 MB',
       replaceImage: 'Bild ersetzen',
@@ -1320,18 +1329,24 @@ const de: TranslationSchema = {
       empty: 'Laden Sie einen Grundriss hoch, um das 3D-Modell zu sehen',
       loadingModel: '3D-Modell wird geladen…',
       invalidImage: 'Das Bild ist ungültig. Bitte laden Sie eine JPG-, PNG- oder WEBP-Datei hoch.',
-      unsupportedType: 'Nicht unterstützter Dateityp. Bitte laden Sie ein JPG-, PNG- oder WEBP-Bild hoch.',
+      unsupportedType:
+        'Nicht unterstützter Dateityp. Bitte laden Sie ein JPG-, PNG- oder WEBP-Bild hoch.',
       tooLarge: 'Das Bild ist zu groß. Maximale Größe ist 15 MB.',
       missingFile: 'Bitte wählen Sie zuerst ein Grundrissbild aus.',
       authFailed: 'MeltFlex-Authentifizierung fehlgeschlagen. Bitte kontaktieren Sie den Support.',
       insufficientCredits: 'MeltFlex hat keine Credits mehr. Bitte versuchen Sie es später erneut.',
       rateLimited: 'MeltFlex ist ausgelastet. Bitte versuchen Sie es gleich erneut.',
-      serverError: 'Der 3D-Service ist vorübergehend nicht verfügbar. Bitte versuchen Sie es erneut.',
-      timeout: 'Die Konvertierung hat zu lange gedauert. Der Grundriss ist möglicherweise zu komplex. Bitte versuchen Sie es erneut.',
-      malformedResponse: 'Der 3D-Dienst hat eine unerwartete Antwort geliefert. Bitte versuchen Sie es erneut.',
-      conversionFailed: 'Der Grundriss konnte nicht konvertiert werden. Bitte versuchen Sie ein klareres Bild.',
+      serverError:
+        'Der 3D-Service ist vorübergehend nicht verfügbar. Bitte versuchen Sie es erneut.',
+      timeout:
+        'Die Konvertierung hat zu lange gedauert. Der Grundriss ist möglicherweise zu komplex. Bitte versuchen Sie es erneut.',
+      malformedResponse:
+        'Der 3D-Dienst hat eine unerwartete Antwort geliefert. Bitte versuchen Sie es erneut.',
+      conversionFailed:
+        'Der Grundriss konnte nicht konvertiert werden. Bitte versuchen Sie ein klareres Bild.',
       notConfigured: 'Die 3D-Erzeugung ist nicht konfiguriert. Bitte kontaktieren Sie den Support.',
-      invalidGlb: 'Das erzeugte 3D-Modell konnte nicht geladen werden. Bitte versuchen Sie es erneut.',
+      invalidGlb:
+        'Das erzeugte 3D-Modell konnte nicht geladen werden. Bitte versuchen Sie es erneut.',
       hint: 'Ziehen zum Umkreisen · Scrollen zum Zoomen · Rechts ziehen zum Verschieben',
     },
   },
@@ -1402,6 +1417,7 @@ const de: TranslationSchema = {
     threeSixty: {
       badge: '360 Viewer',
       roomPattern: '360 Viewer · {room}',
+      uploadedPanorama: 'Panorama',
       rooms: {
         'living-room': 'Wohnzimmer',
         kitchen: 'Küche',
@@ -1409,6 +1425,51 @@ const de: TranslationSchema = {
       },
       windowWidth: '{width} m',
       viewerAriaLabel: '360°-Panorama-Viewer',
+    },
+  },
+  v360: {
+    badge: '360-Workflow',
+    title: 'Grundriss zu 360-Panorama',
+    stepFloorplan: 'Schritt 1 · Grundriss',
+    stepCamera: 'Schritt 2 · Kameraposition',
+    stepPanorama: 'Schritt 3 · Panorama',
+    stepPreview: 'Schritt 4 · Vorschau',
+    floorplanUploadTitle: '2D-Grundriss hochladen',
+    floorplanUploadHint: 'JPG · PNG · WEBP, max. 15 MB',
+    analyzing: 'Grundriss wird analysiert…',
+    analysisCompleted: 'Grundriss analysiert — Bodengrenze erkannt.',
+    analysisFailed: 'Der Grundriss konnte nicht analysiert werden.',
+    retryAnalysis: 'Analyse erneut versuchen',
+    uploadFailed: 'Der Grundriss konnte nicht hochgeladen werden.',
+    loadFailed: 'Der Grundriss konnte nicht geladen werden.',
+    cameraTitle: '360-Kamera positionieren',
+    cameraHint:
+      'Klicken Sie auf den Grundriss, um die Kamera zu platzieren, und ziehen Sie sie anschließend zum Anpassen.',
+    cameraYawLabel: 'Blickrichtung',
+    cameraYawHint: 'Drehen Sie den Kompass so, dass er in die Blickrichtung der Kamera zeigt.',
+    cameraYawDegrees: '{deg}°',
+    cameraMarker: 'Kameraposition',
+    continue: 'Weiter',
+    back: 'Zurück',
+    panoramaUploadTitle: '360-Panorama hochladen',
+    panoramaUploadHint: 'Äquirektanguläres 360°-Bild · JPG · PNG · WEBP',
+    panoramaUploading: 'Panorama wird hochgeladen…',
+    panoramaUploadFailed: 'Das Panorama konnte nicht hochgeladen werden.',
+    panoramaInvalid: 'Das Panoramabild ist ungültig.',
+    previewTitle: '360-Vorschau',
+    previewHint: 'Die cyanfarbenen Linien markieren den Übergang zwischen Boden und Wand.',
+    boundaryLegend: 'Bodengrenze',
+    floorplanAria: 'Analysierter Grundriss mit Kameramarkierung',
+    floorplanGeometryLegend: 'Bodengrenze (aus der Analyse)',
+    errors: {
+      invalidImage: 'Es werden nur JPG-, PNG- und WEBP-Bilder unterstützt.',
+      network: 'Der Server konnte nicht erreicht werden. Bitte erneut versuchen.',
+      generic: 'Etwas ist schiefgelaufen. Bitte erneut versuchen.',
+      raster2seqUnavailable: 'Der Grundriss-Analysedienst ist derzeit nicht verfügbar.',
+      raster2seqTimeout:
+        'Die Grundriss-Analyse hat das Zeitlimit überschritten. Bitte erneut versuchen.',
+      storageFailed: 'Die hochgeladene Datei konnte nicht gespeichert werden.',
+      notFound: 'Die angeforderte Ressource wurde nicht gefunden.',
     },
   },
   floorplanDebug: {
@@ -1437,7 +1498,8 @@ const de: TranslationSchema = {
     openings: 'Öffnungen',
     area: 'Fläche',
     areaValue: '{value} m²',
-    hintToggle: '2D zeigt die verarbeitete Geometrie (Wände, Öffnungen, Räume); 3D das erzeugte Modell.',
+    hintToggle:
+      '2D zeigt die verarbeitete Geometrie (Wände, Öffnungen, Räume); 3D das erzeugte Modell.',
     ariaLabel: '2D-Grundriss-Debug-Ansicht',
     roomName: 'Raum {number}',
     roomKitchen: 'Küche',
@@ -1473,12 +1535,15 @@ const de: TranslationSchema = {
     testFloorPlanTitle: 'Grundriss testen',
     customImageLabel: 'Eigenes Bild',
     customImageTitle: 'Eigenen Grundriss hochladen',
-    customImageHint: 'Eigenen Grundriss hochladen — JPEG, PNG, WebP bis 15 MB. Kein Fixture erforderlich.',
+    customImageHint:
+      'Eigenen Grundriss hochladen — JPEG, PNG, WebP bis 15 MB. Kein Fixture erforderlich.',
     fixtureLabel: 'Fixture',
     fixtureTitle: 'Bekanntes Beispiel laden',
-    fixtureHint: 'Gespeichertes Fixture c658e915-9247-4904-8032-717dd11ecfdd ohne Modellaufruf laden.',
+    fixtureHint:
+      'Gespeichertes Fixture c658e915-9247-4904-8032-717dd11ecfdd ohne Modellaufruf laden.',
     fixtureMeta: '5 Wände · 6 Türen · 1 Eingangstür · 5 Fenster · 1 Küche',
-    fixtureBothNote: 'Beide Abläufe teilen dieselbe Visualisierung und VLM-Pipeline. Das Laden eines Fixtures oder Hochladen eines neuen Bildes ersetzt das aktuelle RAW-Ergebnis und löscht das alte VLM-Ergebnis.',
+    fixtureBothNote:
+      'Beide Abläufe teilen dieselbe Visualisierung und VLM-Pipeline. Das Laden eines Fixtures oder Hochladen eines neuen Bildes ersetzt das aktuelle RAW-Ergebnis und löscht das alte VLM-Ergebnis.',
     recognitionStatusLabel: 'Erkennung',
     recognitionNotRun: 'Nicht gestartet',
     recognitionRunning: 'Erkennung läuft…',
@@ -1508,8 +1573,10 @@ const de: TranslationSchema = {
     errorRecognitionStatus: 'Erkennung fehlgeschlagen (HTTP {status})',
     errorProviderTimeout: 'Erkennung hat zu lange gedauert',
     errorMalformedResponse: 'Unerwartete Antwort des Erkennungs-Providers',
-    errorServiceUnavailable: 'Erkennungsdienst nicht verfügbar (503). Das Floorplan-Recognition-Modell läuft möglicherweise nicht.',
-    errorServiceUnavailableHint: 'Für lokale Tests Modell starten mit: docker compose --profile floorplan up floorplan-recognition — oder "Fixture laden" nutzen, um die Pipeline ohne Modell zu testen.',
+    errorServiceUnavailable:
+      'Erkennungsdienst nicht verfügbar (503). Das Floorplan-Recognition-Modell läuft möglicherweise nicht.',
+    errorServiceUnavailableHint:
+      'Für lokale Tests Modell starten mit: docker compose --profile floorplan up floorplan-recognition — oder "Fixture laden" nutzen, um die Pipeline ohne Modell zu testen.',
     loading: 'Grundriss-Erkennung läuft…',
     noResult: 'Noch kein Ergebnis. Bild hochladen und Erkennung starten.',
     imageDimensions: 'Bild: {width} × {height}',
@@ -1592,7 +1659,8 @@ const de: TranslationSchema = {
     annotatedAlt: 'Annotierter Grundriss mit Objekt-IDs',
     downloadAnnotated: 'Annotiertes PNG herunterladen',
     annotatedHint: 'Gleiche Koordinaten wie Original · halbtransparente Overlays · lesbare IDs',
-    annotatedVerify: 'Prüfen Sie die Annotation: Jedes Label muss auf der korrekten Geometrie sitzen.',
+    annotatedVerify:
+      'Prüfen Sie die Annotation: Jedes Label muss auf der korrekten Geometrie sitzen.',
     annotatedEmpty: 'Noch kein annotiertes Bild. Erst Erkennung ausführen.',
     vlmNeedAnnotated: 'Annotiertes Bild wird noch erzeugt — bitte warten.',
     vlmInputTitle: 'VLM-Eingabe',
@@ -1601,10 +1669,12 @@ const de: TranslationSchema = {
     vlmInputAnnotated: 'Bild 2 — Annotiert',
     vlmInputAnnotatedHint: 'Objekt-ID-Grounding (wall-*, window-*)',
     vlmInputJson: 'Text — Raw-JSON',
-    vlmInputJsonHint: '{walls} Wände · {windows} Fenster · {doors} Türen · maschinenlesbare Geometrie',
+    vlmInputJsonHint:
+      '{walls} Wände · {windows} Fenster · {doors} Türen · maschinenlesbare Geometrie',
     vlmNoImage: 'Kein Bild',
     runpodTitle: 'RunPod-GPU-Ergebnis (CubiCasa5k + VLM)',
-    runpodIntro: 'Remote-GPU-Inferenz via RunPod: CubiCasa5k-Entwurf plus VLM-Verfeinerung. Original, Entwurf und verfeinertes Bild bleiben zum Vergleich erhalten.',
+    runpodIntro:
+      'Remote-GPU-Inferenz via RunPod: CubiCasa5k-Entwurf plus VLM-Verfeinerung. Original, Entwurf und verfeinertes Bild bleiben zum Vergleich erhalten.',
     runpodOriginal: 'Original',
     runpodDraft: 'CubiCasa5k-Entwurf',
     runpodRefined: 'VLM-verfeinert',
@@ -1623,13 +1693,15 @@ const de: TranslationSchema = {
     vlmGroundingWalls: 'Wand-Beziehungen',
     vlmGroundingOpenings: 'Öffnung → Wand-Zuordnungen',
     vlmGroundingConfidence: 'Grounding-Konfidenz: {value}%',
-    vlmInvalidIdHint: 'Ungültige IDs wurden herausgefiltert — siehe Warnungen. Sie werden nicht als gültige Beziehungen gerendert.',
+    vlmInvalidIdHint:
+      'Ungültige IDs wurden herausgefiltert — siehe Warnungen. Sie werden nicht als gültige Beziehungen gerendert.',
     vlmRoomWalls: 'Wände: [{walls}]',
     vlmRoomOpenings: 'Öffnungen: [{openings}]',
     topologyTitle: 'Architektur-Topologie',
     topologyIntro:
       'Der VLM-→-Topologie-Vertrag. Beziehungen und Klassifikationen referenzieren ausschließlich RAW-Erkennungsobjekt-IDs — keine rekonstruierte Geometrie. Ein deterministischer Geometrie-Solver kann dies später konsumieren.',
-    topologyClickHint: 'Klicken Sie auf ein Element, um seine tatsächlichen RAW-Polygone in der Visualisierung hervorzuheben (es wird keine neue Geometrie gezeichnet).',
+    topologyClickHint:
+      'Klicken Sie auf ein Element, um seine tatsächlichen RAW-Polygone in der Visualisierung hervorzuheben (es wird keine neue Geometrie gezeichnet).',
     topologyClear: 'Hervorhebungen entfernen',
     topologyEmpty: 'Noch keine Topologie-Zusammenfassung. Das VLM hat keine Beziehungen gefunden.',
     topologyNone: 'keine',
@@ -1640,10 +1712,12 @@ const de: TranslationSchema = {
     topologySuspicious: 'Verdächtige Objekte',
     topologyUncertain: 'Unsicher',
     topologyValid: 'Gültige Objekte',
-    topologyOnlyNote: 'Nur-Topologie-Modus: Rekonstruktion (normalize / Raum-Geometrie / model3d / GLB) ist ausgeblendet — dieses Experiment isoliert den VLM-→-Topologie-Vertrag.',
+    topologyOnlyNote:
+      'Nur-Topologie-Modus: Rekonstruktion (normalize / Raum-Geometrie / model3d / GLB) ist ausgeblendet — dieses Experiment isoliert den VLM-→-Topologie-Vertrag.',
     vlmModeGeometryOnly: 'Nur Geometrie',
     vlmModeRawVlmConstraints: 'RAW + VLM + Constraints',
-    geometryOnlyNote: 'Nur Geometrie-Constraints: Nur das Grundrissbild und die von Geometrie-Constraints referenzierten RAW-Objekte werden angezeigt; andere VLM-Ebenen und Rekonstruktionen sind ausgeblendet.',
+    geometryOnlyNote:
+      'Nur Geometrie-Constraints: Nur das Grundrissbild und die von Geometrie-Constraints referenzierten RAW-Objekte werden angezeigt; andere VLM-Ebenen und Rekonstruktionen sind ausgeblendet.',
     constraintsShowLayer: 'Geometrie-Constraints-Ebene anzeigen',
     constraintsMergeWalls: 'Merge-Wände anzeigen',
     constraintsContinueWall: 'Wand-Fortsetzung anzeigen',
@@ -1656,9 +1730,11 @@ const de: TranslationSchema = {
     constraintsWallTJunction: 'Wand-T-Verbindungen anzeigen',
     constraintsOpeningInterruptsWall: 'Öffnung-unterbricht-Wand anzeigen',
     constraintsTitle: 'Geometrie-Constraints',
-    constraintsIntro: 'Vom VLM vorgeschlagene Geometrie-Constraints für einen zukünftigen deterministischen Geometrie-Solver. Keine Koordinaten — nur Beziehungen zwischen existierenden RAW-Objekt-IDs, sortiert nach Konfidenz. Jedes Constraint ist klickbar: Die Visualisierung hebt die beteiligten RAW-Objekte hervor und das Detailfeld erklärt den Vorschlag.',
+    constraintsIntro:
+      'Vom VLM vorgeschlagene Geometrie-Constraints für einen zukünftigen deterministischen Geometrie-Solver. Keine Koordinaten — nur Beziehungen zwischen existierenden RAW-Objekt-IDs, sortiert nach Konfidenz. Jedes Constraint ist klickbar: Die Visualisierung hebt die beteiligten RAW-Objekte hervor und das Detailfeld erklärt den Vorschlag.',
     constraintsCount: '{count} Constraints',
-    constraintsEmpty: 'Keine Geometrie-Constraints. Das VLM fand keine sicheren deterministischen Beziehungen für das aktuelle RAW-Ergebnis.',
+    constraintsEmpty:
+      'Keine Geometrie-Constraints. Das VLM fand keine sicheren deterministischen Beziehungen für das aktuelle RAW-Ergebnis.',
     constraintsSumMerge: 'Merge-Wände',
     constraintsSumContinue: 'Wand-Fortsetzungen',
     constraintsSumExtend: 'Wand-Verlängerungen',
@@ -1678,9 +1754,11 @@ const de: TranslationSchema = {
     constraintsDetailsReason: 'Begründung',
     constraintsNoReason: 'Keine Begründung angegeben.',
     geometryRelationshipsTitle: 'Geometrie-Beziehungen',
-    geometryRelationshipsIntro: 'Vom VLM interpretierte Beziehungen zwischen existierenden Geometrie-Primitiven (keine Koordinaten, keine neue Geometrie). Direktionale Typen erhalten die Quell-→-Ziel-Reihenfolge. Wird später von einem deterministischen Geometrie-Solver verarbeitet (in diesem POC nicht implementiert).',
+    geometryRelationshipsIntro:
+      'Vom VLM interpretierte Beziehungen zwischen existierenden Geometrie-Primitiven (keine Koordinaten, keine neue Geometrie). Direktionale Typen erhalten die Quell-→-Ziel-Reihenfolge. Wird später von einem deterministischen Geometrie-Solver verarbeitet (in diesem POC nicht implementiert).',
     geometryRelationshipsCount: '{count} Beziehungen',
-    geometryRelationshipsEmpty: 'Keine Geometrie-Beziehungen. Das VLM fand keine sicheren Primitiv-Beziehungen für das aktuelle RAW-Ergebnis.',
+    geometryRelationshipsEmpty:
+      'Keine Geometrie-Beziehungen. Das VLM fand keine sicheren Primitiv-Beziehungen für das aktuelle RAW-Ergebnis.',
     geometryHighlight: 'Hervorheben',
   },
   geometryPrimitives: {
@@ -1695,11 +1773,13 @@ const de: TranslationSchema = {
     modeRaw: 'RAW',
     modeRawPlus: 'RAW + Primitive',
     modeOnly: 'Nur Primitive',
-    modeOnlyNote: 'Nur-Primitive-Modus: Originalbild plus die extrahierte Primitive-Ebene. Keine RAW-Polygone, kein VLM, keine rekonstruierten Räume.',
+    modeOnlyNote:
+      'Nur-Primitive-Modus: Originalbild plus die extrahierte Primitive-Ebene. Keine RAW-Polygone, kein VLM, keine rekonstruierten Räume.',
     showLabels: 'Primitive-Beschriftungen anzeigen',
     showMeasurements: 'Messwerte anzeigen',
     showSourcePolygons: 'Quellpolygone anzeigen',
-    selectHint: 'Klicken Sie auf ein Primitive, um Quellobjekt, Geometrie und gemessene Beziehungen zu inspizieren.',
+    selectHint:
+      'Klicken Sie auf ein Primitive, um Quellobjekt, Geometrie und gemessene Beziehungen zu inspizieren.',
     summaryTitle: 'Diagnose-Zusammenfassung',
     summaryRawWalls: 'RAW-Wände',
     summaryTotal: 'Primitive',
@@ -1713,7 +1793,8 @@ const de: TranslationSchema = {
     summaryAmbiguous: 'mehrdeutig',
     summaryLowQuality: 'niedrige Qualität',
     compoundTitle: 'Zusammengesetzte RAW-Objekte',
-    compoundHint: 'Primitive pro RAW-Wandobjekt, komplexeste zuerst. Auswählen, um das RAW-Objekt zu inspizieren.',
+    compoundHint:
+      'Primitive pro RAW-Wandobjekt, komplexeste zuerst. Auswählen, um das RAW-Objekt zu inspizieren.',
     compoundPrimitives: '{count} Primitive',
     jsonTitle: 'Geometrie-Primitive JSON',
     export: 'Primitive exportieren',
