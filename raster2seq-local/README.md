@@ -52,9 +52,11 @@ semantic labels) in a clean `{success, result}` envelope.
 ## Requirements
 
 - Node.js ≥ 18 (API layer; tested with Node 26).
-- Python 3.10 (model layer; tested with 3.10.11) — **real inference additionally
-  needs Linux + NVIDIA GPU + CUDA toolkit**, see below.
-- ~2 GB free for the checkpoint; ~3 GB for a Python venv.
+- Python 3.10 (model layer; tested with 3.10.11).
+- For real inference: NVIDIA GPU + CUDA toolkit + C++ compiler.
+  Upstream targets Linux + CUDA 11.8, but this project is verified working on
+  **Windows 11 + GTX 1660 Ti (6 GB)** — see "Model setup / Windows (verified)".
+- ~2 GB free for the checkpoint; ~4 GB for the Python venv (GPU torch).
 
 ## Installation
 
@@ -75,9 +77,50 @@ C:\path\to\python3.10 -m venv .venv
 .venv\Scripts\pip install -r inference\requirements-windows-cpu.txt
 ```
 
-## Model setup / download (GPU machine)
+## Model setup / Windows GPU (verified 2026-09-04)
 
-On a Linux + CUDA 11.8 box, per upstream README:
+Machine: Windows 11, GTX 1660 Ti 6 GB, driver 610.74, VS 18 Community with
+"C++ workload" (MSVC 14.51), CUDA Toolkit 13.3 (`nvcc` 13.3), Python 3.10.11.
+
+```powershell
+python3.10 -m venv .venv
+.venv\Scripts\pip install torch==2.3.1 torchvision==0.18.1 `
+  --index-url https://download.pytorch.org/whl/cu118
+.venv\Scripts\pip install -r inference\requirements-windows-cpu.txt
+.venv\Scripts\pip install einops plotly
+# checkpoint (~1.45 GB, cached by huggingface_hub on first use):
+.venv\Scripts\python -c "import sys; sys.path.insert(0,'raster2seq'); \
+  from raster2seq_hub import download_checkpoint; download_checkpoint('cubicasa5k')"
+```
+
+Compile the deformable-attention ops. Two wrinkles on Windows, both handled
+without touching upstream code:
+
+1. torch 2.3.1 (cu118) refuses `nvcc` 13.3 (major-version check), so
+   `.cuda-shim/bin/nvcc.exe` (built from `.cuda-shim/nvcc-shim.c` with `cl`,
+   git-ignored) reports 11.8 for `--version` and delegates everything else to
+   the real `nvcc` 13.3. Its `include/` + `lib/` are junctions to the 13.3
+   toolkit.
+2. CUDA 13.x headers require the conformant MSVC preprocessor — set
+   `CL=/Zc:preprocessor` (env only, picked up automatically by `cl`).
+
+```powershell
+$env:CUDA_HOME = "$pwd\.cuda-shim"; $env:DISTUTILS_USE_SDK = "1"; $env:CL = "/Zc:preprocessor"
+cmd /c '"C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvars64.bat" >nul && .venv\Scripts\python.exe setup.py build install'
+# run from raster2seq/models/ops; ends with "Finished processing dependencies
+# for MultiScaleDeformableAttention==1.0"
+```
+
+Then point the API at that interpreter
+(`PYTHON_BIN=D:\repo\vista\raster2seq-local\.venv\Scripts\python.exe`).
+
+Verified: `samples/floorplan-multiroom.png` → 16 spaces (rooms + door/window
+lines), `inference_ms` 2679.9; `samples/floorplan-sample1.jpg` → 22 spaces,
+3740.4 ms — full JSON in `samples/real-result-*.json`.
+
+## Model setup / Linux (per upstream README)
+
+On a Linux + CUDA 11.8 box:
 
 ```bash
 conda create -n raster2seq python=3.10 && conda activate raster2seq
@@ -175,9 +218,10 @@ cd test
 ```
 
 Covers: health, real sample upload → structured output, missing image (400),
-non-image bytes (400), wrong field name (400), staging-dir cleanup. The real
-(non-mock) path was verified to return a clean `503 MODEL_UNAVAILABLE` when
-the model env is absent, with no temp files left behind and no path leakage.
+non-image bytes (400), wrong field name (400), staging-dir cleanup. Verified
+both in mock mode and in real GPU mode (upload → 16 spaces from the actual
+model, temp dir empty afterwards, no path leakage). With the model env absent
+the API degrades to a clean `503 MODEL_UNAVAILABLE`.
 
 ## Troubleshooting
 
@@ -309,18 +353,15 @@ Success (`200`): `{success:true, result:{status:"ok", room_count, spaces:[{id, c
 
 ## Known limitations (MVP, by design)
 
-1. **Needs Linux + CUDA for real inference.** Upstream compiles CUDA-only
-   attention kernels and uses `torch.cuda` unconditionally. Verified on
-   2026-09-04 (Windows 11, GTX 1660 Ti, no CUDA toolkit, Python 3.10.11):
-   the entire pure-Python chain installs (`torch 2.3.1+cpu`,
-   `torchvision 0.18.1+cpu`, all `requirements.txt` pins incl. `timm 0.5.4`,
-   `fairscale 0.4.6`, `pycocotools 2.0.11`), and inference then fails exactly
-   at `No module named 'MultiScaleDeformableAttention'`. `RASTER2SEQ_MOCK=true`
-   exists so Vista frontend work can proceed without a GPU.
+1. **Real inference needs a GPU + compiled ops.** Done and verified on the
+   dev box (Windows 11 + GTX 1660 Ti; see setup above). `RASTER2SEQ_MOCK=true`
+   remains as a fallback so Vista frontend work can proceed without a GPU.
+   Note the `.cuda-shim` version-report trick: it only affects the local
+   build; the compiled kernels run on the real CUDA 13.3 driver.
 2. **One Python process per request** (model reloads each time). Upstream
    `predict.py` is batch/directory oriented with no server mode; a persistent
-   worker was deliberately not built (see task brief). Expect multi-second
-   latency dominated by model load.
+   worker was deliberately not built (see task brief). Measured end to end:
+   ~3–8 s per request on GTX 1660 Ti (model load + 2.7–3.7 s inference).
 3. **No VLM refinement stage.** The RunPod prototype returned `refined_spaces`
    + rendered PNGs; this service returns the raw Raster2Seq `spaces` only.
 4. **Polygons are in 256×256 padded input space**, not original pixels —

@@ -5,6 +5,7 @@ api/.env
 __pycache__/
 .venv/
 checkpoints/
+.cuda-shim/
 pred_outputs/
 tmp/
 *.pth

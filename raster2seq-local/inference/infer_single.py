@@ -50,29 +50,34 @@ def _fail(code: str, message: str) -> "NoReturn":  # noqa: F821
 
 
 def parse_args(argv=None):
-    p = argparse.ArgumentParser(description="Raster2Seq single-image inference")
-    p.add_argument("--image", required=True, help="Path to the input floorplan image")
-    p.add_argument(
-        "--checkpoint",
-        default=os.environ.get("RASTER2SEQ_CHECKPOINT", "hf:cubicasa5k"),
-        help="Local .pth path or hf:<alias> (default: %(default)s)",
+    # Reuse the upstream argument parser verbatim so model_args always carries
+    # every attribute build_model()/generate() expect (lr_backbone,
+    # loss coefficients, ...). Only --image/--out/--device are ours.
+    from predict import get_args_parser
+
+    p = argparse.ArgumentParser(
+        description="Raster2Seq single-image inference", parents=[get_args_parser()]
     )
-    p.add_argument("--dataset_name", default="cubicasa", help="stru3d | cubicasa | r2g | waffle")
-    p.add_argument("--semantic_classes", type=int, default=12)
-    p.add_argument("--input_channels", type=int, default=3)
-    p.add_argument("--image_size", type=int, default=256)
-    p.add_argument("--seq_len", type=int, default=512)
-    p.add_argument("--num_bins", type=int, default=32)
-    p.add_argument("--device", default="auto", help="auto | cuda | cpu")
-    # Architecture flags (defaults mirror tools/predict_cc5k.sh).
-    p.add_argument("--poly2seq", action="store_true", default=True)
-    p.add_argument("--no-poly2seq", dest="poly2seq", action="store_false")
-    p.add_argument("--use_anchor", action="store_true", default=True)
-    p.add_argument("--dec_attn_concat_src", action="store_true", default=True)
-    p.add_argument("--per_token_sem_loss", action="store_true", default=True)
-    p.add_argument("--disable_poly_refine", action="store_true", default=True)
-    p.add_argument("--ema4eval", action="store_true", default=True)
+    p.add_argument("--image", required=True, help="Path to the input floorplan image")
     p.add_argument("--out", default="", help="Write JSON here instead of stdout")
+    # Defaults mirror upstream tools/predict_cc5k.sh (CubiCasa5K, semantic).
+    # --device accepts auto|cuda|cpu ("auto" is ours; upstream default is cuda).
+    p.set_defaults(
+        device="auto",
+        checkpoint=os.environ.get("RASTER2SEQ_CHECKPOINT", "hf:cubicasa5k"),
+        dataset_name="cubicasa",
+        semantic_classes=12,
+        input_channels=3,
+        image_size=256,
+        seq_len=512,
+        num_bins=32,
+        poly2seq=True,
+        use_anchor=True,
+        dec_attn_concat_src=True,
+        per_token_sem_loss=True,
+        disable_poly_refine=True,
+        ema4eval=True,
+    )
     return p.parse_args(argv)
 
 
@@ -133,48 +138,19 @@ def main() -> None:
     except Exception as exc:  # noqa: BLE001 - surfaced as JSON
         _fail("invalid_image", f"Could not read/transform the input image: {exc}")
 
-    # Minimal namespace mirroring predict.py's argparse defaults.
-    model_args = argparse.Namespace(
-        backbone="resnet50",
-        dilation=False,
-        position_embedding="sine",
-        position_embedding_scale=6.283185307179586,
-        num_feature_levels=4,
-        enc_layers=6,
-        dec_layers=6,
-        dim_feedforward=1024,
-        hidden_dim=256,
-        dropout=0.1,
-        nheads=8,
-        num_queries=800,
-        num_polys=20,
-        dec_n_points=4,
-        enc_n_points=4,
-        query_pos_type="sine",
-        with_poly_refine=not args.disable_poly_refine,
-        masked_attn=False,
-        semantic_classes=args.semantic_classes,
-        aux_loss=False,
-        poly2seq=args.poly2seq,
-        seq_len=args.seq_len,
-        num_bins=args.num_bins,
-        pre_decoder_pos_embed=False,
-        learnable_dec_pe=False,
-        dec_qkv_proj=False,
-        dec_attn_concat_src=args.dec_attn_concat_src,
-        per_token_sem_loss=args.per_token_sem_loss,
-        add_cls_token=False,
-        use_anchor=args.use_anchor,
-        drop_wd=False,
-    )
+    # args already carries the full upstream namespace (predict.py defaults).
+    if args.disable_poly_refine:
+        args.with_poly_refine = False
+    if args.device == "auto":
+        args.device = device_name
 
     tokenizer = None
-    if model_args.poly2seq:
-        tokenizer = DiscreteTokenizer(model_args.num_bins, model_args.seq_len, add_cls=False)
-        model_args.vocab_size = len(tokenizer)
+    if args.poly2seq:
+        tokenizer = DiscreteTokenizer(args.num_bins, args.seq_len, add_cls=False)
+        args.vocab_size = len(tokenizer)
 
     try:
-        model = build_model(model_args, train=False, tokenizer=tokenizer)
+        model = build_model(args, train=False, tokenizer=tokenizer)
     except Exception as exc:  # noqa: BLE001
         _fail("model_unavailable", f"Could not build the Raster2Seq model: {exc}")
 
