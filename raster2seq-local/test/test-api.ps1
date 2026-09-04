@@ -4,7 +4,7 @@
 #   .\test-api.ps1                                          # terminal 2
 # Or mock the server inline: .\test-api.ps1 -StartServer -Mock true
 param(
-  [string]$BaseUrl = "http://localhost:3000",
+  [string]$BaseUrl = "http://localhost:3026",
   [switch]$StartServer,
   [string]$Mock = "true"
 )

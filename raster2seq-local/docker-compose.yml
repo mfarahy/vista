@@ -3,7 +3,7 @@
 #
 # Local API (no Cloudflare account needed):
 #   docker compose up --build raster2seq-api
-#   curl http://localhost:3000/health
+#   curl http://localhost:3026/health
 #
 # Public API (one-time Cloudflare setup first, see README):
 #   copy .env.example to .env, set CLOUDFLARE_TUNNEL_TOKEN, then
@@ -22,12 +22,13 @@ services:
     expose:
       - "3000"
     # Loopback-only host binding for local dev: reachable at
-    # http://localhost:${RASTER2SEQ_PORT:-3000} but NOT exposed to the LAN or
-    # the public internet. Public traffic must enter via Cloudflare Tunnel.
+    # http://localhost:${RASTER2SEQ_PORT:-3026} but NOT exposed to the LAN or
+    # the public internet. Host port 3026 avoids the frontend on :3000;
+    # the container still listens on :3000 internally (tunnel URL unchanged).
     # Remove the `ports:` block entirely if the API should only be reachable
     # inside the Docker network.
     ports:
-      - "127.0.0.1:${RASTER2SEQ_PORT:-3000}:3000"
+      - "127.0.0.1:${RASTER2SEQ_PORT:-3026}:3000"
     env_file:
       - path: .env
         required: false
@@ -46,7 +47,11 @@ services:
       REFINE_TIMEOUT_MS: ${REFINE_TIMEOUT_MS:-180000}
       REFINE_TEMPERATURE: ${REFINE_TEMPERATURE:-}
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1",
+        ]
       interval: 15s
       timeout: 5s
       retries: 3

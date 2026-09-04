@@ -148,7 +148,7 @@ python inference/infer_single.py --image samples/floorplan-multiroom.png \
 cd api
 $env:RASTER2SEQ_MOCK = "false"   # "true" = dev fallback without GPU
 node server.js
-# -> raster2seq-local API listening on :3000
+# -> raster2seq-local API listening on :3026
 ```
 
 Config lives in `api/.env` (see `api/.env.example`):
@@ -199,7 +199,7 @@ Example request (Vista can swap the host for the deployed URL later):
 
 ```bash
 curl -X POST \
-  http://localhost:3000/api/floorplan/analyze \
+  http://localhost:3026/api/floorplan/analyze \
   -F "image=@samples/floorplan-multiroom.png"
 ```
 
@@ -211,7 +211,7 @@ contract as the former RunPod `/predict?refine=vlm`:
 
 ```bash
 curl -X POST \
-  "http://localhost:3000/api/floorplan/analyze?refine=vlm" \
+  "http://localhost:3026/api/floorplan/analyze?refine=vlm" \
   -F "image=@samples/floorplan-multiroom.png"
 ```
 
@@ -250,7 +250,7 @@ To switch Vista from RunPod to this service, only the env var changes:
 
 ```bash
 # expose-service/.env (local) or Helm config.RASTER_AI_URL (deployed)
-RASTER_AI_URL=http://localhost:3000   # was https://….proxy.runpod.net
+RASTER_AI_URL=http://localhost:3026   # was https://….proxy.runpod.net
 ```
 
 No `expose-service` code changes needed (`v360.ts`, `v360-geometry.ts`,
@@ -287,7 +287,8 @@ the API degrades to a clean `503 MODEL_UNAVAILABLE`.
 
 | Service | What it is |
 |---|---|
-| `raster2seq-api` | This API in a `node:22-alpine` image (mock mode by default, no GPU needed). Port `3000` is `expose`d to the Docker network; the host binding is loopback-only (`127.0.0.1:3000`), so local dev works without exposing the API to the LAN/internet. |
+| `raster2seq-api` | This API in a `node:22-alpine` image (mock mode by default, no GPU needed). Port `3000` is `expose`d to the Docker network; the host binding is loopback-only (`127.0.0.1:3026`), so
+local dev works without exposing the API to the LAN/internet (host port 3026 avoids the frontend on :3000). |
 | `cloudflared` | Official `cloudflare/cloudflared` image, remotely-managed tunnel via `CLOUDFLARE_TUNNEL_TOKEN`. Thin networking layer only — no app logic. Starts after the API is healthy. |
 
 Local API (no Cloudflare account needed):
@@ -295,8 +296,8 @@ Local API (no Cloudflare account needed):
 ```powershell
 cd raster2seq-local
 docker compose up --build raster2seq-api
-curl http://localhost:3000/health
-curl http://localhost:3000/api/health
+curl http://localhost:3026/health
+curl http://localhost:3026/api/health
 ```
 
 Public API (needs a one-time Cloudflare setup, see below):

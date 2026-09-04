@@ -18,7 +18,7 @@ dotenv.config();
 dotenv.config({ path: path.join(PROJECT_ROOT, '.env') });
 
 const config = {
-  port: Number(process.env.PORT ?? 3000),
+  port: Number(process.env.PORT ?? 3026),
   corsOrigin: process.env.CORS_ORIGIN ?? '*',
   pythonBin: process.env.PYTHON_BIN ?? 'python',
   checkpoint: process.env.CHECKPOINT ?? 'hf:cubicasa5k',
