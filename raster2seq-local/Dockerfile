@@ -11,6 +11,7 @@ COPY api/package*.json ./api/
 RUN npm ci --omit=dev --prefix ./api
 
 COPY api/server.js ./api/
+COPY api/lib ./api/lib
 COPY inference ./inference
 COPY samples ./samples
 

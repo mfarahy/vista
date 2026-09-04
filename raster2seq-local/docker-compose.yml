@@ -40,6 +40,11 @@ services:
       INFERENCE_TIMEOUT_MS: ${INFERENCE_TIMEOUT_MS:-300000}
       MAX_IMAGE_MB: ${MAX_IMAGE_MB:-15}
       RASTER2SEQ_MOCK: ${RASTER2SEQ_MOCK:-true}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      REFINE_TIMEOUT_MS: ${REFINE_TIMEOUT_MS:-180000}
+      REFINE_TEMPERATURE: ${REFINE_TEMPERATURE:-}
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
       interval: 15s
