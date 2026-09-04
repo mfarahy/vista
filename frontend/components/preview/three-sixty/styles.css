@@ -1,7 +1,6 @@
-/* Isolated 360 viewer preview page.
-   Scoped fork of the standalone prototype's `360/src/index.css`, reduced to
-   the panorama experience (no 2D/3D view switcher) and prefixed so it cannot
-   leak into other pages. */
+/* 360 viewer preview page.
+    Scoped styles for the panorama experience (no 2D/3D view switcher),
+    prefixed so they cannot leak into other pages. */
 
 .vista-360-preview {
   position: relative;
@@ -117,45 +116,22 @@
   white-space: nowrap;
 }
 
-.vista-360-preview__annotation-window {
-  pointer-events: none;
+/* Geometry-based window overlay: minimal, unobtrusive SVG above the
+   Pannellum canvas. */
+.vista-360-preview__window-overlay-shape {
+  fill: rgba(147, 197, 253, 0.16);
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-width: 2;
+  stroke-linejoin: round;
 }
 
-.vista-360-preview__annotation-card {
-  position: absolute;
-  transform: translate(-50%, -100%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
+.vista-360-preview__window-overlay-label-bg {
+  fill: rgba(0, 0, 0, 0.62);
+}
+
+.vista-360-preview__window-overlay-label {
+  fill: #fff;
   font-family: system-ui, sans-serif;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.vista-360-preview__annotation-window::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: -6px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.6);
-  transform: translateX(-50%);
-}
-
-.vista-360-preview__annotation-name {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-}
-
-.vista-360-preview__annotation-size {
-  font-size: 11px;
-  opacity: 0.85;
 }

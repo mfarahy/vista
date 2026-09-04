@@ -10,19 +10,20 @@ import {
   navigateToPanorama,
   type PannellumViewer,
 } from './spatialNavigation';
-import { attachWindowAnnotation, type AnnotationViewer } from './spatialAnnotation';
+import { attachWindowOverlay } from './windowOverlay';
+import { WINDOWS } from './floorplan';
+import { windowWidthValue } from './windowGeometry';
 import { useI18n } from '@/lib/i18n';
 import { PreviewNav } from '@/components/preview/preview-nav';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import './styles.css';
 
-type ViewerHandle = PannellumViewer &
-  AnnotationViewer & {
-    on: (event: 'load', handler: () => void) => void;
-    off: (event: 'load', handler: () => void) => void;
-    getScene: () => string;
-    destroy: () => void;
-  };
+type ViewerHandle = PannellumViewer & {
+  on: (event: 'load', handler: () => void) => void;
+  off: (event: 'load', handler: () => void) => void;
+  getScene: () => string;
+  destroy: () => void;
+};
 
 function roomLabelKey(id: string): string {
   return `viewers.threeSixty.rooms.${id}`;
@@ -72,7 +73,7 @@ export function ThreeSixtyPreview() {
     if (!container) return;
 
     let viewer: ViewerHandle | undefined;
-    let annotationCleanup: (() => void) | undefined;
+    let overlayCleanup: (() => void) | undefined;
     let handleSceneLoad: (() => void) | undefined;
     let disposed = false;
 
@@ -120,17 +121,22 @@ export function ThreeSixtyPreview() {
         setCurrentLabel(pano ? t(roomLabelKey(pano.id)) : sceneId ?? '');
         if (sceneId) initialSceneRef.current = sceneId;
 
-        // The window annotation only exists in the living room. Navigation
+        // Geometry-based window overlay: attaches for any panorama that owns
+        // a floor-plan window (currently living room only). Navigation
         // arrows are created by Pannellum from the scene config.
-        if (annotationCleanup) {
-          annotationCleanup();
-          annotationCleanup = undefined;
+        if (overlayCleanup) {
+          overlayCleanup();
+          overlayCleanup = undefined;
         }
-        if (sceneId === 'living-room' && containerRef.current) {
-          annotationCleanup = attachWindowAnnotation(viewer!, containerRef.current, {
-            label: t('viewers.threeSixty.annotation.label'),
-            size: t('viewers.threeSixty.annotation.size'),
-          });
+        if (sceneId && containerRef.current) {
+          const win = WINDOWS.find((w) => w.roomId === sceneId);
+          if (win) {
+            overlayCleanup = attachWindowOverlay(viewer!, containerRef.current, sceneId, {
+              widthLabel: t('viewers.threeSixty.windowWidth', {
+                width: windowWidthValue(win),
+              }),
+            });
+          }
         }
       };
       handleSceneLoad = handleSceneLoadInner;
@@ -141,7 +147,7 @@ export function ThreeSixtyPreview() {
 
     return () => {
       disposed = true;
-      if (annotationCleanup) annotationCleanup();
+      if (overlayCleanup) overlayCleanup();
       if (viewer) {
         if (handleSceneLoad) viewer.off('load', handleSceneLoad);
         viewer.destroy();
