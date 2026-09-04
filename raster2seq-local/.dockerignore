@@ -1,10 +1,11 @@
-# Keep the Docker build context small: the upstream clone, local Python
-# venvs, checkpoints and OS artifacts never belong in the API image.
+# Keep the Docker build context small: local Python venvs, checkpoints and
+# OS artifacts never belong in the API image. NOTE: raster2seq/ (upstream)
+# is intentionally INCLUDED — the GPU image (Dockerfile.gpu) needs it at
+# runtime; it only adds ~21 MB to the mock image context.
 .venv/
 venv/
 __pycache__/
 *.pyc
-raster2seq/
 checkpoints/
 pred_outputs/
 tmp/

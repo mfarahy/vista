@@ -1,9 +1,16 @@
-# ─── Raster2Seq public stack ─────────────────────────────────────────────────
+# ─── Raster2Seq public stack (GPU) ───────────────────────────────────────────
 # Vista -> Public HTTPS URL -> Cloudflare Tunnel -> raster2seq-api -> Raster2Seq
 #
+# Single compose file. The API image (Dockerfile.gpu) runs REAL model
+# inference on the host GPU (override with RASTER2SEQ_MOCK=true for the
+# schema-identical mock fallback). Requires Docker GPU support, verified with:
+#   docker run --rm --gpus all nvidia/cuda:11.8.0-base-ubuntu22.04 nvidia-smi
+#
 # Local API (no Cloudflare account needed):
-#   docker compose up --build raster2seq-api
+#   docker compose up -d --build raster2seq-api
 #   curl http://localhost:3026/health
+# NOTE: first start compiles the attention ops inside the container
+# (~4 min, once per fresh container), so the API needs a few minutes.
 #
 # Public API (one-time Cloudflare setup first, see README):
 #   copy .env.example to .env, set CLOUDFLARE_TUNNEL_TOKEN, then
@@ -14,10 +21,12 @@
 # http://raster2seq-api:3000. No local config.yml is required.
 
 services:
-  # ── Raster2Seq API (thin Node.js wrapper, unchanged behavior) ─────────────
+  # ── Raster2Seq API (GPU: Node.js wrapper + CUDA 11.8 inference) ────────────
   raster2seq-api:
-    build: .
-    image: raster2seq-local-api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    image: raster2seq-local-api:gpu
     restart: unless-stopped
     expose:
       - "3000"
@@ -35,17 +44,26 @@ services:
     environment:
       PORT: 3000
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
-      PYTHON_BIN: ${PYTHON_BIN:-python}
+      # Hardcoded: the image only ships python3 (host .env may point at a
+      # Windows venv, which must never leak in here).
+      PYTHON_BIN: python3
       CHECKPOINT: ${CHECKPOINT:-hf:cubicasa5k}
-      DEVICE: ${DEVICE:-auto}
+      DEVICE: ${DEVICE:-cuda}
       INFERENCE_TIMEOUT_MS: ${INFERENCE_TIMEOUT_MS:-300000}
       MAX_IMAGE_MB: ${MAX_IMAGE_MB:-15}
-      RASTER2SEQ_MOCK: ${RASTER2SEQ_MOCK:-true}
+      RASTER2SEQ_MOCK: ${RASTER2SEQ_MOCK:-false}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
       REFINE_TIMEOUT_MS: ${REFINE_TIMEOUT_MS:-180000}
       REFINE_TEMPERATURE: ${REFINE_TEMPERATURE:-}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     healthcheck:
       test:
         [
@@ -55,7 +73,8 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      # First boot compiles the CUDA ops (~4 min on a fresh container).
+      start_period: 300s
 
   # ── Cloudflare Tunnel (thin networking layer, no app logic) ───────────────
   # Uses the official cloudflared image with a remotely-managed tunnel token.

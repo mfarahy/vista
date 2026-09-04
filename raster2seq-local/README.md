@@ -281,15 +281,23 @@ the API degrades to a clean `503 MODEL_UNAVAILABLE`.
 | `503 VLM_NOT_CONFIGURED` | `OPENAI_API_KEY` missing — set it in `api/.env` or `raster2seq-local/.env` (both gitignored; never commit secrets). |
 | `Unsupported value: 'temperature' …` | Your model only takes the default temperature — leave `REFINE_TEMPERATURE` unset. |
 
-## Docker Compose (local API + optional public tunnel)
+## Docker Compose (GPU API + optional public tunnel)
 
-`docker-compose.yml` runs two services:
+Single `docker-compose.yml` (the old `docker-compose.gpu.yml` override was
+merged in). Two services:
 
 | Service | What it is |
 |---|---|
-| `raster2seq-api` | This API in a `node:22-alpine` image (mock mode by default, no GPU needed). Port `3000` is `expose`d to the Docker network; the host binding is loopback-only (`127.0.0.1:3026`), so
-local dev works without exposing the API to the LAN/internet (host port 3026 avoids the frontend on :3000). |
+| `raster2seq-api` | Full GPU image (`Dockerfile.gpu`: CUDA 11.8 + torch cu118 + compiled ops + baked checkpoint) running REAL inference on the host GPU. Port `3000` is `expose`d to the Docker network; the host binding is loopback-only (`127.0.0.1:3026`), so
+local dev works without exposing the API to the LAN/internet (host port 3026 avoids the frontend on :3000). Falls back to the schema-identical mock with `RASTER2SEQ_MOCK=true`. |
 | `cloudflared` | Official `cloudflare/cloudflared` image, remotely-managed tunnel via `CLOUDFLARE_TUNNEL_TOKEN`. Thin networking layer only — no app logic. Starts after the API is healthy. |
+
+GPU notes: needs Docker GPU support (`docker run --rm --gpus all
+nvidia/cuda:11.8.0-base-ubuntu22.04 nvidia-smi` must show your card). The
+attention ops compile at first container start (~4 min, `TORCH_CUDA_ARCH_LIST`
+targets sm_75; healthcheck `start_period` covers it), and `docker build` skips
+that step (no GPU at build time — upstream `setup.py` refuses). Verified:
+`POST /predict` → 16 spaces on CUDA in 3.2 s, `?refine=vlm` → 16 refined.
 
 Local API (no Cloudflare account needed):
 
