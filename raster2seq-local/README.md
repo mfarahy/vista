@@ -203,6 +203,40 @@ curl -X POST \
   -F "image=@samples/floorplan-multiroom.png"
 ```
 
+### VLM refinement (`?refine=vlm`)
+
+`POST /api/floorplan/analyze?refine=vlm` adds an OpenAI vision step after the
+local draft and returns `refined_spaces[]` alongside `spaces[]` — the same
+contract as the former RunPod `/predict?refine=vlm`:
+
+```bash
+curl -X POST \
+  "http://localhost:3000/api/floorplan/analyze?refine=vlm" \
+  -F "image=@samples/floorplan-multiroom.png"
+```
+
+Refined entries: `{id, room_type, area, polygon, graph}` with
+`refined_room_count`, `refined_total_area` (shoelace area in model-input px² —
+no real-world scale is known), `vlm_model`, `refine_ms`, plus
+`stage: "draft+vlm"` / `refinement: "vlm"` (draft-only replies carry
+`stage: "draft"` / `refinement: "none"`). Every reply also carries
+`request_id`. Verified live: 16 draft spaces → 16 refined
+(`Undefined` → `Outdoor`/`Living Room`, areas computed) in ~16 s with
+`gpt-5.6-terra`.
+
+This is wrapper code (`api/lib/vlm-refine.js`), not upstream: upstream's own
+`raster2seq/vlm_refinement/` scripts are Gemini-CLI (`gemini-2.5-pro`) batch
+jobs over precomputed predictions, not a per-request API.
+
+Configuration (`api/.env` or `raster2seq-local/.env`, server-side only):
+`OPENAI_API_KEY` (required for refine), `OPENAI_MODEL` (default `gpt-4o`),
+`OPENAI_BASE_URL` (default `https://api.openai.com/v1`), `REFINE_TIMEOUT_MS`
+(default 180000), `REFINE_TEMPERATURE` (optional; omit unless your model
+supports non-default temperatures — gpt-5.x rejects `temperature: 0`).
+Without a key, `?refine=vlm` returns `503 VLM_NOT_CONFIGURED`; other failures
+map to `502 VLM_FAILED` / `504 VLM_TIMEOUT`. The key is never logged or
+returned; `/api/health` only reports `refinement.vlm_configured` + model name.
+
 Vista integration: `POST {SERVICE_URL}/api/floorplan/analyze` with the plan
 as multipart `image`; read `result.spaces[]` (`category_id`/`label`/`polygon`).
 The existing `expose-service` consumer (`src/lib/raster2seq.ts`,
@@ -232,6 +266,8 @@ the API degrades to a clean `503 MODEL_UNAVAILABLE`.
 | `Checkpoint file not found` | First run downloads ~1.45 GB via `huggingface_hub`; needs network + disk. |
 | `The uploaded file is not a valid image` | Magic-byte mismatch (e.g. renamed `.txt`) — send a real JPG/PNG/WEBP. |
 | CORS blocked in Vista dev | Set `CORS_ORIGIN=http://localhost:XXXX` in `api/.env`. |
+| `503 VLM_NOT_CONFIGURED` | `OPENAI_API_KEY` missing — set it in `api/.env` or `raster2seq-local/.env` (both gitignored; never commit secrets). |
+| `Unsupported value: 'temperature' …` | Your model only takes the default temperature — leave `REFINE_TEMPERATURE` unset. |
 
 ## Docker Compose (local API + optional public tunnel)
 

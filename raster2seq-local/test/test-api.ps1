@@ -33,12 +33,12 @@ try {
   }
 
   # 1. Health check
-  Write-Host "`n[1/6] GET /api/health" -ForegroundColor Cyan
+  Write-Host "`n[1/8] GET /api/health" -ForegroundColor Cyan
   $health = Invoke-RestMethod -Uri "$BaseUrl/api/health" -TimeoutSec 10
   Write-Host ($health | ConvertTo-Json -Compress)
 
   # 2. Valid floorplan upload
-  Write-Host "`n[2/6] POST valid image" -ForegroundColor Cyan
+  Write-Host "`n[2/8] POST valid image" -ForegroundColor Cyan
   $sample = Join-Path $root "samples\floorplan-multiroom.png"
   $validBody = curl.exe -s -X POST "$BaseUrl/api/floorplan/analyze" -F "image=@$sample"
   $valid = $validBody | ConvertFrom-Json
@@ -49,12 +49,12 @@ try {
   Write-Host ("First space: " + ($first | ConvertTo-Json -Compress))
 
   # 3. Missing image
-  Write-Host "`n[3/6] POST without image" -ForegroundColor Cyan
+  Write-Host "`n[3/8] POST without image" -ForegroundColor Cyan
   $missingBody = curl.exe -s -X POST "$BaseUrl/api/floorplan/analyze"
   Assert-JsonCode $missingBody "MISSING_IMAGE" | Out-Null
 
   # 4. Invalid file (text content, image mime)
-  Write-Host "`n[4/6] POST invalid image bytes" -ForegroundColor Cyan
+  Write-Host "`n[4/8] POST invalid image bytes" -ForegroundColor Cyan
   $fake = Join-Path $env:TEMP "r2s-fake-test.png"
   "not an image" | Set-Content -LiteralPath $fake -NoNewline
   $invalidBody = curl.exe -s -X POST "$BaseUrl/api/floorplan/analyze" `
@@ -63,13 +63,13 @@ try {
   Remove-Item -LiteralPath $fake -Force -ErrorAction SilentlyContinue
 
   # 5. Unexpected field name
-  Write-Host "`n[5/6] POST wrong field name" -ForegroundColor Cyan
+  Write-Host "`n[5/8] POST wrong field name" -ForegroundColor Cyan
   $wrongFieldBody = curl.exe -s -X POST "$BaseUrl/api/floorplan/analyze" -F "photo=@$sample"
   Assert-JsonCode $wrongFieldBody "MISSING_IMAGE" | Out-Null
 
   # 6. Temp cleanup: the service stages uploads only in its own TMP_DIR
   # (default $env:TEMP\raster2seq-local); nothing may remain there.
-  Write-Host "`n[6/6] temp cleanup" -ForegroundColor Cyan
+  Write-Host "`n[6/8] temp cleanup" -ForegroundColor Cyan
   $stageDir = if ($env:TMP_DIR) { $env:TMP_DIR } else { Join-Path $env:TEMP "raster2seq-local" }
   $leftovers = @()
   if (Test-Path -LiteralPath $stageDir) {
@@ -77,6 +77,33 @@ try {
   }
   if ($leftovers.Count -gt 0) { throw "Temp files left behind: $($leftovers.FullName)" }
   Write-Host "[OK] staging dir clean ($stageDir)" -ForegroundColor Green
+
+  # 7. Mock VLM refinement contract (?refine=vlm, no API key needed in mock)
+  Write-Host "`n[7/8] POST ?refine=vlm (mock)" -ForegroundColor Cyan
+  $refineBody = curl.exe -s -X POST "$BaseUrl/api/floorplan/analyze?refine=vlm" -F "image=@$sample"
+  $refined = $refineBody | ConvertFrom-Json
+  if ($refined.success -ne $true) { throw "Expected success, got: $refineBody" }
+  if ($refined.result.refinement -ne 'vlm' -or $refined.result.stage -ne 'draft+vlm') {
+    throw "Expected refinement=vlm/stage=draft+vlm, got: $refineBody"
+  }
+  if (-not $refined.result.refined_spaces -or $refined.result.refined_room_count -lt 1) {
+    throw "Expected refined_spaces, got: $refineBody"
+  }
+  $rs = $refined.result.refined_spaces[0]
+  if (-not $rs.id -or -not $rs.room_type -or -not $rs.polygon) { throw "Bad refined space: $($rs | ConvertTo-Json -Compress)" }
+  Write-Host ("[OK] refined_room_count=" + $refined.result.refined_room_count) -ForegroundColor Green
+
+  # 8. Missing-key guard (no server needed; exercises the real guard)
+  Write-Host "`n[8/8] refine without OPENAI_API_KEY" -ForegroundColor Cyan
+  $guardScript = "import('./lib/vlm-refine.js').then(async (m) => { try { await m.refineFloorplan({ imageBuffer: Buffer.alloc(10), mimeType: 'image/png', draft: { spaces: [] }, requestId: 'test' }); console.log('CODE:NONE'); } catch (e) { console.log('CODE:' + e.code); } })"
+  Push-Location (Join-Path $root 'api')
+  try {
+    $guardOut = cmd /c ('set OPENAI_API_KEY= && node --input-type=module -e "' + $guardScript + '"') 2>&1
+  } finally {
+    Pop-Location
+  }
+  if (-not ($guardOut -match 'CODE:VLM_NOT_CONFIGURED')) { throw "Expected VLM_NOT_CONFIGURED, got: $guardOut" }
+  Write-Host "[OK] VLM_NOT_CONFIGURED without key" -ForegroundColor Green
 
   Write-Host "`n=== ALL TESTS PASSED ===" -ForegroundColor Cyan
 } finally {

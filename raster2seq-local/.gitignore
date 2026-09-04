@@ -9,4 +9,5 @@ checkpoints/
 pred_outputs/
 tmp/
 *.pth
+*.log
 .DS_Store

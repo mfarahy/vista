@@ -8,11 +8,14 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import multer from 'multer';
-
-dotenv.config();
+import { mockRefine, refineFloorplan } from './lib/vlm-refine.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, '..');
+
+// api/.env first; raster2seq-local/.env fills gaps (compose + local secrets).
+dotenv.config();
+dotenv.config({ path: path.join(PROJECT_ROOT, '.env') });
 
 const config = {
   port: Number(process.env.PORT ?? 3000),
@@ -24,6 +27,8 @@ const config = {
   inferenceTimeoutMs: Number(process.env.INFERENCE_TIMEOUT_MS ?? 300_000),
   maxImageBytes: Number(process.env.MAX_IMAGE_MB ?? 15) * 1024 * 1024,
   mock: String(process.env.RASTER2SEQ_MOCK ?? 'false').toLowerCase() === 'true',
+  vlmConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()),
+  vlmModel: process.env.OPENAI_MODEL?.trim() || 'gpt-4o',
 };
 
 const INFER_SCRIPT = path.join(PROJECT_ROOT, 'inference', 'infer_single.py');
@@ -136,6 +141,7 @@ function healthPayload() {
     checkpoint: config.checkpoint,
     device: config.device,
     raster2seq_repo: '../raster2seq (upstream, unmodified)',
+    refinement: { vlm_configured: config.vlmConfigured, vlm_model: config.vlmModel },
   };
 }
 
@@ -167,6 +173,7 @@ app.post('/api/floorplan/analyze', upload, async (req, res) => {
 
   const started = Date.now();
   const requestId = crypto.randomUUID();
+  const wantRefine = req.query.refine === 'vlm';
   const ext = file.mimetype === 'image/png' ? 'png' : file.mimetype === 'image/webp' ? 'webp' : 'jpg';
   let stagedPath = null;
 
@@ -176,7 +183,18 @@ app.post('/api/floorplan/analyze', upload, async (req, res) => {
     if (config.mock) {
       const raw = fs.readFileSync(MOCK_RESULT, 'utf8');
       const result = JSON.parse(raw);
-      log('log', 'floorplan analyzed (mock)', { requestId, roomCount: result.room_count });
+      delete result._note;
+      result.request_id = requestId;
+      if (wantRefine) {
+        Object.assign(result, mockRefine(result, `${config.vlmModel} (mock)`), {
+          stage: 'draft+vlm',
+          refinement: 'vlm',
+        });
+      } else {
+        result.stage = 'draft';
+        result.refinement = 'none';
+      }
+      log('log', 'floorplan analyzed (mock)', { requestId, roomCount: result.room_count, wantRefine });
       return res.json({ success: true, mocked: true, result });
     }
 
@@ -187,6 +205,7 @@ app.post('/api/floorplan/analyze', upload, async (req, res) => {
       bytes: file.size,
       checkpoint: config.checkpoint,
       device: config.device,
+      wantRefine,
     });
 
     const result = await runInference(stagedPath);
@@ -194,10 +213,31 @@ app.post('/api/floorplan/analyze', upload, async (req, res) => {
       log('error', 'malformed model output', { requestId });
       return fail(res, 502, 'MALFORMED_OUTPUT', 'The model returned an unexpected response.');
     }
+    result.request_id = requestId;
+
+    if (wantRefine) {
+      if (!config.vlmConfigured) {
+        log('error', 'VLM refinement requested but not configured', { requestId });
+        return fail(res, 503, 'VLM_NOT_CONFIGURED', 'VLM refinement is not configured.');
+      }
+      const refined = await refineFloorplan({
+        imageBuffer: file.buffer,
+        mimeType: file.mimetype,
+        draft: result,
+        requestId,
+        log,
+      });
+      Object.assign(result, refined, { stage: 'draft+vlm', refinement: 'vlm' });
+    } else {
+      result.stage = 'draft';
+      result.refinement = 'none';
+    }
     log('log', 'floorplan analyzed', {
       requestId,
       roomCount: result.room_count,
+      refinedRoomCount: result.refined_room_count,
       inferenceMs: result.inference_ms,
+      refineMs: result.refine_ms,
       totalMs: Date.now() - started,
     });
     return res.json({ success: true, result });
@@ -210,6 +250,17 @@ app.post('/api/floorplan/analyze', upload, async (req, res) => {
     if (code === 'SPAWN' || code === 'model_unavailable') {
       log('error', 'model unavailable', { requestId, detail: sanitize(err.message) });
       return fail(res, 503, 'MODEL_UNAVAILABLE', 'The recognition model is not available.');
+    }
+    if (code === 'VLM_NOT_CONFIGURED') {
+      return fail(res, 503, 'VLM_NOT_CONFIGURED', 'VLM refinement is not configured.');
+    }
+    if (code === 'VLM_TIMEOUT') {
+      log('error', 'refinement timed out', { requestId });
+      return fail(res, 504, 'VLM_TIMEOUT', 'VLM refinement timed out. Please retry.');
+    }
+    if (code === 'VLM_FAILED' || code === 'VLM_MALFORMED') {
+      log('error', 'refinement failed', { requestId, detail: sanitize(err.message) });
+      return fail(res, 502, 'VLM_FAILED', 'VLM refinement failed.');
     }
     log('error', 'inference failed', { requestId, detail: sanitize(err.message) });
     return fail(res, 502, 'INFERENCE_FAILED', 'Floorplan analysis failed.');
