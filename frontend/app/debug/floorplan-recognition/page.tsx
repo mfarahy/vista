@@ -45,7 +45,7 @@ import {
 
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
-interface RunpodResult {
+interface GpuResult {
   provider: string;
   requestId: string | null;
   stage: string | null;
@@ -69,7 +69,7 @@ export default function DebugFloorplanRecognitionPage() {
   const [raw, setRaw] = useState<RawGeometry | null>(null);
   const [extraFields, setExtraFields] = useState<string[]>([]);
   const [durationMs, setDurationMs] = useState<number | null>(null);
-  const [runpod, setRunpod] = useState<RunpodResult | null>(null);
+  const [gpuResult, setGpuResult] = useState<GpuResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [jsonCollapsed, setJsonCollapsed] = useState(false);
@@ -152,7 +152,7 @@ export default function DebugFloorplanRecognitionPage() {
         : 'not_analyzed';
 
   const resetVlm = useCallback(() => {
-    setRunpod(null);    setVlmAnalysis(null);
+    setGpuResult(null);    setVlmAnalysis(null);
     setVlmModel(null);
     setVlmDurationMs(null);
     setVlmWarnings([]);
@@ -276,8 +276,8 @@ export default function DebugFloorplanRecognitionPage() {
       setRaw(body.raw as RawGeometry);
       setExtraFields(detectUnknownFields(body.raw as unknown as Record<string, unknown>));
       setDurationMs(body.durationMs ?? null);
-      if (body.provider === 'runpod' && body.draftImageDataUrl && body.refinedImageDataUrl) {
-        setRunpod({
+      if (body.provider === 'raster-ai' && body.draftImageDataUrl && body.refinedImageDataUrl) {
+        setGpuResult({
           provider: body.provider,
           requestId: body.requestId ?? null,
           stage: body.stage ?? null,
@@ -291,7 +291,7 @@ export default function DebugFloorplanRecognitionPage() {
           refinedImageDataUrl: body.refinedImageDataUrl,
         });
       } else {
-        setRunpod(null);
+        setGpuResult(null);
       }
       setSelectedPrimitiveId(null);
     } catch (e) {
@@ -348,11 +348,11 @@ export default function DebugFloorplanRecognitionPage() {
   const loadFixture = () => loadFixtureFor('/recognition-c658e915-9247-4904-8032-717dd11ecfdd.json', '/c658e915-9247-4904-8032-717dd11ecfdd.jpg', 'c658e915-9247-4904-8032-717dd11ecfdd.jpg');
   const loadFixtureLarge = () => loadFixtureFor('/recognition-b8ea2db6-4d0a-4c87-9570-d7cd2970de98.json', '/b8ea2db6-4d0a-4c87-9570-d7cd2970de98.jpg', 'b8ea2db6-4d0a-4c87-9570-d7cd2970de98.jpg');
 
-  // NOTE: RunPod is the single inference/refinement backend for this debug
+  // NOTE: The GPU service is the single inference/refinement backend for this debug
   // page (POST /predict?refine=vlm via /api/debug/floorplan-recognition).
-  // Vista must NOT perform a second VLM/OpenAI analysis after the RunPod
+  // Vista must NOT perform a second VLM/OpenAI analysis after the GPU
   // response — the old direct OpenAI path (runVlmAnalysis) was removed, so
-  // the RunPod refined result is displayed as-is for human review.
+  // the GPU refined result is displayed as-is for human review.
   const exportVlm = () => {
     if (!vlmAnalysis) return;
     const blob = new Blob([JSON.stringify(vlmAnalysis, null, 2)], { type: 'application/json' });
@@ -640,10 +640,10 @@ export default function DebugFloorplanRecognitionPage() {
                   t('debugFloorplanRecognition.runRecognition')
                 )}
               </Button>
-              {/* The main Analyze action calls the RunPod endpoint with
+              {/* The main Analyze action calls the GPU endpoint with
                   /predict?refine=vlm (via /api/debug/floorplan-recognition).
                   The old direct OpenAI "Analyze with VLM" path was removed —
-                  RunPod is the only VLM flow used by this debug page. */}
+                  the GPU service is the only VLM flow used by this debug page. */}
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
               <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium ${recognitionStatus === 'complete' ? 'bg-green-50 text-green-700' : recognitionStatus === 'running' ? 'bg-amber-50 text-amber-700' : recognitionStatus === 'error' ? 'bg-red-50 text-red-700' : 'bg-muted text-muted-foreground'}`}>
@@ -733,31 +733,31 @@ export default function DebugFloorplanRecognitionPage() {
           </div>
         ) : null}
 
-        {/* RunPod GPU result — original / draft / refined comparison */}
-        {runpod && previewUrl && (
+        {/* GPU result — original / draft / refined comparison */}
+        {gpuResult && previewUrl && (
           <div className="mt-6 rounded-xl border bg-card p-5">
-            <h2 className="text-sm font-semibold">{t('debugFloorplanRecognition.runpodTitle')}</h2>
-            <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.runpodIntro')}</p>
+            <h2 className="text-sm font-semibold">{t('debugFloorplanRecognition.gpuTitle')}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{t('debugFloorplanRecognition.gpuIntro')}</p>
             <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-              {runpod.requestId && <span>{t('debugFloorplanRecognition.runpodRequestId', { id: runpod.requestId })}</span>}
-              {runpod.vlmModel && <span>{t('debugFloorplanRecognition.runpodModel', { model: runpod.vlmModel })}</span>}
-              {runpod.inferenceMs !== null && <span>{t('debugFloorplanRecognition.runpodInferenceMs', { ms: String(Math.round(runpod.inferenceMs)) })}</span>}
-              {runpod.refineMs !== null && <span>{t('debugFloorplanRecognition.runpodRefineMs', { ms: String(Math.round(runpod.refineMs)) })}</span>}
-              {durationMs !== null && <span>{t('debugFloorplanRecognition.runpodTotalMs', { ms: String(durationMs) })}</span>}
+              {gpuResult.requestId && <span>{t('debugFloorplanRecognition.gpuRequestId', { id: gpuResult.requestId })}</span>}
+              {gpuResult.vlmModel && <span>{t('debugFloorplanRecognition.gpuModel', { model: gpuResult.vlmModel })}</span>}
+              {gpuResult.inferenceMs !== null && <span>{t('debugFloorplanRecognition.gpuInferenceMs', { ms: String(Math.round(gpuResult.inferenceMs)) })}</span>}
+              {gpuResult.refineMs !== null && <span>{t('debugFloorplanRecognition.gpuRefineMs', { ms: String(Math.round(gpuResult.refineMs)) })}</span>}
+              {durationMs !== null && <span>{t('debugFloorplanRecognition.gpuTotalMs', { ms: String(durationMs) })}</span>}
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-3">
               <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('debugFloorplanRecognition.runpodOriginal')}</h3>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('debugFloorplanRecognition.gpuOriginal')}</h3>
                 <div className="overflow-hidden rounded-xl border">
                   <img src={previewUrl} alt={t('debugFloorplanRecognition.previewAlt')} className="h-auto w-full object-contain" />
                 </div>
               </div>
               <div>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {t('debugFloorplanRecognition.runpodDraft')} · {t('debugFloorplanRecognition.runpodDraftRooms', { count: String(runpod.roomCount) })}
+                  {t('debugFloorplanRecognition.gpuDraft')} · {t('debugFloorplanRecognition.gpuDraftRooms', { count: String(gpuResult.roomCount) })}
                 </h3>
                 <div className="overflow-hidden rounded-xl border">
-                  <img src={runpod.draftImageDataUrl} alt={t('debugFloorplanRecognition.runpodDraft')} className="h-auto w-full object-contain" />
+                  <img src={gpuResult.draftImageDataUrl} alt={t('debugFloorplanRecognition.gpuDraft')} className="h-auto w-full object-contain" />
                 </div>
                 <div className="mt-2">
                   <Button
@@ -766,21 +766,21 @@ export default function DebugFloorplanRecognitionPage() {
                     size="sm"
                     onClick={() => {
                       const a = document.createElement('a');
-                      a.href = runpod.draftImageDataUrl;
-                      a.download = `runpod-draft-${Date.now()}.png`;
+                      a.href = gpuResult.draftImageDataUrl;
+                      a.download = `gpu-draft-${Date.now()}.png`;
                       a.click();
                     }}
                   >
-                    <Download className="size-3.5" /> {t('debugFloorplanRecognition.runpodDownloadDraft')}
+                    <Download className="size-3.5" /> {t('debugFloorplanRecognition.gpuDownloadDraft')}
                   </Button>
                 </div>
               </div>
               <div>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {t('debugFloorplanRecognition.runpodRefined')} · {t('debugFloorplanRecognition.runpodRefinedRooms', { count: String(runpod.refinedRoomCount) })}
+                  {t('debugFloorplanRecognition.gpuRefined')} · {t('debugFloorplanRecognition.gpuRefinedRooms', { count: String(gpuResult.refinedRoomCount) })}
                 </h3>
                 <div className="overflow-hidden rounded-xl border">
-                  <img src={runpod.refinedImageDataUrl} alt={t('debugFloorplanRecognition.runpodRefined')} className="h-auto w-full object-contain" />
+                  <img src={gpuResult.refinedImageDataUrl} alt={t('debugFloorplanRecognition.gpuRefined')} className="h-auto w-full object-contain" />
                 </div>
                 <div className="mt-2">
                   <Button
@@ -789,12 +789,12 @@ export default function DebugFloorplanRecognitionPage() {
                     size="sm"
                     onClick={() => {
                       const a = document.createElement('a');
-                      a.href = runpod.refinedImageDataUrl;
-                      a.download = `runpod-refined-${Date.now()}.png`;
+                      a.href = gpuResult.refinedImageDataUrl;
+                      a.download = `gpu-refined-${Date.now()}.png`;
                       a.click();
                     }}
                   >
-                    <Download className="size-3.5" /> {t('debugFloorplanRecognition.runpodDownloadRefined')}
+                    <Download className="size-3.5" /> {t('debugFloorplanRecognition.gpuDownloadRefined')}
                   </Button>
                 </div>
               </div>
@@ -1402,7 +1402,7 @@ export default function DebugFloorplanRecognitionPage() {
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{t('debugFloorplanRecognition.vlmIntro')}</p>
 
           {/* The old direct OpenAI "Analyze with VLM" action was removed —
-              RunPod (/predict?refine=vlm) is the only VLM flow used by this
+              the GPU service (/predict?refine=vlm) is the only VLM flow used by this
               debug page. The section below only displays a previously stored
               analysis, if any; it never triggers a new VLM request. */}
           <div className="mt-4 flex flex-wrap items-center gap-2">

@@ -1,4 +1,4 @@
-import type { RunpodPredictResponse } from './raster2seq.js';
+import type { RasterPredictResponse } from './raster2seq.js';
 
 /**
  * Derived floor-boundary geometry for the Vista 360 MVP.
@@ -30,7 +30,7 @@ function isOutdoorRoomType(roomType: string): boolean {
 }
 
 /** Collects finite `[x, y]` vertices from the analysis, excluding outdoor spaces. */
-function collectInteriorVertices(analysis: RunpodPredictResponse): number[][] {
+function collectInteriorVertices(analysis: RasterPredictResponse): number[][] {
   const vertices: number[][] = [];
   const refined = Array.isArray(analysis.refined_spaces) ? analysis.refined_spaces : [];
   if (refined.length > 0) {
@@ -64,7 +64,7 @@ function appendPolygonVertices(vertices: number[][], polygon: number[][] | undef
  * `[x, y]` pairs normalized into the unit square.
  */
 export function floorBoundaryFromAnalysis(
-  analysis: RunpodPredictResponse,
+  analysis: RasterPredictResponse,
 ): NormalizedPolygon | null {
   const vertices = collectInteriorVertices(analysis);
   if (vertices.length < 3) return null;

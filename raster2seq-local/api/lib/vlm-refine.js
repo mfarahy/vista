@@ -1,11 +1,11 @@
 /**
  * Optional OpenAI VLM refinement stage for the local Raster2Seq service.
  *
- * Mirrors the RunPod prototype (`POST /predict?refine=vlm`): the local GPU
+ * Mirrors the previous GPU prototype (`POST /predict?refine=vlm`): the local GPU
  * draft (`spaces[]` in 0-256 model-input space) plus the original floorplan
  * image are sent to a vision-capable chat model, which returns corrected
  * room types and cleaned polygons as `refined_spaces[]` — the shape
- * `expose-service` already consumes (`RunpodPredictResponse`).
+ * `expose-service` already consumes (`RasterPredictResponse`).
  *
  * This is wrapper code (not upstream Raster2Seq — upstream's own
  * `vlm_refinement/` scripts are Gemini-CLI batch jobs, see README).

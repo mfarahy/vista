@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { convexHull, floorBoundaryFromAnalysis } from './v360-geometry.js';
-import type { RunpodPredictResponse } from './raster2seq.js';
+import type { RasterPredictResponse } from './raster2seq.js';
 
 const analysisWith = (
-  refined?: RunpodPredictResponse['refined_spaces'],
-  draft?: RunpodPredictResponse['spaces'],
-): RunpodPredictResponse => ({ status: 'ok', refined_spaces: refined, spaces: draft });
+  refined?: RasterPredictResponse['refined_spaces'],
+  draft?: RasterPredictResponse['spaces'],
+): RasterPredictResponse => ({ status: 'ok', refined_spaces: refined, spaces: draft });
 
 describe('floorBoundaryFromAnalysis', () => {
   it('returns null when there is no geometry', () => {

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { sendError, asyncHandler } from '../lib/http.js';
 import { getLogger, trackExternalCall } from '../lib/logger.js';
 import { upload, isAllowedImageMime, MAX_IMAGE_BYTES } from '../lib/upload.js';
-import { runpodBaseUrl, runpodPredictUrl, RUNPOD_TIMEOUT_MS } from '../lib/raster2seq.js';
+import { rasterAiBaseUrl, rasterAiPredictUrl, RASTER_AI_TIMEOUT_MS } from '../lib/raster2seq.js';
 import { VlmFloorplanProvider } from '../lib/vlm-floorplan/openai-provider.js';
 import { validateVlmAnalysis } from '../lib/vlm-floorplan/schema.js';
 import {
@@ -26,7 +26,7 @@ const EMPTY_RAW_GEOMETRY: RawFloorplanRecognitionResponse = {
   window_center_line: [],
 };
 
-export interface RunpodRefinedSpace {
+export interface RasterRefinedSpace {
   id: string;
   room_type: string;
   area: number | null;
@@ -34,28 +34,28 @@ export interface RunpodRefinedSpace {
   graph?: string[];
 }
 
-export interface RunpodDraftSpace {
+export interface RasterDraftSpace {
   id: number | string;
   label?: string;
   category_id?: number;
   polygon: number[][];
 }
 
-interface RunpodPredictResponse {
+interface RasterPredictResponse {
   status?: string;
   stage?: string;
   refinement?: string;
   request_id?: string;
   model?: { checkpoint_key?: string; semantic_classes?: number; device?: string };
   room_count?: number;
-  spaces?: RunpodDraftSpace[];
+  spaces?: RasterDraftSpace[];
   floorplan_png_base64?: string;
   inference_ms?: number;
   vlm_model?: string;
   refine_ms?: number;
   refined_room_count?: number;
   refined_total_area?: number | null;
-  refined_spaces?: RunpodRefinedSpace[];
+  refined_spaces?: RasterRefinedSpace[];
   refined_floorplan_png_base64?: string;
 }
 
@@ -105,8 +105,8 @@ function parseRecognitionOutput(output: string): RawFloorplanRecognitionResponse
   } as RawFloorplanRecognitionResponse;
 }
 
-/** Normalize RunPod draft spaces (CubiCasa5k) — passthrough with type guards. */
-function normalizeDraftSpaces(spaces: unknown): RunpodDraftSpace[] {
+/** Normalize GPU draft spaces (CubiCasa5k) — passthrough with type guards. */
+function normalizeDraftSpaces(spaces: unknown): RasterDraftSpace[] {
   if (!Array.isArray(spaces)) return [];
   return spaces
     .filter((s): s is Record<string, unknown> => typeof s === 'object' && s !== null)
@@ -118,8 +118,8 @@ function normalizeDraftSpaces(spaces: unknown): RunpodDraftSpace[] {
     }));
 }
 
-/** Normalize RunPod refined spaces (VLM) — passthrough with type guards. */
-function normalizeRefinedSpaces(spaces: unknown): RunpodRefinedSpace[] {
+/** Normalize GPU refined spaces (VLM) — passthrough with type guards. */
+function normalizeRefinedSpaces(spaces: unknown): RasterRefinedSpace[] {
   if (!Array.isArray(spaces)) return [];
   return spaces
     .filter((s): s is Record<string, unknown> => typeof s === 'object' && s !== null)
@@ -291,14 +291,14 @@ export function debugFloorplanRecognitionRouter(): Router {
         return sendError(res, 400, 'Bilder dürfen maximal 15 MB groß sein');
       if (file.size === 0) return sendError(res, 400, 'Die Bilddatei ist leer');
 
-      const runpodUrl = runpodPredictUrl();
-      if (runpodUrl) {
-        // ── RunPod path: CubiCasa5k + VLM refinement (OpenAI key stays on RunPod) ──
+      const rasterAiUrl = rasterAiPredictUrl();
+      if (rasterAiUrl) {
+        // ── GPU path: CubiCasa5k + VLM refinement (OpenAI key stays on the Raster AI service) ──
         const log = getLogger();
         const startedAt = performance.now();
-        const endpointForLog = runpodBaseUrl() ?? '(runpod)';
+        const endpointForLog = rasterAiBaseUrl() ?? '(raster-ai)';
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), RUNPOD_TIMEOUT_MS);
+        const timer = setTimeout(() => controller.abort(), RASTER_AI_TIMEOUT_MS);
         try {
           const form = new FormData();
           form.append(
@@ -307,8 +307,8 @@ export function debugFloorplanRecognitionRouter(): Router {
             file.originalname || 'floorplan.jpg',
           );
           const response = await trackExternalCall(
-            { service: 'runpod', operation: 'predict-vlm', props: { via: 'debug-endpoint' } },
-            () => fetch(runpodUrl, { method: 'POST', body: form, signal: controller.signal }),
+            { service: 'raster-ai', operation: 'predict-vlm', props: { via: 'debug-endpoint' } },
+            () => fetch(rasterAiUrl, { method: 'POST', body: form, signal: controller.signal }),
           );
           const durationMs = Math.round(performance.now() - startedAt);
           if (!response.ok) {
@@ -320,26 +320,26 @@ export function debugFloorplanRecognitionRouter(): Router {
                 durationMs,
                 endpoint: endpointForLog,
               },
-              'RunPod floorplan inference non-OK',
+              'Floorplan inference non-OK',
             );
-            return sendError(res, 502, `RunPod inference failed with status ${response.status}`);
+            return sendError(res, 502, `GPU inference failed with status ${response.status}`);
           }
-          let json: RunpodPredictResponse;
+          let json: RasterPredictResponse;
           try {
-            json = (await response.json()) as RunpodPredictResponse;
+            json = (await response.json()) as RasterPredictResponse;
           } catch {
             log.warn(
               { durationMs, endpoint: endpointForLog },
-              'RunPod floorplan inference returned malformed JSON',
+              'Floorplan inference returned malformed JSON',
             );
-            return sendError(res, 502, 'RunPod returned an invalid response');
+            return sendError(res, 502, 'GPU service returned an invalid response');
           }
           if (json.status !== 'ok') {
             log.warn(
               { status: json.status, durationMs, endpoint: endpointForLog },
-              'RunPod floorplan inference failed',
+              'Floorplan inference failed',
             );
-            return sendError(res, 502, 'RunPod inference failed');
+            return sendError(res, 502, 'GPU inference failed');
           }
           const draftImageDataUrl = toPngDataUrl(json.floorplan_png_base64);
           const refinedImageDataUrl = toPngDataUrl(json.refined_floorplan_png_base64);
@@ -352,9 +352,9 @@ export function debugFloorplanRecognitionRouter(): Router {
                 durationMs,
                 endpoint: endpointForLog,
               },
-              'RunPod floorplan inference returned invalid image data',
+              'Floorplan inference returned invalid image data',
             );
-            return sendError(res, 502, 'RunPod returned invalid image data');
+            return sendError(res, 502, 'GPU service returned invalid image data');
           }
           const draftSpaces = normalizeDraftSpaces(json.spaces);
           const refinedSpaces = normalizeRefinedSpaces(json.refined_spaces);
@@ -370,13 +370,13 @@ export function debugFloorplanRecognitionRouter(): Router {
               refineMs: json.refine_ms,
               durationMs,
             },
-            'RunPod floorplan inference completed — request={requestId}, stage={stage}, rooms={roomCount}, refined={refinedRoomCount}, inference={inferenceMs}ms, refine={refineMs}ms, total={durationMs}ms',
+            'Floorplan inference completed — request={requestId}, stage={stage}, rooms={roomCount}, refined={refinedRoomCount}, inference={inferenceMs}ms, refine={refineMs}ms, total={durationMs}ms',
           );
           return res.json({
             raw: { ...EMPTY_RAW_GEOMETRY },
             durationMs,
             imageInfo: { mimeType: file.mimetype, bytes: file.size, fileName: file.originalname },
-            provider: 'runpod',
+            provider: 'raster-ai',
             requestId: json.request_id ?? null,
             stage: json.stage ?? null,
             refinement: json.refinement ?? null,
@@ -395,10 +395,10 @@ export function debugFloorplanRecognitionRouter(): Router {
           const durationMs = Math.round(performance.now() - startedAt);
           if (error instanceof Error && error.name === 'AbortError') {
             log.error(
-              { durationMs, endpoint: endpointForLog, timeoutMs: RUNPOD_TIMEOUT_MS },
-              'RunPod floorplan inference timed out',
+              { durationMs, endpoint: endpointForLog, timeoutMs: RASTER_AI_TIMEOUT_MS },
+              'Floorplan inference timed out',
             );
-            return sendError(res, 504, `RunPod inference timed out after ${durationMs}ms`);
+            return sendError(res, 504, `GPU inference timed out after ${durationMs}ms`);
           }
           const cause = (error as { cause?: unknown })?.cause;
           const causeMessage =
@@ -412,19 +412,19 @@ export function debugFloorplanRecognitionRouter(): Router {
           if (isConnectionIssue) {
             log.error(
               { err: error, durationMs, endpoint: endpointForLog },
-              'RunPod floorplan inference unavailable',
+              'Floorplan inference unavailable',
             );
             return sendError(
               res,
               503,
-              `RunPod inference service is not available at ${endpointForLog}`,
+              `GPU inference service is not available at ${endpointForLog}`,
             );
           }
           log.error(
             { err: error, durationMs, endpoint: endpointForLog },
-            'RunPod floorplan inference failed',
+            'Floorplan inference failed',
           );
-          return sendError(res, 502, 'RunPod inference failed');
+          return sendError(res, 502, 'GPU inference failed');
         } finally {
           clearTimeout(timer);
         }

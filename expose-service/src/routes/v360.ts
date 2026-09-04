@@ -5,7 +5,7 @@ import { sendError, asyncHandler, getParam } from '../lib/http.js';
 import { getLogger } from '../lib/logger.js';
 import { createMediaStorage, type MediaStorage } from '../lib/media-storage.js';
 import { v360Store, type V360Store } from '../lib/v360-store.js';
-import { analyzeFloorplanRaster2Seq, type RunpodPredictResponse } from '../lib/raster2seq.js';
+import { analyzeFloorplanRaster2Seq, type RasterPredictResponse } from '../lib/raster2seq.js';
 import { floorBoundaryFromAnalysis } from '../lib/v360-geometry.js';
 
 /**
@@ -13,7 +13,7 @@ import { floorBoundaryFromAnalysis } from '../lib/v360-geometry.js';
  *
  * Workflow:
  *   1. POST /api/v360/floorplans               upload + store the floor plan in R2
- *   2. POST /api/v360/floorplans/:id/analyze   run Raster2Seq (RunPod), store the raw result (retryable)
+ *   2. POST /api/v360/floorplans/:id/analyze   run Raster2Seq (GPU), store the raw result (retryable)
  *   3. PUT  /api/v360/floorplans/:id/camera    persist the normalized camera position + yaw
  *   4. POST /api/v360/floorplans/:id/panoramas upload + store the 360 panorama
  *
@@ -68,7 +68,7 @@ export interface V360RouterOptions {
   storage?: MediaStorage;
   /** Injectable record store for tests; defaults to the shared Prisma store. */
   store?: V360Store;
-  /** Injectable Raster2Seq analyzer for tests; defaults to the RunPod client. */
+  /** Injectable Raster2Seq analyzer for tests; defaults to the GPU client. */
   analyze?: (image: { buffer: Buffer; mimeType: string; filename: string }) => Promise<unknown>;
 }
 
@@ -147,7 +147,7 @@ export function v360Router(options: V360RouterOptions = {}): Router {
     }),
   );
 
-  // ── Step 2: analyze the floor plan with Raster2Seq (RunPod) ──────────────
+  // ── Step 2: analyze the floor plan with Raster2Seq (GPU) ──────────────
   router.post(
     '/api/v360/floorplans/:id/analyze',
     asyncHandler(async (req, res) => {
@@ -177,7 +177,7 @@ export function v360Router(options: V360RouterOptions = {}): Router {
           buffer: file.content,
           mimeType: existing.mimeType,
           filename: existing.originalKey,
-        })) as RunpodPredictResponse;
+        })) as RasterPredictResponse;
         const boundary = floorBoundaryFromAnalysis(raw);
         if (!boundary) {
           throw new Error('The Raster2Seq analysis contained no usable floor geometry');

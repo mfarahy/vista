@@ -12,11 +12,11 @@ import type {
   PanoramaRecord,
   V360Store,
 } from '../lib/v360-store.js';
-import type { RunpodPredictResponse } from '../lib/raster2seq.js';
+import type { RasterPredictResponse } from '../lib/raster2seq.js';
 
 const PNG_HEADER = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-function sampleAnalysis(): RunpodPredictResponse {
+function sampleAnalysis(): RasterPredictResponse {
   return {
     status: 'ok',
     request_id: 'req-123',

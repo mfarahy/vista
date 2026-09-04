@@ -9,7 +9,7 @@ locally and exposes it to Vista over HTTP:
 floorplan image -> POST /api/floorplan/analyze -> Raster2Seq -> JSON response
 ```
 
-Conceptually it replaces the previous RunPod prototype
+Conceptually it replaces the previous remote GPU prototype
 (`RASTER_AI_URL/predict?refine=vlm`, multipart field `file`) with a local
 endpoint. The response carries the same kind of data (room polygons with
 semantic labels) in a clean `{success, result}` envelope.
@@ -160,7 +160,7 @@ Config lives in `api/.env` (see `api/.env.example`):
 `GET /api/health` → `{ok, mock, checkpoint, device, raster2seq_repo}`
 
 `POST /api/floorplan/analyze` — `multipart/form-data`, field **`image`**
-(field `file` accepted as an alias for RunPod compatibility).
+(field `file` accepted as an alias for compatibility).
 Allowed: JPG/PNG/WEBP, ≤ 15 MB, magic bytes verified.
 
 Success (`200`):
@@ -207,7 +207,7 @@ curl -X POST \
 
 `POST /api/floorplan/analyze?refine=vlm` adds an OpenAI vision step after the
 local draft and returns `refined_spaces[]` alongside `spaces[]` — the same
-contract as the former RunPod `/predict?refine=vlm`:
+contract as the former GPU `/predict?refine=vlm`:
 
 ```bash
 curl -X POST \
@@ -240,17 +240,17 @@ returned; `/api/health` only reports `refinement.vlm_configured` + model name.
 Vista integration: `POST {SERVICE_URL}/api/floorplan/analyze` with the plan
 as multipart `image`; read `result.spaces[]` (`category_id`/`label`/`polygon`).
 
-### Drop-in RunPod replacement for expose-service
+### Drop-in GPU replacement for expose-service
 
 `POST {SERVICE_URL}/predict?refine=vlm` (multipart field `file`) speaks the
 exact contract `expose-service/src/lib/raster2seq.ts` expects: the raw result
 object with `status: 'ok'`, `spaces[]`, `refined_spaces[]`, `request_id`,
 `room_count`, `inference_ms`/`refine_ms` — no `{success, result}` envelope.
-To switch Vista from RunPod to this service, only the env var changes:
+To switch Vista to this service, only the env var changes:
 
 ```bash
 # expose-service/.env (local) or Helm config.RASTER_AI_URL (deployed)
-RASTER_AI_URL=http://localhost:3026   # was https://….proxy.runpod.net
+RASTER_AI_URL=http://localhost:3026
 ```
 
 No `expose-service` code changes needed (`v360.ts`, `v360-geometry.ts`,
@@ -419,7 +419,7 @@ Success (`200`): `{success:true, result:{status:"ok", room_count, spaces:[{id, c
    `predict.py` is batch/directory oriented with no server mode; a persistent
    worker was deliberately not built (see task brief). Measured end to end:
    ~3–8 s per request on GTX 1660 Ti (model load + 2.7–3.7 s inference).
-3. **No VLM refinement stage.** The RunPod prototype returned `refined_spaces`
+3. **No VLM refinement stage.** The previous GPU prototype returned `refined_spaces`
    + rendered PNGs; this service returns the raw Raster2Seq `spaces` only.
 4. **Polygons are in 256×256 padded input space**, not original pixels —
    scale by the letterbox transform if overlaying on the source image.

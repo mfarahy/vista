@@ -158,11 +158,11 @@ app.get('/health', (_req, res) => {
 /**
  * Shared analyze implementation.
  * @param {boolean} wrap - true: `{success, result}` envelope (native
- *   contract); false: raw result object with `status: 'ok'` (RunPod
+ *   contract); false: raw result object with `status: 'ok'` (GPU
  *   `/predict` compatible, consumed by expose-service `raster2seq.ts`).
  */
 async function handleAnalyze(req, res, wrap) {
-  // Accept the RunPod field name `file` as an alias for compatibility.
+  // Accept the legacy field name `file` as an alias for compatibility.
   const file = req.files?.image?.[0] ?? req.files?.file?.[0];
   // Wrap-aware validation errors (same shape decision as failHere below).
   const failValidation = (httpStatus, code, message) =>
@@ -293,7 +293,7 @@ async function handleAnalyze(req, res, wrap) {
 
 app.post('/api/floorplan/analyze', upload, (req, res) => handleAnalyze(req, res, true));
 
-// RunPod-compatible alias consumed by expose-service (`RASTER_AI_URL` +
+// GPU-compatible alias consumed by expose-service (`RASTER_AI_URL` +
 // `/predict?refine=vlm`, multipart field `file`): same pipeline, but the raw
 // result object (`status: 'ok'`, `spaces`, `refined_spaces`) without the
 // `{success, result}` envelope.
