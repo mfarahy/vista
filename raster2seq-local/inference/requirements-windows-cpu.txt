@@ -1,0 +1,37 @@
+# Pure-Python dependency chain of upstream Raster2Seq, verified installable on
+# Windows + Python 3.10.11 (2026-09-04). Install torch/torchvision from the
+# CPU index first, then the rest from PyPI:
+#
+#   python -m venv .venv
+#   .venv\Scripts\pip install torch==2.3.1 --index-url https://download.pytorch.org/whl/cpu
+#   .venv\Scripts\pip install torchvision==0.18.1 --index-url https://download.pytorch.org/whl/cpu
+#   .venv\Scripts\pip install -r inference\requirements-windows-cpu.txt
+#
+# NOTE: this is NOT enough to run inference. The model additionally needs the
+# compiled deformable-attention CUDA extension (raster2seq/models/ops), which
+# upstream only supports on Linux + CUDA (setup.py raises NotImplementedError
+# without CUDA). See README "Known limitations".
+numpy==1.26.4
+pillow
+opencv-python-headless
+huggingface_hub
+tqdm
+pycocotools
+fvcore
+cloudpickle==2.1.0
+omegaconf==2.2.2
+scipy==1.8.1
+shapely==1.8.2
+timm==0.5.4
+fairscale==0.4.6
+matplotlib==3.6.2
+scikit-image==0.19.0
+descartes
+webcolors
+drawsvg
+cairosvg
+plyfile
+svgpathtools==1.2.4
+svgwrite==1.2.1
+imageio==2.19.3
+plotly

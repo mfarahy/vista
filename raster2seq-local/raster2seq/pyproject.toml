@@ -1,0 +1,28 @@
+[tool.ruff]
+line-length = 119
+target-version = "py38"
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "*.egg-info",
+    "data",              
+    "output",       
+    "detectron2",
+    "vis_utils",
+    "rl",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E203", "E501", "E741", "E731", "E712", "E721", "E402", "W605"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint.isort]
+known-first-party = ["FIRSTPARTY"]

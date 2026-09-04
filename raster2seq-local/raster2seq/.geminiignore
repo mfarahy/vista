@@ -1,0 +1,21 @@
+# Override .gitignore for Gemini CLI — allow image files needed for refinement
+# Gemini CLI respects .gitignore by default; this file overrides that behavior.
+
+# Keep ignoring heavy/irrelevant dirs
+node_modules/
+__pycache__/
+.git/
+*.pyc
+*.log
+
+# Allow images
+!*.png
+!*.jpg
+!*.jpeg
+!*.webp
+!*.svg
+!*.bmp
+
+# Allow pred_outputs
+!pred_outputs/
+!pred_outputs/**
