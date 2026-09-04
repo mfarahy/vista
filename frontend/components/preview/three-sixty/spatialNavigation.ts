@@ -1,5 +1,4 @@
-// Isolated 360 viewer preview — spatial navigation.
-// Typed port of the standalone prototype's `360/src/spatialNavigation.js`.
+// 360 viewer preview — spatial navigation.
 //
 // Turns the in-memory panorama data (`panoramas.ts`) into Pannellum's
 // per-scene configuration: every panorama becomes one Pannellum scene and
@@ -16,6 +15,7 @@ import { LINKS, PANORAMAS, arrivalYaw, linkYaw, panoramaById, type PanoramaId, t
 
 export type PannellumViewer = {
   loadScene: (id: string, pitch: number, yaw: number, hfov: number) => void;
+  getYaw: () => number;
   getPitch: () => number;
   getHfov: () => number;
 };

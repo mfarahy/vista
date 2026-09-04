@@ -1,5 +1,4 @@
-// Isolated 360 viewer preview — in-memory panorama data.
-// Typed port of the standalone prototype's `360/src/panoramas.js`.
+// 360 viewer preview — in-memory panorama data.
 //
 // This is intentionally NOT a graph abstraction: it is a small, static
 // in-memory list of three sample panoramas plus the links between them.

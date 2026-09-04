@@ -1407,10 +1407,7 @@ const de: TranslationSchema = {
         kitchen: 'Küche',
         bedroom: 'Schlafzimmer',
       },
-      annotation: {
-        label: 'Fenster',
-        size: '180 × 140 cm',
-      },
+      windowWidth: '{width} m',
       viewerAriaLabel: '360°-Panorama-Viewer',
     },
   },

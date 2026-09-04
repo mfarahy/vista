@@ -36,7 +36,7 @@ import {
   summarizeConstraints,
   isLowConfidenceConstraint,
 } from '@/components/vlm-floorplan-overlay';
-import { generateAnnotatedImageDataUrl, dataUrlToBlob } from '@/lib/annotated-recognition-image';
+import { generateAnnotatedImageDataUrl } from '@/lib/annotated-recognition-image';
 import { extractGeometryPrimitives } from '@/lib/geometry-primitives';
 import {
   GeometryPrimitivesOverlay,
@@ -94,7 +94,7 @@ export default function DebugFloorplanRecognitionPage() {
   const [vlmModel, setVlmModel] = useState<string | null>(null);
   const [vlmDurationMs, setVlmDurationMs] = useState<number | null>(null);
   const [vlmWarnings, setVlmWarnings] = useState<string[]>([]);
-  const [vlmLoading, setVlmLoading] = useState(false);
+  const [vlmLoading] = useState(false);
   const [vlmError, setVlmError] = useState<string | null>(null);
   const [vlmRawResponse, setVlmRawResponse] = useState<unknown>(null);
   const [vlmJsonCollapsed, setVlmJsonCollapsed] = useState(false);
@@ -348,98 +348,11 @@ export default function DebugFloorplanRecognitionPage() {
   const loadFixture = () => loadFixtureFor('/recognition-c658e915-9247-4904-8032-717dd11ecfdd.json', '/c658e915-9247-4904-8032-717dd11ecfdd.jpg', 'c658e915-9247-4904-8032-717dd11ecfdd.jpg');
   const loadFixtureLarge = () => loadFixtureFor('/recognition-b8ea2db6-4d0a-4c87-9570-d7cd2970de98.json', '/b8ea2db6-4d0a-4c87-9570-d7cd2970de98.jpg', 'b8ea2db6-4d0a-4c87-9570-d7cd2970de98.jpg');
 
-  const runVlmAnalysis = async () => {
-    if (!file || !raw) {
-      setVlmError(t('debugFloorplanRecognition.vlmNeedRaw'));
-      return;
-    }
-    if (!annotatedDataUrl && raw) {
-      setVlmError(t('debugFloorplanRecognition.vlmNeedAnnotated'));
-      return;
-    }
-    setVlmLoading(true);
-    setVlmError(null);
-    setVlmRawResponse(null);
-    try {
-      const form = new FormData();
-      form.append('image', file);
-      form.append('raw', JSON.stringify(raw));
-      // Geometry primitives (VLM geometry-interpretation POC input): the VLM
-      // reasons about these existing primitives and returns relationships
-      // between them — it never calculates geometry. The backend falls back
-      // to server-side extraction when this field is absent.
-      if (primitivesResult) {
-        const runs = primitivesResult.primitives.filter((p) => p.kind === 'run');
-        form.append(
-          'primitives',
-          JSON.stringify(
-            runs.map((p) => ({
-              primitiveId: p.primitiveId,
-              sourceObjectId: p.sourceObjectId,
-              type: 'run',
-              start: { x: p.from.x, y: p.from.y },
-              end: { x: p.to.x, y: p.to.y },
-              lengthPx: p.lengthPx,
-              angleDeg: p.angleDeg,
-              orientation: p.orientation,
-              thicknessPx: p.estimatedThicknessPx,
-              sourceVertexIndices: p.sourceVertexIndices,
-            })),
-          ),
-        );
-      }
-      // Attach annotated image as second image if available
-      if (annotatedDataUrl) {
-        try {
-          const blob = await dataUrlToBlob(annotatedDataUrl);
-          form.append('annotatedImage', blob, 'annotated.png');
-        } catch {
-          // fallback: send dataUrl as field
-          form.append('annotatedImageDataUrl', annotatedDataUrl);
-        }
-      }
-      const res = await apiFetch('/api/debug/floorplan-recognition/vlm-analysis', { method: 'POST', body: form });
-      const body = (await res.json()) as {
-        analysis?: VlmAnalysis;
-        model?: string;
-        durationMs?: number;
-        warnings?: string[];
-        error?: string;
-        rawResponse?: unknown;
-        rawContent?: string;
-      };
-      if (!res.ok) {
-        // Check for rawContent debug case
-        if (body.rawContent) {
-          setVlmRawResponse(body.rawContent);
-        } else if (body.rawResponse) {
-          setVlmRawResponse(body.rawResponse);
-        }
-        throw new Error(body.error || t('debugFloorplanRecognition.vlmError'));
-      }
-      if (!body.analysis) throw new Error(t('debugFloorplanRecognition.vlmParseError'));
-      setVlmAnalysis(body.analysis);
-      setVlmModel(body.model ?? null);
-      setVlmDurationMs(body.durationMs ?? null);
-      setVlmWarnings(body.warnings ?? []);
-      setVlmRawResponse(body.rawResponse ?? null);
-      setTopologyHighlightIds([]);
-      setSelectedConstraintId(null);
-      // enable all VLM layers + constraints by default after analysis
-      setVlmVisibility({ wallRelationships: true, openingAssociations: true, objectClassifications: true, rooms: true });
-      setShowVlmIds(true);
-      setShowConfidence(true);
-      setShowConstraints(true);
-      setConstraintsVisibility({ ...defaultConstraintsVisibility });
-      // Raw + VLM + Constraints is the default view once analysis is complete
-      setVlmMode('raw+vlm+constraints');
-    } catch (e) {
-      setVlmError(e instanceof Error ? e.message : t('debugFloorplanRecognition.vlmError'));
-    } finally {
-      setVlmLoading(false);
-    }
-  };
-
+  // NOTE: RunPod is the single inference/refinement backend for this debug
+  // page (POST /predict?refine=vlm via /api/debug/floorplan-recognition).
+  // Vista must NOT perform a second VLM/OpenAI analysis after the RunPod
+  // response — the old direct OpenAI path (runVlmAnalysis) was removed, so
+  // the RunPod refined result is displayed as-is for human review.
   const exportVlm = () => {
     if (!vlmAnalysis) return;
     const blob = new Blob([JSON.stringify(vlmAnalysis, null, 2)], { type: 'application/json' });
@@ -727,17 +640,10 @@ export default function DebugFloorplanRecognitionPage() {
                   t('debugFloorplanRecognition.runRecognition')
                 )}
               </Button>
-              <Button type="button" variant="outline" onClick={runVlmAnalysis} disabled={!raw || !file || vlmLoading || loading || annotatedGenerating || !annotatedDataUrl}>
-                {vlmLoading ? (
-                  <>
-                    <LoaderCircle className="size-4 animate-spin" /> {t('debugFloorplanRecognition.analyzing')}
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="size-4" /> {t('debugFloorplanRecognition.analyzeWithVlm')}
-                  </>
-                )}
-              </Button>
+              {/* The main Analyze action calls the RunPod endpoint with
+                  /predict?refine=vlm (via /api/debug/floorplan-recognition).
+                  The old direct OpenAI "Analyze with VLM" path was removed —
+                  RunPod is the only VLM flow used by this debug page. */}
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
               <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium ${recognitionStatus === 'complete' ? 'bg-green-50 text-green-700' : recognitionStatus === 'running' ? 'bg-amber-50 text-amber-700' : recognitionStatus === 'error' ? 'bg-red-50 text-red-700' : 'bg-muted text-muted-foreground'}`}>
@@ -1495,18 +1401,11 @@ export default function DebugFloorplanRecognitionPage() {
           </div>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{t('debugFloorplanRecognition.vlmIntro')}</p>
 
+          {/* The old direct OpenAI "Analyze with VLM" action was removed —
+              RunPod (/predict?refine=vlm) is the only VLM flow used by this
+              debug page. The section below only displays a previously stored
+              analysis, if any; it never triggers a new VLM request. */}
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Button type="button" onClick={runVlmAnalysis} disabled={!raw || !file || vlmLoading || loading || annotatedGenerating || !annotatedDataUrl}>
-              {vlmLoading ? (
-                <>
-                  <LoaderCircle className="size-4 animate-spin" /> {t('debugFloorplanRecognition.analyzing')}
-                </>
-              ) : (
-                <>
-                  <Sparkles className="size-4" /> {t('debugFloorplanRecognition.analyzeWithVlm')}
-                </>
-              )}
-            </Button>
             {!raw && <span className="text-xs text-muted-foreground">{t('debugFloorplanRecognition.vlmNeedRaw')}</span>}
             {raw && !annotatedDataUrl && !annotatedGenerating && <span className="text-xs text-amber-600">{t('debugFloorplanRecognition.vlmNeedAnnotated')}</span>}
             {annotatedGenerating && <span className="text-xs text-muted-foreground">{t('debugFloorplanRecognition.annotatedGenerating')}</span>}

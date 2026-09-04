@@ -1398,10 +1398,7 @@ const en = {
         kitchen: 'Kitchen',
         bedroom: 'Bedroom',
       },
-      annotation: {
-        label: 'Window',
-        size: '180 × 140 cm',
-      },
+      windowWidth: '{width} m',
       viewerAriaLabel: '360° panorama viewer',
     },
   },

@@ -123,8 +123,8 @@ spec:
               {{- $floorplanUrl := .Values.config.FLOORPLAN_RECOGNITION_URL | default "" }}
               {{- if contains "$" $floorplanUrl }}{{ $floorplanUrl = "" }}{{ end }}
               value: {{ $floorplanUrl | default "http://floorplan-recognition:5000/predictions" | quote }}
-            - name: RUNPOD_INFERENCE_URL
-              value: {{ .Values.config.RUNPOD_INFERENCE_URL | default "" | quote }}
+            - name: RASTER_AI_URL
+              value: {{ .Values.config.RASTER_AI_URL | default "" | quote }}
           volumeMounts:
             - name: data
               mountPath: /data
