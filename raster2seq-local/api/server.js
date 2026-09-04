@@ -129,14 +129,24 @@ const upload = multer({
   { name: 'file', maxCount: 1 },
 ]);
 
-app.get('/api/health', (_req, res) => {
-  res.json({
+function healthPayload() {
+  return {
     ok: true,
     mock: config.mock,
     checkpoint: config.checkpoint,
     device: config.device,
     raster2seq_repo: '../raster2seq (upstream, unmodified)',
-  });
+  };
+}
+
+app.get('/api/health', (_req, res) => {
+  res.json(healthPayload());
+});
+
+// Alias required by the public Cloudflare Tunnel contract (`GET /health`).
+// Kept identical to `/api/health` so existing clients keep working.
+app.get('/health', (_req, res) => {
+  res.json(healthPayload());
 });
 
 app.post('/api/floorplan/analyze', upload, async (req, res) => {

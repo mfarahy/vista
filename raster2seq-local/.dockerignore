@@ -1,0 +1,17 @@
+# Keep the Docker build context small: the upstream clone, local Python
+# venvs, checkpoints and OS artifacts never belong in the API image.
+.venv/
+venv/
+__pycache__/
+*.pyc
+raster2seq/
+checkpoints/
+pred_outputs/
+tmp/
+*.pth
+node_modules/
+api/node_modules/
+api/.env
+.env
+.git/
+.DS_Store

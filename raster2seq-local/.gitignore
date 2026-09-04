@@ -1,6 +1,7 @@
 # Local-only artifacts (never commit)
 node_modules/
 api/.env
+.env
 __pycache__/
 .venv/
 checkpoints/

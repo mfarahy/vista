@@ -189,6 +189,124 @@ the model env is absent, with no temp files left behind and no path leakage.
 | `The uploaded file is not a valid image` | Magic-byte mismatch (e.g. renamed `.txt`) — send a real JPG/PNG/WEBP. |
 | CORS blocked in Vista dev | Set `CORS_ORIGIN=http://localhost:XXXX` in `api/.env`. |
 
+## Docker Compose (local API + optional public tunnel)
+
+`docker-compose.yml` runs two services:
+
+| Service | What it is |
+|---|---|
+| `raster2seq-api` | This API in a `node:22-alpine` image (mock mode by default, no GPU needed). Port `3000` is `expose`d to the Docker network; the host binding is loopback-only (`127.0.0.1:3000`), so local dev works without exposing the API to the LAN/internet. |
+| `cloudflared` | Official `cloudflare/cloudflared` image, remotely-managed tunnel via `CLOUDFLARE_TUNNEL_TOKEN`. Thin networking layer only — no app logic. Starts after the API is healthy. |
+
+Local API (no Cloudflare account needed):
+
+```powershell
+cd raster2seq-local
+docker compose up --build raster2seq-api
+curl http://localhost:3000/health
+curl http://localhost:3000/api/health
+```
+
+Public API (needs a one-time Cloudflare setup, see below):
+
+```powershell
+cd raster2seq-local
+Copy-Item .env.example .env   # then set CLOUDFLARE_TUNNEL_TOKEN
+docker compose up -d --build
+docker compose ps
+docker compose logs -f cloudflared
+```
+
+# Public Access with Cloudflare Tunnel
+
+Goal: `Vista -> https://<your-hostname> -> Cloudflare Tunnel -> raster2seq-api -> Raster2Seq -> JSON`.
+
+The tunnel uses Cloudflare's remotely-managed mode (token). The public
+hostname (e.g. `https://raster2seq.example.com`) is configured in the
+Cloudflare dashboard, not in this repo — never commit a real hostname
+beyond an `example.com` placeholder, and never commit the token.
+
+1. **Create a Cloudflare Tunnel.** Cloudflare dashboard → Zero Trust →
+   Networks → Tunnels → Create a tunnel → pick the *Token* (remotely
+   managed) type. Note the tunnel token shown once.
+2. **Obtain the tunnel token** from the tunnel overview / install
+   instructions (long opaque string).
+3. **Put the token in `.env`** (never in git):
+   ```powershell
+   cd raster2seq-local
+   Copy-Item .env.example .env
+   # edit .env: CLOUDFLARE_TUNNEL_TOKEN=<paste token>
+   #             R2S_PUBLIC_HOSTNAME=raster2seq.example.com (documentation only)
+   ```
+   `.env` is git-ignored (`raster2seq-local/.gitignore` + repo `.gitignore`).
+4. **Configure the public hostname** in the tunnel's *Public Hostname*
+   settings: hostname `raster2seq.example.com` (your real domain),
+   service type `HTTP`, URL `http://raster2seq-api:3000`. The service URL
+   must use the Docker Compose **service name** — never `localhost`, which
+   from inside the tunnel container would mean the tunnel itself.
+5. **(DNS)** Cloudflare adds the DNS record for the hostname automatically
+   when you save the public hostname. HTTPS is provided by Cloudflare.
+6. **Start the stack:**
+   ```powershell
+   cd raster2seq-local
+   docker compose up -d --build
+   docker compose ps
+   docker compose logs raster2seq-api
+   docker compose logs cloudflared
+   ```
+7. **Test the public endpoint** (replace with your hostname):
+   ```bash
+   curl https://raster2seq.example.com/health
+   curl -X POST https://raster2seq.example.com/api/floorplan/analyze \
+     -F "image=@samples/floorplan-multiroom.png"
+   ```
+
+Useful commands:
+
+```powershell
+docker compose up -d --build        # start full stack (API + tunnel)
+docker compose up --build raster2seq-api   # local API only, no token needed
+docker compose ps
+docker compose logs -f cloudflared
+docker compose logs raster2seq-api
+docker compose down                 # stop everything
+```
+
+## Vista Integration
+
+Vista only needs the public base URL — it never knows about Docker or the
+tunnel. Response contract is unchanged (`{success, result}` with
+`result.spaces[]`).
+
+Base URL example: `https://raster2seq.example.com`
+
+- Health: `GET https://raster2seq.example.com/health`
+  (legacy alias `GET /api/health` still works)
+- Analyze: `POST https://raster2seq.example.com/api/floorplan/analyze`
+  with `multipart/form-data`, field **`image`** = floorplan file
+  (JPG/PNG/WEBP, ≤ 15 MB; field `file` accepted as alias).
+
+```bash
+curl -X POST https://raster2seq.example.com/api/floorplan/analyze \
+  -F "image=@floorplan.png"
+```
+
+Success (`200`): `{success:true, result:{status:"ok", room_count, spaces:[{id, category_id, label, polygon}], ...}}`
+(medical mock mode adds `"mocked":true`). Errors keep
+`{success:false, error:{code, message}}`; no internal paths or secrets leak.
+
+## Tunnel Troubleshooting
+
+| Symptom | Cause / fix |
+|---|---|
+| Tunnel exits with `"tunnel run" requires the ID or name of the tunnel` | `CLOUDFLARE_TUNNEL_TOKEN` is empty/unset — copy `.env.example` to `.env` and paste the token from the Cloudflare dashboard (`docker compose logs cloudflared`). The API keeps serving locally meanwhile. Token is passed via the `TUNNEL_TOKEN` env var (never on the command line), so it never appears in process listings. Never commit the token. |
+| Tunnel fails to authenticate / cannot connect to Cloudflare edge | Invalid, expired or revoked token — regenerate it in the tunnel's dashboard overview and update `.env`, then `docker compose up -d cloudflared`. |
+| Tunnel `connection refused` / `dial tcp ... raster2seq-api:3000` | API not ready or wrong service URL — check `docker compose ps`, `docker compose logs raster2seq-api`; the tunnel service URL must be `http://raster2seq-api:3000` (service name, not `localhost`). `depends_on` (healthy) already gates startup. |
+| Public hostname 404 / `ERR_DNS` / Cloudflare `Error 1033` | Public hostname not configured (or wrong DNS) in the tunnel's dashboard settings — re-check hostname spelling and that its service points at `http://raster2seq-api:3000`. |
+| `503 MODEL_UNAVAILABLE` | Real-model env missing (Python/torch/checkpoint/CUDA) — container defaults to `RASTER2SEQ_MOCK=true`; set `RASTER2SEQ_MOCK=false` only on a GPU host with the model set up (see Model setup). |
+| CORS blocked in Vista | Set `CORS_ORIGIN=https://your-vista-host` (comma-separated allowed) in `.env` and recreate the API container. |
+| Inference `504`/`502` | Model load/generation too slow or failed — raise `INFERENCE_TIMEOUT_MS`, check API logs; GPU hosts only for real inference. |
+
 ## Known limitations (MVP, by design)
 
 1. **Needs Linux + CUDA for real inference.** Upstream compiles CUDA-only

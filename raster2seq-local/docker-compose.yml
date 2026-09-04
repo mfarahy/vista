@@ -1,0 +1,71 @@
+# ─── Raster2Seq public stack ─────────────────────────────────────────────────
+# Vista -> Public HTTPS URL -> Cloudflare Tunnel -> raster2seq-api -> Raster2Seq
+#
+# Local API (no Cloudflare account needed):
+#   docker compose up --build raster2seq-api
+#   curl http://localhost:3000/health
+#
+# Public API (one-time Cloudflare setup first, see README):
+#   copy .env.example to .env, set CLOUDFLARE_TUNNEL_TOKEN, then
+#   docker compose up -d --build
+#
+# The tunnel uses Cloudflare's remotely-managed mode (token): the public
+# hostname is configured in the Cloudflare dashboard and points at
+# http://raster2seq-api:3000. No local config.yml is required.
+
+services:
+  # ── Raster2Seq API (thin Node.js wrapper, unchanged behavior) ─────────────
+  raster2seq-api:
+    build: .
+    image: raster2seq-local-api:latest
+    restart: unless-stopped
+    expose:
+      - "3000"
+    # Loopback-only host binding for local dev: reachable at
+    # http://localhost:${RASTER2SEQ_PORT:-3000} but NOT exposed to the LAN or
+    # the public internet. Public traffic must enter via Cloudflare Tunnel.
+    # Remove the `ports:` block entirely if the API should only be reachable
+    # inside the Docker network.
+    ports:
+      - "127.0.0.1:${RASTER2SEQ_PORT:-3000}:3000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PORT: 3000
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      PYTHON_BIN: ${PYTHON_BIN:-python}
+      CHECKPOINT: ${CHECKPOINT:-hf:cubicasa5k}
+      DEVICE: ${DEVICE:-auto}
+      INFERENCE_TIMEOUT_MS: ${INFERENCE_TIMEOUT_MS:-300000}
+      MAX_IMAGE_MB: ${MAX_IMAGE_MB:-15}
+      RASTER2SEQ_MOCK: ${RASTER2SEQ_MOCK:-true}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ── Cloudflare Tunnel (thin networking layer, no app logic) ───────────────
+  # Uses the official cloudflared image with a remotely-managed tunnel token.
+  # It dials out to Cloudflare and forwards public HTTPS traffic to the API
+  # over the Docker network. NOTE: it must use the Compose service name
+  # (http://raster2seq-api:3000) — never localhost — configured as the tunnel's
+  # service URL in the Cloudflare dashboard.
+  # Without a token it logs an error and retries; the API keeps working.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    depends_on:
+      raster2seq-api:
+        condition: service_healthy
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
