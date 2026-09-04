@@ -135,3 +135,11 @@
   font-size: 12px;
   font-weight: 600;
 }
+
+/* Floor-boundary overlay: cyan lines where floor meets wall (Vista 360 MVP). */
+.vista-360-preview__boundary-overlay-shape {
+  fill: none;
+  stroke: rgba(34, 211, 238, 0.9);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}

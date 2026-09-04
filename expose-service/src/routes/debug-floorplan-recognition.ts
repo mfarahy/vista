@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { sendError, asyncHandler } from '../lib/http.js';
 import { getLogger, trackExternalCall } from '../lib/logger.js';
 import { upload, isAllowedImageMime, MAX_IMAGE_BYTES } from '../lib/upload.js';
+import { runpodBaseUrl, runpodPredictUrl, RUNPOD_TIMEOUT_MS } from '../lib/raster2seq.js';
 import { VlmFloorplanProvider } from '../lib/vlm-floorplan/openai-provider.js';
 import { validateVlmAnalysis } from '../lib/vlm-floorplan/schema.js';
 import {
@@ -12,9 +13,6 @@ import {
 
 const DEFAULT_RECOGNITION_URL = 'http://localhost:5000/predictions';
 const DEFAULT_TIMEOUT_MS = 120_000;
-
-/** GPU inference via RunPod needs a longer budget than the local Docker model. */
-const RUNPOD_TIMEOUT_MS = 300_000;
 
 /** Empty wall/door/window geometry kept for backward compatibility. */
 const EMPTY_RAW_GEOMETRY: RawFloorplanRecognitionResponse = {
@@ -59,17 +57,6 @@ interface RunpodPredictResponse {
   refined_total_area?: number | null;
   refined_spaces?: RunpodRefinedSpace[];
   refined_floorplan_png_base64?: string;
-}
-
-/** Base URL without query string — safe to log (no secrets in this integration). */
-export function runpodBaseUrl(): string | null {
-  const raw = (process.env.RASTER_AI_URL ?? '').trim().replace(/\/+$/, '');
-  return raw.length > 0 ? raw : null;
-}
-
-export function runpodPredictUrl(): string | null {
-  const base = runpodBaseUrl();
-  return base ? `${base}/predict?refine=vlm` : null;
 }
 
 /** Validate a base64 PNG: decodable, non-empty, PNG magic header. */
@@ -164,14 +151,19 @@ export function debugFloorplanRecognitionRouter(): Router {
       const primitivesField = body.primitives as unknown;
 
       if (!file) return sendError(res, 400, 'Eine Bilddatei ist erforderlich');
-      if (!isAllowedImageMime(file.mimetype)) return sendError(res, 400, 'Nur JPG, PNG und WEBP werden unterstützt');
-      if (file.size > MAX_IMAGE_BYTES) return sendError(res, 400, 'Bilder dürfen maximal 15 MB groß sein');
+      if (!isAllowedImageMime(file.mimetype))
+        return sendError(res, 400, 'Nur JPG, PNG und WEBP werden unterstützt');
+      if (file.size > MAX_IMAGE_BYTES)
+        return sendError(res, 400, 'Bilder dürfen maximal 15 MB groß sein');
       if (file.size === 0) return sendError(res, 400, 'Die Bilddatei ist leer');
       if (annotatedFile) {
-        if (!isAllowedImageMime(annotatedFile.mimetype) && annotatedFile.mimetype !== 'image/png') return sendError(res, 400, 'Annotated image must be JPG/PNG/WEBP');
-        if (annotatedFile.size > MAX_IMAGE_BYTES) return sendError(res, 400, 'Annotated image too large');
+        if (!isAllowedImageMime(annotatedFile.mimetype) && annotatedFile.mimetype !== 'image/png')
+          return sendError(res, 400, 'Annotated image must be JPG/PNG/WEBP');
+        if (annotatedFile.size > MAX_IMAGE_BYTES)
+          return sendError(res, 400, 'Annotated image too large');
       }
-      if (!rawField || typeof rawField !== 'string') return sendError(res, 400, 'RAW recognition JSON (field "raw") is required');
+      if (!rawField || typeof rawField !== 'string')
+        return sendError(res, 400, 'RAW recognition JSON (field "raw") is required');
 
       let raw: RawFloorplanRecognitionResponse;
       try {
@@ -207,9 +199,14 @@ export function debugFloorplanRecognitionRouter(): Router {
         try {
           const normalized = normalizeVlmPrimitives(JSON.parse(primitivesField));
           if (normalized) primitives = normalized;
-          else log.warn('VLM request contained malformed primitives — falling back to server extraction');
+          else
+            log.warn(
+              'VLM request contained malformed primitives — falling back to server extraction',
+            );
         } catch {
-          log.warn('VLM request primitives field is not valid JSON — falling back to server extraction');
+          log.warn(
+            'VLM request primitives field is not valid JSON — falling back to server extraction',
+          );
         }
       }
       const primitiveIds = buildPrimitiveIdSet(primitives);
@@ -245,7 +242,9 @@ export function debugFloorplanRecognitionRouter(): Router {
             openings: filtered.openings.length,
             rooms: filtered.rooms.length,
             objectClassifications: filtered.objectClassifications.length,
-            geometryConstraints: (filtered as unknown as { geometryConstraints?: unknown[] }).geometryConstraints?.length ?? 0,
+            geometryConstraints:
+              (filtered as unknown as { geometryConstraints?: unknown[] }).geometryConstraints
+                ?.length ?? 0,
             geometryRelationships: filtered.geometryRelationships.length,
             primitives: primitives.length,
             warnings: allWarnings.length,
@@ -286,8 +285,10 @@ export function debugFloorplanRecognitionRouter(): Router {
     asyncHandler(async (req, res) => {
       const file = (req as unknown as { file?: Express.Multer.File }).file;
       if (!file) return sendError(res, 400, 'Eine Bilddatei ist erforderlich');
-      if (!isAllowedImageMime(file.mimetype)) return sendError(res, 400, 'Nur JPG, PNG und WEBP werden unterstützt');
-      if (file.size > MAX_IMAGE_BYTES) return sendError(res, 400, 'Bilder dürfen maximal 15 MB groß sein');
+      if (!isAllowedImageMime(file.mimetype))
+        return sendError(res, 400, 'Nur JPG, PNG und WEBP werden unterstützt');
+      if (file.size > MAX_IMAGE_BYTES)
+        return sendError(res, 400, 'Bilder dürfen maximal 15 MB groß sein');
       if (file.size === 0) return sendError(res, 400, 'Die Bilddatei ist leer');
 
       const runpodUrl = runpodPredictUrl();
@@ -313,7 +314,12 @@ export function debugFloorplanRecognitionRouter(): Router {
           if (!response.ok) {
             const text = await response.text().catch(() => '');
             log.warn(
-              { httpStatus: response.status, responseBody: text.slice(0, 1000), durationMs, endpoint: endpointForLog },
+              {
+                httpStatus: response.status,
+                responseBody: text.slice(0, 1000),
+                durationMs,
+                endpoint: endpointForLog,
+              },
               'RunPod floorplan inference non-OK',
             );
             return sendError(res, 502, `RunPod inference failed with status ${response.status}`);
@@ -322,11 +328,17 @@ export function debugFloorplanRecognitionRouter(): Router {
           try {
             json = (await response.json()) as RunpodPredictResponse;
           } catch {
-            log.warn({ durationMs, endpoint: endpointForLog }, 'RunPod floorplan inference returned malformed JSON');
+            log.warn(
+              { durationMs, endpoint: endpointForLog },
+              'RunPod floorplan inference returned malformed JSON',
+            );
             return sendError(res, 502, 'RunPod returned an invalid response');
           }
           if (json.status !== 'ok') {
-            log.warn({ status: json.status, durationMs, endpoint: endpointForLog }, 'RunPod floorplan inference failed');
+            log.warn(
+              { status: json.status, durationMs, endpoint: endpointForLog },
+              'RunPod floorplan inference failed',
+            );
             return sendError(res, 502, 'RunPod inference failed');
           }
           const draftImageDataUrl = toPngDataUrl(json.floorplan_png_base64);
@@ -382,11 +394,15 @@ export function debugFloorplanRecognitionRouter(): Router {
         } catch (error) {
           const durationMs = Math.round(performance.now() - startedAt);
           if (error instanceof Error && error.name === 'AbortError') {
-            log.error({ durationMs, endpoint: endpointForLog, timeoutMs: RUNPOD_TIMEOUT_MS }, 'RunPod floorplan inference timed out');
+            log.error(
+              { durationMs, endpoint: endpointForLog, timeoutMs: RUNPOD_TIMEOUT_MS },
+              'RunPod floorplan inference timed out',
+            );
             return sendError(res, 504, `RunPod inference timed out after ${durationMs}ms`);
           }
           const cause = (error as { cause?: unknown })?.cause;
-          const causeMessage = cause instanceof Error ? cause.message : typeof cause === 'string' ? cause : '';
+          const causeMessage =
+            cause instanceof Error ? cause.message : typeof cause === 'string' ? cause : '';
           const errorString = String(error);
           const isConnectionIssue =
             (error instanceof TypeError && errorString.includes('fetch failed')) ||
@@ -394,10 +410,20 @@ export function debugFloorplanRecognitionRouter(): Router {
             causeMessage.includes('ENOTFOUND') ||
             (error as { code?: string })?.code === 'ECONNREFUSED';
           if (isConnectionIssue) {
-            log.error({ err: error, durationMs, endpoint: endpointForLog }, 'RunPod floorplan inference unavailable');
-            return sendError(res, 503, `RunPod inference service is not available at ${endpointForLog}`);
+            log.error(
+              { err: error, durationMs, endpoint: endpointForLog },
+              'RunPod floorplan inference unavailable',
+            );
+            return sendError(
+              res,
+              503,
+              `RunPod inference service is not available at ${endpointForLog}`,
+            );
           }
-          log.error({ err: error, durationMs, endpoint: endpointForLog }, 'RunPod floorplan inference failed');
+          log.error(
+            { err: error, durationMs, endpoint: endpointForLog },
+            'RunPod floorplan inference failed',
+          );
           return sendError(res, 502, 'RunPod inference failed');
         } finally {
           clearTimeout(timer);
@@ -417,7 +443,11 @@ export function debugFloorplanRecognitionRouter(): Router {
 
       try {
         const response = await trackExternalCall(
-          { service: 'floorplan-recognition', operation: 'predict-debug', props: { via: 'debug-endpoint' } },
+          {
+            service: 'floorplan-recognition',
+            operation: 'predict-debug',
+            props: { via: 'debug-endpoint' },
+          },
           () =>
             fetch(apiUrl, {
               method: 'POST',
@@ -431,14 +461,29 @@ export function debugFloorplanRecognitionRouter(): Router {
 
         if (!response.ok) {
           const text = await response.text().catch(() => '');
-          log.warn({ httpStatus: response.status, responseBody: text.slice(0, 1000), durationMs }, 'Debug floorplan recognition non-OK');
-          return sendError(res, 502, `Floorplan recognition failed with status ${response.status}: ${text.slice(0, 500)}`);
+          log.warn(
+            { httpStatus: response.status, responseBody: text.slice(0, 1000), durationMs },
+            'Debug floorplan recognition non-OK',
+          );
+          return sendError(
+            res,
+            502,
+            `Floorplan recognition failed with status ${response.status}: ${text.slice(0, 500)}`,
+          );
         }
 
-        const json = (await response.json()) as { output?: string; status?: string; error?: string };
+        const json = (await response.json()) as {
+          output?: string;
+          status?: string;
+          error?: string;
+        };
 
         if (json.status === 'failed' || json.error) {
-          return sendError(res, 502, `Floorplan recognition failed: ${json.error ?? 'unknown error'}`);
+          return sendError(
+            res,
+            502,
+            `Floorplan recognition failed: ${json.error ?? 'unknown error'}`,
+          );
         }
         if (!json.output) {
           return sendError(res, 502, 'Floorplan recognition returned no output');
@@ -517,9 +562,13 @@ export function debugFloorplanRecognitionRouter(): Router {
           );
         }
         log.error({ err: error, durationMs, apiUrl }, 'Debug floorplan recognition failed');
-        const message = error instanceof Error && errorMessage && errorMessage !== 'fetch failed: ' && errorMessage.trim() !== 'fetch failed'
-          ? errorMessage
-          : `Floorplan recognition failed — service not reachable at ${apiUrl}`;
+        const message =
+          error instanceof Error &&
+          errorMessage &&
+          errorMessage !== 'fetch failed: ' &&
+          errorMessage.trim() !== 'fetch failed'
+            ? errorMessage
+            : `Floorplan recognition failed — service not reachable at ${apiUrl}`;
         return sendError(res, 502, message);
       } finally {
         clearTimeout(timer);
