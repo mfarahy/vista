@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { zodResponseFormat } from 'openai/helpers/zod';
-import { vlmFloorplanAnalysisSchema, type VlmFloorplanAnalysis } from './schema.js';
+import { normalizeRawGeometryRelationships, vlmFloorplanAnalysisSchema, type VlmFloorplanAnalysis } from './schema.js';
 import { VLM_SYSTEM_PROMPT, buildVlmUserMessage } from './prompt.js';
 import type { VlmPrimitive } from './geometry-primitives.js';
 import { getLogger, trackExternalCall } from '../logger.js';
@@ -20,6 +20,7 @@ export interface VlmResult {
   model: string;
   durationMs: number;
   rawResponse: unknown;
+  normalizationWarnings?: string[];
 }
 
 const DEFAULT_VLM_MODEL = 'gpt-4o-mini';
@@ -72,7 +73,26 @@ export class VlmFloorplanProvider {
       });
     }
 
-    const validated = vlmFloorplanAnalysisSchema.parse(parsed);
+    // Boundary normalization: drop/repair malformed opening_interrupts_wall
+    // entries (fewer than 2 sourcePrimitiveIds) before strict Zod parsing so a
+    // single invalid relationship cannot fail the whole analysis. The validator
+    // itself stays strict; every repair/drop is logged and surfaced.
+    const primitivesForRepair = input.primitives ?? [];
+    const knownPrimitiveIds = new Set(primitivesForRepair.map((p) => p.primitiveId));
+    const primitiveToSourceObject = new Map(primitivesForRepair.map((p) => [p.primitiveId, p.sourceObjectId] as const));
+    const normalization = normalizeRawGeometryRelationships(parsed, {
+      knownPrimitiveIds: knownPrimitiveIds.size > 0 ? knownPrimitiveIds : undefined,
+      primitiveToSourceObject,
+    });
+    const normalizationWarnings = normalization.warnings;
+    if (normalizationWarnings.length > 0) {
+      getLogger().warn(
+        { provider: this.name, model: this.model, warnings: normalizationWarnings },
+        'VLM geometryRelationships normalized at response boundary',
+      );
+    }
+
+    const validated = vlmFloorplanAnalysisSchema.parse(normalization.sanitized);
 
     getLogger().info(
       {
@@ -102,6 +122,7 @@ export class VlmFloorplanProvider {
       model: this.model,
       durationMs,
       rawResponse: completion.choices[0]?.message,
+      normalizationWarnings,
     };
   }
 

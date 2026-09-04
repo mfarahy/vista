@@ -529,6 +529,135 @@ export function isValidPrimitiveIdFormat(primitiveId: string): boolean {
   return /^(wall|door|entry_door|window|kitchen)-\d+:[scp]\d+$/.test(primitiveId);
 }
 
+export interface RawGeometryRelationshipNormalization {
+  sanitized: unknown;
+  warnings: string[];
+  repaired: number;
+  dropped: number;
+}
+
+/**
+ * Minimal safe normalization at the VLM response boundary (before Zod parsing).
+ *
+ * The `opening_interrupts_wall` contract requires ≥2 `sourcePrimitiveIds`
+ * (affected wall primitives) plus `sourceObjectIds = [opening, hostWall]`.
+ * The VLM occasionally emits a single wall primitive for this type — likely
+ * confusing it with the object-level `geometryConstraints.opening_interrupts_wall`
+ * (`[opening, hostWall]`). That single-primitive shape is schema-invalid and
+ * would otherwise fail the whole analysis with:
+ * `geometryRelationships of type "opening_interrupts_wall" require at least 2
+ * sourcePrimitiveIds`.
+ *
+ * This normalizer preserves every valid relationship unchanged and only touches
+ * `opening_interrupts_wall` entries with fewer than 2 `sourcePrimitiveIds`:
+ * - repair: when the missing second primitive can be deterministically inferred
+ *   as the single unambiguous sibling run of the same host wall (host wall has
+ *   exactly 2 known primitives, one already listed), append that existing
+ *   primitive ID. No geometry is invented — only an existing known primitive ID
+ *   is reused.
+ * - drop: otherwise remove ONLY that invalid relationship.
+ *
+ * The core Zod validator is intentionally left strict — this function must be
+ * called explicitly at the boundary so the repair/drop is always logged.
+ */
+export function normalizeRawGeometryRelationships(
+  raw: unknown,
+  options?: {
+    knownPrimitiveIds?: Set<string>;
+    primitiveToSourceObject?: Map<string, string> | Record<string, string>;
+  },
+): RawGeometryRelationshipNormalization {
+  if (typeof raw !== 'object' || raw === null) {
+    return { sanitized: raw, warnings: [], repaired: 0, dropped: 0 };
+  }
+  const obj = raw as Record<string, unknown>;
+  const rels = (obj as { geometryRelationships?: unknown }).geometryRelationships;
+  if (!Array.isArray(rels)) {
+    return { sanitized: raw, warnings: [], repaired: 0, dropped: 0 };
+  }
+
+  const known = options?.knownPrimitiveIds;
+  const lookup = options?.primitiveToSourceObject;
+
+  const sourceObjectOf = (primitiveId: string): string | null => {
+    if (lookup instanceof Map) {
+      const v = lookup.get(primitiveId);
+      if (typeof v === 'string') return v;
+    } else if (lookup && typeof lookup === 'object') {
+      const v = (lookup as Record<string, string>)[primitiveId];
+      if (typeof v === 'string') return v;
+    }
+    const colon = primitiveId.indexOf(':');
+    if (colon > 0) return primitiveId.slice(0, colon);
+    return null;
+  };
+
+  const warnings: string[] = [];
+  let repaired = 0;
+  let dropped = 0;
+  const kept: unknown[] = [];
+
+  for (const entry of rels) {
+    if (typeof entry !== 'object' || entry === null) {
+      kept.push(entry);
+      continue;
+    }
+    const rel = entry as Record<string, unknown>;
+    if (rel.type !== 'opening_interrupts_wall') {
+      kept.push(entry);
+      continue;
+    }
+    const prims = rel.sourcePrimitiveIds;
+    if (Array.isArray(prims) && prims.length >= 2) {
+      kept.push(entry);
+      continue;
+    }
+
+    const original = Array.isArray(prims) ? [...prims] : prims;
+    const originalStr = JSON.stringify(original);
+
+    // Attempt deterministic repair only for the single-primitive case.
+    if (Array.isArray(prims) && prims.length === 1 && typeof prims[0] === 'string') {
+      const existing = prims[0] as string;
+      const objectIds = Array.isArray(rel.sourceObjectIds) ? (rel.sourceObjectIds as unknown[]) : [];
+      const hostFromObjects =
+        objectIds.length >= 2 && typeof objectIds[1] === 'string' ? (objectIds[1] as string) : null;
+      const hostFromPrimitive = sourceObjectOf(existing);
+      // Prefer the explicit host wall from sourceObjectIds[1]; fall back to the
+      // primitive's own source object when the host is missing/mismatched.
+      const hostWallId =
+        hostFromObjects && hostFromObjects === hostFromPrimitive ? hostFromObjects : (hostFromObjects ?? hostFromPrimitive);
+
+      if (
+        isValidPrimitiveIdFormat(existing) &&
+        (!known || known.has(existing)) &&
+        typeof hostWallId === 'string' &&
+        known
+      ) {
+        const siblings = [...known].filter((id) => id !== existing && sourceObjectOf(id) === hostWallId);
+        const hostTotal = [...known].filter((id) => sourceObjectOf(id) === hostWallId).length;
+        if (siblings.length === 1 && hostTotal === 2 && isValidPrimitiveIdFormat(siblings[0])) {
+          const repairedIds = [existing, siblings[0]];
+          kept.push({ ...(rel as object), sourcePrimitiveIds: repairedIds });
+          repaired += 1;
+          warnings.push(
+            `geometryRelationships opening_interrupts_wall repaired — original sourcePrimitiveIds: ${originalStr} → ${JSON.stringify(repairedIds)} reason: missing second wall primitive deterministically inferred as the single sibling run of host wall ${hostWallId}`,
+          );
+          continue;
+        }
+      }
+    }
+
+    // Cannot deterministically infer the missing primitive — drop only this entry.
+    dropped += 1;
+    warnings.push(
+      `geometryRelationships opening_interrupts_wall dropped — original sourcePrimitiveIds: ${originalStr} reason: requires at least 2 sourcePrimitiveIds; missing second wall primitive cannot be deterministically inferred (action: dropped)`,
+    );
+  }
+
+  return { sanitized: { ...obj, geometryRelationships: kept }, warnings, repaired, dropped };
+}
+
 function deduplicateGeometryRelationships(
   relationships: GeometryRelationship[],
   raw: Record<string, unknown>,

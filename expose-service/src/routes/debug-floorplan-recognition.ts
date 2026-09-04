@@ -230,8 +230,10 @@ export function debugFloorplanRecognitionRouter(): Router {
           raw as unknown as Record<string, unknown>,
           primitiveIds,
         );
-        if (warnings.length) {
-          log.warn({ warnings }, 'VLM analysis contained invalid IDs filtered out');
+        const normalizationWarnings = result.normalizationWarnings ?? [];
+        const allWarnings = [...normalizationWarnings, ...warnings];
+        if (allWarnings.length) {
+          log.warn({ warnings: allWarnings }, 'VLM analysis contained invalid IDs filtered out');
         }
 
         const durationMs = Math.round(performance.now() - startedAt);
@@ -246,7 +248,7 @@ export function debugFloorplanRecognitionRouter(): Router {
             geometryConstraints: (filtered as unknown as { geometryConstraints?: unknown[] }).geometryConstraints?.length ?? 0,
             geometryRelationships: filtered.geometryRelationships.length,
             primitives: primitives.length,
-            warnings: warnings.length,
+            warnings: allWarnings.length,
           },
           'VLM floorplan analysis completed',
         );
@@ -255,7 +257,7 @@ export function debugFloorplanRecognitionRouter(): Router {
           analysis: filtered,
           model: result.model,
           durationMs: result.durationMs ?? durationMs,
-          warnings,
+          warnings: allWarnings,
           rawResponse: result.rawResponse,
           primitives: { count: primitives.length, ids: primitives.map((p) => p.primitiveId) },
         });
