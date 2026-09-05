@@ -44,7 +44,14 @@ describe('floorplan model', () => {
   });
 
   it('starts from an empty plan', () => {
-    assert.deepEqual(emptyFloorPlan(), { walls: [], doors: [], windows: [], rooms: [] });
+    assert.deepEqual(emptyFloorPlan(), {
+      version: 1,
+      units: 'm',
+      walls: [],
+      doors: [],
+      windows: [],
+      rooms: [],
+    });
   });
 
   it('creates doors and windows attached to walls without absolute coordinates', () => {

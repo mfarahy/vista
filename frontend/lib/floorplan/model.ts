@@ -59,10 +59,31 @@ export type Room = {
 };
 
 export type FloorPlan = {
+  /** Schema version of the serialized format. Increment when the shape changes. */
+  version: typeof FLOORPLAN_SCHEMA_VERSION;
+  /** Canonical internal unit. Always meters; never persisted as pixels. */
+  units: FloorPlanUnits;
   walls: Wall[];
   doors: Door[];
   windows: Window[];
   rooms: Room[];
+  metadata?: FloorPlanMetadata;
+};
+
+/** Current schema version. No migration framework yet — bump explicitly. */
+export const FLOORPLAN_SCHEMA_VERSION = 1 as const;
+
+/** Canonical unit. Meters are the only supported unit for now. */
+export type FloorPlanUnits = 'm';
+
+export const FLOORPLAN_UNITS: FloorPlanUnits = 'm';
+
+export type FloorPlanMetadata = {
+  /** Optional user-facing plan name. Never used as an identifier. */
+  name?: string;
+  /** ISO-8601 timestamps, informational only. */
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export const DEFAULT_WALL_THICKNESS_M = 0.2;
@@ -135,7 +156,7 @@ export function createWindow(
 }
 
 export function emptyFloorPlan(): FloorPlan {
-  return { walls: [], doors: [], windows: [], rooms: [] };
+  return { version: FLOORPLAN_SCHEMA_VERSION, units: FLOORPLAN_UNITS, walls: [], doors: [], windows: [], rooms: [] };
 }
 
 export function wallsBoundingBox(walls: Wall[]): { minX: number; minY: number; maxX: number; maxY: number } | null {

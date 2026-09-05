@@ -37,6 +37,7 @@ import {
   undoStep,
   withRooms,
 } from './plan-ops';
+import { serializeFloorPlan } from './serialization';
 
 export type EditorTool = 'select' | 'wall' | 'door' | 'window';
 
@@ -90,8 +91,15 @@ export type UseFloorplanEditorResult = {
   setDoorWidth: (doorId: string, width: number) => void;
   setWindowWidth: (windowId: string, width: number) => void;
   setDoorSwing: (doorId: string, swing: DoorSwing) => void;
-  // Phase 2: rooms
+  // Phase 3: rooms
   renameRoom: (roomId: string, name: string) => void;
+  // Phase 3: persistence / import
+  /** True when the plan differs from the last saved/persisted snapshot. */
+  dirty: boolean;
+  /** Load an external plan (import/restore). Undoable by default. */
+  loadPlan: (next: FloorPlan, options?: { recordHistory?: boolean; markClean?: boolean }) => void;
+  /** Mark the current plan as saved (baseline for dirty tracking). */
+  markSaved: () => void;
 };
 
 const HISTORY_LIMIT = 100;
@@ -119,6 +127,9 @@ export function useFloorplanEditor(): UseFloorplanEditorResult {
   const futureRef = useRef<FloorPlan[]>([]);
   const transientRef = useRef<FloorPlan | null>(null);
   const [historyVersion, setHistoryVersion] = useState(0);
+  // Phase 3: dirty tracking against the last persisted snapshot.
+  const savedRef = useRef<string>(serializeFloorPlan(emptyFloorPlan()));
+  const [dirty, setDirty] = useState(false);
 
   const commitPlan = useCallback((next: FloorPlan, recordHistory = true) => {
     if (recordHistory) {
@@ -127,6 +138,7 @@ export function useFloorplanEditor(): UseFloorplanEditorResult {
     }
     planRef.current = next;
     setPlan(next);
+    setDirty(serializeFloorPlan(next) !== savedRef.current);
     setHistoryVersion((n) => n + 1);
   }, []);
 
@@ -271,6 +283,7 @@ export function useFloorplanEditor(): UseFloorplanEditorResult {
     futureRef.current = step.future;
     planRef.current = step.current;
     setPlan(step.current);
+    setDirty(serializeFloorPlan(step.current) !== savedRef.current);
     clearTransientSelection();
     pendingRef.current = null;
     setPendingStart(null);
@@ -284,6 +297,7 @@ export function useFloorplanEditor(): UseFloorplanEditorResult {
     futureRef.current = step.future;
     planRef.current = step.current;
     setPlan(step.current);
+    setDirty(serializeFloorPlan(step.current) !== savedRef.current);
     clearTransientSelection();
     pendingRef.current = null;
     setPendingStart(null);
@@ -337,10 +351,12 @@ export function useFloorplanEditor(): UseFloorplanEditorResult {
     if (commit) {
       pastRef.current = pushHistory(pastRef.current, snapshot, HISTORY_LIMIT);
       futureRef.current = [];
+      setDirty(serializeFloorPlan(planRef.current) !== savedRef.current);
       setHistoryVersion((n) => n + 1);
     } else {
       planRef.current = snapshot;
       setPlan(snapshot);
+      setDirty(serializeFloorPlan(snapshot) !== savedRef.current);
     }
   }, []);
 
@@ -393,6 +409,34 @@ export function useFloorplanEditor(): UseFloorplanEditorResult {
     const next = planRenameRoom(planRef.current, roomId, name);
     if (next) commitPlan(next);
   }, [commitPlan]);
+
+  // --- Phase 3: import / restore / dirty ------------------------------------
+
+  const markSaved = useCallback(() => {
+    savedRef.current = serializeFloorPlan(planRef.current);
+    setDirty(false);
+  }, []);
+
+  const loadPlan = useCallback((next: FloorPlan, options?: { recordHistory?: boolean; markClean?: boolean }) => {
+    const recordHistory = options?.recordHistory ?? true;
+    if (recordHistory) {
+      pastRef.current = pushHistory(pastRef.current, clonePlan(planRef.current), HISTORY_LIMIT);
+      futureRef.current = [];
+    }
+    const loaded = withRooms(clonePlan(next), next.rooms);
+    planRef.current = loaded;
+    setPlan(loaded);
+    if (options?.markClean) {
+      savedRef.current = serializeFloorPlan(loaded);
+      setDirty(false);
+    } else {
+      setDirty(serializeFloorPlan(loaded) !== savedRef.current);
+    }
+    setHistoryVersion((n) => n + 1);
+    clearTransientSelection();
+    pendingRef.current = null;
+    setPendingStart(null);
+  }, [clearTransientSelection]);
 
   const selectedWalls = useMemo(
     () => plan.walls.filter((wall) => selectedIds.includes(wall.id)),
@@ -467,5 +511,8 @@ export function useFloorplanEditor(): UseFloorplanEditorResult {
     setWindowWidth,
     setDoorSwing,
     renameRoom,
+    dirty,
+    loadPlan,
+    markSaved,
   };
 }

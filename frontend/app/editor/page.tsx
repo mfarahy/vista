@@ -5,6 +5,7 @@ import {
   AppWindow,
   BrickWall,
   DoorOpen,
+  Download,
   Eraser,
   Maximize,
   MousePointer2,
@@ -12,6 +13,8 @@ import {
   RotateCcw,
   Trash2,
   Undo2,
+  Upload,
+  X,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
@@ -25,8 +28,40 @@ import EditorCanvas, { type EditorCanvasHandle } from '@/components/floorplan-ed
 import { wallLength, type Room, type Vec2 } from '@/lib/floorplan/model';
 import { formatAreaM2, formatLengthM, parseLengthM, type SnapKind } from '@/lib/floorplan/geometry';
 import { useFloorplanEditor, type EditorTool, type SelectionKind } from '@/lib/floorplan/use-floorplan-editor';
+import { exportFileName, importFloorPlanJson, serializeFloorPlan } from '@/lib/floorplan/serialization';
+import {
+  clearStoredFloorPlan,
+  restoreFloorPlan,
+  saveFloorPlan,
+} from '@/lib/floorplan/storage';
+import type { FloorPlanIssue } from '@/lib/floorplan/validation';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+
+/** Validation issue code → editor i18n key. Unknown codes fall back to a generic message. */
+const ISSUE_I18N_KEYS: Record<string, string> = {
+  'malformed-json': 'editor.importErrorMalformedJson',
+  'unsupported-version': 'editor.importErrorUnsupportedVersion',
+  'invalid-units': 'editor.importErrorInvalidUnits',
+  'missing-field': 'editor.importErrorMissingField',
+  'duplicate-id': 'editor.importErrorDuplicateId',
+  'invalid-id': 'editor.importErrorInvalidId',
+  'invalid-number': 'editor.importErrorInvalidNumber',
+  'invalid-wall': 'editor.importErrorInvalidWall',
+  'zero-length-wall': 'editor.importErrorZeroLengthWall',
+  'invalid-thickness': 'editor.importErrorInvalidThickness',
+  'invalid-door': 'editor.importErrorInvalidDoor',
+  'invalid-window': 'editor.importErrorInvalidWindow',
+  'invalid-wall-ref': 'editor.importErrorInvalidWallRef',
+  'invalid-centerT': 'editor.importErrorInvalidCenterT',
+  'invalid-width': 'editor.importErrorInvalidWidth',
+  'invalid-swing': 'editor.importErrorInvalidSwing',
+  'invalid-room': 'editor.importErrorInvalidRoom',
+  'invalid-boundary': 'editor.importErrorInvalidBoundary',
+  'invalid-area': 'editor.importErrorInvalidArea',
+  'invalid-metadata': 'editor.importErrorInvalidMetadata',
+  'invalid-plan': 'editor.importErrorInvalidPlan',
+};
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -65,6 +100,103 @@ export default function FloorPlanEditorPage() {
   const canvasRef = useRef<EditorCanvasHandle>(null);
   const [spaceDown, setSpaceDown] = useState(false);
   const [zoomScale, setZoomScale] = useState(60);
+  // Phase 3: persistence / import-export UI state (all strings via i18n).
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const restoredRef = useRef(false);
+  const [fitToken, setFitToken] = useState(0);
+  const [notice, setNotice] = useState<{ kind: 'success' | 'warning'; textKey: string } | null>(null);
+  const [importErrors, setImportErrors] = useState<FloorPlanIssue[] | null>(null);
+  const { plan, dirty, loadPlan, markSaved } = editor;
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+
+  const issueMessage = useCallback(
+    (issue: FloorPlanIssue): string => {
+      const key = ISSUE_I18N_KEYS[issue.code];
+      if (key) return t(key);
+      return t('editor.importErrorGeneric', { code: issue.code });
+    },
+    [t],
+  );
+
+  // Restore the persisted draft once. Invalid drafts are ignored with a
+  // short notice; the editor always starts usable.
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    const result = restoreFloorPlan();
+    if (result.status === 'ok') {
+      loadPlan(result.plan, { recordHistory: false, markClean: true });
+      if (result.plan.walls.length > 0) setFitToken((n) => n + 1);
+    } else if (result.status === 'corrupt') {
+      setNotice({ kind: 'warning', textKey: 'editor.corruptDraft' });
+    }
+  }, [loadPlan]);
+
+  // Autosave the semantic plan (debounced). The dirty flag covers the
+  // short gap between an edit and the persisted write.
+  useEffect(() => {
+    if (!restoredRef.current) return;
+    const id = window.setTimeout(() => {
+      if (saveFloorPlan(plan)) markSaved();
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [plan, markSaved]);
+
+  // Navigation warning only while edits are not yet persisted.
+  useEffect(() => {
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (dirtyRef.current) event.preventDefault();
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, []);
+
+  // Fit the canvas after import/restore (post-render so geometry is current).
+  useEffect(() => {
+    if (fitToken > 0) canvasRef.current?.fitView();
+  }, [fitToken]);
+
+  const handleImportFile = useCallback(
+    async (file: File | undefined | null) => {
+      if (!file) return;
+      const text = await file.text();
+      const result = importFloorPlanJson(text);
+      if (result.ok) {
+        loadPlan(result.plan);
+        setImportErrors(null);
+        setNotice({ kind: 'success', textKey: 'editor.importSuccess' });
+        if (result.plan.walls.length > 0) setFitToken((n) => n + 1);
+      } else {
+        // Keep the current plan untouched; show a concise localized error.
+        setImportErrors(result.errors);
+        setNotice(null);
+      }
+    },
+    [loadPlan],
+  );
+
+  const handleExport = useCallback(() => {
+    const json = serializeFloorPlan(plan);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = exportFileName();
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, [plan]);
+
+  const handleClear = useCallback(() => {
+    if (window.confirm(t('editor.clearConfirm'))) {
+      editor.clearAll();
+      clearStoredFloorPlan();
+      editor.markSaved();
+      setImportErrors(null);
+    }
+  }, [editor, t]);
 
   const handleDrawClick = useCallback(
     (point: Vec2) => {
@@ -213,6 +345,44 @@ export default function FloorPlanEditorPage() {
             <Button
               type="button"
               variant="ghost"
+              size="sm"
+              aria-label={t('editor.importPlanHint')}
+              title={t('editor.importPlanHint')}
+              onClick={() => fileInputRef.current?.click()}
+              className="gap-1.5"
+            >
+              <Upload />
+              <span className="hidden sm:inline">{t('editor.importPlan')}</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label={t('editor.exportPlanHint')}
+              title={t('editor.exportPlanHint')}
+              disabled={isPlanEmpty}
+              onClick={handleExport}
+              className="gap-1.5"
+            >
+              <Download />
+              <span className="hidden sm:inline">{t('editor.exportPlan')}</span>
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              aria-hidden="true"
+              tabIndex={-1}
+              onChange={(event) => {
+                void handleImportFile(event.target.files?.[0]);
+                event.target.value = '';
+              }}
+            />
+            <Separator orientation="vertical" className="mx-1 h-5" />
+            <Button
+              type="button"
+              variant="ghost"
               size="icon-sm"
               aria-label={t('editor.undo')}
               title={t('editor.undo')}
@@ -283,9 +453,76 @@ export default function FloorPlanEditorPage() {
       <div className="border-b bg-muted/30">
         <div className="mx-auto flex max-w-none flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-xs text-muted-foreground sm:px-6">
           <span className="font-semibold text-foreground">{t('editor.title')}</span>
+          <span
+            className="inline-flex items-center gap-1.5"
+            role="status"
+            aria-live="polite"
+            title={dirty ? t('editor.unsavedChanges') : t('editor.savedState')}
+          >
+            <span
+              className={cn(
+                'inline-block size-1.5 rounded-full',
+                dirty ? 'bg-amber-500' : 'bg-emerald-500',
+              )}
+            />
+            {dirty ? t('editor.unsavedChanges') : t('editor.savedState')}
+          </span>
           <span className="hidden md:inline">{toolHint}</span>
           <span className="ml-auto hidden lg:inline">{t('editor.panHint')}</span>
         </div>
+        {notice && (
+          <div className="mx-auto flex max-w-none items-center gap-2 px-4 pb-2 sm:px-6">
+            <p
+              role="status"
+              className={cn(
+                'flex-1 rounded-lg border px-3 py-1.5 text-xs',
+                notice.kind === 'success'
+                  ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
+                  : 'border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400',
+              )}
+            >
+              {t(notice.textKey)}
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label={t('common.close')}
+              onClick={() => setNotice(null)}
+            >
+              <X />
+            </Button>
+          </div>
+        )}
+        {importErrors && (
+          <div className="mx-auto flex max-w-none items-start gap-2 px-4 pb-2 sm:px-6">
+            <div
+              role="alert"
+              className="flex-1 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-xs text-destructive"
+            >
+              <p className="font-semibold">{t('editor.importFailed')}</p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                {importErrors.slice(0, 3).map((issue, index) => (
+                  <li key={`${issue.code}-${index}`}>{issueMessage(issue)}</li>
+                ))}
+              </ul>
+              {importErrors.length > 3 && (
+                <p className="mt-1 text-muted-foreground">
+                  {t('editor.importErrorMore', { count: importErrors.length - 3 })}
+                </p>
+              )}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label={t('common.close')}
+              onClick={() => setImportErrors(null)}
+            >
+              <X />
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
@@ -361,9 +598,7 @@ export default function FloorPlanEditorPage() {
               aria-label={t('editor.clearAll')}
               title={t('editor.clearAll')}
               disabled={isPlanEmpty}
-              onClick={() => {
-                if (window.confirm(t('editor.clearConfirm'))) editor.clearAll();
-              }}
+              onClick={handleClear}
             >
               <Eraser />
             </Button>

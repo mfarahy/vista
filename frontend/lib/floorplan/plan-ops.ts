@@ -7,6 +7,8 @@
  * React. No DOM, no React.
  */
 import {
+  FLOORPLAN_SCHEMA_VERSION,
+  FLOORPLAN_UNITS,
   MIN_WALL_LENGTH_M,
   clampOpeningWidth,
   clampT,
@@ -30,6 +32,9 @@ export function samePoint(a: Vec2, b: Vec2, eps = COINCIDENT_EPS_M): boolean {
 
 export function clonePlan(plan: FloorPlan): FloorPlan {
   return {
+    version: plan.version ?? FLOORPLAN_SCHEMA_VERSION,
+    units: plan.units ?? FLOORPLAN_UNITS,
+    ...(plan.metadata ? { metadata: { ...plan.metadata } } : {}),
     walls: plan.walls.map((wall) => ({ ...wall, start: { ...wall.start }, end: { ...wall.end } })),
     doors: plan.doors.map((door) => ({ ...door })),
     windows: plan.windows.map((window) => ({ ...window })),
