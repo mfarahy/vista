@@ -20,6 +20,7 @@ import {
   snapPoint,
   snapToleranceForScale,
   translateWall,
+  wallGapSegments,
   wallPointAt,
 } from './geometry';
 import type { Wall } from './model';
@@ -161,5 +162,47 @@ describe('floorplan geometry', () => {
     // A neighbor centroid exactly on the shared edge is not "contained".
     assert.equal(pointStrictlyInPolygon({ x: 2, y: 0 }, square), false);
     assert.equal(pointStrictlyInPolygon({ x: 9, y: 9 }, square), false);
+  });
+
+  it('keeps walls whole when they carry no openings', () => {
+    const segments = wallGapSegments(walls[0], []);
+    assert.equal(segments.length, 1);
+    assert.deepEqual(segments[0], { start: { x: 0, y: 0 }, end: { x: 4, y: 0 } });
+  });
+
+  it('splits a wall into two segments around a centered opening', () => {
+    const segments = wallGapSegments(walls[0], [{ centerT: 0.5, width: 1 }]);
+    assert.equal(segments.length, 2);
+    assert.deepEqual(segments[0], { start: { x: 0, y: 0 }, end: { x: 1.5, y: 0 } });
+    assert.deepEqual(segments[1], { start: { x: 2.5, y: 0 }, end: { x: 4, y: 0 } });
+  });
+
+  it('leaves a single segment for an opening at the wall end', () => {
+    const segments = wallGapSegments(walls[0], [{ centerT: 0, width: 1 }]);
+    assert.equal(segments.length, 1);
+    assert.deepEqual(segments[0], { start: { x: 1, y: 0 }, end: { x: 4, y: 0 } });
+  });
+
+  it('merges overlapping openings into one gap', () => {
+    const segments = wallGapSegments(walls[0], [
+      { centerT: 0.4, width: 1 },
+      { centerT: 0.6, width: 1 },
+    ]);
+    assert.equal(segments.length, 2);
+    assert.deepEqual(segments[0].start, { x: 0, y: 0 });
+    assert.deepEqual(segments[0].end, { x: 1.1, y: 0 });
+    assert.deepEqual(segments[1].start, { x: 2.9, y: 0 });
+    assert.deepEqual(segments[1].end, { x: 4, y: 0 });
+  });
+
+  it('removes the wall body when an opening spans the whole wall', () => {
+    const segments = wallGapSegments(walls[0], [{ centerT: 0.5, width: 10 }]);
+    assert.deepEqual(segments, []);
+  });
+
+  it('ignores zero-width openings', () => {
+    const segments = wallGapSegments(walls[0], [{ centerT: 0.5, width: 0 }]);
+    assert.equal(segments.length, 1);
+    assert.deepEqual(segments[0], { start: { x: 0, y: 0 }, end: { x: 4, y: 0 } });
   });
 });

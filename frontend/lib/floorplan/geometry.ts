@@ -222,6 +222,50 @@ export function openingEndpoints(
 }
 
 /**
+ * Visible wall segments with door/window gaps subtracted.
+ *
+ * Render-only helper: the model (rooms, validation, 3D) keeps working with
+ * full walls, but the canvas draws the wall body as segments so openings
+ * read as real gaps instead of paint over a continuous wall. Intervals reuse
+ * `openingEndpoints`, so gaps always match the rendered door/window
+ * overlays — including the clamped fit on short walls.
+ */
+export function wallGapSegments(
+  wall: Pick<Wall, 'start' | 'end'>,
+  openings: Array<{ centerT: number; width: number }>,
+): Array<{ start: Vec2; end: Vec2 }> {
+  const at = (t: number): Vec2 => wallPointAt(wall, t);
+  if (openings.length === 0) return [{ start: at(0), end: at(1) }];
+  const intervals: Array<{ from: number; to: number }> = [];
+  for (const opening of openings) {
+    const { p1, p2 } = openingEndpoints(wall, opening.centerT, opening.width);
+    const t1 = projectPointToWall(p1, wall).t;
+    const t2 = projectPointToWall(p2, wall).t;
+    const from = Math.min(t1, t2);
+    const to = Math.max(t1, t2);
+    if (to - from > 1e-9) intervals.push({ from, to });
+  }
+  intervals.sort((a, b) => a.from - b.from);
+  const merged: Array<{ from: number; to: number }> = [];
+  for (const interval of intervals) {
+    const last = merged[merged.length - 1];
+    if (last && interval.from <= last.to + 1e-9) {
+      last.to = Math.max(last.to, interval.to);
+    } else {
+      merged.push({ ...interval });
+    }
+  }
+  const segments: Array<{ start: Vec2; end: Vec2 }> = [];
+  let cursor = 0;
+  for (const gap of merged) {
+    if (gap.from > cursor + 1e-9) segments.push({ start: at(cursor), end: at(gap.from) });
+    cursor = Math.max(cursor, gap.to);
+  }
+  if (cursor < 1 - 1e-9) segments.push({ start: at(cursor), end: at(1) });
+  return segments;
+}
+
+/**
  * Clamp an opening center so an opening of the given width fits on the wall.
  * Openings wider than the wall collapse to the wall center.
  */

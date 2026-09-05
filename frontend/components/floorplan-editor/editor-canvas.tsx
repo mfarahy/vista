@@ -18,6 +18,7 @@ import {
   projectPointToWall,
   snapPoint,
   snapToleranceForScale,
+  wallGapSegments,
   type SnapKind,
 } from '@/lib/floorplan/geometry';
 import {
@@ -755,45 +756,59 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
             );
           })}
 
-        {/* Wall bodies as real geometry (thick round strokes) */}
+        {/* Wall bodies as real geometry (thick round strokes).
+            Door/window openings cut gaps into the body so they read as real
+            openings; the invisible hit target below stays full-length so the
+            wall remains selectable and movable. */}
         {walls.map((wall) => {
           const s = toScreen(wall.start);
           const e = toScreen(wall.end);
           const isSelected = selectedIds.includes(wall.id);
           const isHost = selectedHostWallId === wall.id;
           const widthPx = Math.max(3, wall.thickness * camera.scale);
+          const openingsOnWall = [...doors, ...windows].filter(
+            (opening) => opening.wallId === wall.id,
+          );
+          const bodySegments = wallGapSegments(wall, openingsOnWall).map((segment) => ({
+            s: toScreen(segment.start),
+            e: toScreen(segment.end),
+          }));
           return (
             <g key={wall.id}>
-              <line
-                x1={s.x}
-                y1={s.y}
-                x2={e.x}
-                y2={e.y}
-                stroke="rgba(15,23,42,0.25)"
-                strokeWidth={widthPx + 2}
-                strokeLinecap="round"
-              />
-              <line
-                x1={s.x}
-                y1={s.y}
-                x2={e.x}
-                y2={e.y}
-                stroke={isSelected ? '#2563eb' : '#334155'}
-                strokeWidth={widthPx}
-                strokeLinecap="round"
-              />
-              {(isSelected || isHost) && (
-                <line
-                  x1={s.x}
-                  y1={s.y}
-                  x2={e.x}
-                  y2={e.y}
-                  stroke="#ffffff"
-                  strokeWidth={1.5}
-                  strokeDasharray="6 5"
-                  strokeLinecap="round"
-                />
-              )}
+              {bodySegments.map((segment, index) => (
+                <g key={`${wall.id}-body-${index}`}>
+                  <line
+                    x1={segment.s.x}
+                    y1={segment.s.y}
+                    x2={segment.e.x}
+                    y2={segment.e.y}
+                    stroke="rgba(15,23,42,0.25)"
+                    strokeWidth={widthPx + 2}
+                    strokeLinecap="round"
+                  />
+                  <line
+                    x1={segment.s.x}
+                    y1={segment.s.y}
+                    x2={segment.e.x}
+                    y2={segment.e.y}
+                    stroke={isSelected ? '#2563eb' : '#334155'}
+                    strokeWidth={widthPx}
+                    strokeLinecap="round"
+                  />
+                  {(isSelected || isHost) && (
+                    <line
+                      x1={segment.s.x}
+                      y1={segment.s.y}
+                      x2={segment.e.x}
+                      y2={segment.e.y}
+                      stroke="#ffffff"
+                      strokeWidth={1.5}
+                      strokeDasharray="6 5"
+                      strokeLinecap="round"
+                    />
+                  )}
+                </g>
+              ))}
               {/* Wide invisible hit target */}
               <line
                 x1={s.x}
