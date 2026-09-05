@@ -62,6 +62,7 @@ type EditorCanvasProps = {
   onViewChange?: (scale: number) => void;
   onPlaceOpening: (kind: 'door' | 'window', wallId: string, t: number) => void;
   onWallLengthCommit: (wallId: string, lengthM: number) => void;
+  onSplitWall: (wallId: string, t: number) => void;
   onBeginTransient: () => void;
   onPreviewWallEndpoint: (wallId: string, which: 'start' | 'end', point: Vec2) => void;
   onPreviewWallMove: (wallId: string, delta: Vec2) => void;
@@ -121,6 +122,7 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
     onViewChange,
     onPlaceOpening,
     onWallLengthCommit,
+    onSplitWall,
     onBeginTransient,
     onPreviewWallEndpoint,
     onPreviewWallMove,
@@ -139,6 +141,10 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
   const [dimDraft, setDimDraft] = useState('');
   const [selDimEditing, setSelDimEditing] = useState(false);
   const [selDimDraft, setSelDimDraft] = useState('');
+  // Phase 5: hovered endpoint handle (● highlight) and active endpoint-drag
+  // state (snap indicator while dragging in select mode).
+  const [endpointHover, setEndpointHover] = useState<{ wallId: string; which: 'start' | 'end' } | null>(null);
+  const [draggingEndpoint, setDraggingEndpoint] = useState(false);
   const cameraRef = useRef(camera);
   cameraRef.current = camera;
   const toolRef = useRef(tool);
@@ -290,7 +296,11 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
     (sx: number, sy: number) => {
       const raw = toWorld(sx, sy);
       const tolerance = snapToleranceForScale(cameraRef.current.scale);
-      const snapped = snapPoint(raw, wallsRef.current, tolerance, pendingRef.current);
+      // Mirror the endpoint-drag exclusion so the ring marks the exact
+      // point the drag preview uses.
+      const drag = dragRef.current;
+      const ignore = drag?.type === 'endpoint' ? drag.wallId : undefined;
+      const snapped = snapPoint(raw, wallsRef.current, tolerance, pendingRef.current, ignore);
       setHover({ snapped: snapped.point, kind: snapped.kind });
     },
     [toWorld],
@@ -306,6 +316,7 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
   const finishDrag = useCallback((commit: boolean) => {
     const drag = dragRef.current;
     dragRef.current = null;
+    setDraggingEndpoint(false);
     if (drag?.active && transientActive.current) {
       transientActive.current = false;
       endTransientRef.current(commit);
@@ -331,6 +342,7 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
       if (Math.hypot(sx - drag.startSX, sy - drag.startSY) <= DRAG_THRESHOLD_PX) return;
       drag.active = true;
       transientActive.current = true;
+      if (drag.type === 'endpoint') setDraggingEndpoint(true);
       onBeginTransient();
     },
     [onBeginTransient],
@@ -395,7 +407,9 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
             const wall = wallsRef.current.find((w) => w.id === drag.wallId);
             if (wall) {
               const fixed = drag.which === 'start' ? wall.end : wall.start;
-              const snapped = snapPoint(raw, wallsRef.current, tolerance, fixed);
+              // Exclude the dragged wall itself so the endpoint snaps onto
+              // other geometry (or ortho alignment), never its own position.
+              const snapped = snapPoint(raw, wallsRef.current, tolerance, fixed, drag.wallId);
               onPreviewWallEndpoint(drag.wallId, drag.which, snapped.point);
             }
           } else if (drag.type === 'wall') {
@@ -843,21 +857,39 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
                   if (drag?.active || pan?.moved) return;
                   selectRef.current('wall', wall.id, event.shiftKey);
                 }}
+                onDoubleClick={(event) => {
+                  // Phase 5: one gesture to split a wall at the clicked
+                  // position (e.g. to insert a door). Invalid splits are
+                  // ignored by the operation itself.
+                  if (tool !== 'select' || spacePanActive) return;
+                  event.stopPropagation();
+                  const rect = svgRef.current?.getBoundingClientRect();
+                  if (!rect) return;
+                  const world = toWorld(event.clientX - rect.left, event.clientY - rect.top);
+                  const projected = projectPointToWall(world, wall);
+                  if (projected.distance > snapToleranceForScale(cameraRef.current.scale)) return;
+                  onSplitWall(wall.id, projected.t);
+                }}
               />
               {isSelected && (
                 <g>
                   {(['start', 'end'] as const).map((which) => {
                     const p = which === 'start' ? s : e;
+                    const hovered =
+                      endpointHover?.wallId === wall.id && endpointHover?.which === which;
                     return (
                       <g key={which}>
                         <circle
                           cx={p.x}
                           cy={p.y}
-                          r={12}
+                          r={14}
                           fill="transparent"
                           style={{ cursor: 'grab' }}
+                          onMouseEnter={() => setEndpointHover({ wallId: wall.id, which })}
+                          onMouseLeave={() => setEndpointHover(null)}
                           onMouseDown={(event) => {
                             if (tool !== 'select' || spacePanActive) return;
+                            setEndpointHover(null);
                             startElementDrag(event, {
                               type: 'endpoint',
                               wallId: wall.id,
@@ -873,15 +905,13 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
                             finishDrag(true);
                           }}
                         />
-                        <rect
-                          x={p.x - 5}
-                          y={p.y - 5}
-                          width={10}
-                          height={10}
-                          rx={2}
-                          fill="#ffffff"
+                        <circle
+                          cx={p.x}
+                          cy={p.y}
+                          r={hovered || draggingEndpoint ? 7 : 5.5}
+                          fill={hovered || draggingEndpoint ? '#2563eb' : '#ffffff'}
                           stroke="#2563eb"
-                          strokeWidth={2}
+                          strokeWidth={2.5}
                           style={{ pointerEvents: 'none' }}
                         />
                       </g>
@@ -1081,8 +1111,8 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
           </g>
         )}
 
-        {/* Snap indicator */}
-        {(tool === 'wall' || tool === 'door' || tool === 'window') && hover?.kind && (
+        {/* Snap indicator (also while dragging an endpoint in select mode) */}
+        {(tool === 'wall' || tool === 'door' || tool === 'window' || draggingEndpoint) && hover?.kind && (
           <g style={{ pointerEvents: 'none' }}>
             {(() => {
               const s = toScreen(hover.snapped);
@@ -1091,6 +1121,11 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
                 <g>
                   <circle cx={s.x} cy={s.y} r={8} fill="none" stroke={color} strokeWidth={2} />
                   <circle cx={s.x} cy={s.y} r={2.5} fill={color} />
+                  {draggingEndpoint && (
+                    <text x={s.x + 12} y={s.y - 10} fontSize={11} fontWeight={700} fill={color}>
+                      {snapLabel(hover.kind)}
+                    </text>
+                  )}
                 </g>
               );
             })()}

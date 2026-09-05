@@ -16,9 +16,11 @@ import {
   planSetWallEndpoint,
   planSetWallLength,
   planSetWindowWidth,
+  planSplitWall,
   pushHistory,
   redoStep,
   undoStep,
+  withRooms,
 } from './plan-ops.js';
 import { openingEndpoints } from './geometry.js';
 import { createWall, emptyFloorPlan, type FloorPlan } from './model.js';
@@ -169,8 +171,7 @@ describe('plan operations', () => {
     assert.equal(planRenameRoom(plan, 'missing', 'X'), null);
   });
 
-  it('supports undo/redo over mixed operations', () => {
-    let current = emptyFloorPlan();
+  it('supports undo/redo over mixed operations', () => {    let current = emptyFloorPlan();
     let past: FloorPlan[] = [];
     let future: FloorPlan[] = [];
     const commit = (next: FloorPlan) => {
@@ -196,5 +197,221 @@ describe('plan operations', () => {
     assert.equal(current.doors.length, 1);
     assert.equal(undoStep([], [], current), null);
     assert.equal(redoStep(past, [], current), null);
+  });
+});
+
+describe('phase 5 correction operations', () => {
+  it('splits a wall into two segments at the midpoint', () => {
+    const plan = rectPlan();
+    const wallId = plan.walls[0].id;
+    const result = planSplitWall(plan, wallId, 0.5);
+    assert.ok(result);
+    assert.equal(result.plan.walls.length, 5);
+    const [first, second] = result.walls;
+    assert.equal(first.id, `${wallId}-a`);
+    assert.equal(second.id, `${wallId}-b`);
+    assert.deepEqual(first.start, { x: 0, y: 0 });
+    assert.deepEqual(first.end, { x: 2, y: 0 });
+    assert.deepEqual(second.start, { x: 2, y: 0 });
+    assert.deepEqual(second.end, { x: 4, y: 0 });
+    assert.equal(first.thickness, plan.walls[0].thickness);
+    // The room stays closed across the split.
+    assert.equal(result.plan.rooms.length, 1);
+    assert.equal(result.plan.rooms[0].areaM2, 12);
+  });
+
+  it('redistributes openings deterministically on split', () => {
+    let plan = rectPlan();
+    const wallId = plan.walls[0].id;
+    const doorAdded = planAddDoor(plan, wallId, 0.25, 1.0, 'right');
+    assert.ok(doorAdded);
+    plan = doorAdded.plan;
+    const windowAdded = planAddWindow(plan, wallId, 0.75, 1.2);
+    assert.ok(windowAdded);
+    plan = windowAdded.plan;
+    const result = planSplitWall(plan, wallId, 0.5);
+    assert.ok(result);
+    // Door center (1m) falls on segment A, window center (3m) on segment B.
+    assert.equal(result.plan.doors.length, 1);
+    assert.equal(result.plan.doors[0].wallId, `${wallId}-a`);
+    assert.ok(Math.abs(result.plan.doors[0].centerT - 0.5) < 1e-9);
+    assert.equal(result.plan.doors[0].width, 1.0);
+    assert.equal(result.plan.doors[0].swing, 'right');
+    assert.equal(result.plan.windows.length, 1);
+    assert.equal(result.plan.windows[0].wallId, `${wallId}-b`);
+    assert.ok(Math.abs(result.plan.windows[0].centerT - 0.5) < 1e-9);
+    assert.equal(result.plan.windows[0].width, 1.2);
+  });
+
+  it('rejects splits that would create degenerate segments', () => {
+    const plan = rectPlan();
+    const wallId = plan.walls[0].id;
+    assert.equal(planSplitWall(plan, wallId, 0), null);
+    assert.equal(planSplitWall(plan, wallId, 1), null);
+    assert.equal(planSplitWall(plan, wallId, 0.001), null);
+    assert.equal(planSplitWall(plan, wallId, 0.999), null);
+    assert.equal(planSplitWall(plan, wallId, Number.NaN), null);
+    assert.equal(planSplitWall(plan, 'missing', 0.5), null);
+  });
+
+  it('carries room names across a wall split', () => {
+    let plan = rectPlan();
+    const renamed = planRenameRoom(plan, plan.rooms[0].id, 'Bedroom');
+    assert.ok(renamed);
+    plan = renamed;
+    const result = planSplitWall(plan, plan.walls[0].id, 0.5);
+    assert.ok(result);
+    assert.equal(result.plan.rooms.length, 1);
+    assert.equal(result.plan.rooms[0].name, 'Bedroom');
+  });
+
+  it('deletes a wall and recreates the room with a replacement', () => {
+    const plan = rectPlan();
+    const removed = planDeleteWalls(plan, [plan.walls[0].id]);
+    assert.equal(removed.walls.length, 3);
+    assert.equal(removed.rooms.length, 0);
+    // Draw the replacement wall: the room closes again with recalculated area.
+    const recreated = planAddWall(removed, createWall({ x: 0, y: 0 }, { x: 4, y: 0 }));
+    assert.equal(recreated.rooms.length, 1);
+    assert.equal(recreated.rooms[0].areaM2, 12);
+  });
+
+  it('resizes a wall to a typed metric length', () => {
+    const plan = rectPlan();
+    const resized = planSetWallLength(plan, plan.walls[0].id, 4.2);
+    assert.ok(resized);
+    assert.deepEqual(resized.walls[0].end, { x: 4.2, y: 0 });
+  });
+
+  it('recalculates room area after wall modification', () => {
+    const plan = rectPlan();
+    // Drag the shared bottom-right corner outwards.
+    const moved = planSetWallEndpoint(plan, plan.walls[1].id, 'end', { x: 6, y: 3 });
+    assert.ok(moved);
+    assert.equal(moved.rooms.length, 1);
+    assert.equal(moved.rooms[0].areaM2, 15);
+  });
+
+  it('keeps room names when a wall moves without topology change', () => {
+    let plan = rectPlan();
+    const renamed = planRenameRoom(plan, plan.rooms[0].id, 'Bedroom');
+    assert.ok(renamed);
+    plan = renamed;
+    const moved = planMoveWall(plan, plan.walls[1].id, { x: 1, y: 0 });
+    assert.ok(moved);
+    assert.equal(moved.rooms.length, 1);
+    assert.equal(moved.rooms[0].name, 'Bedroom');
+    assert.equal(moved.rooms[0].areaM2, 15);
+  });
+
+  it('splits a named room deterministically with a divider wall', () => {
+    let plan = rectPlan();
+    const renamed = planRenameRoom(plan, plan.rooms[0].id, 'Bedroom');
+    assert.ok(renamed);
+    plan = renamed;
+    const divided = planAddWall(plan, createWall({ x: 2, y: 0 }, { x: 2, y: 3 }));
+    assert.equal(divided.rooms.length, 2);
+    const areas = divided.rooms.map((room) => room.areaM2).sort((a, b) => a - b);
+    assert.deepEqual(areas, [6, 6]);
+    // Deterministic carryover: both children inherit the containing name.
+    assert.ok(divided.rooms.every((room) => room.name === 'Bedroom'));
+  });
+
+  it('reversing a door swing keeps its position and width', () => {
+    const plan = rectPlan();
+    const added = planAddDoor(plan, plan.walls[0].id, 0.3, 1.0, 'left');
+    assert.ok(added);
+    const swung = planSetDoorSwing(added.plan, added.door.id, 'right');
+    assert.ok(swung);
+    assert.equal(swung.doors[0].swing, 'right');
+    assert.equal(swung.doors[0].centerT, 0.3);
+    assert.equal(swung.doors[0].width, 1.0);
+  });
+
+  it('deleting a door keeps the wall and the room', () => {
+    let plan = rectPlan();
+    const wallsBefore = plan.walls.map((wall) => ({ ...wall }));
+    const added = planAddDoor(plan, plan.walls[0].id, 0.5);
+    assert.ok(added);
+    plan = added.plan;
+    const removed = planDeleteOpenings(plan, [added.door.id], []);
+    assert.equal(removed.doors.length, 0);
+    assert.deepEqual(removed.walls, wallsBefore);
+    assert.equal(removed.rooms.length, 1);
+  });
+
+  it('moving a door or window never moves its host wall', () => {
+    let plan = rectPlan();
+    const wallsBefore = plan.walls.map((wall) => ({ ...wall }));
+    const doorAdded = planAddDoor(plan, plan.walls[0].id, 0.2, 0.9, 'left');
+    assert.ok(doorAdded);
+    plan = doorAdded.plan;
+    const windowAdded = planAddWindow(plan, plan.walls[0].id, 0.8, 1.2);
+    assert.ok(windowAdded);
+    plan = windowAdded.plan;
+    const slidDoor = planMoveDoor(plan, doorAdded.door.id, 0.7);
+    assert.ok(slidDoor);
+    assert.deepEqual(slidDoor.walls, wallsBefore);
+    assert.equal(slidDoor.doors[0].centerT, 0.7);
+    const slidWindow = planMoveWindow(slidDoor, windowAdded.window.id, 0.4);
+    assert.ok(slidWindow);
+    assert.deepEqual(slidWindow.walls, wallsBefore);
+    assert.equal(slidWindow.windows[0].centerT, 0.4);
+    // Resizing openings also leaves wall geometry untouched.
+    const widenedDoor = planSetDoorWidth(slidWindow, doorAdded.door.id, 1.2);
+    assert.ok(widenedDoor);
+    assert.deepEqual(widenedDoor.walls, wallsBefore);
+    const widenedWindow = planSetWindowWidth(widenedDoor, windowAdded.window.id, 2.0);
+    assert.ok(widenedWindow);
+    assert.deepEqual(widenedWindow.walls, wallsBefore);
+  });
+
+  it('deleting a window keeps the wall and the room', () => {
+    let plan = rectPlan();
+    const wallsBefore = plan.walls.map((wall) => ({ ...wall }));
+    const added = planAddWindow(plan, plan.walls[0].id, 0.5, 1.2);
+    assert.ok(added);
+    plan = added.plan;
+    const removed = planDeleteOpenings(plan, [], [added.window.id]);
+    assert.equal(removed.windows.length, 0);
+    assert.deepEqual(removed.walls, wallsBefore);
+    assert.equal(removed.rooms.length, 1);
+  });
+
+  it('deleting one wall keeps openings on other walls', () => {
+    let plan = rectPlan();
+    const keptWallId = plan.walls[1].id;
+    const doorOnDeleted = planAddDoor(plan, plan.walls[0].id, 0.5);
+    assert.ok(doorOnDeleted);
+    plan = doorOnDeleted.plan;
+    const doorOnKept = planAddDoor(plan, keptWallId, 0.5);
+    assert.ok(doorOnKept);
+    plan = doorOnKept.plan;
+    const removed = planDeleteWalls(plan, [plan.walls[0].id]);
+    assert.equal(removed.walls.length, 3);
+    assert.equal(removed.doors.length, 1);
+    assert.equal(removed.doors[0].id, doorOnKept.door.id);
+  });
+
+  it('keeps imported fallback rooms until real detection finds rooms', () => {
+    const fallback = {
+      id: 'room-imported-1',
+      name: 'Bedroom',
+      polygon: [
+        { x: 0, y: 0 },
+        { x: 4, y: 0 },
+        { x: 4, y: 3 },
+        { x: 0, y: 3 },
+      ],
+      areaM2: 12,
+      wallIds: [],
+    };
+    const plan = withRooms({
+      ...emptyFloorPlan(),
+      walls: [createWall({ x: 0, y: 0 }, { x: 4, y: 0 })],
+      rooms: [fallback],
+    });
+    assert.equal(plan.rooms.length, 1);
+    assert.equal(plan.rooms[0].name, 'Bedroom');
   });
 });

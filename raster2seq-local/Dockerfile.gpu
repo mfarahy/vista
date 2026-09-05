@@ -58,7 +58,9 @@ ENV TORCH_CUDA_ARCH_LIST="7.5"
 # Lets the compiled extension find torch's bundled libc10/libtorch at import.
 ENV LD_LIBRARY_PATH=/usr/local/lib/python3.10/dist-packages/torch/lib
 COPY docker-entrypoint-gpu.sh ./
-RUN chmod +x docker-entrypoint-gpu.sh
+# Strip CRLF (Windows checkouts with core.autocrlf=true copy CRLF into the
+# build context, which breaks the `#!/bin/bash` shebang with "no such file").
+RUN sed -i 's/\r$//' docker-entrypoint-gpu.sh && chmod +x docker-entrypoint-gpu.sh
 
 # ── Node.js API layer ────────────────────────────────────────────────────
 COPY api/package*.json ./api/
@@ -73,4 +75,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=120s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
-ENTRYPOINT ["./docker-entrypoint-gpu.sh"]
+ENTRYPOINT ["/bin/bash", "/app/docker-entrypoint-gpu.sh"]

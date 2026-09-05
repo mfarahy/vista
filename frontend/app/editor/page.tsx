@@ -105,6 +105,44 @@ function imageErrorKeyForCode(code: string | null): string {
   }
 }
 
+/**
+ * Decode the uploaded image dimensions so the Raster2Seq adapter can invert
+ * the model letterbox exactly. Returns null when decoding fails; the caller
+ * then falls back to the square-input assumption.
+ */
+async function decodeImageSize(file: File): Promise<{ width: number; height: number } | null> {
+  try {
+    if (typeof createImageBitmap === 'function') {
+      const bitmap = await createImageBitmap(file);
+      const size = { width: bitmap.width, height: bitmap.height };
+      bitmap.close();
+      if (size.width > 0 && size.height > 0) return size;
+      return null;
+    }
+  } catch {
+    // Fall through to the <img> decoder below.
+  }
+  try {
+    const url = URL.createObjectURL(file);
+    try {
+      return await new Promise<{ width: number; height: number } | null>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          resolve(img.naturalWidth > 0 && img.naturalHeight > 0
+            ? { width: img.naturalWidth, height: img.naturalHeight }
+            : null);
+        };
+        img.onerror = () => resolve(null);
+        img.src = url;
+      });
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  } catch {
+    return null;
+  }
+}
+
 /** Adapter failure reason → editor i18n key. */
 function imageErrorKeyForReason(reason: Raster2SeqFailureReason): string {
   switch (reason) {
@@ -211,6 +249,7 @@ export default function FloorPlanEditorPage() {
         loadPlan(result.plan);
         setImportErrors(null);
         setNotice({ kind: 'success', textKey: 'editor.importSuccess' });
+        editor.setTool('select');
         if (result.plan.walls.length > 0) setFitToken((n) => n + 1);
       } else {
         // Keep the current plan untouched; show a concise localized error.
@@ -218,7 +257,7 @@ export default function FloorPlanEditorPage() {
         setNotice(null);
       }
     },
-    [loadPlan],
+    [loadPlan, editor],
   );
 
   const handleExport = useCallback(() => {
@@ -283,13 +322,20 @@ export default function FloorPlanEditorPage() {
           setImageErrorKey(imageErrorKeyForCode(typeof body?.code === 'string' ? body.code : null));
           return;
         }
-        const converted = convertRaster2SeqToFloorPlan(body.result);
+        const sourceSize = await decodeImageSize(file);
+        const converted = convertRaster2SeqToFloorPlan(
+          body.result,
+          sourceSize ? { sourceSize } : undefined,
+        );
         if (!converted.ok) {
           setImageErrorKey(imageErrorKeyForReason(converted.reason));
           return;
         }
         loadPlan(converted.plan);
         setNotice({ kind: 'success', textKey: 'editor.importFromImageSuccess' });
+        // Phase 5: the imported plan is ready for correction — select mode
+        // keeps every wall, opening and room immediately editable.
+        editor.setTool('select');
         if (converted.plan.walls.length > 0) setFitToken((n) => n + 1);
       } catch (error) {
         setImageErrorKey(
@@ -303,7 +349,7 @@ export default function FloorPlanEditorPage() {
         setAnalyzing(false);
       }
     },
-    [loadPlan, t, walls.length],
+    [loadPlan, t, walls.length, editor],
   );
 
   const handleClear = useCallback(() => {
@@ -810,6 +856,7 @@ export default function FloorPlanEditorPage() {
             onViewChange={handleViewChange}
             onPlaceOpening={handlePlaceOpening}
             onWallLengthCommit={handleWallLengthCommit}
+            onSplitWall={(wallId, t) => editor.splitWall(wallId, t)}
             onBeginTransient={editor.beginTransient}
             onPreviewWallEndpoint={editor.previewWallEndpoint}
             onPreviewWallMove={editor.previewWallMove}
@@ -817,10 +864,29 @@ export default function FloorPlanEditorPage() {
             onEndTransient={editor.endTransient}
           />
           {isPlanEmpty && !pendingStart && (
-            <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center px-4">
-              <p className="max-w-md rounded-lg border bg-background/95 px-4 py-2 text-center text-xs text-muted-foreground shadow-sm">
-                {t('editor.emptyPlan')}
-              </p>
+            <div className="absolute inset-x-0 top-4 flex justify-center px-4">
+              <div className="max-w-md rounded-lg border bg-background/95 px-4 py-3 text-center shadow-sm">
+                <p className="text-xs font-semibold">{t('editor.emptyPlanTitle')}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{t('editor.emptyPlan')}</p>
+                <div className="mt-2 flex flex-wrap justify-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setTool('wall')}
+                  >
+                    <BrickWall /> {t('editor.emptyPlanDrawFirst')}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={analyzing}
+                    onClick={() => imageInputRef.current?.click()}
+                  >
+                    <ImagePlus /> {t('editor.emptyPlanImportImage')}
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
         </section>
@@ -858,11 +924,18 @@ export default function FloorPlanEditorPage() {
               roomNameLabel={t('editor.roomName')}
               roomNamePlaceholder={t('editor.roomNamePlaceholder')}
               roomAreaLabel={t('editor.roomArea')}
+              splitWallLabel={t('editor.splitWall')}
+              duplicateLabel={t('editor.duplicateOpening')}
+              duplicateHint={t('editor.duplicateOpeningHint')}
               walls={walls}
               doors={doors}
               windows={windows}
               formatRoomLabel={formatRoomLabel}
               onWallLengthCommit={handleWallLengthCommit}
+              onSplitWall={(id) => editor.splitWall(id, 0.5)}
+              onDuplicateOpening={() => {
+                editor.duplicateSelectedOpening();
+              }}
               onDoorWidth={(id, width) => editor.setDoorWidth(id, width)}
               onWindowWidth={(id, width) => editor.setWindowWidth(id, width)}
               onDoorSwing={(id, swing) => editor.setDoorSwing(id, swing)}
@@ -983,11 +1056,16 @@ type SelectionPanelProps = {
   roomNameLabel: string;
   roomNamePlaceholder: string;
   roomAreaLabel: string;
+  splitWallLabel: string;
+  duplicateLabel: string;
+  duplicateHint: string;
   walls: { id: string; start: Vec2; end: Vec2 }[];
   doors: { id: string; wallId: string }[];
   windows: { id: string; wallId: string }[];
   formatRoomLabel: (room: Room) => string;
   onWallLengthCommit: (wallId: string, lengthM: number) => void;
+  onSplitWall: (wallId: string) => void;
+  onDuplicateOpening: () => void;
   onDoorWidth: (id: string, width: number) => void;
   onWindowWidth: (id: string, width: number) => void;
   onDoorSwing: (id: string, swing: 'left' | 'right') => void;
@@ -1070,6 +1148,18 @@ function SelectionPanel(props: SelectionPanelProps) {
             ))}
           </div>
         </div>
+        <div className="mt-3 space-y-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={props.onDuplicateOpening}
+          >
+            {props.duplicateLabel}
+          </Button>
+          <p className="text-xs text-muted-foreground">{props.duplicateHint}</p>
+        </div>
       </div>
     );
   }
@@ -1121,6 +1211,18 @@ function SelectionPanel(props: SelectionPanelProps) {
               </Button>
             ))}
           </div>
+        </div>
+        <div className="mt-3 space-y-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={props.onDuplicateOpening}
+          >
+            {props.duplicateLabel}
+          </Button>
+          <p className="text-xs text-muted-foreground">{props.duplicateHint}</p>
         </div>
       </div>
     );
@@ -1199,6 +1301,15 @@ function SelectionPanel(props: SelectionPanelProps) {
           label={props.wallLengthEditLabel}
           onCommit={props.onWallLengthCommit}
         />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-3 w-full"
+          onClick={() => props.onSplitWall(firstSelected.id)}
+        >
+          {props.splitWallLabel}
+        </Button>
       </div>
     );
   }

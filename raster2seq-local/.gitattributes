@@ -1,0 +1,5 @@
+# Force Unix line endings for shell entrypoints: with
+# core.autocrlf=true on Windows, CRLF breaks the `#!/bin/bash` shebang
+# inside Docker (`no such file or directory`). Dockerfile.gpu also strips
+# CR as a belt-and-braces defense.
+*.sh text eol=lf

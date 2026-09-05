@@ -2,7 +2,9 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  DEFAULT_DOOR_WIDTH_M,
   DEFAULT_WALL_THICKNESS_M,
+  DEFAULT_WINDOW_WIDTH_M,
   clampThickness,
   createWall,
   emptyFloorPlan,
@@ -32,6 +34,7 @@ import {
   planSetWallLength,
   planSetWallThickness,
   planSetWindowWidth,
+  planSplitWall,
   pushHistory,
   redoStep,
   undoStep,
@@ -77,6 +80,13 @@ export type UseFloorplanEditorResult = {
   redo: () => void;
   // Phase 2: precision wall editing
   setWallLengthM: (wallId: string, lengthM: number) => boolean;
+  // Phase 5: split a wall into two segments at a fractional position
+  // (default 0.5). Openings redistribute deterministically; one undo step.
+  splitWall: (wallId: string, t?: number) => boolean;
+  // Phase 5: duplicate the selected door/window. No clipboard: the duplicate
+  // adopts the original's width (and swing), and the matching tool stays
+  // active so the next wall click places the copy immediately.
+  duplicateSelectedOpening: () => 'door' | 'window' | null;
   // Phase 2: transient drags (endpoint / wall move / opening slide).
   // beginTransient snapshots; preview* updates without history; endTransient
   // records a single undo step (or restores when cancelled).
@@ -127,6 +137,11 @@ export function useFloorplanEditor(): UseFloorplanEditorResult {
   const futureRef = useRef<FloorPlan[]>([]);
   const transientRef = useRef<FloorPlan | null>(null);
   const [historyVersion, setHistoryVersion] = useState(0);
+  // Phase 5: last-used opening sizes. New doors/windows inherit them so
+  // repeated placement (and duplication) needs no re-typing.
+  const lastDoorWidthRef = useRef<number>(DEFAULT_DOOR_WIDTH_M);
+  const lastWindowWidthRef = useRef<number>(DEFAULT_WINDOW_WIDTH_M);
+  const lastSwingRef = useRef<DoorSwing>('left');
   // Phase 3: dirty tracking against the last persisted snapshot.
   const savedRef = useRef<string>(serializeFloorPlan(emptyFloorPlan()));
   const [dirty, setDirty] = useState(false);
@@ -260,6 +275,16 @@ export function useFloorplanEditor(): UseFloorplanEditorResult {
     }
     commitPlan(next);
     clearTransientSelection();
+    // Phase 5: keep the correction flow moving with no extra clicks.
+    // Deleted wall(s) → wall tool for an immediate replacement; deleted
+    // opening → its tool (width/swing remembered) for instant recreation.
+    if (wallIds.length > 0) {
+      setToolState('wall');
+      pendingRef.current = null;
+      setPendingStart(null);
+    } else if (opening) {
+      setToolState(opening.kind === 'door' ? 'door' : 'window');
+    }
   }, [commitPlan, clearTransientSelection]);
 
   const applyThicknessToSelection = useCallback(() => {
@@ -360,10 +385,44 @@ export function useFloorplanEditor(): UseFloorplanEditorResult {
     }
   }, []);
 
+  // --- Phase 5: split & duplicate ------------------------------------------
+
+  const splitWall = useCallback((wallId: string, t = 0.5): boolean => {
+    const result = planSplitWall(planRef.current, wallId, t);
+    if (!result) return false;
+    commitPlan(result.plan);
+    const ids = result.walls.map((wall) => wall.id);
+    selectedRef.current = ids;
+    setSelectedIds(ids);
+    openingRef.current = null;
+    setSelectedOpening(null);
+    roomRef.current = null;
+    setSelectedRoomId(null);
+    return true;
+  }, [commitPlan]);
+
+  const duplicateSelectedOpening = useCallback((): 'door' | 'window' | null => {
+    const opening = openingRef.current;
+    if (!opening) return null;
+    if (opening.kind === 'door') {
+      const door = planRef.current.doors.find((d) => d.id === opening.id);
+      if (!door) return null;
+      lastDoorWidthRef.current = door.width;
+      lastSwingRef.current = door.swing;
+      setToolState('door');
+      return 'door';
+    }
+    const window = planRef.current.windows.find((w) => w.id === opening.id);
+    if (!window) return null;
+    lastWindowWidthRef.current = window.width;
+    setToolState('window');
+    return 'window';
+  }, []);
+
   // --- Doors & windows -----------------------------------------------------
 
   const placeDoor = useCallback((wallId: string, centerT: number): Door | null => {
-    const result = planAddDoor(planRef.current, wallId, centerT);
+    const result = planAddDoor(planRef.current, wallId, centerT, lastDoorWidthRef.current, lastSwingRef.current);
     if (!result) return null;
     commitPlan(result.plan);
     openingRef.current = { kind: 'door', id: result.door.id };
@@ -376,7 +435,7 @@ export function useFloorplanEditor(): UseFloorplanEditorResult {
   }, [commitPlan]);
 
   const placeWindow = useCallback((wallId: string, centerT: number): Window | null => {
-    const result = planAddWindow(planRef.current, wallId, centerT);
+    const result = planAddWindow(planRef.current, wallId, centerT, lastWindowWidthRef.current);
     if (!result) return null;
     commitPlan(result.plan);
     openingRef.current = { kind: 'window', id: result.window.id };
@@ -390,17 +449,28 @@ export function useFloorplanEditor(): UseFloorplanEditorResult {
 
   const setDoorWidth = useCallback((doorId: string, width: number) => {
     const next = planSetDoorWidth(planRef.current, doorId, width);
-    if (next) commitPlan(next);
+    if (next) {
+      commitPlan(next);
+      const updated = next.doors.find((d) => d.id === doorId);
+      if (updated) lastDoorWidthRef.current = updated.width;
+    }
   }, [commitPlan]);
 
   const setWindowWidth = useCallback((windowId: string, width: number) => {
     const next = planSetWindowWidth(planRef.current, windowId, width);
-    if (next) commitPlan(next);
+    if (next) {
+      commitPlan(next);
+      const updated = next.windows.find((w) => w.id === windowId);
+      if (updated) lastWindowWidthRef.current = updated.width;
+    }
   }, [commitPlan]);
 
   const setDoorSwing = useCallback((doorId: string, swing: DoorSwing) => {
     const next = planSetDoorSwing(planRef.current, doorId, swing);
-    if (next) commitPlan(next);
+    if (next) {
+      commitPlan(next);
+      lastSwingRef.current = swing;
+    }
   }, [commitPlan]);
 
   // --- Rooms ---------------------------------------------------------------
@@ -500,6 +570,8 @@ export function useFloorplanEditor(): UseFloorplanEditorResult {
     undo,
     redo,
     setWallLengthM,
+    splitWall,
+    duplicateSelectedOpening,
     beginTransient,
     previewWallEndpoint,
     previewWallMove,
