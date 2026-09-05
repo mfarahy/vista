@@ -7,6 +7,8 @@ import {
   DoorOpen,
   Download,
   Eraser,
+  ImagePlus,
+  Loader2,
   Maximize,
   MousePointer2,
   Redo2,
@@ -29,6 +31,11 @@ import { wallLength, type Room, type Vec2 } from '@/lib/floorplan/model';
 import { formatAreaM2, formatLengthM, parseLengthM, type SnapKind } from '@/lib/floorplan/geometry';
 import { useFloorplanEditor, type EditorTool, type SelectionKind } from '@/lib/floorplan/use-floorplan-editor';
 import { exportFileName, importFloorPlanJson, serializeFloorPlan } from '@/lib/floorplan/serialization';
+import {
+  convertRaster2SeqToFloorPlan,
+  type Raster2SeqFailureReason,
+} from '@/lib/floorplan/raster2seq-adapter';
+import { apiFetch } from '@/lib/api';
 import {
   clearStoredFloorPlan,
   restoreFloorPlan,
@@ -77,6 +84,38 @@ function isEditableTarget(target: EventTarget | null): boolean {
 const DOOR_WIDTH_PRESETS = [0.625, 0.75, 0.875, 1.0];
 const WINDOW_WIDTH_PRESETS = [0.8, 1.0, 1.2, 1.5, 2.0];
 
+/** Browser image formats accepted for image import (matches the local Raster2Seq service). */
+const IMAGE_IMPORT_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const IMAGE_IMPORT_MAX_BYTES = 15 * 1024 * 1024;
+/** Client-side budget covering model load + inference + VLM refinement. */
+const IMAGE_IMPORT_TIMEOUT_MS = 300_000;
+
+/** Server error code → editor i18n key. Never renders raw backend strings. */
+function imageErrorKeyForCode(code: string | null): string {
+  switch (code) {
+    case 'INVALID_IMAGE':
+      return 'editor.imageUnsupportedType';
+    case 'RASTER2SEQ_NOT_CONFIGURED':
+    case 'RASTER2SEQ_UNAVAILABLE':
+      return 'editor.imageServiceUnavailable';
+    case 'RASTER2SEQ_TIMEOUT':
+      return 'editor.imageTimeout';
+    default:
+      return 'editor.imageImportFailed';
+  }
+}
+
+/** Adapter failure reason → editor i18n key. */
+function imageErrorKeyForReason(reason: Raster2SeqFailureReason): string {
+  switch (reason) {
+    case 'empty':
+    case 'invalid-geometry':
+      return 'editor.imageNoGeometry';
+    default:
+      return 'editor.imageImportFailed';
+  }
+}
+
 export default function FloorPlanEditorPage() {
   const { t } = useI18n();
   const editor = useFloorplanEditor();
@@ -102,6 +141,12 @@ export default function FloorPlanEditorPage() {
   const [zoomScale, setZoomScale] = useState(60);
   // Phase 3: persistence / import-export UI state (all strings via i18n).
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  // Phase 4: image-import processing state. The source image is only an
+  // upload payload and never enters editor state or the canvas.
+  const analyzingRef = useRef(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [imageErrorKey, setImageErrorKey] = useState<string | null>(null);
   const restoredRef = useRef(false);
   const [fitToken, setFitToken] = useState(0);
   const [notice, setNotice] = useState<{ kind: 'success' | 'warning'; textKey: string } | null>(null);
@@ -188,6 +233,78 @@ export default function FloorPlanEditorPage() {
     anchor.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }, [plan]);
+
+  // Phase 4: image → local Raster2Seq service → adapter → FloorPlan.
+  // A successful import replaces the plan as one undoable operation; any
+  // failure keeps the existing plan untouched with a localized error.
+  const handleImageFile = useCallback(
+    async (file: File | undefined | null) => {
+      if (!file || analyzingRef.current) return;
+      if (!IMAGE_IMPORT_MIMES.has(file.type)) {
+        setImageErrorKey('editor.imageUnsupportedType');
+        setNotice(null);
+        return;
+      }
+      if (file.size > IMAGE_IMPORT_MAX_BYTES) {
+        setImageErrorKey('editor.imageTooLarge');
+        setNotice(null);
+        return;
+      }
+      if (file.size === 0) {
+        setImageErrorKey('editor.imageUnsupportedType');
+        setNotice(null);
+        return;
+      }
+      // Avoid accidental loss: confirm before replacing a dirty plan
+      // (replacement itself stays undoable via loadPlan).
+      if (dirtyRef.current && walls.length > 0) {
+        if (!window.confirm(t('editor.importImageConfirm'))) return;
+      }
+      analyzingRef.current = true;
+      setAnalyzing(true);
+      setImageErrorKey(null);
+      setImportErrors(null);
+      setNotice(null);
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), IMAGE_IMPORT_TIMEOUT_MS);
+      try {
+        const form = new FormData();
+        form.append('image', file, file.name || 'floorplan.png');
+        const res = await apiFetch('/api/editor/floorplan-from-image', {
+          method: 'POST',
+          body: form,
+          signal: controller.signal,
+        });
+        const body = (await res.json().catch(() => null)) as {
+          result?: unknown;
+          code?: string;
+        } | null;
+        if (!res.ok || !body || body.result === undefined) {
+          setImageErrorKey(imageErrorKeyForCode(typeof body?.code === 'string' ? body.code : null));
+          return;
+        }
+        const converted = convertRaster2SeqToFloorPlan(body.result);
+        if (!converted.ok) {
+          setImageErrorKey(imageErrorKeyForReason(converted.reason));
+          return;
+        }
+        loadPlan(converted.plan);
+        setNotice({ kind: 'success', textKey: 'editor.importFromImageSuccess' });
+        if (converted.plan.walls.length > 0) setFitToken((n) => n + 1);
+      } catch (error) {
+        setImageErrorKey(
+          typeof error === 'object' && error !== null && (error as { name?: string }).name === 'AbortError'
+            ? 'editor.imageTimeout'
+            : 'editor.imageImportFailed',
+        );
+      } finally {
+        window.clearTimeout(timer);
+        analyzingRef.current = false;
+        setAnalyzing(false);
+      }
+    },
+    [loadPlan, t, walls.length],
+  );
 
   const handleClear = useCallback(() => {
     if (window.confirm(t('editor.clearConfirm'))) {
@@ -348,6 +465,7 @@ export default function FloorPlanEditorPage() {
               size="sm"
               aria-label={t('editor.importPlanHint')}
               title={t('editor.importPlanHint')}
+              disabled={analyzing}
               onClick={() => fileInputRef.current?.click()}
               className="gap-1.5"
             >
@@ -358,9 +476,24 @@ export default function FloorPlanEditorPage() {
               type="button"
               variant="ghost"
               size="sm"
+              aria-label={t('editor.importFromImageHint')}
+              title={t('editor.importFromImageHint')}
+              disabled={analyzing}
+              onClick={() => imageInputRef.current?.click()}
+              className="gap-1.5"
+            >
+              {analyzing ? <Loader2 className="animate-spin" /> : <ImagePlus />}
+              <span className="hidden sm:inline" role="status" aria-live="polite">
+                {analyzing ? t('editor.analyzingPlan') : t('editor.importFromImage')}
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
               aria-label={t('editor.exportPlanHint')}
               title={t('editor.exportPlanHint')}
-              disabled={isPlanEmpty}
+              disabled={isPlanEmpty || analyzing}
               onClick={handleExport}
               className="gap-1.5"
             >
@@ -379,6 +512,18 @@ export default function FloorPlanEditorPage() {
                 event.target.value = '';
               }}
             />
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              aria-hidden="true"
+              tabIndex={-1}
+              onChange={(event) => {
+                void handleImageFile(event.target.files?.[0]);
+                event.target.value = '';
+              }}
+            />
             <Separator orientation="vertical" className="mx-1 h-5" />
             <Button
               type="button"
@@ -386,7 +531,7 @@ export default function FloorPlanEditorPage() {
               size="icon-sm"
               aria-label={t('editor.undo')}
               title={t('editor.undo')}
-              disabled={!canUndo}
+              disabled={!canUndo || analyzing}
               onClick={editor.undo}
             >
               <Undo2 />
@@ -397,7 +542,7 @@ export default function FloorPlanEditorPage() {
               size="icon-sm"
               aria-label={t('editor.redo')}
               title={t('editor.redo')}
-              disabled={!canRedo}
+              disabled={!canRedo || analyzing}
               onClick={editor.redo}
             >
               <Redo2 />
@@ -523,6 +668,26 @@ export default function FloorPlanEditorPage() {
             </Button>
           </div>
         )}
+        {imageErrorKey && (
+          <div className="mx-auto flex max-w-none items-start gap-2 px-4 pb-2 sm:px-6">
+            <div
+              role="alert"
+              className="flex-1 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-xs text-destructive"
+            >
+              <p className="font-semibold">{t('editor.importFailed')}</p>
+              <p className="mt-1">{t(imageErrorKey)}</p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label={t('common.close')}
+              onClick={() => setImageErrorKey(null)}
+            >
+              <X />
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
@@ -597,7 +762,7 @@ export default function FloorPlanEditorPage() {
               size="icon-sm"
               aria-label={t('editor.clearAll')}
               title={t('editor.clearAll')}
-              disabled={isPlanEmpty}
+              disabled={isPlanEmpty || analyzing}
               onClick={handleClear}
             >
               <Eraser />

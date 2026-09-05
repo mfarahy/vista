@@ -1,0 +1,38 @@
+{
+  "status": "ok",
+  "image_id": "floorplan-multiroom",
+  "room_count": 4,
+  "spaces": [
+    {
+      "id": 0,
+      "category_id": 2,
+      "label": "Living Room",
+      "polygon": [[18.5, 22.0], [150.0, 22.0], [150.0, 128.5], [18.5, 128.5]]
+    },
+    {
+      "id": 1,
+      "category_id": 3,
+      "label": "Bed Room",
+      "polygon": [[155.0, 22.0], [238.0, 22.0], [238.0, 110.0], [155.0, 110.0]]
+    },
+    {
+      "id": 2,
+      "category_id": 1,
+      "label": "Kitchen",
+      "polygon": [[18.5, 133.5], [96.0, 133.5], [96.0, 234.0], [18.5, 234.0]]
+    },
+    {
+      "id": 3,
+      "category_id": 4,
+      "label": "Bath",
+      "polygon": [[101.0, 133.5], [150.0, 133.5], [150.0, 190.0], [101.0, 190.0]]
+    }
+  ],
+  "image_size": 256,
+  "coordinate_space": "model-input-256x256-padded",
+  "checkpoint": "hf:cubicasa5k",
+  "dataset": "cubicasa",
+  "device": "mock",
+  "inference_ms": 0,
+  "_note": "Dev fallback for machines without CUDA. Same schema as inference/infer_single.py stdout; category labels follow upstream util/plot_utils.py CC5K_LABEL."
+}
