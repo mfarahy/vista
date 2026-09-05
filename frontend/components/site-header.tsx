@@ -16,6 +16,9 @@ export function SiteHeader() {
         <VistaLogoLink href="/" />
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" asChild>
+            <Link href="/editor">{t('editor.title')}</Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
             <Link href="/floorplan">{t('landing.floorplan3d')}</Link>
           </Button>
           <Button variant="ghost" size="sm" asChild>
