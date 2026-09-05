@@ -219,11 +219,39 @@ function Start-BackgroundJob($name, $workDir, $command) {
     Set-Location -LiteralPath $d
     # Ensure child npm inherits UTF-8
     $oldPref = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-    Invoke-Expression $c
+    # Merge stderr into stdout so Receive-Job sees a single ordered stream
+    Invoke-Expression $c 2>&1 | ForEach-Object { "$_" }
     $ErrorActionPreference = $oldPref
   }
   Write-Info ("Started hidden job {0} (Id {1}) - {2}" -f $name, $job.Id, $workDir)
   return $job
+}
+
+# Incremental log streaming: Receive-Job -Keep returns the FULL buffer on every
+# call, so printing it directly re-prints the whole history each poll (screen
+# flicker / repeated logs). Track a per-job cursor and print only new lines.
+$script:JobLogCursor = @{}
+function Write-JobLogsDelta($jobs) {
+  foreach ($j in $jobs) {
+    try {
+      $all = @(Receive-Job -Job $j -Keep -ErrorAction SilentlyContinue)
+    } catch { continue }
+    if ($all.Count -eq 0) { continue }
+    $key = "$($j.Id)"
+    $prev = 0
+    if ($script:JobLogCursor.ContainsKey($key)) { $prev = $script:JobLogCursor[$key] }
+    # Job output buffers only grow; if it shrank (job recycled) reset cursor
+    if ($prev -gt $all.Count) { $prev = 0 }
+    for ($i = $prev; $i -lt $all.Count; $i++) {
+      # Dev servers (Next.js/vite/npm) emit \r progress spinners that redraw the
+      # same console line -> looks like blinking. Keep only text after last \r.
+      $raw = "$($all[$i])"
+      if ($raw.Contains("`r")) { $raw = $raw.Split("`r")[-1] }
+      $line = $raw.TrimEnd()
+      if ($line -ne '') { Write-Host "[$($j.Name)] $line" }
+    }
+    $script:JobLogCursor[$key] = $all.Count
+  }
 }
 
 # Kept for backwards compat - alias to Start-BackgroundJob
@@ -542,10 +570,7 @@ if ($Foreground) {
   # Stream logs until interrupted - cleanup on exit
   try {
     while ($true) {
-      foreach ($j in $jobs) {
-        $out = Receive-Job -Job $j -Keep -ErrorAction SilentlyContinue
-        if ($out) { $out | ForEach-Object { Write-Host "[$($j.Name)] $_" } }
-      }
+      Write-JobLogsDelta $jobs
       $failed = $jobs | Where-Object { $_.State -eq 'Failed' }
       if ($failed) { $failed | ForEach-Object { Write-Warn "Job $($_.Name) failed. Check: Receive-Job -Id $($_.Id)" } }
       $running = @($jobs | Where-Object { $_.State -eq 'Running' }).Count
@@ -648,10 +673,7 @@ if ($Foreground) {
   # Block and stream logs until interrupted - cleanup guarantees stop on exit
   try {
     while ($true) {
-      foreach ($j in $jobs) {
-        $out = Receive-Job -Job $j -Keep -ErrorAction SilentlyContinue
-        if ($out) { $out | ForEach-Object { $line = "$_".Trim(); if ($line) { Write-Host "[$($j.Name)] $line" } } }
-      }
+      Write-JobLogsDelta $jobs
       $failed = $jobs | Where-Object { $_.State -eq 'Failed' }
       if ($failed) { $failed | ForEach-Object { Write-Warn "Job $($_.Name) failed. Check: Receive-Job -Id $($_.Id)" } }
       $running = @($jobs | Where-Object { $_.State -eq 'Running' }).Count
