@@ -99,14 +99,17 @@ function snapAngleFromStart(start: Vec2, raw: Vec2): { point: Vec2; kind: SnapKi
  * Snap a cursor point in world coordinates.
  * Priority: existing wall endpoints > angle/ortho relative to the pending
  * wall start > raw position.
+ * `ignoreWallId` excludes one wall's endpoints (used while dragging that
+ * wall's own endpoint so it never snaps to its stale position).
  */
 export function snapPoint(
   raw: Vec2,
   walls: Wall[],
   toleranceM: number,
   pendingStart: Vec2 | null,
+  ignoreWallId?: string,
 ): SnapResult {
-  const endpoint = nearestEndpoint(raw, walls, toleranceM);
+  const endpoint = nearestEndpoint(raw, walls, toleranceM, ignoreWallId);
   if (endpoint) {
     return { point: { ...endpoint.point }, kind: 'endpoint', sourceWallId: endpoint.wallId };
   }

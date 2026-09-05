@@ -49,6 +49,20 @@ describe('floorplan geometry', () => {
     assert.equal(miss, null);
   });
 
+  it('excludes the dragged wall from endpoint snapping', () => {
+    // Without exclusion the cursor snaps onto the wall's own endpoint.
+    const own = snapPoint({ x: 0.05, y: 0.05 }, walls, 0.2, null);
+    assert.equal(own.kind, 'endpoint');
+    // With exclusion there is no other endpoint nearby: raw position wins.
+    const excluded = snapPoint({ x: 0.05, y: 0.05 }, walls, 0.2, null, 'a');
+    assert.equal(excluded.kind, null);
+    assert.deepEqual(excluded.point, { x: 0.05, y: 0.05 });
+    // Snapping onto other walls still works while dragging.
+    const other = snapPoint({ x: 4.02, y: 0.03 }, walls, 0.2, { x: 0, y: 0 }, 'a');
+    assert.equal(other.kind, 'endpoint');
+    assert.deepEqual(other.point, { x: 4, y: 0 });
+  });
+
   it('prioritizes endpoint snapping over angle snapping', () => {
     const snapped = snapPoint({ x: 4.02, y: 0.03 }, walls, 0.2, { x: 1, y: 1 });
     assert.equal(snapped.kind, 'endpoint');
@@ -144,6 +158,7 @@ describe('floorplan geometry', () => {
     assert.equal(parseLengthM('4.25'), 4.25);
     assert.equal(parseLengthM('4,25 m'), 4.25);
     assert.equal(parseLengthM(' 2.5m '), 2.5);
+    assert.equal(parseLengthM('4.20 m'), 4.2);
     assert.equal(parseLengthM('abc'), null);
     assert.equal(parseLengthM('-1'), null);
     assert.equal(parseLengthM(''), null);

@@ -21,7 +21,7 @@ import {
   type Window,
 } from './model';
 import { detectRooms } from './rooms';
-import { setWallEndpoint, setWallLength, translateWall } from './geometry';
+import { pointInPolygon, polygonCentroid, setWallEndpoint, setWallLength, translateWall, wallPointAt } from './geometry';
 
 /** Endpoints are shared when they coincide (snapping stores exact copies). */
 export const COINCIDENT_EPS_M = 1e-6;
@@ -47,7 +47,41 @@ export function clonePlan(plan: FloorPlan): FloorPlan {
 }
 
 export function withRooms(plan: FloorPlan, previousRooms: Room[] = plan.rooms): FloorPlan {
-  return { ...plan, rooms: detectRooms(plan.walls, previousRooms) };
+  const detected = detectRooms(plan.walls, previousRooms);
+  const named = carryRoomNames(previousRooms, detected);
+  if (named.length > 0) return { ...plan, rooms: named };
+  // No closed rooms: keep imported fallback polygons (no wall references)
+  // so an import without closed geometry does not lose its room information.
+  // They are replaced automatically once real detection finds rooms.
+  const fallbacks = previousRooms.filter((room) => room.wallIds.length === 0 && room.polygon.length >= 3);
+  return {
+    ...plan,
+    rooms: fallbacks.map((room) => ({ ...room, polygon: room.polygon.map((p) => ({ ...p })), wallIds: [] })),
+  };
+}
+
+/**
+ * Deterministic room-name carryover for re-detection.
+ *
+ * `detectRooms` already preserves names when the boundary signature (wall
+ * ids) is unchanged. When walls are added, deleted or split, signatures
+ * change; an unnamed room then inherits the name of the smallest named
+ * previous room containing its centroid (same rule the Raster2Seq adapter
+ * uses for import labels). Ambiguity resolves deterministically by area,
+ * then by previous order. Duplicate names are possible and acceptable.
+ */
+function carryRoomNames(previousRooms: Room[], detected: Room[]): Room[] {
+  return detected.map((room) => {
+    if (room.name) return room;
+    const center = polygonCentroid(room.polygon);
+    let best: Room | null = null;
+    for (const previous of previousRooms) {
+      if (!previous.name) continue;
+      if (!pointInPolygon(center, previous.polygon)) continue;
+      if (!best || previous.areaM2 < best.areaM2) best = previous;
+    }
+    return best ? { ...room, name: best.name } : room;
+  });
 }
 
 function findWall(plan: FloorPlan, wallId: string): Wall | null {
@@ -167,6 +201,63 @@ export function planSetWallLength(
     return next;
   });
   return withRooms({ ...plan, walls });
+}
+
+export type SplitWallResult = { plan: FloorPlan; walls: [Wall, Wall] };
+
+function uniqueSplitId(plan: FloorPlan, base: string): string {
+  const taken = new Set(plan.walls.map((wall) => wall.id));
+  let candidate = base;
+  let counter = 2;
+  while (taken.has(candidate)) {
+    candidate = `${base}-${counter}`;
+    counter += 1;
+  }
+  return candidate;
+}
+
+/**
+ * Split a wall into two segments at fractional position `t`.
+ *
+ * New ids derive deterministically from the original (`<id>-a`, `<id>-b`).
+ * Openings attached to the wall are reassigned by their absolute center:
+ * each keeps its width (and a door its swing) and lands on the segment
+ * containing its center, with its fractional position rescaled. An opening
+ * straddling the split point is assigned by center and clamped visually,
+ * exactly like an oversized opening on a short wall.
+ * Returns null when either segment would be below the minimum length.
+ */
+export function planSplitWall(plan: FloorPlan, wallId: string, t: number): SplitWallResult | null {
+  const wall = findWall(plan, wallId);
+  if (!wall) return null;
+  if (!Number.isFinite(t)) return null;
+  const len = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
+  if (len < MIN_WALL_LENGTH_M * 2) return null;
+  const tc = clampT(t);
+  const lenA = tc * len;
+  const lenB = len - lenA;
+  if (lenA < MIN_WALL_LENGTH_M || lenB < MIN_WALL_LENGTH_M) return null;
+  const cut = wallPointAt(wall, tc);
+  const idA = uniqueSplitId(plan, `${wallId}-a`);
+  const idB = uniqueSplitId({ ...plan, walls: [...plan.walls, { ...wall, id: idA }] }, `${wallId}-b`);
+  const wallA: Wall = { id: idA, start: { ...wall.start }, end: { ...cut }, thickness: wall.thickness };
+  const wallB: Wall = { id: idB, start: { ...cut }, end: { ...wall.end }, thickness: wall.thickness };
+  const doors = plan.doors.map((door) => {
+    if (door.wallId !== wallId) return door;
+    const dist = clampT(door.centerT) * len;
+    return dist <= lenA
+      ? { ...door, wallId: idA, centerT: clampT(lenA > 1e-9 ? dist / lenA : 0.5) }
+      : { ...door, wallId: idB, centerT: clampT(lenB > 1e-9 ? (dist - lenA) / lenB : 0.5) };
+  });
+  const windows = plan.windows.map((window) => {
+    if (window.wallId !== wallId) return window;
+    const dist = clampT(window.centerT) * len;
+    return dist <= lenA
+      ? { ...window, wallId: idA, centerT: clampT(lenA > 1e-9 ? dist / lenA : 0.5) }
+      : { ...window, wallId: idB, centerT: clampT(lenB > 1e-9 ? (dist - lenA) / lenB : 0.5) };
+  });
+  const walls = plan.walls.flatMap((candidate) => (candidate.id === wallId ? [wallA, wallB] : [candidate]));
+  return { plan: withRooms({ ...plan, walls, doors, windows }), walls: [wallA, wallB] };
 }
 
 export function planSetWallThickness(
