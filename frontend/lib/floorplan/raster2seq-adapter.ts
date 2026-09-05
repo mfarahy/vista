@@ -18,22 +18,44 @@
  *   polygon, graph}` in the same 256×256 space, with VLM-corrected room
  *   types and cleaned polygons. Preferred when present.
  *
- * Coordinate assumption (documented): Raster2Seq provides no real-world
- * scale, so relative geometry is preserved with a fixed uniform scale of
+ * Coordinate pipeline (explicit, testable stages):
+ * - `spaces[]` polygons live in the 256x256 padded model-input space.
+ * - When the source image size is known, the upstream `ResizeAndPad`
+ *   letterbox is inverted exactly (remove padding, divide by resize scale;
+ *   see `raster2seq-geometry.ts`) to recover original-image pixels. Without
+ *   a source size the input is treated as square (identity, legacy behavior).
+ * - Original-image pixels map to Vista world meters with a fixed uniform
+ *   scale of `RASTER2SEQ_METERS_PER_PX`.
+ *
+ * Scale assumption (documented): Raster2Seq provides no real-world scale,
+ * so relative geometry and proportions are preserved with a fixed
  * `RASTER2SEQ_METERS_PER_PX` (0.05 m/px — a full 256-unit span maps to
- * 12.8 m, a typical apartment scale). Measurements are therefore
- * approximate; the UI tells the user to verify dimensions.
+ * 12.8 m, a typical apartment scale). Absolute measurements are therefore
+ * approximate editing dimensions, not surveyed values; the UI tells the
+ * user to verify dimensions.
+ *
+ * Wall thickness assumption (documented): Raster2Seq predicts room/space
+ * boundaries, not wall bodies, so thickness cannot be measured from the
+ * response. Imports reuse the editor default (`DEFAULT_WALL_THICKNESS_M`)
+ * via `RASTER2SEQ_WALL_THICKNESS_M` — a single construction system that
+ * stays editable in the properties panel.
  *
  * Conversion strategy (minimum deterministic matching, no vision logic):
  * - Walls are the unique edges of all interior room polygons (outdoor
  *   spaces excluded, like `v360-geometry`). Endpoints are quantized to a
  *   0.5-unit grid so near-coincident corners connect.
- * - Openings attach to the nearest wall within `OPENING_MATCH_M`; their
- *   center/width use the existing wall-fraction (`centerT`) representation.
- * - Rooms come from Vista's existing `detectRooms` over the derived walls;
+ * - Raw walls then pass through the conservative `cleanupImportedWalls`
+ *   stage (dedupe, orthogonal snap, endpoint clustering, collinear merge)
+ *   before anything else consumes them.
+ * - Openings attach to the nearest cleaned wall within `OPENING_MATCH_M`;
+ *   their center/width use the existing wall-fraction (`centerT`)
+ *   representation, clamped so the opening fits on the host wall. Walls
+ *   stay continuous semantic boundaries; the editor renders the gaps.
+ * - Rooms come from Vista's existing `detectRooms` over the cleaned walls;
  *   Raster2Seq labels survive as room names via centroid matching. When no
  *   closed room is detected (overlapping draft polygons), room polygons are
- *   kept directly with computed areas so no information is lost.
+ *   kept directly with areas computed from canonical geometry, so no
+ *   information is lost.
  * - The result always passes through the Phase 3 `validateFloorPlan`
  *   layer; invalid geometry never enters the editor.
  *
@@ -54,13 +76,24 @@ import {
   type Window,
 } from './model';
 import { detectRooms } from './rooms';
-import { pointInPolygon, polygonArea, projectPointToWall } from './geometry';
+import { clampOpeningT, pointInPolygon, polygonArea, projectPointToWall } from './geometry';
+import {
+  cleanupImportedWalls,
+  letterboxTransformFor,
+  modelToSourcePoint,
+  type LetterboxTransform,
+} from './raster2seq-geometry';
 import { validateFloorPlan } from './validation';
 
-/** Fixed uniform scale: Raster2Seq model-input units → meters. See header. */
+/** Fixed uniform scale: original-image pixels → meters. See header. */
 export const RASTER2SEQ_METERS_PER_PX = 0.05;
 /** Model-input space edge length reported by the service (`image_size`). */
 export const RASTER2SEQ_IMAGE_SIZE = 256;
+/**
+ * Imported wall thickness: Raster2Seq predicts boundaries, not wall bodies,
+ * so imports reuse the editor default (single construction system).
+ */
+export const RASTER2SEQ_WALL_THICKNESS_M = DEFAULT_WALL_THICKNESS_M;
 /** Endpoint quantization grid in model-input units (merges corner jitter). */
 const QUANT_PX = 0.5;
 /** Opening segments shorter than this are treated as noise and skipped. */
@@ -87,6 +120,19 @@ export type Raster2SeqRefinedSpace = {
 export type Raster2SeqAnalysis = {
   spaces?: Raster2SeqDraftSpace[];
   refined_spaces?: Raster2SeqRefinedSpace[];
+  /** Optional original image size in pixels (enables letterbox inversion). */
+  source_width?: unknown;
+  source_height?: unknown;
+};
+
+/** Optional conversion inputs that are not part of the service response. */
+export type Raster2SeqConvertOptions = {
+  /**
+   * Original uploaded image size in pixels. Wins over response-embedded
+   * dimensions. Omit (and omit response fields) to treat the model input
+   * as square — the legacy behavior for fixtures without source sizes.
+   */
+  sourceSize?: { width: number; height: number };
 };
 
 export type Raster2SeqFailureReason =
@@ -154,11 +200,40 @@ function quantize(value: number): number {
   return Math.round(value / QUANT_PX) * QUANT_PX;
 }
 
-function toMeters(pointPx: Vec2): Vec2 {
+/**
+ * Resolve the letterbox inversion for a response: explicit options win,
+ * then response-embedded `source_width`/`source_height`, then null (square
+ * input assumption — model coordinates pass through unchanged).
+ */
+function resolveLetterbox(input: unknown, options?: Raster2SeqConvertOptions): LetterboxTransform | null {
+  const fromOptions =
+    options?.sourceSize && Number.isFinite(options.sourceSize.width) && Number.isFinite(options.sourceSize.height)
+      ? letterboxTransformFor(options.sourceSize.width, options.sourceSize.height)
+      : null;
+  if (fromOptions) return fromOptions;
+  if (typeof input === 'object' && input !== null && !Array.isArray(input)) {
+    const raw = input as Record<string, unknown>;
+    const width = Number(raw.source_width);
+    const height = Number(raw.source_height);
+    if (Number.isFinite(width) && Number.isFinite(height)) {
+      return letterboxTransformFor(width, height);
+    }
+  }
+  return null;
+}
+
+/**
+ * Build the world-coordinate converter for one response: model-input units
+ * -> (letterbox inversion) -> original-image pixels -> meters.
+ */
+function makeToMeters(letterbox: LetterboxTransform | null): (pointPx: Vec2) => Vec2 {
   const round3 = (value: number) => Math.round(value * 1000) / 1000;
-  return {
-    x: round3(pointPx.x * RASTER2SEQ_METERS_PER_PX),
-    y: round3(pointPx.y * RASTER2SEQ_METERS_PER_PX),
+  return (pointPx: Vec2) => {
+    const source = letterbox ? modelToSourcePoint(pointPx, letterbox) : pointPx;
+    return {
+      x: round3(source.x * RASTER2SEQ_METERS_PER_PX),
+      y: round3(source.y * RASTER2SEQ_METERS_PER_PX),
+    };
   };
 }
 
@@ -224,8 +299,15 @@ function edgeKey(a: Vec2, b: Vec2): string {
   return ka < kb ? `${ka}~${kb}` : `${kb}~${ka}`;
 }
 
-/** Unique wall edges from room polygons, deterministically ordered. */
-function extractWalls(rooms: Array<{ pointsPx: Vec2[] }>): Wall[] {
+/**
+ * Unique wall edges from room polygons, converted to world meters and run
+ * through the conservative geometry cleanup (dedupe, orthogonal snap,
+ * endpoint clustering, collinear merge). Ids are dense and deterministic.
+ */
+function extractWalls(
+  rooms: Array<{ pointsPx: Vec2[] }>,
+  toMeters: (pointPx: Vec2) => Vec2,
+): Wall[] {
   const seen = new Map<string, { a: Vec2; b: Vec2 }>();
   for (const room of rooms) {
     const quantized = room.pointsPx.map((p) => ({ x: quantize(p.x), y: quantize(p.y) }));
@@ -254,39 +336,43 @@ function extractWalls(rooms: Array<{ pointsPx: Vec2[] }>): Wall[] {
     if (c1 !== c2) return c1 - c2;
     return Math.max(e1.a.y, e1.b.y) - Math.max(e2.a.y, e2.b.y);
   });
-  const walls: Wall[] = [];
+  const raw: Wall[] = [];
   edges.forEach((edge, index) => {
     const start = toMeters(edge.a);
     const end = toMeters(edge.b);
     if (Math.hypot(end.x - start.x, end.y - start.y) < MIN_WALL_LENGTH_M) return;
-    walls.push({ id: `wall-${index + 1}`, start, end, thickness: DEFAULT_WALL_THICKNESS_M });
+    raw.push({ id: `wall-raw-${index + 1}`, start, end, thickness: RASTER2SEQ_WALL_THICKNESS_M });
   });
-  // Ids must be dense after length filtering for stable snapshots.
+  const { walls: cleaned } = cleanupImportedWalls(raw);
+  const walls = cleaned.filter(
+    (wall) => Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y) >= MIN_WALL_LENGTH_M,
+  );
+  // Ids must be dense after cleanup filtering for stable snapshots.
   walls.forEach((wall, index) => {
     wall.id = `wall-${index + 1}`;
   });
   return walls;
 }
 
-function segmentLengthM(pointsPx: Vec2[]): number {
-  const a = pointsPx[0];
-  const b = pointsPx[pointsPx.length - 1];
-  return Math.hypot(b.x - a.x, b.y - a.y) * RASTER2SEQ_METERS_PER_PX;
-}
-
-/** Attach opening segments to their nearest host wall (minimum matching). */
+/**
+ * Attach opening segments to their nearest cleaned host wall (deterministic
+ * geometric matching). Walls stay continuous semantic boundaries; the
+ * editor renders the gaps. The center is clamped so the opening always fits
+ * on its host wall.
+ */
 function attachOpenings(
   openings: Array<{ kind: 'door' | 'window'; pointsPx: Vec2[] }>,
   walls: Wall[],
+  toMeters: (pointPx: Vec2) => Vec2,
 ): { doors: Door[]; windows: Window[] } {
   const doors: Door[] = [];
   const windows: Window[] = [];
   let doorIndex = 0;
   let windowIndex = 0;
   for (const opening of openings) {
-    if (segmentLengthM(opening.pointsPx) < MIN_OPENING_M) continue;
     const a = toMeters(opening.pointsPx[0]);
     const b = toMeters(opening.pointsPx[opening.pointsPx.length - 1]);
+    if (Math.hypot(b.x - a.x, b.y - a.y) < MIN_OPENING_M) continue;
     const center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     let best: { wall: Wall; t: number; distance: number } | null = null;
     for (const wall of walls) {
@@ -297,12 +383,13 @@ function attachOpenings(
     }
     if (!best) continue;
     const width = clampOpeningWidth(Math.hypot(b.x - a.x, b.y - a.y));
+    const centerT = clampOpeningT(best.wall, best.t, width);
     if (opening.kind === 'door') {
       doorIndex += 1;
-      doors.push({ id: `door-${doorIndex}`, wallId: best.wall.id, centerT: best.t, width, swing: 'left' });
+      doors.push({ id: `door-${doorIndex}`, wallId: best.wall.id, centerT, width, swing: 'left' });
     } else {
       windowIndex += 1;
-      windows.push({ id: `window-${windowIndex}`, wallId: best.wall.id, centerT: best.t, width });
+      windows.push({ id: `window-${windowIndex}`, wallId: best.wall.id, centerT, width });
     }
   }
   return { doors, windows };
@@ -364,8 +451,15 @@ function fallbackRooms(sources: Array<{ name: string; polygon: Vec2[] }>): Room[
  * Convert a Raster2Seq analysis result into a canonical FloorPlan.
  * Never throws: every failure mode returns `{ok: false, reason}` so the
  * caller can keep the current plan and show a localized error.
+ *
+ * Pipeline: coordinate conversion (with letterbox inversion when the source
+ * size is known) -> wall cleanup -> orthogonal/corner cleanup -> opening
+ * association -> room detection -> validation.
  */
-export function convertRaster2SeqToFloorPlan(input: unknown): Raster2SeqConversion {
+export function convertRaster2SeqToFloorPlan(
+  input: unknown,
+  options?: Raster2SeqConvertOptions,
+): Raster2SeqConversion {
   let spaces: NormalizedSpace[] | null = null;
   try {
     spaces = normalizeSpaces(input);
@@ -380,10 +474,11 @@ export function convertRaster2SeqToFloorPlan(input: unknown): Raster2SeqConversi
   );
   if (roomSources.length === 0) return { ok: false, reason: 'empty' };
 
-  const walls = extractWalls(roomSources);
+  const toMeters = makeToMeters(resolveLetterbox(input, options));
+  const walls = extractWalls(roomSources, toMeters);
   if (walls.length === 0) return { ok: false, reason: 'invalid-geometry' };
 
-  const { doors, windows } = attachOpenings(openingSources, walls);
+  const { doors, windows } = attachOpenings(openingSources, walls, toMeters);
 
   const scaledSources = roomSources.map((room) => ({
     name: room.kind === 'room' ? room.name : '',

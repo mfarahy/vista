@@ -105,6 +105,44 @@ function imageErrorKeyForCode(code: string | null): string {
   }
 }
 
+/**
+ * Decode the uploaded image dimensions so the Raster2Seq adapter can invert
+ * the model letterbox exactly. Returns null when decoding fails; the caller
+ * then falls back to the square-input assumption.
+ */
+async function decodeImageSize(file: File): Promise<{ width: number; height: number } | null> {
+  try {
+    if (typeof createImageBitmap === 'function') {
+      const bitmap = await createImageBitmap(file);
+      const size = { width: bitmap.width, height: bitmap.height };
+      bitmap.close();
+      if (size.width > 0 && size.height > 0) return size;
+      return null;
+    }
+  } catch {
+    // Fall through to the <img> decoder below.
+  }
+  try {
+    const url = URL.createObjectURL(file);
+    try {
+      return await new Promise<{ width: number; height: number } | null>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          resolve(img.naturalWidth > 0 && img.naturalHeight > 0
+            ? { width: img.naturalWidth, height: img.naturalHeight }
+            : null);
+        };
+        img.onerror = () => resolve(null);
+        img.src = url;
+      });
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  } catch {
+    return null;
+  }
+}
+
 /** Adapter failure reason → editor i18n key. */
 function imageErrorKeyForReason(reason: Raster2SeqFailureReason): string {
   switch (reason) {
@@ -284,7 +322,11 @@ export default function FloorPlanEditorPage() {
           setImageErrorKey(imageErrorKeyForCode(typeof body?.code === 'string' ? body.code : null));
           return;
         }
-        const converted = convertRaster2SeqToFloorPlan(body.result);
+        const sourceSize = await decodeImageSize(file);
+        const converted = convertRaster2SeqToFloorPlan(
+          body.result,
+          sourceSize ? { sourceSize } : undefined,
+        );
         if (!converted.ok) {
           setImageErrorKey(imageErrorKeyForReason(converted.reason));
           return;
