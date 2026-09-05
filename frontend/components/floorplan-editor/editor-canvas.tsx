@@ -263,6 +263,22 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
     [onDrawClick, toWorld],
   );
 
+  const finishPan = useCallback(() => {
+    const pan = panState.current;
+    panState.current = null;
+    setPanning(false);
+    return pan;
+  }, []);
+
+  // Safety net: if the pointer is released outside the canvas (or over an
+  // element that stops propagation), no stale pan may survive. A stale pan
+  // would otherwise move the scene on the next plain mouse move.
+  useEffect(() => {
+    const onWindowMouseUp = () => finishPan();
+    window.addEventListener('mouseup', onWindowMouseUp);
+    return () => window.removeEventListener('mouseup', onWindowMouseUp);
+  }, [finishPan]);
+
   const handleMouseMove = useCallback(
     (event: React.MouseEvent<SVGSVGElement>) => {
       const svg = svgRef.current;
@@ -271,7 +287,8 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
       const sx = event.clientX - rect.left;
       const sy = event.clientY - rect.top;
       const pan = panState.current;
-      if (pan?.active) {
+      // event.buttons is 0 when no button is held: plain hovering must never pan.
+      if (pan?.active && event.buttons !== 0) {
         const dx = sx - pan.startSX;
         const dy = sy - pan.startSY;
         if (Math.hypot(dx, dy) > 4) pan.moved = true;
@@ -285,17 +302,18 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
           cameraRef.current = next;
           setCamera(next);
         }
+      } else if (pan?.active && event.buttons === 0) {
+        // Button released without a mouseup reaching the canvas: drop the stale pan.
+        finishPan();
       }
       updateHover(sx, sy);
     },
-    [updateHover],
+    [finishPan, updateHover],
   );
 
   const handleMouseUp = useCallback(
     (event: React.MouseEvent<SVGSVGElement>) => {
-      const pan = panState.current;
-      panState.current = null;
-      setPanning(false);
+      const pan = finishPan();
       if (pan?.moved) return;
       if (toolRef.current !== 'select' || event.button !== 0) return;
       if (spaceRef.current) return;
@@ -303,14 +321,13 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
       // by the rect below; wall hits stop propagation before reaching here.
       onSelectWall(null, event.shiftKey);
     },
-    [onSelectWall],
+    [finishPan, onSelectWall],
   );
 
   const handleMouseLeave = useCallback(() => {
-    panState.current = null;
-    setPanning(false);
+    finishPan();
     setHover(null);
-  }, []);
+  }, [finishPan]);
 
   const grid = useMemo(() => {
     const lines: Array<{ x1: number; y1: number; x2: number; y2: number; major: boolean }> = [];
@@ -462,8 +479,11 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
           fill="transparent"
           onMouseUp={(event) => {
             event.stopPropagation();
+            const pan = finishPan();
             // Wall drawing is handled on mousedown for speed; this target only
-            // deselects in the select tool (wall hits stop propagation above).
+            // deselects on a plain click in the select tool (wall hits stop
+            // propagation above). A released drag is a pan, not a deselect.
+            if (pan?.moved) return;
             if (tool === 'select' && !spacePanActive) onSelectWall(null, event.shiftKey);
           }}
         />
@@ -539,6 +559,9 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
                 onMouseUp={(event) => {
                   if (tool !== 'select' || spacePanActive) return;
                   event.stopPropagation();
+                  const pan = finishPan();
+                  // Releasing after a drag is a pan gesture, not a click.
+                  if (pan?.moved) return;
                   onSelectWall(wall.id, event.shiftKey);
                 }}
               />
