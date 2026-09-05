@@ -1,8 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  clampOpeningWidth,
+  clampT,
   clampThickness,
+  createDoor,
   createWall,
+  createWindow,
   emptyFloorPlan,
   isValidWall,
   wallLength,
@@ -40,6 +44,24 @@ describe('floorplan model', () => {
   });
 
   it('starts from an empty plan', () => {
-    assert.deepEqual(emptyFloorPlan(), { walls: [] });
+    assert.deepEqual(emptyFloorPlan(), { walls: [], doors: [], windows: [], rooms: [] });
+  });
+
+  it('creates doors and windows attached to walls without absolute coordinates', () => {
+    const door = createDoor('wall-1', 0.25, 0.9, 'right');
+    assert.equal(door.wallId, 'wall-1');
+    assert.equal(door.centerT, 0.25);
+    assert.equal(door.swing, 'right');
+    assert.ok(!('x' in door) && !('start' in door));
+    const window = createWindow('wall-1', 1.5, 99);
+    assert.equal(window.centerT, 1);
+    assert.equal(window.width, 3);
+  });
+
+  it('clamps opening widths and fractional positions', () => {
+    assert.equal(clampOpeningWidth(NaN), 0.9);
+    assert.equal(clampOpeningWidth(0.1), 0.4);
+    assert.equal(clampT(-2), 0);
+    assert.equal(clampT(2), 1);
   });
 });

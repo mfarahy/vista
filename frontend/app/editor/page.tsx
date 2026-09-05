@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+import { useCallback, useEffect, useRef, useState } from 'react';import Link from 'next/link';
 import {
+  AppWindow,
   BrickWall,
+  DoorOpen,
   Eraser,
   Maximize,
   MousePointer2,
@@ -21,9 +22,9 @@ import { Separator } from '@/components/ui/separator';
 import { VistaLogoLink } from '@/components/vista-logo';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import EditorCanvas, { type EditorCanvasHandle } from '@/components/floorplan-editor/editor-canvas';
-import { wallLength, type Vec2 } from '@/lib/floorplan/model';
-import { formatLengthM, type SnapKind } from '@/lib/floorplan/geometry';
-import { useFloorplanEditor, type EditorTool } from '@/lib/floorplan/use-floorplan-editor';
+import { wallLength, type Room, type Vec2 } from '@/lib/floorplan/model';
+import { formatAreaM2, formatLengthM, parseLengthM, type SnapKind } from '@/lib/floorplan/geometry';
+import { useFloorplanEditor, type EditorTool, type SelectionKind } from '@/lib/floorplan/use-floorplan-editor';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -38,13 +39,23 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
+const DOOR_WIDTH_PRESETS = [0.625, 0.75, 0.875, 1.0];
+const WINDOW_WIDTH_PRESETS = [0.8, 1.0, 1.2, 1.5, 2.0];
+
 export default function FloorPlanEditorPage() {
   const { t } = useI18n();
   const editor = useFloorplanEditor();
   const {
     walls,
+    rooms,
+    doors,
+    windows,
     selectedIds,
     selectedWalls,
+    selection,
+    selectedDoor,
+    selectedWindow,
+    selectedRoom,
     tool,
     pendingStart,
     thickness,
@@ -62,9 +73,24 @@ export default function FloorPlanEditorPage() {
     [editor],
   );
 
-  const handleSelectWall = useCallback(
-    (id: string | null, additive: boolean) => {
-      editor.selectWall(id, additive);
+  const handleSelect = useCallback(
+    (kind: SelectionKind, id: string | null, additive: boolean) => {
+      editor.select(kind, id, additive);
+    },
+    [editor],
+  );
+
+  const handlePlaceOpening = useCallback(
+    (kind: 'door' | 'window', wallId: string, centerT: number) => {
+      if (kind === 'door') editor.placeDoor(wallId, centerT);
+      else editor.placeWindow(wallId, centerT);
+    },
+    [editor],
+  );
+
+  const handleWallLengthCommit = useCallback(
+    (wallId: string, lengthM: number) => {
+      editor.setWallLengthM(wallId, lengthM);
     },
     [editor],
   );
@@ -93,8 +119,19 @@ export default function FloorPlanEditorPage() {
     [t],
   );
 
+  const formatRoomLabel = useCallback(
+    (room: Room) => {
+      if (room.name.trim()) return room.name;
+      const index = rooms.findIndex((candidate) => candidate.id === room.id);
+      return t('editor.roomDefault', { number: index + 1 });
+    },
+    [rooms, t],
+  );
+
+  const formatRoomArea = useCallback((room: Room) => formatAreaM2(room.areaM2), []);
+
   // Keyboard shortcuts: Delete/Backspace, Escape, Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y,
-  // V/W tool switch, Space temporary pan.
+  // V/W/D/F tool switch, Space temporary pan.
   const { pendingStart: pending, deleteSelected, cancelPending, clearSelection, setTool: setToolAction, undo, redo } = editor;
   const shortcutsRef = useRef({ deleteSelected, cancelPending, clearSelection, setToolAction, undo, redo, pending });
   shortcutsRef.current = { deleteSelected, cancelPending, clearSelection, setToolAction, undo, redo, pending };
@@ -129,6 +166,10 @@ export default function FloorPlanEditorPage() {
         actions.setToolAction('select');
       } else if (event.key.toLowerCase() === 'w') {
         actions.setToolAction('wall');
+      } else if (event.key.toLowerCase() === 'd') {
+        actions.setToolAction('door');
+      } else if (event.key.toLowerCase() === 'f') {
+        actions.setToolAction('window');
       }
     };
     const onKeyUp = (event: KeyboardEvent) => {
@@ -147,8 +188,18 @@ export default function FloorPlanEditorPage() {
 
   const totalLength = walls.reduce((sum, wall) => sum + wallLength(wall), 0);
   const firstSelected = selectedWalls[0] ?? null;
+  const hasSelection = selectedIds.length > 0 || selectedDoor !== null || selectedWindow !== null || selectedRoom !== null;
+  const isPlanEmpty = walls.length === 0 && doors.length === 0 && windows.length === 0;
 
   const setTool = (next: EditorTool) => editor.setTool(next);
+
+  const toolHint = pendingStart
+    ? t('editor.pendingHint')
+    : tool === 'door'
+      ? t('editor.doorHint')
+      : tool === 'window'
+        ? t('editor.windowHint')
+        : t('editor.drawingHint');
 
   return (
     <main className="flex min-h-screen flex-col bg-background">
@@ -232,9 +283,7 @@ export default function FloorPlanEditorPage() {
       <div className="border-b bg-muted/30">
         <div className="mx-auto flex max-w-none flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-xs text-muted-foreground sm:px-6">
           <span className="font-semibold text-foreground">{t('editor.title')}</span>
-          <span className="hidden md:inline">
-            {pendingStart ? t('editor.pendingHint') : t('editor.drawingHint')}
-          </span>
+          <span className="hidden md:inline">{toolHint}</span>
           <span className="ml-auto hidden lg:inline">{t('editor.panHint')}</span>
         </div>
       </div>
@@ -269,6 +318,30 @@ export default function FloorPlanEditorPage() {
             <BrickWall />
             <span className="text-xs">{t('editor.wallTool')}</span>
           </Button>
+          <Button
+            type="button"
+            variant={tool === 'door' ? 'default' : 'outline'}
+            size="lg"
+            title={t('editor.doorToolHint')}
+            aria-pressed={tool === 'door'}
+            onClick={() => setTool('door')}
+            className={cn('flex-1 lg:flex-none lg:flex-col lg:gap-1 lg:py-3')}
+          >
+            <DoorOpen />
+            <span className="text-xs">{t('editor.doorTool')}</span>
+          </Button>
+          <Button
+            type="button"
+            variant={tool === 'window' ? 'default' : 'outline'}
+            size="lg"
+            title={t('editor.windowToolHint')}
+            aria-pressed={tool === 'window'}
+            onClick={() => setTool('window')}
+            className={cn('flex-1 lg:flex-none lg:flex-col lg:gap-1 lg:py-3')}
+          >
+            <AppWindow />
+            <span className="text-xs">{t('editor.windowTool')}</span>
+          </Button>
           <div className="ml-auto flex items-center gap-2 lg:ml-0 lg:mt-2 lg:flex-col">
             <Button
               type="button"
@@ -276,7 +349,7 @@ export default function FloorPlanEditorPage() {
               size="icon-sm"
               aria-label={t('editor.deleteSelected')}
               title={t('editor.deleteSelected')}
-              disabled={selectedIds.length === 0}
+              disabled={!hasSelection}
               onClick={editor.deleteSelected}
             >
               <Trash2 />
@@ -287,7 +360,7 @@ export default function FloorPlanEditorPage() {
               size="icon-sm"
               aria-label={t('editor.clearAll')}
               title={t('editor.clearAll')}
-              disabled={walls.length === 0}
+              disabled={isPlanEmpty}
               onClick={() => {
                 if (window.confirm(t('editor.clearConfirm'))) editor.clearAll();
               }}
@@ -299,6 +372,10 @@ export default function FloorPlanEditorPage() {
             {t(walls.length === 1 ? 'editor.wallsCountOne' : 'editor.wallsCount', {
               count: walls.length,
             })}
+            <br />
+            {t(rooms.length === 1 ? 'editor.roomsCountOne' : 'editor.roomsCount', {
+              count: rooms.length,
+            })}
           </p>
         </aside>
 
@@ -307,18 +384,39 @@ export default function FloorPlanEditorPage() {
           <EditorCanvas
             ref={canvasRef}
             walls={walls}
+            rooms={rooms}
+            doors={doors}
+            windows={windows}
             selectedIds={selectedIds}
+            selectedOpening={
+              selectedDoor
+                ? { kind: 'door', id: selectedDoor.id }
+                : selectedWindow
+                  ? { kind: 'window', id: selectedWindow.id }
+                  : null
+            }
+            selectedRoomId={selectedRoom?.id ?? null}
             tool={tool}
             pendingStart={pendingStart}
             spacePanActive={spaceDown}
             snapLabel={snapLabel}
             canvasAriaLabel={t('editor.canvasAria')}
+            formatRoomLabel={formatRoomLabel}
+            formatRoomArea={formatRoomArea}
+            dimensionEditTitle={t('editor.dimensionEditTitle')}
             onDrawClick={handleDrawClick}
-            onSelectWall={handleSelectWall}
+            onSelect={handleSelect}
             onFinishChain={handleFinishChain}
             onViewChange={handleViewChange}
+            onPlaceOpening={handlePlaceOpening}
+            onWallLengthCommit={handleWallLengthCommit}
+            onBeginTransient={editor.beginTransient}
+            onPreviewWallEndpoint={editor.previewWallEndpoint}
+            onPreviewWallMove={editor.previewWallMove}
+            onPreviewOpeningT={editor.previewOpeningT}
+            onEndTransient={editor.endTransient}
           />
-          {walls.length === 0 && !pendingStart && (
+          {isPlanEmpty && !pendingStart && (
             <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center px-4">
               <p className="max-w-md rounded-lg border bg-background/95 px-4 py-2 text-center text-xs text-muted-foreground shadow-sm">
                 {t('editor.emptyPlan')}
@@ -330,37 +428,46 @@ export default function FloorPlanEditorPage() {
         {/* Minimal properties area */}
         <aside className="w-full shrink-0 border-t bg-card px-4 py-4 lg:w-72 lg:border-l lg:border-t-0">
           <div className="space-y-4">
-            <div>
-              <h2 className="text-sm font-semibold">{t('editor.selectedWall')}</h2>
-              {firstSelected ? (
-                <dl className="mt-2 space-y-1 text-xs text-muted-foreground">
-                  <div className="flex justify-between gap-2">
-                    <dt>{t('editor.wallLength')}</dt>
-                    <dd className="font-semibold text-foreground">
-                      {formatLengthM(wallLength(firstSelected))}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-2">
-                    <dt>{t('editor.wallThickness')}</dt>
-                    <dd className="font-semibold text-foreground">
-                      {t('editor.thicknessUnit', {
-                        value: firstSelected.thickness.toFixed(2),
-                      })}
-                    </dd>
-                  </div>
-                  {selectedIds.length > 1 && (
-                    <div className="flex justify-between gap-2">
-                      <dt>{t('editor.selectedCount', { count: selectedIds.length })}</dt>
-                      <dd className="font-semibold text-foreground">
-                        {t('editor.totalLength', { value: formatLengthM(totalLength) })}
-                      </dd>
-                    </div>
-                  )}
-                </dl>
-              ) : (
-                <p className="mt-2 text-xs text-muted-foreground">{t('editor.noSelection')}</p>
-              )}
-            </div>
+            <SelectionPanel
+              selectionKind={selection?.kind ?? null}
+              firstSelected={firstSelected}
+              selectedCount={selectedIds.length}
+              selectedCountLabel={t('editor.selectedCount', { count: selectedIds.length })}
+              totalLengthLabel={t('editor.totalLength', { value: formatLengthM(totalLength) })}
+              noSelectionLabel={t('editor.noSelection')}
+              selectedWallLabel={t('editor.selectedWall')}
+              wallLengthLabel={t('editor.wallLength')}
+              wallLengthEditLabel={t('editor.wallLengthEdit')}
+              wallThicknessLabel={t('editor.wallThickness')}
+              thicknessUnitLabel={(value: string) => t('editor.thicknessUnit', { value })}
+              attachedLabel={(count: number) =>
+                t(count === 1 ? 'editor.attachedOpeningsOne' : 'editor.attachedOpenings', { count })
+              }
+              selectedDoor={selectedDoor}
+              selectedDoorLabel={t('editor.selectedDoor')}
+              hostWallLabel={t('editor.hostWall')}
+              openingWidthLabel={t('editor.openingWidth')}
+              widthUnitLabel={(value: string) => t('editor.widthUnit', { value })}
+              doorSwingLabel={t('editor.doorSwing')}
+              swingLeftLabel={t('editor.swingLeft')}
+              swingRightLabel={t('editor.swingRight')}
+              selectedWindow={selectedWindow}
+              selectedWindowLabel={t('editor.selectedWindow')}
+              selectedRoom={selectedRoom}
+              selectedRoomLabel={t('editor.selectedRoom')}
+              roomNameLabel={t('editor.roomName')}
+              roomNamePlaceholder={t('editor.roomNamePlaceholder')}
+              roomAreaLabel={t('editor.roomArea')}
+              walls={walls}
+              doors={doors}
+              windows={windows}
+              formatRoomLabel={formatRoomLabel}
+              onWallLengthCommit={handleWallLengthCommit}
+              onDoorWidth={(id, width) => editor.setDoorWidth(id, width)}
+              onWindowWidth={(id, width) => editor.setWindowWidth(id, width)}
+              onDoorSwing={(id, swing) => editor.setDoorSwing(id, swing)}
+              onRenameRoom={(id, name) => editor.renameRoom(id, name)}
+            />
 
             <Separator />
 
@@ -411,7 +518,7 @@ export default function FloorPlanEditorPage() {
                 variant="destructive"
                 size="sm"
                 className="w-full"
-                disabled={selectedIds.length === 0}
+                disabled={!hasSelection}
                 onClick={editor.deleteSelected}
               >
                 <Trash2 /> {t('editor.deleteSelected')}
@@ -432,7 +539,10 @@ export default function FloorPlanEditorPage() {
               <p>Ctrl/⌘ Z — {t('editor.shortcutUndo')}</p>
               <p>Ctrl/⌘ ⇧ Z — {t('editor.shortcutRedo')}</p>
               <p>Space — {t('editor.shortcutPan')}</p>
-              <p>V / W — {t('editor.selectTool')} / {t('editor.wallTool')}</p>
+              <p>
+                V / W / D / F — {t('editor.selectTool')} / {t('editor.wallTool')} /{' '}
+                {t('editor.doorTool')} / {t('editor.windowTool')}
+              </p>
             </div>
 
             <Button variant="link" size="sm" asChild className="px-0">
@@ -442,5 +552,347 @@ export default function FloorPlanEditorPage() {
         </aside>
       </div>
     </main>
+  );
+}
+
+type SelectionPanelProps = {
+  selectionKind: SelectionKind | null;
+  firstSelected: { id: string; start: Vec2; end: Vec2; thickness: number } | null;
+  selectedCount: number;
+  selectedCountLabel: string;
+  totalLengthLabel: string;
+  noSelectionLabel: string;
+  selectedWallLabel: string;
+  wallLengthLabel: string;
+  wallLengthEditLabel: string;
+  wallThicknessLabel: string;
+  thicknessUnitLabel: (value: string) => string;
+  attachedLabel: (count: number) => string;
+  selectedDoor: { id: string; wallId: string; width: number; swing: 'left' | 'right' } | null;
+  selectedDoorLabel: string;
+  hostWallLabel: string;
+  openingWidthLabel: string;
+  widthUnitLabel: (value: string) => string;
+  doorSwingLabel: string;
+  swingLeftLabel: string;
+  swingRightLabel: string;
+  selectedWindow: { id: string; wallId: string; width: number } | null;
+  selectedWindowLabel: string;
+  selectedRoom: Room | null;
+  selectedRoomLabel: string;
+  roomNameLabel: string;
+  roomNamePlaceholder: string;
+  roomAreaLabel: string;
+  walls: { id: string; start: Vec2; end: Vec2 }[];
+  doors: { id: string; wallId: string }[];
+  windows: { id: string; wallId: string }[];
+  formatRoomLabel: (room: Room) => string;
+  onWallLengthCommit: (wallId: string, lengthM: number) => void;
+  onDoorWidth: (id: string, width: number) => void;
+  onWindowWidth: (id: string, width: number) => void;
+  onDoorSwing: (id: string, swing: 'left' | 'right') => void;
+  onRenameRoom: (id: string, name: string) => void;
+};
+
+function SelectionPanel(props: SelectionPanelProps) {
+  const {
+    selectionKind,
+    firstSelected,
+    selectedDoor,
+    selectedWindow,
+    selectedRoom,
+    walls,
+    doors,
+    windows,
+  } = props;
+
+  if (selectionKind === 'door' && selectedDoor) {
+    const host = walls.find((wall) => wall.id === selectedDoor.wallId);
+    const hostLength = host
+      ? Math.hypot(host.end.x - host.start.x, host.end.y - host.start.y)
+      : null;
+    return (
+      <div>
+        <h2 className="text-sm font-semibold">{props.selectedDoorLabel}</h2>
+        <dl className="mt-2 space-y-1 text-xs text-muted-foreground">
+          <div className="flex justify-between gap-2">
+            <dt>{props.hostWallLabel}</dt>
+            <dd className="font-semibold text-foreground">
+              {hostLength === null ? '—' : formatLengthM(hostLength)}
+            </dd>
+          </div>
+        </dl>
+        <div className="mt-3 space-y-2">
+          <Label htmlFor="door-width">{props.openingWidthLabel}</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="door-width"
+              type="number"
+              min={0.4}
+              max={3}
+              step={0.01}
+              value={selectedDoor.width.toFixed(2)}
+              onChange={(event) => {
+                const parsed = parseLengthM(event.target.value);
+                if (parsed !== null) props.onDoorWidth(selectedDoor.id, parsed);
+              }}
+              className="w-24"
+            />
+            <span className="text-xs text-muted-foreground">m</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {DOOR_WIDTH_PRESETS.map((preset) => (
+              <Button
+                key={preset}
+                type="button"
+                variant={Math.abs(selectedDoor.width - preset) < 1e-9 ? 'default' : 'outline'}
+                size="xs"
+                onClick={() => props.onDoorWidth(selectedDoor.id, preset)}
+              >
+                {preset.toFixed(3).replace(/0$/, '')}
+              </Button>
+            ))}
+          </div>
+        </div>
+        <div className="mt-3 space-y-2">
+          <Label>{props.doorSwingLabel}</Label>
+          <div className="flex gap-1">
+            {(['left', 'right'] as const).map((swing) => (
+              <Button
+                key={swing}
+                type="button"
+                variant={selectedDoor.swing === swing ? 'default' : 'outline'}
+                size="xs"
+                onClick={() => props.onDoorSwing(selectedDoor.id, swing)}
+              >
+                {swing === 'left' ? props.swingLeftLabel : props.swingRightLabel}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (selectionKind === 'window' && selectedWindow) {
+    const host = walls.find((wall) => wall.id === selectedWindow.wallId);
+    const hostLength = host
+      ? Math.hypot(host.end.x - host.start.x, host.end.y - host.start.y)
+      : null;
+    return (
+      <div>
+        <h2 className="text-sm font-semibold">{props.selectedWindowLabel}</h2>
+        <dl className="mt-2 space-y-1 text-xs text-muted-foreground">
+          <div className="flex justify-between gap-2">
+            <dt>{props.hostWallLabel}</dt>
+            <dd className="font-semibold text-foreground">
+              {hostLength === null ? '—' : formatLengthM(hostLength)}
+            </dd>
+          </div>
+        </dl>
+        <div className="mt-3 space-y-2">
+          <Label htmlFor="window-width">{props.openingWidthLabel}</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="window-width"
+              type="number"
+              min={0.4}
+              max={3}
+              step={0.01}
+              value={selectedWindow.width.toFixed(2)}
+              onChange={(event) => {
+                const parsed = parseLengthM(event.target.value);
+                if (parsed !== null) props.onWindowWidth(selectedWindow.id, parsed);
+              }}
+              className="w-24"
+            />
+            <span className="text-xs text-muted-foreground">m</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {WINDOW_WIDTH_PRESETS.map((preset) => (
+              <Button
+                key={preset}
+                type="button"
+                variant={Math.abs(selectedWindow.width - preset) < 1e-9 ? 'default' : 'outline'}
+                size="xs"
+                onClick={() => props.onWindowWidth(selectedWindow.id, preset)}
+              >
+                {preset.toFixed(3).replace(/0$/, '')}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (selectionKind === 'room' && selectedRoom) {
+    return (
+      <div>
+        <h2 className="text-sm font-semibold">{props.selectedRoomLabel}</h2>
+        <dl className="mt-2 space-y-1 text-xs text-muted-foreground">
+          <div className="flex justify-between gap-2">
+            <dt>{props.roomAreaLabel}</dt>
+            <dd className="font-semibold text-foreground">{formatAreaM2(selectedRoom.areaM2)}</dd>
+          </div>
+        </dl>
+        <div className="mt-3 space-y-2">
+          <Label htmlFor="room-name">{props.roomNameLabel}</Label>
+          <RoomNameInput
+            key={selectedRoom.id}
+            roomId={selectedRoom.id}
+            initialName={selectedRoom.name}
+            placeholder={props.roomNamePlaceholder}
+            fallbackLabel={props.formatRoomLabel(selectedRoom)}
+            onRename={props.onRenameRoom}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (firstSelected) {
+    const attachedCount =
+      doors.filter((door) => door.wallId === firstSelected.id).length +
+      windows.filter((window) => window.wallId === firstSelected.id).length;
+    return (
+      <div>
+        <h2 className="text-sm font-semibold">{props.selectedWallLabel}</h2>
+        <dl className="mt-2 space-y-1 text-xs text-muted-foreground">
+          <div className="flex justify-between gap-2">
+            <dt>{props.wallLengthLabel}</dt>
+            <dd className="font-semibold text-foreground">
+              {formatLengthM(
+                Math.hypot(
+                  firstSelected.end.x - firstSelected.start.x,
+                  firstSelected.end.y - firstSelected.start.y,
+                ),
+              )}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt>{props.wallThicknessLabel}</dt>
+            <dd className="font-semibold text-foreground">
+              {props.thicknessUnitLabel(firstSelected.thickness.toFixed(2))}
+            </dd>
+          </div>
+          {attachedCount > 0 && (
+            <div className="flex justify-between gap-2">
+              <dt>{props.attachedLabel(attachedCount)}</dt>
+              <dd className="font-semibold text-foreground">{attachedCount}</dd>
+            </div>
+          )}
+          {props.selectedCount > 1 && (
+            <div className="flex justify-between gap-2">
+              <dt>{props.selectedCountLabel}</dt>
+              <dd className="font-semibold text-foreground">{props.totalLengthLabel}</dd>
+            </div>
+          )}
+        </dl>
+        <WallLengthInput
+          key={firstSelected.id}
+          wallId={firstSelected.id}
+          lengthM={Math.hypot(
+            firstSelected.end.x - firstSelected.start.x,
+            firstSelected.end.y - firstSelected.start.y,
+          )}
+          label={props.wallLengthEditLabel}
+          onCommit={props.onWallLengthCommit}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2 className="text-sm font-semibold">{props.selectedWallLabel}</h2>
+      <p className="mt-2 text-xs text-muted-foreground">{props.noSelectionLabel}</p>
+    </div>
+  );
+}
+
+function WallLengthInput({
+  wallId,
+  lengthM,
+  label,
+  onCommit,
+}: {
+  wallId: string;
+  lengthM: number;
+  label: string;
+  onCommit: (wallId: string, lengthM: number) => void;
+}) {
+  const [draft, setDraft] = useState(lengthM.toFixed(2));
+  const [focused, setFocused] = useState(false);
+  // Keep the field in sync with live geometry (e.g. endpoint drags) unless
+  // the user is actively editing.
+  useEffect(() => {
+    if (!focused) setDraft(lengthM.toFixed(2));
+  }, [lengthM, focused]);
+  return (
+    <div className="mt-3 space-y-2">
+      <Label htmlFor={`wall-length-${wallId}`}>{label}</Label>
+      <div className="flex items-center gap-2">
+        <Input
+          id={`wall-length-${wallId}`}
+          type="number"
+          min={0.05}
+          step={0.01}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => {
+            setFocused(false);
+            const parsed = parseLengthM(draft);
+            if (parsed !== null && parsed >= 0.05) onCommit(wallId, parsed);
+            else setDraft(lengthM.toFixed(2));
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              const parsed = parseLengthM(draft);
+              if (parsed !== null && parsed >= 0.05) onCommit(wallId, parsed);
+              else setDraft(lengthM.toFixed(2));
+              (event.target as HTMLInputElement).blur();
+            }
+          }}
+          className="w-24"
+        />
+        <span className="text-xs text-muted-foreground">m</span>
+      </div>
+    </div>
+  );
+}
+
+function RoomNameInput({
+  roomId,
+  initialName,
+  placeholder,
+  fallbackLabel,
+  onRename,
+}: {
+  roomId: string;
+  initialName: string;
+  placeholder: string;
+  fallbackLabel: string;
+  onRename: (id: string, name: string) => void;
+}) {
+  const [draft, setDraft] = useState(initialName);
+  return (
+    <Input
+      id="room-name"
+      type="text"
+      value={draft}
+      placeholder={fallbackLabel || placeholder}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={() => {
+        if (draft !== initialName) onRename(roomId, draft.trim());
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          if (draft !== initialName) onRename(roomId, draft.trim());
+          (event.target as HTMLInputElement).blur();
+        }
+      }}
+    />
   );
 }

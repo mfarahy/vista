@@ -5,17 +5,57 @@ import {
   DEFAULT_WALL_THICKNESS_M,
   clampThickness,
   createWall,
+  emptyFloorPlan,
   isValidWall,
+  type Door,
+  type DoorSwing,
+  type FloorPlan,
+  type Room,
   type Vec2,
   type Wall,
+  type Window,
 } from './model';
+import {
+  clonePlan,
+  planAddDoor,
+  planAddWall,
+  planAddWindow,
+  planDeleteOpenings,
+  planDeleteWalls,
+  planMoveDoor,
+  planMoveWall,
+  planMoveWindow,
+  planRenameRoom,
+  planSetDoorSwing,
+  planSetDoorWidth,
+  planSetWallEndpoint,
+  planSetWallLength,
+  planSetWallThickness,
+  planSetWindowWidth,
+  pushHistory,
+  redoStep,
+  undoStep,
+  withRooms,
+} from './plan-ops';
 
-export type EditorTool = 'select' | 'wall';
+export type EditorTool = 'select' | 'wall' | 'door' | 'window';
+
+export type SelectionKind = 'wall' | 'door' | 'window' | 'room';
+export type Selection = { kind: SelectionKind; id: string } | null;
 
 export type UseFloorplanEditorResult = {
+  plan: FloorPlan;
   walls: Wall[];
+  doors: Door[];
+  windows: Window[];
+  rooms: Room[];
+  /** Multi-selected wall ids (Phase 1 behavior, Shift-click). */
   selectedIds: string[];
   selectedWalls: Wall[];
+  selection: Selection;
+  selectedDoor: Door | null;
+  selectedWindow: Window | null;
+  selectedRoom: Room | null;
   tool: EditorTool;
   pendingStart: Vec2 | null;
   thickness: number;
@@ -27,51 +67,76 @@ export type UseFloorplanEditorResult = {
   finishWallSegment: (point: Vec2) => Wall | null;
   cancelPending: () => void;
   selectWall: (id: string | null, additive?: boolean) => void;
+  select: (kind: SelectionKind, id: string | null, additive?: boolean) => void;
   clearSelection: () => void;
   deleteSelected: () => void;
   applyThicknessToSelection: () => void;
   clearAll: () => void;
   undo: () => void;
   redo: () => void;
+  // Phase 2: precision wall editing
+  setWallLengthM: (wallId: string, lengthM: number) => boolean;
+  // Phase 2: transient drags (endpoint / wall move / opening slide).
+  // beginTransient snapshots; preview* updates without history; endTransient
+  // records a single undo step (or restores when cancelled).
+  beginTransient: () => void;
+  previewWallEndpoint: (wallId: string, which: 'start' | 'end', point: Vec2) => void;
+  previewWallMove: (wallId: string, delta: Vec2) => void;
+  previewOpeningT: (kind: 'door' | 'window', id: string, centerT: number) => void;
+  endTransient: (commit: boolean) => void;
+  // Phase 2: doors & windows
+  placeDoor: (wallId: string, centerT: number) => Door | null;
+  placeWindow: (wallId: string, centerT: number) => Window | null;
+  setDoorWidth: (doorId: string, width: number) => void;
+  setWindowWidth: (windowId: string, width: number) => void;
+  setDoorSwing: (doorId: string, swing: DoorSwing) => void;
+  // Phase 2: rooms
+  renameRoom: (roomId: string, name: string) => void;
 };
 
 const HISTORY_LIMIT = 100;
 
-function cloneWalls(walls: Wall[]): Wall[] {
-  return walls.map((wall) => ({
-    ...wall,
-    start: { ...wall.start },
-    end: { ...wall.end },
-  }));
-}
-
 /**
- * Editor state with a small snapshot-based undo/redo.
- * History stores wall arrays only (selection/tool are transient).
+ * Editor state with snapshot-based undo/redo over the whole FloorPlan
+ * (walls, doors, windows; rooms re-derive but keep user names).
+ * Selection and tool are transient and never enter history.
  */
 export function useFloorplanEditor(): UseFloorplanEditorResult {
-  const [walls, setWalls] = useState<Wall[]>([]);
+  const [plan, setPlan] = useState<FloorPlan>(() => emptyFloorPlan());
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedOpening, setSelectedOpening] = useState<{ kind: 'door' | 'window'; id: string } | null>(null);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [tool, setToolState] = useState<EditorTool>('wall');
   const [pendingStart, setPendingStart] = useState<Vec2 | null>(null);
   const [thickness, setThicknessState] = useState<number>(DEFAULT_WALL_THICKNESS_M);
-  const wallsRef = useRef<Wall[]>([]);
+  const planRef = useRef<FloorPlan>(emptyFloorPlan());
   const pendingRef = useRef<Vec2 | null>(null);
   const thicknessRef = useRef<number>(DEFAULT_WALL_THICKNESS_M);
   const selectedRef = useRef<string[]>([]);
-  const pastRef = useRef<Wall[][]>([]);
-  const futureRef = useRef<Wall[][]>([]);
+  const openingRef = useRef<{ kind: 'door' | 'window'; id: string } | null>(null);
+  const roomRef = useRef<string | null>(null);
+  const pastRef = useRef<FloorPlan[]>([]);
+  const futureRef = useRef<FloorPlan[]>([]);
+  const transientRef = useRef<FloorPlan | null>(null);
   const [historyVersion, setHistoryVersion] = useState(0);
 
-  const commitWalls = useCallback((next: Wall[], recordHistory = true) => {
+  const commitPlan = useCallback((next: FloorPlan, recordHistory = true) => {
     if (recordHistory) {
-      pastRef.current.push(cloneWalls(wallsRef.current));
-      if (pastRef.current.length > HISTORY_LIMIT) pastRef.current.shift();
+      pastRef.current = pushHistory(pastRef.current, clonePlan(planRef.current), HISTORY_LIMIT);
       futureRef.current = [];
     }
-    wallsRef.current = next;
-    setWalls(next);
+    planRef.current = next;
+    setPlan(next);
     setHistoryVersion((n) => n + 1);
+  }, []);
+
+  const clearTransientSelection = useCallback(() => {
+    selectedRef.current = [];
+    setSelectedIds([]);
+    openingRef.current = null;
+    setSelectedOpening(null);
+    roomRef.current = null;
+    setSelectedRoomId(null);
   }, []);
 
   const setTool = useCallback((next: EditorTool) => {
@@ -100,105 +165,278 @@ export function useFloorplanEditor(): UseFloorplanEditorResult {
     }
     const candidate = createWall(start, point, thicknessRef.current);
     if (!isValidWall(candidate)) return null;
-    commitWalls([...wallsRef.current, candidate]);
-    // Keep chaining: the next segment starts where this one ended.
+    commitPlan(planAddWall(planRef.current, candidate));
     pendingRef.current = { ...point };
     setPendingStart({ ...point });
     selectedRef.current = [candidate.id];
     setSelectedIds([candidate.id]);
+    openingRef.current = null;
+    setSelectedOpening(null);
+    roomRef.current = null;
+    setSelectedRoomId(null);
     return candidate;
-  }, [commitWalls]);
+  }, [commitPlan]);
 
   const cancelPending = useCallback(() => {
     pendingRef.current = null;
     setPendingStart(null);
   }, []);
 
-  const selectWall = useCallback((id: string | null, additive = false) => {
+  const select = useCallback((kind: SelectionKind, id: string | null, additive = false) => {
     if (id === null) {
-      selectedRef.current = [];
-      setSelectedIds([]);
+      if (!additive) {
+        selectedRef.current = [];
+        setSelectedIds([]);
+        openingRef.current = null;
+        setSelectedOpening(null);
+        roomRef.current = null;
+        setSelectedRoomId(null);
+      }
       return;
     }
-    const current = selectedRef.current;
-    const next = additive
-      ? current.includes(id)
-        ? current.filter((item) => item !== id)
-        : [...current, id]
-      : [id];
-    selectedRef.current = next;
-    setSelectedIds(next);
+    if (kind === 'wall') {
+      const current = selectedRef.current;
+      const next = additive
+        ? current.includes(id)
+          ? current.filter((item) => item !== id)
+          : [...current, id]
+        : [id];
+      selectedRef.current = next;
+      setSelectedIds(next);
+      openingRef.current = null;
+      setSelectedOpening(null);
+      roomRef.current = null;
+      setSelectedRoomId(null);
+      return;
+    }
+    // Doors, windows and rooms are single-select and replace wall selection.
+    selectedRef.current = [];
+    setSelectedIds([]);
+    if (kind === 'room') {
+      roomRef.current = id;
+      setSelectedRoomId(id);
+      openingRef.current = null;
+      setSelectedOpening(null);
+    } else {
+      openingRef.current = { kind, id };
+      setSelectedOpening({ kind, id });
+      roomRef.current = null;
+      setSelectedRoomId(null);
+    }
   }, []);
+
+  const selectWall = useCallback((id: string | null, additive = false) => {
+    select('wall', id, additive);
+  }, [select]);
 
   const clearSelection = useCallback(() => {
-    selectedRef.current = [];
-    setSelectedIds([]);
-  }, []);
+    clearTransientSelection();
+  }, [clearTransientSelection]);
 
   const deleteSelected = useCallback(() => {
-    if (selectedRef.current.length === 0) return;
-    const ids = new Set(selectedRef.current);
-    commitWalls(wallsRef.current.filter((wall) => !ids.has(wall.id)));
-    selectedRef.current = [];
-    setSelectedIds([]);
-  }, [commitWalls]);
+    const wallIds = selectedRef.current;
+    const opening = openingRef.current;
+    if (wallIds.length === 0 && !opening) return;
+    let next = planRef.current;
+    if (wallIds.length > 0) next = planDeleteWalls(next, wallIds);
+    if (opening) {
+      next = planDeleteOpenings(
+        next,
+        opening.kind === 'door' ? [opening.id] : [],
+        opening.kind === 'window' ? [opening.id] : [],
+      );
+    }
+    commitPlan(next);
+    clearTransientSelection();
+  }, [commitPlan, clearTransientSelection]);
 
   const applyThicknessToSelection = useCallback(() => {
     if (selectedRef.current.length === 0) return;
-    const ids = new Set(selectedRef.current);
-    commitWalls(
-      wallsRef.current.map((wall) =>
-        ids.has(wall.id) ? { ...wall, thickness: thicknessRef.current } : wall,
-      ),
-    );
-  }, [commitWalls]);
+    commitPlan(planSetWallThickness(planRef.current, selectedRef.current, thicknessRef.current));
+  }, [commitPlan]);
 
   const clearAll = useCallback(() => {
-    if (wallsRef.current.length === 0) return;
-    commitWalls([]);
-    selectedRef.current = [];
-    setSelectedIds([]);
+    const current = planRef.current;
+    if (current.walls.length === 0 && current.doors.length === 0 && current.windows.length === 0) return;
+    commitPlan(withRooms(emptyFloorPlan(), []));
+    clearTransientSelection();
     pendingRef.current = null;
     setPendingStart(null);
-  }, [commitWalls]);
+  }, [commitPlan, clearTransientSelection]);
 
   const undo = useCallback(() => {
-    const previous = pastRef.current.pop();
-    if (!previous) return;
-    futureRef.current.push(cloneWalls(wallsRef.current));
-    wallsRef.current = previous;
-    setWalls(previous);
-    selectedRef.current = [];
-    setSelectedIds([]);
+    const step = undoStep(    pastRef.current, futureRef.current, clonePlan(planRef.current));
+    if (!step) return;
+    pastRef.current = step.past;
+    futureRef.current = step.future;
+    planRef.current = step.current;
+    setPlan(step.current);
+    clearTransientSelection();
     pendingRef.current = null;
     setPendingStart(null);
     setHistoryVersion((n) => n + 1);
-  }, []);
+  }, [clearTransientSelection]);
 
   const redo = useCallback(() => {
-    const next = futureRef.current.pop();
-    if (!next) return;
-    pastRef.current.push(cloneWalls(wallsRef.current));
-    wallsRef.current = next;
-    setWalls(next);
-    selectedRef.current = [];
-    setSelectedIds([]);
+    const step = redoStep(    pastRef.current, futureRef.current, clonePlan(planRef.current));
+    if (!step) return;
+    pastRef.current = step.past;
+    futureRef.current = step.future;
+    planRef.current = step.current;
+    setPlan(step.current);
+    clearTransientSelection();
     pendingRef.current = null;
     setPendingStart(null);
     setHistoryVersion((n) => n + 1);
+  }, [clearTransientSelection]);
+
+  // --- Precision wall editing --------------------------------------------
+
+  const setWallLengthM = useCallback((wallId: string, lengthM: number): boolean => {
+    const next = planSetWallLength(planRef.current, wallId, lengthM);
+    if (!next) return false;
+    commitPlan(next);
+    return true;
+  }, [commitPlan]);
+
+  const beginTransient = useCallback(() => {
+    transientRef.current = clonePlan(planRef.current);
   }, []);
 
+  const previewWallEndpoint = useCallback((wallId: string, which: 'start' | 'end', point: Vec2) => {
+    const next = planSetWallEndpoint(planRef.current, wallId, which, point);
+    if (!next) return;
+    planRef.current = next;
+    setPlan(next);
+  }, []);
+
+  const previewWallMove = useCallback((wallId: string, delta: Vec2) => {
+    // Deltas are absolute from the grab point: always apply to the drag-start
+    // snapshot, otherwise repeated previews would compound the movement.
+    const base = transientRef.current ?? planRef.current;
+    const next = planMoveWall(base, wallId, delta);
+    if (!next) return;
+    planRef.current = next;
+    setPlan(next);
+  }, []);
+
+  const previewOpeningT = useCallback((kind: 'door' | 'window', id: string, centerT: number) => {
+    const next =
+      kind === 'door'
+        ? planMoveDoor(planRef.current, id, centerT)
+        : planMoveWindow(planRef.current, id, centerT);
+    if (!next) return;
+    planRef.current = next;
+    setPlan(next);
+  }, []);
+
+  const endTransient = useCallback((commit: boolean) => {
+    const snapshot = transientRef.current;
+    transientRef.current = null;
+    if (!snapshot) return;
+    if (commit) {
+      pastRef.current = pushHistory(pastRef.current, snapshot, HISTORY_LIMIT);
+      futureRef.current = [];
+      setHistoryVersion((n) => n + 1);
+    } else {
+      planRef.current = snapshot;
+      setPlan(snapshot);
+    }
+  }, []);
+
+  // --- Doors & windows -----------------------------------------------------
+
+  const placeDoor = useCallback((wallId: string, centerT: number): Door | null => {
+    const result = planAddDoor(planRef.current, wallId, centerT);
+    if (!result) return null;
+    commitPlan(result.plan);
+    openingRef.current = { kind: 'door', id: result.door.id };
+    setSelectedOpening({ kind: 'door', id: result.door.id });
+    selectedRef.current = [];
+    setSelectedIds([]);
+    roomRef.current = null;
+    setSelectedRoomId(null);
+    return result.door;
+  }, [commitPlan]);
+
+  const placeWindow = useCallback((wallId: string, centerT: number): Window | null => {
+    const result = planAddWindow(planRef.current, wallId, centerT);
+    if (!result) return null;
+    commitPlan(result.plan);
+    openingRef.current = { kind: 'window', id: result.window.id };
+    setSelectedOpening({ kind: 'window', id: result.window.id });
+    selectedRef.current = [];
+    setSelectedIds([]);
+    roomRef.current = null;
+    setSelectedRoomId(null);
+    return result.window;
+  }, [commitPlan]);
+
+  const setDoorWidth = useCallback((doorId: string, width: number) => {
+    const next = planSetDoorWidth(planRef.current, doorId, width);
+    if (next) commitPlan(next);
+  }, [commitPlan]);
+
+  const setWindowWidth = useCallback((windowId: string, width: number) => {
+    const next = planSetWindowWidth(planRef.current, windowId, width);
+    if (next) commitPlan(next);
+  }, [commitPlan]);
+
+  const setDoorSwing = useCallback((doorId: string, swing: DoorSwing) => {
+    const next = planSetDoorSwing(planRef.current, doorId, swing);
+    if (next) commitPlan(next);
+  }, [commitPlan]);
+
+  // --- Rooms ---------------------------------------------------------------
+
+  const renameRoom = useCallback((roomId: string, name: string) => {
+    const next = planRenameRoom(planRef.current, roomId, name);
+    if (next) commitPlan(next);
+  }, [commitPlan]);
+
   const selectedWalls = useMemo(
-    () => walls.filter((wall) => selectedIds.includes(wall.id)),
-    [walls, selectedIds],
+    () => plan.walls.filter((wall) => selectedIds.includes(wall.id)),
+    [plan.walls, selectedIds],
   );
+  const selectedDoor = useMemo(
+    () =>
+      selectedOpening?.kind === 'door'
+        ? (plan.doors.find((door) => door.id === selectedOpening.id) ?? null)
+        : null,
+    [plan.doors, selectedOpening],
+  );
+  const selectedWindow = useMemo(
+    () =>
+      selectedOpening?.kind === 'window'
+        ? (plan.windows.find((window) => window.id === selectedOpening.id) ?? null)
+        : null,
+    [plan.windows, selectedOpening],
+  );
+  const selectedRoom = useMemo(
+    () => (selectedRoomId ? (plan.rooms.find((room) => room.id === selectedRoomId) ?? null) : null),
+    [plan.rooms, selectedRoomId],
+  );
+  const selection: Selection = useMemo(() => {
+    if (selectedOpening) return { kind: selectedOpening.kind, id: selectedOpening.id };
+    if (selectedRoomId) return { kind: 'room', id: selectedRoomId };
+    const first = selectedIds[0];
+    return first ? { kind: 'wall', id: first } : null;
+  }, [selectedOpening, selectedRoomId, selectedIds]);
 
   void historyVersion;
 
   return {
-    walls,
+    plan,
+    walls: plan.walls,
+    doors: plan.doors,
+    windows: plan.windows,
+    rooms: plan.rooms,
     selectedIds,
     selectedWalls,
+    selection,
+    selectedDoor,
+    selectedWindow,
+    selectedRoom,
     tool,
     pendingStart,
     thickness,
@@ -210,11 +448,24 @@ export function useFloorplanEditor(): UseFloorplanEditorResult {
     finishWallSegment,
     cancelPending,
     selectWall,
+    select,
     clearSelection,
     deleteSelected,
     applyThicknessToSelection,
     clearAll,
     undo,
     redo,
+    setWallLengthM,
+    beginTransient,
+    previewWallEndpoint,
+    previewWallMove,
+    previewOpeningT,
+    endTransient,
+    placeDoor,
+    placeWindow,
+    setDoorWidth,
+    setWindowWidth,
+    setDoorSwing,
+    renameRoom,
   };
 }
